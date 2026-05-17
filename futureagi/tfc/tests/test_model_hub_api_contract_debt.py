@@ -779,7 +779,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "EvalSummaryTemplateDeleteResponse"
         ),
         ("POST", "/model-hub/eval-templates/bulk-delete/"): (
-            "ModelHubJSONResponse"
+            "EvalTemplateBulkDeleteResponse"
         ),
         ("POST", "/model-hub/eval-templates/composite/execute-adhoc/"): (
             "CompositeEvalExecuteResponse"
@@ -788,11 +788,11 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "CompositeEvalCreateResponse"
         ),
         ("POST", "/model-hub/eval-templates/create-v2/"): (
-            "ModelHubJSONResponse"
+            "EvalTemplateCreateResponse"
         ),
-        ("POST", "/model-hub/eval-templates/list/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-templates/list/"): "EvalTemplateListResponse",
         ("POST", "/model-hub/eval-templates/list-charts/"): (
-            "ModelHubJSONResponse"
+            "EvalTemplateListChartsResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/composite/"): (
             "CompositeEvalDetailResponse"
@@ -804,7 +804,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "CompositeEvalExecuteResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/detail/"): (
-            "ModelHubJSONResponse"
+            "EvalTemplateDetailResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/ground-truth/"): (
             "GroundTruthListResponse"
@@ -819,7 +819,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "GroundTruthConfigResponse"
         ),
         ("PUT", "/model-hub/eval-templates/{template_id}/update/"): (
-            "ModelHubJSONResponse"
+            "EvalTemplateUpdateResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/versions/"): (
             "EvalTemplateVersionListResponse"

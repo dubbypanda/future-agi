@@ -6333,6 +6333,15 @@ export interface EvalTemplateBulkDeleteRequestApi {
   template_ids: string[];
 }
 
+export interface EvalTemplateBulkDeleteResponseResultApi {
+  deleted_count: number;
+}
+
+export interface EvalTemplateBulkDeleteResponseApi {
+  status: boolean;
+  result: EvalTemplateBulkDeleteResponseResultApi;
+}
+
 export type CompositeEvalAdhocExecuteRequestApiMapping = { [key: string]: unknown };
 
 export type CompositeEvalAdhocExecuteRequestApiConfig = { [key: string]: unknown };
@@ -6595,8 +6604,44 @@ export interface EvalTemplateCreateV2RequestApi {
   template_format?: EvalTemplateCreateV2RequestApiTemplateFormat;
 }
 
+export interface EvalTemplateCreateResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  version: string;
+}
+
+export interface EvalTemplateCreateResponseApi {
+  status: boolean;
+  result: EvalTemplateCreateResponseResultApi;
+}
+
 export interface EvalTemplateListChartsRequestApi {
   template_ids: string[];
+}
+
+export interface EvalTemplateChartPointApi {
+  /** @minLength 1 */
+  timestamp: string;
+  value: number;
+}
+
+export interface EvalTemplateListChartsItemApi {
+  chart: EvalTemplateChartPointApi[];
+  error_rate: EvalTemplateChartPointApi[];
+  run_count: number;
+}
+
+export type EvalTemplateListChartsResponseResultApiCharts = {[key: string]: EvalTemplateListChartsItemApi};
+
+export interface EvalTemplateListChartsResponseResultApi {
+  charts: EvalTemplateListChartsResponseResultApiCharts;
+}
+
+export interface EvalTemplateListChartsResponseApi {
+  status: boolean;
+  result: EvalTemplateListChartsResponseResultApi;
 }
 
 export type EvalListRequestApiOwnerFilter = typeof EvalListRequestApiOwnerFilter[keyof typeof EvalListRequestApiOwnerFilter];
@@ -6673,6 +6718,43 @@ export interface EvalListRequestApi {
   filters?: EvalListFiltersApi;
   sort_by?: EvalListRequestApiSortBy;
   sort_order?: EvalListRequestApiSortOrder;
+}
+
+export interface EvalTemplateListItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  template_type: string;
+  /** @minLength 1 */
+  eval_type: string;
+  /** @minLength 1 */
+  output_type: string;
+  /** @minLength 1 */
+  owner: string;
+  /** @minLength 1 */
+  created_by_name: string;
+  version_count: number;
+  /** @minLength 1 */
+  current_version: string;
+  /** @minLength 1 */
+  last_updated: string;
+  thirty_day_chart: EvalTemplateChartPointApi[];
+  thirty_day_error_rate: EvalTemplateChartPointApi[];
+  thirty_day_run_count: number;
+  tags: string[];
+}
+
+export interface EvalTemplateListResponseResultApi {
+  items: EvalTemplateListItemApi[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface EvalTemplateListResponseApi {
+  status: boolean;
+  result: EvalTemplateListResponseResultApi;
 }
 
 export interface CompositeEvalDetailResponseResultApi {
@@ -6764,6 +6846,60 @@ export interface CompositeEvalExecuteRequestApi {
   session_context?: CompositeEvalExecuteRequestApiSessionContext;
   call_context?: CompositeEvalExecuteRequestApiCallContext;
   row_context?: CompositeEvalExecuteRequestApiRowContext;
+}
+
+export type EvalTemplateDetailResponseResultApiChoiceScores = { [key: string]: unknown };
+
+export type EvalTemplateDetailResponseResultApiChoices = { [key: string]: unknown };
+
+export type EvalTemplateDetailResponseResultApiConfig = { [key: string]: unknown };
+
+export interface EvalTemplateDetailResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  /** @minLength 1 */
+  template_type: string;
+  /** @minLength 1 */
+  eval_type: string;
+  instructions?: string;
+  model?: string;
+  /** @minLength 1 */
+  output_type: string;
+  pass_threshold: number;
+  choice_scores?: EvalTemplateDetailResponseResultApiChoiceScores;
+  choices?: EvalTemplateDetailResponseResultApiChoices;
+  multi_choice: boolean;
+  code?: string;
+  code_language?: string;
+  required_keys: string[];
+  /** @minLength 1 */
+  owner: string;
+  /** @minLength 1 */
+  created_by_name: string;
+  version_count: number;
+  /** @minLength 1 */
+  current_version: string;
+  tags: string[];
+  check_internet: boolean;
+  error_localizer_enabled: boolean;
+  /** @minLength 1 */
+  template_format: string;
+  aggregation_enabled: boolean;
+  /** @minLength 1 */
+  aggregation_function: string;
+  composite_child_axis?: string;
+  config?: EvalTemplateDetailResponseResultApiConfig;
+  /** @minLength 1 */
+  created_at: string;
+  /** @minLength 1 */
+  updated_at: string;
+}
+
+export interface EvalTemplateDetailResponseApi {
+  status: boolean;
+  result: EvalTemplateDetailResponseResultApi;
 }
 
 export interface GroundTruthConfigApi {
@@ -6978,6 +7114,18 @@ export interface EvalTemplateUpdateV2RequestApi {
   error_localizer_enabled?: boolean;
   publish?: boolean;
   template_format?: EvalTemplateUpdateV2RequestApiTemplateFormat;
+}
+
+export interface EvalTemplateUpdateResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  updated: boolean;
+}
+
+export interface EvalTemplateUpdateResponseApi {
+  status: boolean;
+  result: EvalTemplateUpdateResponseResultApi;
 }
 
 export type EvalTemplateVersionItemApiConfigSnapshot = { [key: string]: unknown };

@@ -845,6 +845,127 @@ class EvalTemplateBulkDeleteRequestSerializer(serializers.Serializer):
     template_ids = serializers.ListField(child=serializers.UUIDField())
 
 
+class EvalTemplateChartPointSerializer(serializers.Serializer):
+    timestamp = serializers.CharField()
+    value = serializers.FloatField()
+
+
+class EvalTemplateListChartsItemSerializer(serializers.Serializer):
+    chart = EvalTemplateChartPointSerializer(many=True)
+    error_rate = EvalTemplateChartPointSerializer(many=True)
+    run_count = serializers.IntegerField()
+
+
+class EvalTemplateListChartsResponseResultSerializer(serializers.Serializer):
+    charts = serializers.DictField(child=EvalTemplateListChartsItemSerializer())
+
+
+class EvalTemplateListChartsResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateListChartsResponseResultSerializer()
+
+
+class EvalTemplateBulkDeleteResponseResultSerializer(serializers.Serializer):
+    deleted_count = serializers.IntegerField()
+
+
+class EvalTemplateBulkDeleteResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateBulkDeleteResponseResultSerializer()
+
+
+class EvalTemplateListItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    template_type = serializers.CharField()
+    eval_type = serializers.CharField()
+    output_type = serializers.CharField()
+    owner = serializers.CharField()
+    created_by_name = serializers.CharField()
+    version_count = serializers.IntegerField()
+    current_version = serializers.CharField()
+    last_updated = serializers.CharField()
+    thirty_day_chart = EvalTemplateChartPointSerializer(many=True)
+    thirty_day_error_rate = EvalTemplateChartPointSerializer(many=True)
+    thirty_day_run_count = serializers.IntegerField()
+    tags = serializers.ListField(child=serializers.CharField())
+
+
+class EvalTemplateListResponseResultSerializer(serializers.Serializer):
+    items = EvalTemplateListItemSerializer(many=True)
+    total = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
+class EvalTemplateListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateListResponseResultSerializer()
+
+
+class EvalTemplateCreateResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    version = serializers.CharField()
+
+
+class EvalTemplateCreateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateCreateResponseResultSerializer()
+
+
+class EvalTemplateDetailResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    template_type = serializers.CharField()
+    eval_type = serializers.CharField()
+    instructions = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    model = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    output_type = serializers.CharField()
+    pass_threshold = serializers.FloatField()
+    choice_scores = serializers.JSONField(required=False, allow_null=True)
+    choices = serializers.JSONField(required=False, allow_null=True)
+    multi_choice = serializers.BooleanField()
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    code_language = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    required_keys = serializers.ListField(child=serializers.CharField())
+    owner = serializers.CharField()
+    created_by_name = serializers.CharField()
+    version_count = serializers.IntegerField()
+    current_version = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField())
+    check_internet = serializers.BooleanField()
+    error_localizer_enabled = serializers.BooleanField()
+    template_format = serializers.CharField()
+    aggregation_enabled = serializers.BooleanField()
+    aggregation_function = serializers.CharField()
+    composite_child_axis = serializers.CharField(required=False, allow_blank=True)
+    config = serializers.JSONField(required=False, allow_null=True)
+    created_at = serializers.CharField()
+    updated_at = serializers.CharField()
+
+
+class EvalTemplateDetailResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateDetailResponseResultSerializer()
+
+
+class EvalTemplateUpdateResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    updated = serializers.BooleanField()
+
+
+class EvalTemplateUpdateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateUpdateResponseResultSerializer()
+
+
 class EvalTemplateCreateV2RequestSerializer(serializers.Serializer):
     name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     is_draft = serializers.BooleanField(required=False, default=False)

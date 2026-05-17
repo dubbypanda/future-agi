@@ -336,9 +336,15 @@ import type {
   EvalTaskApi,
   EvalTemplateApi,
   EvalTemplateBulkDeleteRequestApi,
+  EvalTemplateBulkDeleteResponseApi,
+  EvalTemplateCreateResponseApi,
   EvalTemplateCreateV2RequestApi,
+  EvalTemplateDetailResponseApi,
   EvalTemplateListChartsRequestApi,
+  EvalTemplateListChartsResponseApi,
+  EvalTemplateListResponseApi,
   EvalTemplateNamesRequestApi,
+  EvalTemplateUpdateResponseApi,
   EvalTemplateUpdateV2RequestApi,
   EvalTemplateVersionCreateRequestApi,
   EvalTemplateVersionListResponseApi,
@@ -29643,7 +29649,7 @@ export const modelHubEvalTemplateCreateCreate = async (evalTemplateApi: EvalTemp
 
 
 export type modelHubEvalTemplatesBulkDeleteCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateBulkDeleteResponseApi
   status: 200
 }
 
@@ -29842,7 +29848,7 @@ export const modelHubEvalTemplatesCreateCompositeCreate = async (compositeEvalCr
 
 
 export type modelHubEvalTemplatesCreateV2CreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateCreateResponseApi
   status: 200
 }
 
@@ -29908,7 +29914,7 @@ export const modelHubEvalTemplatesCreateV2Create = async (evalTemplateCreateV2Re
 
 
 export type modelHubEvalTemplatesListChartsCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateListChartsResponseApi
   status: 200
 }
 
@@ -29975,7 +29981,7 @@ export const modelHubEvalTemplatesListChartsCreate = async (evalTemplateListChar
 
 
 export type modelHubEvalTemplatesListCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateListResponseApi
   status: 200
 }
 
@@ -30244,7 +30250,7 @@ export const modelHubEvalTemplatesCompositeExecuteCreate = async (templateId: st
 
 
 export type modelHubEvalTemplatesDetailListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateDetailResponseApi
   status: 200
 }
 
@@ -30634,7 +30640,7 @@ export const modelHubEvalTemplatesGroundTruthUploadCreate = async (templateId: s
 
 
 export type modelHubEvalTemplatesUpdateUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateUpdateResponseApi
   status: 200
 }
 

@@ -13583,7 +13583,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateBulkDeleteResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13670,7 +13670,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateCreateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13699,7 +13699,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateListChartsResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13728,7 +13728,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateListResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13838,7 +13838,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateDetailResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -14004,7 +14004,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalTemplateUpdateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -42598,6 +42598,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalTemplateBulkDeleteResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateBulkDeleteResponseResult"
+        }
+      }
+    },
+    "EvalTemplateCreateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateCreateResponseResult"
+        }
+      }
+    },
     "EvalTemplateCreateV2Request": {
       "type": "object",
       "properties": {
@@ -42749,6 +42781,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalTemplateDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateDetailResponseResult"
+        }
+      }
+    },
     "EvalTemplateListChartsRequest": {
       "required": [
         "template_ids"
@@ -42764,6 +42812,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalTemplateListChartsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateListChartsResponseResult"
+        }
+      }
+    },
+    "EvalTemplateListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateListResponseResult"
+        }
+      }
+    },
     "EvalTemplateNamesRequest": {
       "type": "object",
       "properties": {
@@ -42771,6 +42851,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Search text",
           "type": "string",
           "default": ""
+        }
+      }
+    },
+    "EvalTemplateUpdateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalTemplateUpdateResponseResult"
         }
       }
     },
@@ -61253,6 +61349,280 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalTemplateBulkDeleteResponseResult": {
+      "required": [
+        "deleted_count"
+      ],
+      "type": "object",
+      "properties": {
+        "deleted_count": {
+          "title": "Deleted count",
+          "type": "integer"
+        }
+      }
+    },
+    "EvalTemplateCreateResponseResult": {
+      "required": [
+        "id",
+        "name",
+        "version"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "title": "Version",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "EvalTemplateDetailResponseResult": {
+      "required": [
+        "id",
+        "name",
+        "template_type",
+        "eval_type",
+        "output_type",
+        "pass_threshold",
+        "multi_choice",
+        "required_keys",
+        "owner",
+        "created_by_name",
+        "version_count",
+        "current_version",
+        "tags",
+        "check_internet",
+        "error_localizer_enabled",
+        "template_format",
+        "aggregation_enabled",
+        "aggregation_function",
+        "created_at",
+        "updated_at"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "template_type": {
+          "title": "Template type",
+          "type": "string",
+          "minLength": 1
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "minLength": 1
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "x-nullable": true
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "minLength": 1
+        },
+        "pass_threshold": {
+          "title": "Pass threshold",
+          "type": "number"
+        },
+        "choice_scores": {
+          "title": "Choice scores",
+          "type": "object",
+          "x-nullable": true
+        },
+        "choices": {
+          "title": "Choices",
+          "type": "object",
+          "x-nullable": true
+        },
+        "multi_choice": {
+          "title": "Multi choice",
+          "type": "boolean"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "code_language": {
+          "title": "Code language",
+          "type": "string",
+          "x-nullable": true
+        },
+        "required_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string",
+          "minLength": 1
+        },
+        "created_by_name": {
+          "title": "Created by name",
+          "type": "string",
+          "minLength": 1
+        },
+        "version_count": {
+          "title": "Version count",
+          "type": "integer"
+        },
+        "current_version": {
+          "title": "Current version",
+          "type": "string",
+          "minLength": 1
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean"
+        },
+        "error_localizer_enabled": {
+          "title": "Error localizer enabled",
+          "type": "boolean"
+        },
+        "template_format": {
+          "title": "Template format",
+          "type": "string",
+          "minLength": 1
+        },
+        "aggregation_enabled": {
+          "title": "Aggregation enabled",
+          "type": "boolean"
+        },
+        "aggregation_function": {
+          "title": "Aggregation function",
+          "type": "string",
+          "minLength": 1
+        },
+        "composite_child_axis": {
+          "title": "Composite child axis",
+          "type": "string"
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "EvalTemplateListChartsResponseResult": {
+      "required": [
+        "charts"
+      ],
+      "type": "object",
+      "properties": {
+        "charts": {
+          "title": "Charts",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/EvalTemplateListChartsItem"
+          }
+        }
+      }
+    },
+    "EvalTemplateListResponseResult": {
+      "required": [
+        "items",
+        "total",
+        "page",
+        "page_size"
+      ],
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalTemplateListItem"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page size",
+          "type": "integer"
+        }
+      }
+    },
+    "EvalTemplateUpdateResponseResult": {
+      "required": [
+        "id",
+        "name",
+        "updated"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "updated": {
+          "title": "Updated",
+          "type": "boolean"
+        }
+      }
+    },
     "EvalTemplateVersionListResponseResult": {
       "required": [
         "template_id",
@@ -67992,6 +68362,125 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalTemplateListChartsItem": {
+      "required": [
+        "chart",
+        "error_rate",
+        "run_count"
+      ],
+      "type": "object",
+      "properties": {
+        "chart": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalTemplateChartPoint"
+          }
+        },
+        "error_rate": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalTemplateChartPoint"
+          }
+        },
+        "run_count": {
+          "title": "Run count",
+          "type": "integer"
+        }
+      }
+    },
+    "EvalTemplateListItem": {
+      "required": [
+        "id",
+        "name",
+        "template_type",
+        "eval_type",
+        "output_type",
+        "owner",
+        "created_by_name",
+        "version_count",
+        "current_version",
+        "last_updated",
+        "thirty_day_chart",
+        "thirty_day_error_rate",
+        "thirty_day_run_count",
+        "tags"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "template_type": {
+          "title": "Template type",
+          "type": "string",
+          "minLength": 1
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "minLength": 1
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string",
+          "minLength": 1
+        },
+        "created_by_name": {
+          "title": "Created by name",
+          "type": "string",
+          "minLength": 1
+        },
+        "version_count": {
+          "title": "Version count",
+          "type": "integer"
+        },
+        "current_version": {
+          "title": "Current version",
+          "type": "string",
+          "minLength": 1
+        },
+        "last_updated": {
+          "title": "Last updated",
+          "type": "string",
+          "minLength": 1
+        },
+        "thirty_day_chart": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalTemplateChartPoint"
+          }
+        },
+        "thirty_day_error_rate": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalTemplateChartPoint"
+          }
+        },
+        "thirty_day_run_count": {
+          "title": "Thirty day run count",
+          "type": "integer"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "EvalTemplateVersionItem": {
       "required": [
         "id",
@@ -70617,6 +71106,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "uri",
           "minLength": 1
+        }
+      }
+    },
+    "EvalTemplateChartPoint": {
+      "required": [
+        "timestamp",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
         }
       }
     },

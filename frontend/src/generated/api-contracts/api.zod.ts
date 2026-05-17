@@ -18479,22 +18479,10 @@ export const ModelHubEvalTemplatesBulkDeleteCreateBody = zod.object({
 })
 
 export const ModelHubEvalTemplatesBulkDeleteCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "deleted_count": zod.number()
+})
 })
 
 
@@ -18714,23 +18702,17 @@ export const ModelHubEvalTemplatesCreateV2CreateBody = zod.object({
   "template_format": zod.enum(['mustache', 'jinja']).default(modelHubEvalTemplatesCreateV2CreateBodyTemplateFormatDefault)
 })
 
+
+
+
+
 export const ModelHubEvalTemplatesCreateV2CreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "version": zod.string().min(1)
+})
 })
 
 
@@ -18744,23 +18726,25 @@ export const ModelHubEvalTemplatesListChartsCreateBody = zod.object({
   "template_ids": zod.array(zod.string().uuid())
 })
 
+
+
+
+
 export const ModelHubEvalTemplatesListChartsCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "charts": zod.record(zod.string(), zod.object({
+  "chart": zod.array(zod.object({
+  "timestamp": zod.string().min(1),
+  "value": zod.number()
+})),
+  "error_rate": zod.array(zod.object({
+  "timestamp": zod.string().min(1),
+  "value": zod.number()
+})),
+  "run_count": zod.number()
+}))
+})
 })
 
 
@@ -18798,23 +18782,48 @@ export const ModelHubEvalTemplatesListCreateBody = zod.object({
   "sort_order": zod.enum(['asc', 'desc']).default(modelHubEvalTemplatesListCreateBodySortOrderDefault)
 })
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const ModelHubEvalTemplatesListCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "template_type": zod.string().min(1),
+  "eval_type": zod.string().min(1),
+  "output_type": zod.string().min(1),
+  "owner": zod.string().min(1),
+  "created_by_name": zod.string().min(1),
+  "version_count": zod.number(),
+  "current_version": zod.string().min(1),
+  "last_updated": zod.string().min(1),
+  "thirty_day_chart": zod.array(zod.object({
+  "timestamp": zod.string().min(1),
+  "value": zod.number()
+})),
+  "thirty_day_error_rate": zod.array(zod.object({
+  "timestamp": zod.string().min(1),
+  "value": zod.number()
+})),
+  "thirty_day_run_count": zod.number(),
+  "tags": zod.array(zod.string().min(1))
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "page_size": zod.number()
+})
 })
 
 
@@ -19026,23 +19035,60 @@ export const ModelHubEvalTemplatesDetailListParams = zod.object({
   "template_id": zod.string()
 })
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const ModelHubEvalTemplatesDetailListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "template_type": zod.string().min(1),
+  "eval_type": zod.string().min(1),
+  "instructions": zod.string().optional(),
+  "model": zod.string().optional(),
+  "output_type": zod.string().min(1),
+  "pass_threshold": zod.number(),
+  "choice_scores": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "choices": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "multi_choice": zod.boolean(),
+  "code": zod.string().optional(),
+  "code_language": zod.string().optional(),
+  "required_keys": zod.array(zod.string().min(1)),
+  "owner": zod.string().min(1),
+  "created_by_name": zod.string().min(1),
+  "version_count": zod.number(),
+  "current_version": zod.string().min(1),
+  "tags": zod.array(zod.string().min(1)),
+  "check_internet": zod.boolean(),
+  "error_localizer_enabled": zod.boolean(),
+  "template_format": zod.string().min(1),
+  "aggregation_enabled": zod.boolean(),
+  "aggregation_function": zod.string().min(1),
+  "composite_child_axis": zod.string().optional(),
+  "config": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "created_at": zod.string().min(1),
+  "updated_at": zod.string().min(1)
+})
 })
 
 
@@ -19293,23 +19339,16 @@ export const ModelHubEvalTemplatesUpdateUpdateBody = zod.object({
   "template_format": zod.enum(['mustache', 'jinja']).optional()
 })
 
+
+
+
 export const ModelHubEvalTemplatesUpdateUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "updated": zod.boolean()
+})
 })
 
 

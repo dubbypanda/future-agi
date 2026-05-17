@@ -48,9 +48,15 @@ from model_hub.serializers.contracts import (
     CompositeEvalUpdateRequestSerializer,
     DuplicateEvalTemplateResponseSerializer,
     EvalTemplateBulkDeleteRequestSerializer,
+    EvalTemplateBulkDeleteResponseSerializer,
     EvalTemplateCreateV2RequestSerializer,
+    EvalTemplateCreateResponseSerializer,
+    EvalTemplateDetailResponseSerializer,
     EvalTemplateListChartsRequestSerializer,
+    EvalTemplateListChartsResponseSerializer,
+    EvalTemplateListResponseSerializer,
     EvalTemplateUpdateV2RequestSerializer,
+    EvalTemplateUpdateResponseSerializer,
     EvalTemplateVersionCreateRequestSerializer,
     EvalTemplateVersionListResponseSerializer,
     EvalTemplateVersionResponseSerializer,
@@ -1350,7 +1356,10 @@ class EvalTemplateListView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalListRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalTemplateListResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         from model_hub.serializers.eval_list import EvalListRequestSerializer
@@ -1520,7 +1529,10 @@ class EvalTemplateListChartsView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalTemplateListChartsRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalTemplateListChartsResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         try:
@@ -1643,7 +1655,10 @@ class EvalTemplateBulkDeleteView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalTemplateBulkDeleteRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalTemplateBulkDeleteResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         from model_hub.types import BulkDeleteRequest, BulkDeleteResponse
@@ -1690,7 +1705,10 @@ class EvalTemplateCreateV2View(APIView):
 
     @swagger_auto_schema(
         request_body=EvalTemplateCreateV2RequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalTemplateCreateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         import re
@@ -2043,7 +2061,10 @@ class EvalTemplateDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: EvalTemplateDetailResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, template_id, *args, **kwargs):
         from model_hub.types import EvalDetailResponse
@@ -2185,7 +2206,10 @@ class EvalTemplateUpdateView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalTemplateUpdateV2RequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalTemplateUpdateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def put(self, request, template_id, *args, **kwargs):
         import re
