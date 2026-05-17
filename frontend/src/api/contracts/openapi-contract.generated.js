@@ -21601,84 +21601,422 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "usage_admin_custom-plan_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "organization_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminCustomPlanResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_admin_custom-plan_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminCustomPlanRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminCustomPlanResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_admin_custom-plan_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminCustomPlanRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminCustomPlanResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/admin/entitlements/": {
       "get": {
         "operationId": "usage_admin_entitlements_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "organization_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminEntitlementsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_admin_entitlements_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminEntitlementMutationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminEntitlementMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_admin_entitlements_delete",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "organization_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminEntitlementsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/admin/invoice/generate/": {
       "post": {
         "operationId": "usage_admin_invoice_generate_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminInvoiceRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminInvoiceGenerateResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/admin/invoice/preview/": {
       "post": {
         "operationId": "usage_admin_invoice_preview_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminInvoiceRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminInvoicePreviewResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/admin/pricing/": {
       "get": {
         "operationId": "usage_admin_pricing_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "organization_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminPricingListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_admin_pricing_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AdminPricingMutationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminPricingMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_admin_pricing_delete",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "organization_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AdminEntitlementsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/api-call-count/": {
       "get": {
         "operationId": "usage_api-call-count_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "year": {
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "month": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          "api_call_type": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/APICallCountResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/api-call-type/": {
@@ -21686,55 +22024,221 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_api-call-type_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/APICallTypeListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/cancel-subscription/": {
       "post": {
         "operationId": "usage_cancel-subscription_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/create-auto-recharge-session/": {
       "post": {
         "operationId": "usage_create-auto-recharge-session_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CheckoutSessionResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/create-billing-portal-session/": {
       "post": {
         "operationId": "usage_create-billing-portal-session_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/BillingPortalResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/create-checkout-session/": {
       "post": {
         "operationId": "usage_create-checkout-session_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CheckoutSessionRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CheckoutSessionResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/create-custom-payment-checkout-session/": {
       "post": {
         "operationId": "usage_create-custom-payment-checkout-session_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomPaymentCheckoutRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CheckoutSessionResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/download-invoice/": {
       "post": {
         "operationId": "usage_download-invoice_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/DownloadInvoiceRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/DownloadInvoiceResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/ee/licenses/": {
@@ -21780,7 +22284,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get-auto-reload-settings_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AutoReloadSettingsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/get-billing-details/": {
@@ -21788,7 +22314,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get-billing-details_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationBillingLegacyResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/get-customer-invoices/": {
@@ -21796,7 +22344,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get-customer-invoices_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CustomerInvoicesResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/get-last-four-digits/": {
@@ -21804,7 +22374,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get-last-four-digits_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/get-wallet-balance/": {
@@ -21812,7 +22404,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get-wallet-balance_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/WalletBalanceResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/get_latest_prices/": {
@@ -21820,7 +22434,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_get_latest_prices_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingCalculationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organization-billing/": {
@@ -21828,13 +22464,59 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organization-billing_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationBillingListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_organization-billing_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationBilling"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationBillingDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organization-billing/{billing_id}/": {
@@ -21842,13 +22524,59 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organization-billing_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationBillingListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_organization-billing_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationBilling"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationBillingDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organization-filter/": {
@@ -21856,7 +22584,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organization-filter_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organization-subscription/": {
@@ -21864,25 +22614,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organization-subscription_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_organization-subscription_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_organization-subscription_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_organization-subscription_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organization-subscription/{organization_subscription_id}/": {
@@ -21890,25 +22732,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organization-subscription_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_organization-subscription_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_organization-subscription_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationSubscriptionMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_organization-subscription_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/organizations/": {
@@ -21916,15 +22850,61 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_organizations_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrganizationListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/pricing-card-details/": {
       "post": {
         "operationId": "usage_pricing-card-details_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingCardDetailsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/pricing/": {
@@ -21932,25 +22912,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_pricing_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_pricing_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsagePricingCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_pricing_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsagePricingCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingReadResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_pricing_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/pricing/{pricing_id}/": {
@@ -21958,25 +23030,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_pricing_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_pricing_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsagePricingCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_pricing_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsagePricingCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PricingReadResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_pricing_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/rate-limits/": {
@@ -21984,25 +23148,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_rate-limits_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_rate-limits_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageRateLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_rate-limits_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageRateLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_rate-limits_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/rate-limits/{rate_limit_id}/": {
@@ -22010,25 +23266,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_rate-limits_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_rate-limits_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageRateLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_rate-limits_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageRateLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RateLimitDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_rate-limits_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/resource-limits/": {
@@ -22036,25 +23384,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_resource-limits_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_resource-limits_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageResourceLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_resource-limits_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageResourceLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_resource-limits_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/resource-limits/{resource_limit_id}/": {
@@ -22062,25 +23502,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_resource-limits_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_resource-limits_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageResourceLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_resource-limits_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageResourceLimitCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceLimitDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_resource-limits_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/resource-type/": {
@@ -22088,7 +23620,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_resource-type_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ResourceTypeListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/subscription-plans/": {
@@ -22096,7 +23650,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_subscription-plans_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/subscription-status/": {
@@ -22104,7 +23680,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_subscription-status_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionStatusResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/subscription-tier/": {
@@ -22112,25 +23710,117 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_subscription-tier_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_subscription-tier_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageSubscriptionTier"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_subscription-tier_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageSubscriptionTier"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_subscription-tier_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/subscription-tier/{subscription_id}/": {
@@ -22138,97 +23828,438 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_subscription-tier_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_subscription-tier_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageSubscriptionTier"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "usage_subscription-tier_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageSubscriptionTier"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SubscriptionTierDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_subscription-tier_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/update-auto-reload-settings/": {
       "post": {
         "operationId": "usage_update-auto-reload-settings_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AutoReloadSettingsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/update-billing-details/": {
       "post": {
         "operationId": "usage_update-billing-details_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UpdateOrganizationBillingRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/usage-summary/": {
       "get": {
         "operationId": "usage_usage-summary_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "month": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          "year": {
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageSummaryResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/add-addon/": {
       "post": {
         "operationId": "usage_v2_add-addon_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AddonRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AddonPostResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_add-addon_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_add-addon_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/addon/": {
       "post": {
         "operationId": "usage_v2_addon_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AddonRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AddonPostResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_addon_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_addon_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/downgrade-to-free/": {
       "post": {
         "operationId": "usage_v2_downgrade-to-free_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PlanResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/payment-methods/": {
@@ -22236,19 +24267,89 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_v2_payment-methods_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_v2_payment-methods_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodCheckoutResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_payment-methods_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SetupIntentConfirmRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodConfirmResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/payment-methods/setup-intent/": {
@@ -22256,133 +24357,612 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "usage_v2_payment-methods_setup-intent_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "usage_v2_payment-methods_setup-intent_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodCheckoutResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_payment-methods_setup-intent_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SetupIntentConfirmRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PaymentMethodConfirmResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/payment-methods/{pm_id}/": {
       "post": {
         "operationId": "usage_v2_payment-methods_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_payment-methods_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/payment-methods/{pm_id}/default/": {
       "post": {
         "operationId": "usage_v2_payment-methods_default_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_payment-methods_default_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/reinstate-addon/": {
       "post": {
         "operationId": "usage_v2_reinstate-addon_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AddonRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AddonPostResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_reinstate-addon_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_reinstate-addon_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/remove-addon/": {
       "post": {
         "operationId": "usage_v2_remove-addon_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AddonRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AddonPostResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_remove-addon_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "usage_v2_remove-addon_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/stripe-webhook/": {
       "post": {
         "operationId": "usage_v2_stripe-webhook_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/StripeWebhookRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/StripeWebhookResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/v2/upgrade-to-payg/": {
       "post": {
         "operationId": "usage_v2_upgrade-to-payg_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UsageEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UpgradeToPaygPostResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "usage_v2_upgrade-to-payg_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UpgradeToPaygConfirmRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PlanResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/webhook/": {
       "post": {
         "operationId": "usage_webhook_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/StripeWebhookRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/StripeWebhookResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/workspace-eval-summary/": {
       "get": {
         "operationId": "usage_workspace-eval-summary_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "month": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          "year": {
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "workspace_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageSummaryResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/usage/workspace-usage-summary/": {
       "get": {
         "operationId": "usage_workspace-usage-summary_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "month": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          },
+          "year": {
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/UsageSummaryResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "402": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/UsageErrorResponse"
+          }
+        }
       }
     },
     "/v1/health": {
@@ -22490,6 +25070,41 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/AIFilterResult"
+        }
+      }
+    },
+    "APICallCountResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/APICallCountResult"
+        }
+      }
+    },
+    "APICallTypeListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageAPICallType"
+          }
         }
       }
     },
@@ -22605,6 +25220,296 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "notes": {
           "title": "Notes",
           "type": "string"
+        }
+      }
+    },
+    "AddonPostResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AddonPostResult"
+        }
+      }
+    },
+    "AddonRequest": {
+      "type": "object",
+      "properties": {
+        "plan": {
+          "title": "Plan",
+          "type": "string",
+          "enum": [
+            "boost",
+            "scale",
+            "enterprise"
+          ]
+        }
+      }
+    },
+    "AdminCustomPlanRequest": {
+      "required": [
+        "organization_id"
+      ],
+      "type": "object",
+      "properties": {
+        "organization_id": {
+          "title": "Organization id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "platform_fee": {
+          "title": "Platform fee",
+          "type": "string",
+          "format": "decimal"
+        },
+        "platform_fee_billing_cycle": {
+          "title": "Platform fee billing cycle",
+          "type": "integer",
+          "minimum": 1
+        },
+        "contract_end_date": {
+          "title": "Contract end date",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "entitlements": {
+          "title": "Entitlements",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "pricing": {
+          "title": "Pricing",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/AdminCustomPricingTier"
+            }
+          }
+        },
+        "create_stripe_subscription": {
+          "title": "Create stripe subscription",
+          "type": "boolean"
+        }
+      }
+    },
+    "AdminCustomPlanResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "AdminEntitlementMutationRequest": {
+      "required": [
+        "organization_id",
+        "feature"
+      ],
+      "type": "object",
+      "properties": {
+        "organization_id": {
+          "title": "Organization id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "feature": {
+          "title": "Feature",
+          "type": "string",
+          "minLength": 1
+        },
+        "value_int": {
+          "title": "Value int",
+          "type": "integer"
+        },
+        "value_bool": {
+          "title": "Value bool",
+          "type": "boolean"
+        }
+      }
+    },
+    "AdminEntitlementMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AdminEntitlementMutationResult"
+        }
+      }
+    },
+    "AdminEntitlementsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "AdminInvoiceGenerateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AdminInvoiceGenerateResult"
+        }
+      }
+    },
+    "AdminInvoicePreviewResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AdminInvoicePreviewResult"
+        }
+      }
+    },
+    "AdminInvoiceRequest": {
+      "required": [
+        "organization_id",
+        "period"
+      ],
+      "type": "object",
+      "properties": {
+        "organization_id": {
+          "title": "Organization id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "period": {
+          "title": "Period",
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}$",
+          "minLength": 1
+        }
+      }
+    },
+    "AdminPricingListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AdminPricingListResult"
+        }
+      }
+    },
+    "AdminPricingMutationRequest": {
+      "required": [
+        "organization_id",
+        "dimension",
+        "tier_start",
+        "price_per_unit"
+      ],
+      "type": "object",
+      "properties": {
+        "organization_id": {
+          "title": "Organization id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string",
+          "minLength": 1
+        },
+        "tier_start": {
+          "title": "Tier start",
+          "type": "string",
+          "format": "decimal"
+        },
+        "tier_end": {
+          "title": "Tier end",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "price_per_unit": {
+          "title": "Price per unit",
+          "type": "string",
+          "format": "decimal"
+        },
+        "display_unit": {
+          "title": "Display unit",
+          "type": "string"
+        }
+      }
+    },
+    "AdminPricingMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/AdminPricingMutationResult"
         }
       }
     },
@@ -26196,6 +29101,47 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AutoReloadSettingsRequest": {
+      "required": [
+        "autoreload_enabled",
+        "autoreload_walletamount",
+        "autoreload_walletthreshold"
+      ],
+      "type": "object",
+      "properties": {
+        "autoreload_enabled": {
+          "title": "Autoreload enabled",
+          "type": "boolean"
+        },
+        "autoreload_walletamount": {
+          "title": "Autoreload walletamount",
+          "type": "string",
+          "format": "decimal"
+        },
+        "autoreload_walletthreshold": {
+          "title": "Autoreload walletthreshold",
+          "type": "string",
+          "format": "decimal"
+        }
+      }
+    },
+    "AutoReloadSettingsResponse": {
+      "required": [
+        "status",
+        "data"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "$ref": "#/definitions/AutoReloadSettingsData"
+        }
+      }
+    },
     "AutomationRule": {
       "required": [
         "name",
@@ -26312,6 +29258,20 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "message": {
           "title": "Message",
           "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "BillingPortalResponse": {
+      "required": [
+        "url"
+      ],
+      "type": "object",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string",
+          "format": "uri",
           "minLength": 1
         }
       }
@@ -27477,6 +30437,39 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CheckoutSessionRequest": {
+      "type": "object",
+      "properties": {
+        "subscription_type": {
+          "title": "Subscription type",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "CheckoutSessionResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/CheckoutSessionResult"
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "title": "Url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        }
+      }
+    },
     "ClickHouseHealthResponse": {
       "required": [
         "status",
@@ -28044,6 +31037,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Eval group",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "CustomPaymentCheckoutRequest": {
+      "required": [
+        "amount"
+      ],
+      "type": "object",
+      "properties": {
+        "amount": {
+          "title": "Amount",
+          "type": "string",
+          "format": "decimal"
+        }
+      }
+    },
+    "CustomerInvoicesResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/CustomerInvoicesResult"
         }
       }
     },
@@ -28863,6 +31885,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "comment": {
           "title": "Comment",
           "type": "string"
+        }
+      }
+    },
+    "DownloadInvoiceRequest": {
+      "required": [
+        "invoice_id"
+      ],
+      "type": "object",
+      "properties": {
+        "invoice_id": {
+          "title": "Invoice id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "DownloadInvoiceResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/DownloadInvoiceResult"
         }
       }
     },
@@ -33082,6 +36133,112 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "OrganizationBillingDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageOrganizationBilling"
+        }
+      }
+    },
+    "OrganizationBillingLegacyResponse": {
+      "required": [
+        "status",
+        "billing_info"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "billing_info": {
+          "$ref": "#/definitions/BillingInfo"
+        }
+      }
+    },
+    "OrganizationBillingListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageOrganizationBilling"
+          }
+        }
+      }
+    },
+    "OrganizationListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageOrganization"
+          }
+        }
+      }
+    },
+    "OrganizationSubscriptionListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageOrganizationSubscription"
+          }
+        }
+      }
+    },
+    "OrganizationSubscriptionMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
+        }
+      }
+    },
     "OverviewApiResponse": {
       "required": [
         "result"
@@ -33113,6 +36270,57 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "array",
           "items": {
             "$ref": "#/definitions/PIIEntity"
+          }
+        }
+      }
+    },
+    "PaymentMethodCheckoutResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UpgradeToPaygPostResult"
+        }
+      }
+    },
+    "PaymentMethodConfirmResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/PaymentMethodConfirmResult"
+        }
+      }
+    },
+    "PaymentMethodsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PaymentMethod"
           }
         }
       }
@@ -33992,6 +37200,109 @@ export const OPENAPI_CONTRACT = Object.freeze({
           ],
           "readOnly": true,
           "x-nullable": true
+        }
+      }
+    },
+    "PlanResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/PlanResult"
+        }
+      }
+    },
+    "PricingCalculationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "PricingCardDetailsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/PricingCardDetailsResult"
+        }
+      }
+    },
+    "PricingDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsagePricingCreate"
+        }
+      }
+    },
+    "PricingListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsagePricingCreate"
+          }
+        }
+      }
+    },
+    "PricingReadResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsagePricing"
         }
       }
     },
@@ -35320,6 +38631,57 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "RateLimitDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageRateLimit"
+        }
+      }
+    },
+    "RateLimitListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageRateLimit"
+          }
+        }
+      }
+    },
+    "RateLimitMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageRateLimitCreate"
+        }
+      }
+    },
     "ReplaySession": {
       "required": [
         "project",
@@ -35477,6 +38839,76 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "failure_count": {
           "title": "Failure count",
           "type": "integer"
+        }
+      }
+    },
+    "ResourceLimitDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageResourceLimit"
+        }
+      }
+    },
+    "ResourceLimitListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageResourceLimit"
+          }
+        }
+      }
+    },
+    "ResourceLimitMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageResourceLimitCreate"
+        }
+      }
+    },
+    "ResourceTypeListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageResourceType"
+          }
         }
       }
     },
@@ -37407,6 +40839,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SetupIntentConfirmRequest": {
+      "required": [
+        "session_id"
+      ],
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "ShadowResultsWebhookRequest": {
       "type": "object",
       "properties": {
@@ -38074,6 +41519,46 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "StripeWebhookRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "title": "Data",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "StripeWebhookResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
     "SubmitAnnotations": {
       "required": [
         "annotations"
@@ -38100,6 +41585,57 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Item notes",
           "type": "string",
           "x-nullable": true
+        }
+      }
+    },
+    "SubscriptionStatusResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/SubscriptionStatusResult"
+        }
+      }
+    },
+    "SubscriptionTierDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageSubscriptionTier"
+        }
+      }
+    },
+    "SubscriptionTierListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageSubscriptionTier"
+          }
         }
       }
     },
@@ -39265,6 +42801,62 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "UpdateOrganizationBillingRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "x-nullable": true
+        },
+        "company": {
+          "title": "Company",
+          "type": "string",
+          "x-nullable": true
+        },
+        "billing_address1": {
+          "title": "Billing address1",
+          "type": "string",
+          "x-nullable": true
+        },
+        "billing_address2": {
+          "title": "Billing address2",
+          "type": "string",
+          "x-nullable": true
+        },
+        "city": {
+          "title": "City",
+          "type": "string",
+          "x-nullable": true
+        },
+        "state": {
+          "title": "State",
+          "type": "string",
+          "x-nullable": true
+        },
+        "country": {
+          "title": "Country",
+          "type": "string",
+          "x-nullable": true
+        },
+        "postal_code": {
+          "title": "Postal code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tax_id": {
+          "title": "Tax id",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
     "UpdatePort": {
       "required": [
         "display_name"
@@ -39317,6 +42909,498 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      }
+    },
+    "UpgradeToPaygConfirmRequest": {
+      "required": [
+        "session_id"
+      ],
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "UpgradeToPaygPostResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UpgradeToPaygPostResult"
+        }
+      }
+    },
+    "UsageEmptyRequest": {
+      "type": "object",
+      "properties": {}
+    },
+    "UsageErrorResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageJSONResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
+    "UsageMessageResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/UsageMessageResult"
+        }
+      }
+    },
+    "UsageOrganizationBilling": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "billing_contact_name": {
+          "title": "Billing contact name",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "billing_contact_email": {
+          "title": "Billing contact email",
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "x-nullable": true
+        },
+        "company": {
+          "title": "Company",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "billing_address1": {
+          "title": "Billing address1",
+          "type": "string",
+          "maxLength": 255,
+          "x-nullable": true
+        },
+        "billing_address2": {
+          "title": "Billing address2",
+          "type": "string",
+          "maxLength": 255,
+          "x-nullable": true
+        },
+        "city": {
+          "title": "City",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "state": {
+          "title": "State",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "country": {
+          "title": "Country",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "postal_code": {
+          "title": "Postal code",
+          "type": "string",
+          "maxLength": 20,
+          "x-nullable": true
+        },
+        "tax_id": {
+          "title": "Tax id",
+          "type": "string",
+          "maxLength": 50,
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageOrganizationSubscriptionCreate": {
+      "required": [
+        "organization",
+        "subscription_tier"
+      ],
+      "type": "object",
+      "properties": {
+        "next_renewal_date": {
+          "title": "Next renewal date",
+          "description": "Next due date for renewal.",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_price": {
+          "title": "Subscription price",
+          "description": "Price of the subscription.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "subscription_future_tier": {
+          "title": "Subscription future tier",
+          "type": "string",
+          "enum": [
+            "free",
+            "basic",
+            "basic_yearly",
+            "custom"
+          ],
+          "x-nullable": true
+        },
+        "subscription_future_start_date": {
+          "title": "Subscription future start date",
+          "description": "Next due date for renewal.",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_future_price": {
+          "title": "Subscription future price",
+          "description": "Price of the future subscription.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "active",
+            "past_due",
+            "canceled",
+            "inactive"
+          ]
+        },
+        "wallet_refill_amount": {
+          "title": "Wallet refill amount",
+          "description": "Amount to refill the wallet every month.",
+          "type": "string",
+          "format": "decimal"
+        },
+        "wallet_balance": {
+          "title": "Wallet balance",
+          "type": "string",
+          "format": "decimal"
+        },
+        "stripe_customer_id_test": {
+          "title": "Stripe customer id test",
+          "description": "Stripe customer ID for test mode. NULL values are allowed.",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "stripe_customer_id_live": {
+          "title": "Stripe customer id live",
+          "description": "Stripe customer ID for live mode. NULL values are allowed.",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "auto_recharge_enabled": {
+          "title": "Auto recharge enabled",
+          "type": "boolean"
+        },
+        "auto_recharge_amount": {
+          "title": "Auto recharge amount",
+          "description": "Amount to refill the wallet every month.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "auto_recharge_threshold": {
+          "title": "Auto recharge threshold",
+          "description": "Threshold to trigger auto recharge.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "payment_method_id": {
+          "title": "Payment method id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "custom_subscription_id": {
+          "title": "Custom subscription id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid"
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "integer"
+        }
+      }
+    },
+    "UsagePricingCreate": {
+      "required": [
+        "api_call_type",
+        "price_per_call"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "api_call_type": {
+          "title": "Api call type",
+          "type": "integer"
+        },
+        "price_per_call": {
+          "title": "Price per call",
+          "type": "string",
+          "format": "decimal"
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageRateLimitCreate": {
+      "required": [
+        "api_call_type",
+        "subscription_tier"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "api_call_type": {
+          "title": "Api call type",
+          "type": "integer"
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "minute_limit": {
+          "title": "Minute limit",
+          "description": "Max calls per minute",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "hour_limit": {
+          "title": "Hour limit",
+          "description": "Max calls per hour",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "day_limit": {
+          "title": "Day limit",
+          "description": "Max calls per day",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "month_limit": {
+          "title": "Month limit",
+          "description": "Max calls per month",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "integer"
+        }
+      }
+    },
+    "UsageResourceLimitCreate": {
+      "required": [
+        "resource_type",
+        "subscription_tier",
+        "limit"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "resource_type": {
+          "title": "Resource type",
+          "type": "integer"
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "integer"
+        },
+        "limit": {
+          "title": "Limit",
+          "description": "Limit for the resource",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageStringResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "UsageSubscriptionTier": {
+      "required": [
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "enum": [
+            "free",
+            "basic",
+            "basic_yearly",
+            "custom"
+          ],
+          "readOnly": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "stripe_price_id": {
+          "title": "Stripe price id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "wallet_refill_amount": {
+          "title": "Wallet refill amount",
+          "description": "Amount to refill the wallet every month.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageSummaryResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
           }
         }
       }
@@ -39737,6 +43821,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "WalletBalanceResponse": {
+      "required": [
+        "wallet_balance"
+      ],
+      "type": "object",
+      "properties": {
+        "wallet_balance": {
+          "title": "Wallet balance",
+          "type": "string",
+          "format": "decimal"
+        }
+      }
+    },
     "WebhookIngestResponse": {
       "required": [
         "status",
@@ -39862,6 +43959,76 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "type": "string",
             "minLength": 1
           }
+        }
+      }
+    },
+    "APICallCountResult": {
+      "required": [
+        "data"
+      ],
+      "type": "object",
+      "properties": {
+        "data": {
+          "title": "Data",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "UsageAPICallType": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "enum": [
+            "prompt_bench",
+            "dataset_protect",
+            "dataset_protect_flash",
+            "turing_large_evaluator",
+            "turing_small_evaluator",
+            "turing_flash_evaluator",
+            "protect_evaluator",
+            "protect_flash_evaluator",
+            "code_evaluator",
+            "user_add",
+            "observe_add",
+            "prototype_add",
+            "dataset_add",
+            "row_add",
+            "knowledge_base",
+            "synthetic_data_generation",
+            "error_localizer",
+            "auto_annotation",
+            "dataset_evaluation",
+            "experiment_evaluation",
+            "optimisation_evaluation",
+            "eval_explanation",
+            "dataset_run_prompt",
+            "dataset_optimization",
+            "dataset_experiment",
+            "voice_call",
+            "text_call",
+            "wallet_refund",
+            "wallet_refill",
+            "wallet_auto_recharge",
+            "wallet_add_funds",
+            "trace_error_analysis"
+          ]
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
         }
       }
     },
@@ -40161,6 +44328,258 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AddonPostResult": {
+      "required": [
+        "subscription_id",
+        "plan"
+      ],
+      "type": "object",
+      "properties": {
+        "subscription_id": {
+          "title": "Subscription id",
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "title": "Plan",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "AdminCustomPricingTier": {
+      "required": [
+        "tier_start",
+        "price_per_unit"
+      ],
+      "type": "object",
+      "properties": {
+        "tier_start": {
+          "title": "Tier start",
+          "type": "string",
+          "format": "decimal"
+        },
+        "tier_end": {
+          "title": "Tier end",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "price_per_unit": {
+          "title": "Price per unit",
+          "type": "string",
+          "format": "decimal"
+        },
+        "display_unit": {
+          "title": "Display unit",
+          "type": "string"
+        }
+      }
+    },
+    "AdminEntitlementMutationResult": {
+      "required": [
+        "id",
+        "feature",
+        "created"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "feature": {
+          "title": "Feature",
+          "type": "string",
+          "minLength": 1
+        },
+        "created": {
+          "title": "Created",
+          "type": "boolean"
+        },
+        "value_int": {
+          "title": "Value int",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "value_bool": {
+          "title": "Value bool",
+          "type": "boolean",
+          "x-nullable": true
+        }
+      }
+    },
+    "AdminInvoiceGenerateResult": {
+      "required": [
+        "created",
+        "skipped",
+        "errors"
+      ],
+      "type": "object",
+      "properties": {
+        "created": {
+          "title": "Created",
+          "type": "integer"
+        },
+        "skipped": {
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "errors": {
+          "title": "Errors",
+          "type": "integer"
+        },
+        "invoice_id": {
+          "title": "Invoice id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "total": {
+          "title": "Total",
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "period_start": {
+          "title": "Period start",
+          "type": "string",
+          "format": "date"
+        },
+        "period_end": {
+          "title": "Period end",
+          "type": "string",
+          "format": "date"
+        },
+        "line_items_count": {
+          "title": "Line items count",
+          "type": "integer"
+        }
+      }
+    },
+    "AdminInvoicePreviewResult": {
+      "required": [
+        "org_id",
+        "period",
+        "plan",
+        "backfill_ran",
+        "usage_summary_count",
+        "invoice_exists",
+        "platform_fee",
+        "usage_total",
+        "credits_applied",
+        "subtotal",
+        "tax",
+        "total",
+        "line_items"
+      ],
+      "type": "object",
+      "properties": {
+        "org_id": {
+          "title": "Org id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "period": {
+          "title": "Period",
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "title": "Plan",
+          "type": "string",
+          "minLength": 1
+        },
+        "backfill_ran": {
+          "title": "Backfill ran",
+          "type": "boolean"
+        },
+        "usage_summary_count": {
+          "title": "Usage summary count",
+          "type": "integer"
+        },
+        "invoice_exists": {
+          "title": "Invoice exists",
+          "type": "boolean"
+        },
+        "platform_fee": {
+          "title": "Platform fee",
+          "type": "string",
+          "minLength": 1
+        },
+        "usage_total": {
+          "title": "Usage total",
+          "type": "string",
+          "minLength": 1
+        },
+        "credits_applied": {
+          "title": "Credits applied",
+          "type": "string",
+          "minLength": 1
+        },
+        "subtotal": {
+          "title": "Subtotal",
+          "type": "string",
+          "minLength": 1
+        },
+        "tax": {
+          "title": "Tax",
+          "type": "string",
+          "minLength": 1
+        },
+        "total": {
+          "title": "Total",
+          "type": "string",
+          "minLength": 1
+        },
+        "line_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdminInvoiceLineItem"
+          }
+        }
+      }
+    },
+    "AdminPricingListResult": {
+      "required": [
+        "pricing"
+      ],
+      "type": "object",
+      "properties": {
+        "pricing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AdminPricingTier"
+          }
+        }
+      }
+    },
+    "AdminPricingMutationResult": {
+      "required": [
+        "id",
+        "dimension",
+        "created"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string",
+          "minLength": 1
+        },
+        "created": {
+          "title": "Created",
+          "type": "boolean"
+        }
+      }
+    },
     "QueueAnnotatorNested": {
       "required": [
         "user_id"
@@ -40426,6 +44845,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "List of user's goals for using the platform",
           "type": "object",
           "x-nullable": true
+        }
+      }
+    },
+    "AutoReloadSettingsData": {
+      "required": [
+        "autoreload_enabled",
+        "autoreload_wallet_amount",
+        "autoreload_wallet_threshold"
+      ],
+      "type": "object",
+      "properties": {
+        "autoreload_enabled": {
+          "title": "Autoreload enabled",
+          "type": "boolean"
+        },
+        "autoreload_wallet_amount": {
+          "title": "Autoreload wallet amount",
+          "type": "string",
+          "format": "decimal"
+        },
+        "autoreload_wallet_threshold": {
+          "title": "Autoreload wallet threshold",
+          "type": "string",
+          "format": "decimal"
         }
       }
     },
@@ -40876,6 +45319,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CheckoutSessionResult": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "title": "Url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "FalconConversationDetail": {
       "type": "object",
       "properties": {
@@ -41216,6 +45685,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "x-nullable": true
     },
+    "CustomerInvoicesResult": {
+      "required": [
+        "invoices",
+        "total"
+      ],
+      "type": "object",
+      "properties": {
+        "invoices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CustomerInvoice"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      }
+    },
     "DatasetOptimizationStep": {
       "required": [
         "name",
@@ -41383,6 +45871,20 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "ee",
             "cloud"
           ]
+        }
+      }
+    },
+    "DownloadInvoiceResult": {
+      "required": [
+        "invoice_pdf_url"
+      ],
+      "type": "object",
+      "properties": {
+        "invoice_pdf_url": {
+          "title": "Invoice pdf url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
         }
       }
     },
@@ -42871,6 +47373,221 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "BillingInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "x-nullable": true
+        },
+        "company": {
+          "title": "Company",
+          "type": "string",
+          "x-nullable": true
+        },
+        "billing_address1": {
+          "title": "Billing address1",
+          "type": "string",
+          "x-nullable": true
+        },
+        "billing_address2": {
+          "title": "Billing address2",
+          "type": "string",
+          "x-nullable": true
+        },
+        "city": {
+          "title": "City",
+          "type": "string",
+          "x-nullable": true
+        },
+        "state": {
+          "title": "State",
+          "type": "string",
+          "x-nullable": true
+        },
+        "country": {
+          "title": "Country",
+          "type": "string",
+          "x-nullable": true
+        },
+        "postal_code": {
+          "title": "Postal code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tax_id": {
+          "title": "Tax id",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageOrganization": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        }
+      }
+    },
+    "UsageOrganizationSubscription": {
+      "required": [
+        "organization"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid"
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "string",
+          "readOnly": true
+        },
+        "custom_subscription_id": {
+          "title": "Custom subscription id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "active",
+            "past_due",
+            "canceled",
+            "inactive"
+          ]
+        },
+        "subscription_price": {
+          "title": "Subscription price",
+          "description": "Price of the subscription.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "wallet_balance": {
+          "title": "Wallet balance",
+          "type": "string",
+          "format": "decimal"
+        },
+        "wallet_refill_amount": {
+          "title": "Wallet refill amount",
+          "description": "Amount to refill the wallet every month.",
+          "type": "string",
+          "format": "decimal"
+        },
+        "next_renewal_date": {
+          "title": "Next renewal date",
+          "description": "Next due date for renewal.",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_future_tier": {
+          "title": "Subscription future tier",
+          "type": "string",
+          "enum": [
+            "free",
+            "basic",
+            "basic_yearly",
+            "custom"
+          ],
+          "x-nullable": true
+        },
+        "subscription_future_start_date": {
+          "title": "Subscription future start date",
+          "description": "Next due date for renewal.",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_future_price": {
+          "title": "Subscription future price",
+          "description": "Price of the future subscription.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "stripe_customer_id_test": {
+          "title": "Stripe customer id test",
+          "description": "Stripe customer ID for test mode. NULL values are allowed.",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "stripe_customer_id_live": {
+          "title": "Stripe customer id live",
+          "description": "Stripe customer ID for live mode. NULL values are allowed.",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "auto_recharge_enabled": {
+          "title": "Auto recharge enabled",
+          "type": "boolean"
+        },
+        "auto_recharge_amount": {
+          "title": "Auto recharge amount",
+          "description": "Amount to refill the wallet every month.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "auto_recharge_threshold": {
+          "title": "Auto recharge threshold",
+          "description": "Threshold to trigger auto recharge.",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "payment_method_id": {
+          "title": "Payment method id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "last_refill_date": {
+          "title": "Last refill date",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "last_refill_amount": {
+          "title": "Last refill amount",
+          "description": "Amount of the last refill.",
+          "type": "string",
+          "format": "decimal"
+        }
+      }
+    },
     "OverviewResponse": {
       "required": [
         "events_over_time",
@@ -42918,6 +47635,144 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Category",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "UpgradeToPaygPostResult": {
+      "required": [
+        "checkout_url"
+      ],
+      "type": "object",
+      "properties": {
+        "checkout_url": {
+          "title": "Checkout url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        }
+      }
+    },
+    "PaymentMethodConfirmResult": {
+      "required": [
+        "payment_method_id",
+        "set_as_default"
+      ],
+      "type": "object",
+      "properties": {
+        "payment_method_id": {
+          "title": "Payment method id",
+          "type": "string",
+          "minLength": 1
+        },
+        "set_as_default": {
+          "title": "Set as default",
+          "type": "boolean"
+        }
+      }
+    },
+    "PaymentMethod": {
+      "required": [
+        "id"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "brand": {
+          "title": "Brand",
+          "type": "string",
+          "x-nullable": true
+        },
+        "last4": {
+          "title": "Last4",
+          "type": "string",
+          "x-nullable": true
+        },
+        "exp_month": {
+          "title": "Exp month",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "exp_year": {
+          "title": "Exp year",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "is_default": {
+          "title": "Is default",
+          "type": "boolean"
+        }
+      }
+    },
+    "PlanResult": {
+      "required": [
+        "plan"
+      ],
+      "type": "object",
+      "properties": {
+        "plan": {
+          "title": "Plan",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "PricingCardDetailsResult": {
+      "required": [
+        "business_monthly_price",
+        "business_yearly_price",
+        "discount_percentage"
+      ],
+      "type": "object",
+      "properties": {
+        "business_monthly_price": {
+          "title": "Business monthly price",
+          "type": "number"
+        },
+        "business_yearly_price": {
+          "title": "Business yearly price",
+          "type": "number"
+        },
+        "discount_percentage": {
+          "title": "Discount percentage",
+          "type": "integer"
+        },
+        "custom_price": {
+          "title": "Custom price",
+          "type": "number",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsagePricing": {
+      "required": [
+        "price_per_call"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "api_call_type": {
+          "title": "Api call type",
+          "type": "string",
+          "readOnly": true
+        },
+        "price_per_call": {
+          "title": "Price per call",
+          "type": "string",
+          "format": "decimal"
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
         }
       }
     },
@@ -43284,6 +48139,64 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "UsageRateLimit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "api_call_type": {
+          "title": "Api call type",
+          "type": "string",
+          "readOnly": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "minute_limit": {
+          "title": "Minute limit",
+          "description": "Max calls per minute",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "hour_limit": {
+          "title": "Hour limit",
+          "description": "Max calls per hour",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "day_limit": {
+          "title": "Day limit",
+          "description": "Max calls per day",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "month_limit": {
+          "title": "Month limit",
+          "description": "Max calls per month",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
     "AgentDefinitionNested": {
       "required": [
         "agent_name",
@@ -43419,6 +48332,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Error",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "UsageResourceLimit": {
+      "required": [
+        "limit"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "resource_type": {
+          "title": "Resource type",
+          "type": "string",
+          "readOnly": true
+        },
+        "subscription_tier": {
+          "title": "Subscription tier",
+          "type": "string",
+          "readOnly": true
+        },
+        "limit": {
+          "title": "Limit",
+          "description": "Limit for the resource",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "UsageResourceType": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "ID",
+          "type": "integer",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "enum": [
+            "project",
+            "dataset",
+            "logs",
+            "rows",
+            "columns",
+            "users",
+            "traces",
+            "observe",
+            "prototypes",
+            "knowledge_base"
+          ]
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
         }
       }
     },
@@ -44436,6 +49418,53 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SubscriptionStatusResult": {
+      "type": "object",
+      "properties": {
+        "next_renewal_date": {
+          "title": "Next renewal date",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_status": {
+          "title": "Subscription status",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "tier": {
+          "title": "Tier",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "subscription_price": {
+          "title": "Subscription price",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "subscription_future_tier": {
+          "title": "Subscription future tier",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "subscription_future_start_date": {
+          "title": "Subscription future start date",
+          "type": "string",
+          "format": "date",
+          "x-nullable": true
+        },
+        "subscription_future_price": {
+          "title": "Subscription future price",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        }
+      }
+    },
     "TestExecutionChatBatchResult": {
       "required": [
         "call_execution_ids",
@@ -44917,6 +49946,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "UsageMessageResult": {
+      "required": [
+        "message"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "UsersResult": {
       "required": [
         "table",
@@ -45013,6 +50055,96 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Value",
           "type": "object",
           "x-nullable": true
+        }
+      }
+    },
+    "AdminInvoiceLineItem": {
+      "required": [
+        "line_type",
+        "description",
+        "quantity",
+        "unit_price",
+        "amount"
+      ],
+      "type": "object",
+      "properties": {
+        "line_type": {
+          "title": "Line type",
+          "type": "string",
+          "minLength": 1
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string",
+          "x-nullable": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "unit_price": {
+          "title": "Unit price",
+          "type": "string",
+          "minLength": 1
+        },
+        "amount": {
+          "title": "Amount",
+          "type": "string",
+          "minLength": 1
+        },
+        "tier_breakdown": {
+          "title": "Tier breakdown",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "AdminPricingTier": {
+      "required": [
+        "dimension",
+        "tier_start",
+        "price_per_unit"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string",
+          "minLength": 1
+        },
+        "tier_start": {
+          "title": "Tier start",
+          "type": "string",
+          "format": "decimal"
+        },
+        "tier_end": {
+          "title": "Tier end",
+          "type": "string",
+          "format": "decimal",
+          "x-nullable": true
+        },
+        "price_per_unit": {
+          "title": "Price per unit",
+          "type": "string",
+          "format": "decimal"
+        },
+        "display_unit": {
+          "title": "Display unit",
+          "type": "string"
         }
       }
     },
@@ -45340,6 +50472,48 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/MessageContentItem"
           }
+        }
+      }
+    },
+    "CustomerInvoice": {
+      "required": [
+        "date",
+        "id",
+        "is_invoice_available",
+        "amount",
+        "payment_type"
+      ],
+      "type": "object",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "is_invoice_available": {
+          "title": "Is invoice available",
+          "type": "boolean"
+        },
+        "amount": {
+          "title": "Amount",
+          "type": "string",
+          "minLength": 1
+        },
+        "receipt_url": {
+          "title": "Receipt url",
+          "type": "string",
+          "format": "uri",
+          "x-nullable": true
+        },
+        "payment_type": {
+          "title": "Payment type",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

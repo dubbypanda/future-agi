@@ -10333,6 +10333,311 @@ export interface WebhookResponseApi {
   result: string;
 }
 
+export type AdminCustomPlanResponseApiResult = {[key: string]: string};
+
+export interface AdminCustomPlanResponseApi {
+  status: boolean;
+  result: AdminCustomPlanResponseApiResult;
+}
+
+export type UsageErrorResponseApiResult = { [key: string]: unknown };
+
+export type UsageErrorResponseApiMessage = { [key: string]: unknown };
+
+export interface UsageErrorResponseApi {
+  status: boolean;
+  result?: UsageErrorResponseApiResult;
+  message?: UsageErrorResponseApiMessage;
+}
+
+export type AdminCustomPlanRequestApiEntitlements = {[key: string]: { [key: string]: unknown }};
+
+export interface AdminCustomPricingTierApi {
+  tier_start: string;
+  tier_end?: string;
+  price_per_unit: string;
+  display_unit?: string;
+}
+
+export type AdminCustomPlanRequestApiPricing = {[key: string]: AdminCustomPricingTierApi[]};
+
+export interface AdminCustomPlanRequestApi {
+  organization_id: string;
+  platform_fee?: string;
+  /** @minimum 1 */
+  platform_fee_billing_cycle?: number;
+  contract_end_date?: string;
+  entitlements?: AdminCustomPlanRequestApiEntitlements;
+  pricing?: AdminCustomPlanRequestApiPricing;
+  create_stripe_subscription?: boolean;
+}
+
+export type AdminEntitlementsResponseApiResult = {[key: string]: string};
+
+export interface AdminEntitlementsResponseApi {
+  status: boolean;
+  result: AdminEntitlementsResponseApiResult;
+}
+
+export interface AdminEntitlementMutationRequestApi {
+  organization_id: string;
+  /** @minLength 1 */
+  feature: string;
+  value_int?: number;
+  value_bool?: boolean;
+}
+
+export interface AdminEntitlementMutationResultApi {
+  id: number;
+  /** @minLength 1 */
+  feature: string;
+  created: boolean;
+  value_int?: number;
+  value_bool?: boolean;
+}
+
+export interface AdminEntitlementMutationResponseApi {
+  status: boolean;
+  result: AdminEntitlementMutationResultApi;
+}
+
+export interface AdminInvoiceRequestApi {
+  organization_id: string;
+  /**
+     * @minLength 1
+     * @pattern ^\d{4}-\d{2}$
+     */
+  period: string;
+}
+
+export interface AdminInvoiceGenerateResultApi {
+  created: number;
+  skipped: number;
+  errors: number;
+  invoice_id?: string;
+  /** @minLength 1 */
+  total?: string;
+  /** @minLength 1 */
+  status?: string;
+  period_start?: string;
+  period_end?: string;
+  line_items_count?: number;
+}
+
+export interface AdminInvoiceGenerateResponseApi {
+  status: boolean;
+  result: AdminInvoiceGenerateResultApi;
+}
+
+export type AdminInvoiceLineItemApiTierBreakdown = { [key: string]: unknown };
+
+export interface AdminInvoiceLineItemApi {
+  /** @minLength 1 */
+  line_type: string;
+  dimension?: string;
+  /** @minLength 1 */
+  description: string;
+  /** @minLength 1 */
+  quantity: string;
+  unit?: string;
+  /** @minLength 1 */
+  unit_price: string;
+  /** @minLength 1 */
+  amount: string;
+  tier_breakdown?: AdminInvoiceLineItemApiTierBreakdown;
+}
+
+export interface AdminInvoicePreviewResultApi {
+  org_id: string;
+  /** @minLength 1 */
+  period: string;
+  /** @minLength 1 */
+  plan: string;
+  backfill_ran: boolean;
+  usage_summary_count: number;
+  invoice_exists: boolean;
+  /** @minLength 1 */
+  platform_fee: string;
+  /** @minLength 1 */
+  usage_total: string;
+  /** @minLength 1 */
+  credits_applied: string;
+  /** @minLength 1 */
+  subtotal: string;
+  /** @minLength 1 */
+  tax: string;
+  /** @minLength 1 */
+  total: string;
+  line_items: AdminInvoiceLineItemApi[];
+}
+
+export interface AdminInvoicePreviewResponseApi {
+  status: boolean;
+  result: AdminInvoicePreviewResultApi;
+}
+
+export interface AdminPricingTierApi {
+  id?: number;
+  /** @minLength 1 */
+  dimension: string;
+  tier_start: string;
+  tier_end?: string;
+  price_per_unit: string;
+  display_unit?: string;
+}
+
+export interface AdminPricingListResultApi {
+  pricing: AdminPricingTierApi[];
+}
+
+export interface AdminPricingListResponseApi {
+  status: boolean;
+  result: AdminPricingListResultApi;
+}
+
+export interface AdminPricingMutationRequestApi {
+  organization_id: string;
+  /** @minLength 1 */
+  dimension: string;
+  tier_start: string;
+  tier_end?: string;
+  price_per_unit: string;
+  display_unit?: string;
+}
+
+export interface AdminPricingMutationResultApi {
+  id: number;
+  /** @minLength 1 */
+  dimension: string;
+  created: boolean;
+}
+
+export interface AdminPricingMutationResponseApi {
+  status: boolean;
+  result: AdminPricingMutationResultApi;
+}
+
+export type APICallCountResultApiData = {[key: string]: number};
+
+export interface APICallCountResultApi {
+  data: APICallCountResultApiData;
+}
+
+export interface APICallCountResponseApi {
+  status: boolean;
+  result: APICallCountResultApi;
+}
+
+export type UsageAPICallTypeApiName = typeof UsageAPICallTypeApiName[keyof typeof UsageAPICallTypeApiName];
+
+
+export const UsageAPICallTypeApiName = {
+  prompt_bench: 'prompt_bench',
+  dataset_protect: 'dataset_protect',
+  dataset_protect_flash: 'dataset_protect_flash',
+  turing_large_evaluator: 'turing_large_evaluator',
+  turing_small_evaluator: 'turing_small_evaluator',
+  turing_flash_evaluator: 'turing_flash_evaluator',
+  protect_evaluator: 'protect_evaluator',
+  protect_flash_evaluator: 'protect_flash_evaluator',
+  code_evaluator: 'code_evaluator',
+  user_add: 'user_add',
+  observe_add: 'observe_add',
+  prototype_add: 'prototype_add',
+  dataset_add: 'dataset_add',
+  row_add: 'row_add',
+  knowledge_base: 'knowledge_base',
+  synthetic_data_generation: 'synthetic_data_generation',
+  error_localizer: 'error_localizer',
+  auto_annotation: 'auto_annotation',
+  dataset_evaluation: 'dataset_evaluation',
+  experiment_evaluation: 'experiment_evaluation',
+  optimisation_evaluation: 'optimisation_evaluation',
+  eval_explanation: 'eval_explanation',
+  dataset_run_prompt: 'dataset_run_prompt',
+  dataset_optimization: 'dataset_optimization',
+  dataset_experiment: 'dataset_experiment',
+  voice_call: 'voice_call',
+  text_call: 'text_call',
+  wallet_refund: 'wallet_refund',
+  wallet_refill: 'wallet_refill',
+  wallet_auto_recharge: 'wallet_auto_recharge',
+  wallet_add_funds: 'wallet_add_funds',
+  trace_error_analysis: 'trace_error_analysis',
+} as const;
+
+export interface UsageAPICallTypeApi {
+  readonly id?: number;
+  name: UsageAPICallTypeApiName;
+  description?: string;
+}
+
+export interface APICallTypeListResponseApi {
+  status: boolean;
+  result: UsageAPICallTypeApi[];
+}
+
+export interface UsageEmptyRequestApi { [key: string]: unknown }
+
+export interface UsageMessageResultApi {
+  /** @minLength 1 */
+  message: string;
+}
+
+export interface UsageMessageResponseApi {
+  status: boolean;
+  result: UsageMessageResultApi;
+}
+
+export interface CheckoutSessionResultApi {
+  /** @minLength 1 */
+  session_id?: string;
+  /** @minLength 1 */
+  url?: string;
+  /** @minLength 1 */
+  status?: string;
+  /** @minLength 1 */
+  message?: string;
+}
+
+export interface CheckoutSessionResponseApi {
+  status?: boolean;
+  result?: CheckoutSessionResultApi;
+  /** @minLength 1 */
+  session_id?: string;
+  /** @minLength 1 */
+  url?: string;
+}
+
+export interface BillingPortalResponseApi {
+  /** @minLength 1 */
+  url: string;
+}
+
+export interface CheckoutSessionRequestApi {
+  /** @minLength 1 */
+  subscription_type?: string;
+}
+
+export interface CustomPaymentCheckoutRequestApi {
+  amount: string;
+}
+
+export interface DownloadInvoiceRequestApi {
+  /** @minLength 1 */
+  invoice_id: string;
+}
+
+export interface DownloadInvoiceResultApi {
+  /** @minLength 1 */
+  invoice_pdf_url: string;
+}
+
+export interface DownloadInvoiceResponseApi {
+  status: boolean;
+  result: DownloadInvoiceResultApi;
+}
+
 export type EELicenseGrantApiBand = typeof EELicenseGrantApiBand[keyof typeof EELicenseGrantApiBand];
 
 
@@ -10421,6 +10726,625 @@ export interface EELicenseRevokeResultApi {
 export interface EELicenseRevokeResponseApi {
   status: boolean;
   result: EELicenseRevokeResultApi;
+}
+
+export interface AutoReloadSettingsDataApi {
+  autoreload_enabled: boolean;
+  autoreload_wallet_amount: string;
+  autoreload_wallet_threshold: string;
+}
+
+export interface AutoReloadSettingsResponseApi {
+  /** @minLength 1 */
+  status: string;
+  data: AutoReloadSettingsDataApi;
+}
+
+export interface BillingInfoApi {
+  name?: string;
+  email?: string;
+  company?: string;
+  billing_address1?: string;
+  billing_address2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  tax_id?: string;
+}
+
+export interface OrganizationBillingLegacyResponseApi {
+  /** @minLength 1 */
+  status: string;
+  billing_info: BillingInfoApi;
+}
+
+export interface CustomerInvoiceApi {
+  /** @minLength 1 */
+  date: string;
+  /** @minLength 1 */
+  id: string;
+  is_invoice_available: boolean;
+  /** @minLength 1 */
+  amount: string;
+  receipt_url?: string;
+  /** @minLength 1 */
+  payment_type: string;
+}
+
+export interface CustomerInvoicesResultApi {
+  invoices: CustomerInvoiceApi[];
+  total: number;
+}
+
+export interface CustomerInvoicesResponseApi {
+  status: boolean;
+  result: CustomerInvoicesResultApi;
+}
+
+export type UsageJSONResponseApiResult = { [key: string]: unknown };
+
+export interface UsageJSONResponseApi {
+  status: boolean;
+  result: UsageJSONResponseApiResult;
+}
+
+export interface WalletBalanceResponseApi {
+  wallet_balance: string;
+}
+
+export type PricingCalculationResponseApiResult = {[key: string]: number};
+
+export interface PricingCalculationResponseApi {
+  status: boolean;
+  result: PricingCalculationResponseApiResult;
+}
+
+export interface UsageOrganizationBillingApi {
+  readonly id?: number;
+  readonly organization?: string;
+  /** @maxLength 100 */
+  billing_contact_name?: string;
+  /** @maxLength 254 */
+  billing_contact_email?: string;
+  /** @maxLength 100 */
+  company?: string;
+  /** @maxLength 255 */
+  billing_address1?: string;
+  /** @maxLength 255 */
+  billing_address2?: string;
+  /** @maxLength 100 */
+  city?: string;
+  /** @maxLength 100 */
+  state?: string;
+  /** @maxLength 100 */
+  country?: string;
+  /** @maxLength 20 */
+  postal_code?: string;
+  /** @maxLength 50 */
+  tax_id?: string;
+}
+
+export interface OrganizationBillingListResponseApi {
+  status: boolean;
+  result: UsageOrganizationBillingApi[];
+}
+
+export interface OrganizationBillingDetailResponseApi {
+  status: boolean;
+  result: UsageOrganizationBillingApi;
+}
+
+export interface UsageOrganizationApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+}
+
+export interface OrganizationListResponseApi {
+  status: boolean;
+  result: UsageOrganizationApi[];
+}
+
+export type UsageOrganizationSubscriptionApiStatus = typeof UsageOrganizationSubscriptionApiStatus[keyof typeof UsageOrganizationSubscriptionApiStatus];
+
+
+export const UsageOrganizationSubscriptionApiStatus = {
+  active: 'active',
+  past_due: 'past_due',
+  canceled: 'canceled',
+  inactive: 'inactive',
+} as const;
+
+export type UsageOrganizationSubscriptionApiSubscriptionFutureTier = typeof UsageOrganizationSubscriptionApiSubscriptionFutureTier[keyof typeof UsageOrganizationSubscriptionApiSubscriptionFutureTier];
+
+
+export const UsageOrganizationSubscriptionApiSubscriptionFutureTier = {
+  free: 'free',
+  basic: 'basic',
+  basic_yearly: 'basic_yearly',
+  custom: 'custom',
+} as const;
+
+export interface UsageOrganizationSubscriptionApi {
+  readonly id?: number;
+  organization: string;
+  readonly subscription_tier?: string;
+  /** @maxLength 100 */
+  custom_subscription_id?: string;
+  status?: UsageOrganizationSubscriptionApiStatus;
+  /** Price of the subscription. */
+  subscription_price?: string;
+  wallet_balance?: string;
+  /** Amount to refill the wallet every month. */
+  wallet_refill_amount?: string;
+  /** Next due date for renewal. */
+  next_renewal_date?: string;
+  subscription_future_tier?: UsageOrganizationSubscriptionApiSubscriptionFutureTier;
+  /** Next due date for renewal. */
+  subscription_future_start_date?: string;
+  /** Price of the future subscription. */
+  subscription_future_price?: string;
+  /**
+     * Stripe customer ID for test mode. NULL values are allowed.
+     * @maxLength 100
+     */
+  stripe_customer_id_test?: string;
+  /**
+     * Stripe customer ID for live mode. NULL values are allowed.
+     * @maxLength 100
+     */
+  stripe_customer_id_live?: string;
+  auto_recharge_enabled?: boolean;
+  /** Amount to refill the wallet every month. */
+  auto_recharge_amount?: string;
+  /** Threshold to trigger auto recharge. */
+  auto_recharge_threshold?: string;
+  /** @maxLength 100 */
+  payment_method_id?: string;
+  last_refill_date?: string;
+  /** Amount of the last refill. */
+  last_refill_amount?: string;
+}
+
+export interface OrganizationSubscriptionListResponseApi {
+  status: boolean;
+  result: UsageOrganizationSubscriptionApi[];
+}
+
+export type UsageOrganizationSubscriptionCreateApiSubscriptionFutureTier = typeof UsageOrganizationSubscriptionCreateApiSubscriptionFutureTier[keyof typeof UsageOrganizationSubscriptionCreateApiSubscriptionFutureTier];
+
+
+export const UsageOrganizationSubscriptionCreateApiSubscriptionFutureTier = {
+  free: 'free',
+  basic: 'basic',
+  basic_yearly: 'basic_yearly',
+  custom: 'custom',
+} as const;
+
+export type UsageOrganizationSubscriptionCreateApiStatus = typeof UsageOrganizationSubscriptionCreateApiStatus[keyof typeof UsageOrganizationSubscriptionCreateApiStatus];
+
+
+export const UsageOrganizationSubscriptionCreateApiStatus = {
+  active: 'active',
+  past_due: 'past_due',
+  canceled: 'canceled',
+  inactive: 'inactive',
+} as const;
+
+export interface UsageOrganizationSubscriptionCreateApi {
+  /** Next due date for renewal. */
+  next_renewal_date?: string;
+  /** Price of the subscription. */
+  subscription_price?: string;
+  subscription_future_tier?: UsageOrganizationSubscriptionCreateApiSubscriptionFutureTier;
+  /** Next due date for renewal. */
+  subscription_future_start_date?: string;
+  /** Price of the future subscription. */
+  subscription_future_price?: string;
+  status?: UsageOrganizationSubscriptionCreateApiStatus;
+  /** Amount to refill the wallet every month. */
+  wallet_refill_amount?: string;
+  wallet_balance?: string;
+  /**
+     * Stripe customer ID for test mode. NULL values are allowed.
+     * @maxLength 100
+     */
+  stripe_customer_id_test?: string;
+  /**
+     * Stripe customer ID for live mode. NULL values are allowed.
+     * @maxLength 100
+     */
+  stripe_customer_id_live?: string;
+  auto_recharge_enabled?: boolean;
+  /** Amount to refill the wallet every month. */
+  auto_recharge_amount?: string;
+  /** Threshold to trigger auto recharge. */
+  auto_recharge_threshold?: string;
+  /** @maxLength 100 */
+  payment_method_id?: string;
+  /** @maxLength 100 */
+  custom_subscription_id?: string;
+  organization: string;
+  subscription_tier: number;
+}
+
+export interface OrganizationSubscriptionMutationResponseApi {
+  status: boolean;
+  result: UsageOrganizationSubscriptionCreateApi;
+}
+
+export interface UsageStringResponseApi {
+  status: boolean;
+  /** @minLength 1 */
+  result: string;
+}
+
+export interface PricingCardDetailsResultApi {
+  business_monthly_price: number;
+  business_yearly_price: number;
+  discount_percentage: number;
+  custom_price?: number;
+}
+
+export interface PricingCardDetailsResponseApi {
+  status: boolean;
+  result: PricingCardDetailsResultApi;
+}
+
+export interface UsagePricingCreateApi {
+  readonly id?: number;
+  api_call_type: number;
+  price_per_call: string;
+  organization?: string;
+}
+
+export interface PricingListResponseApi {
+  status: boolean;
+  result: UsagePricingCreateApi[];
+}
+
+export interface PricingDetailResponseApi {
+  status: boolean;
+  result: UsagePricingCreateApi;
+}
+
+export interface UsagePricingApi {
+  readonly id?: number;
+  readonly api_call_type?: string;
+  price_per_call: string;
+  organization?: string;
+}
+
+export interface PricingReadResponseApi {
+  status: boolean;
+  result: UsagePricingApi;
+}
+
+export interface UsageRateLimitApi {
+  readonly id?: number;
+  readonly api_call_type?: string;
+  organization?: string;
+  /**
+     * Max calls per minute
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  minute_limit?: number;
+  /**
+     * Max calls per hour
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  hour_limit?: number;
+  /**
+     * Max calls per day
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  day_limit?: number;
+  /**
+     * Max calls per month
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  month_limit?: number;
+  readonly subscription_tier?: string;
+}
+
+export interface RateLimitListResponseApi {
+  status: boolean;
+  result: UsageRateLimitApi[];
+}
+
+export interface UsageRateLimitCreateApi {
+  readonly id?: number;
+  api_call_type: number;
+  organization?: string;
+  /**
+     * Max calls per minute
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  minute_limit?: number;
+  /**
+     * Max calls per hour
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  hour_limit?: number;
+  /**
+     * Max calls per day
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  day_limit?: number;
+  /**
+     * Max calls per month
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  month_limit?: number;
+  subscription_tier: number;
+}
+
+export interface RateLimitMutationResponseApi {
+  status: boolean;
+  result: UsageRateLimitCreateApi;
+}
+
+export interface RateLimitDetailResponseApi {
+  status: boolean;
+  result: UsageRateLimitApi;
+}
+
+export interface UsageResourceLimitApi {
+  readonly id?: number;
+  readonly resource_type?: string;
+  readonly subscription_tier?: string;
+  /**
+     * Limit for the resource
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  limit: number;
+  organization?: string;
+}
+
+export interface ResourceLimitListResponseApi {
+  status: boolean;
+  result: UsageResourceLimitApi[];
+}
+
+export interface UsageResourceLimitCreateApi {
+  readonly id?: number;
+  resource_type: number;
+  subscription_tier: number;
+  /**
+     * Limit for the resource
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  limit: number;
+  organization?: string;
+}
+
+export interface ResourceLimitMutationResponseApi {
+  status: boolean;
+  result: UsageResourceLimitCreateApi;
+}
+
+export interface ResourceLimitDetailResponseApi {
+  status: boolean;
+  result: UsageResourceLimitApi;
+}
+
+export type UsageResourceTypeApiName = typeof UsageResourceTypeApiName[keyof typeof UsageResourceTypeApiName];
+
+
+export const UsageResourceTypeApiName = {
+  project: 'project',
+  dataset: 'dataset',
+  logs: 'logs',
+  rows: 'rows',
+  columns: 'columns',
+  users: 'users',
+  traces: 'traces',
+  observe: 'observe',
+  prototypes: 'prototypes',
+  knowledge_base: 'knowledge_base',
+} as const;
+
+export interface UsageResourceTypeApi {
+  readonly id?: number;
+  name: UsageResourceTypeApiName;
+  description?: string;
+}
+
+export interface ResourceTypeListResponseApi {
+  status: boolean;
+  result: UsageResourceTypeApi[];
+}
+
+export interface SubscriptionStatusResultApi {
+  next_renewal_date?: string;
+  /** @minLength 1 */
+  subscription_status?: string;
+  /** @minLength 1 */
+  tier?: string;
+  subscription_price?: string;
+  /** @minLength 1 */
+  subscription_future_tier?: string;
+  subscription_future_start_date?: string;
+  subscription_future_price?: string;
+}
+
+export interface SubscriptionStatusResponseApi {
+  status: boolean;
+  result: SubscriptionStatusResultApi;
+}
+
+export type UsageSubscriptionTierApiName = typeof UsageSubscriptionTierApiName[keyof typeof UsageSubscriptionTierApiName];
+
+
+export const UsageSubscriptionTierApiName = {
+  free: 'free',
+  basic: 'basic',
+  basic_yearly: 'basic_yearly',
+  custom: 'custom',
+} as const;
+
+export interface UsageSubscriptionTierApi {
+  readonly id?: number;
+  readonly name?: UsageSubscriptionTierApiName;
+  description: string;
+  /** @maxLength 100 */
+  stripe_price_id?: string;
+  /** Amount to refill the wallet every month. */
+  wallet_refill_amount?: string;
+}
+
+export interface SubscriptionTierListResponseApi {
+  status: boolean;
+  result: UsageSubscriptionTierApi[];
+}
+
+export interface SubscriptionTierDetailResponseApi {
+  status: boolean;
+  result: UsageSubscriptionTierApi;
+}
+
+export interface AutoReloadSettingsRequestApi {
+  autoreload_enabled: boolean;
+  autoreload_walletamount: string;
+  autoreload_walletthreshold: string;
+}
+
+export interface UpdateOrganizationBillingRequestApi {
+  name?: string;
+  email?: string;
+  company?: string;
+  billing_address1?: string;
+  billing_address2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  tax_id?: string;
+}
+
+export type UsageSummaryResponseApiResult = {[key: string]: string};
+
+export interface UsageSummaryResponseApi {
+  status: boolean;
+  result: UsageSummaryResponseApiResult;
+}
+
+export type AddonRequestApiPlan = typeof AddonRequestApiPlan[keyof typeof AddonRequestApiPlan];
+
+
+export const AddonRequestApiPlan = {
+  boost: 'boost',
+  scale: 'scale',
+  enterprise: 'enterprise',
+} as const;
+
+export interface AddonRequestApi {
+  plan?: AddonRequestApiPlan;
+}
+
+export interface AddonPostResultApi {
+  /** @minLength 1 */
+  subscription_id: string;
+  /** @minLength 1 */
+  plan: string;
+}
+
+export interface AddonPostResponseApi {
+  status: boolean;
+  result: AddonPostResultApi;
+}
+
+export interface PlanResultApi {
+  /** @minLength 1 */
+  plan: string;
+}
+
+export interface PlanResponseApi {
+  status: boolean;
+  result: PlanResultApi;
+}
+
+export interface PaymentMethodApi {
+  /** @minLength 1 */
+  id: string;
+  brand?: string;
+  last4?: string;
+  exp_month?: number;
+  exp_year?: number;
+  is_default?: boolean;
+}
+
+export interface PaymentMethodsResponseApi {
+  status: boolean;
+  result: PaymentMethodApi[];
+}
+
+export interface UpgradeToPaygPostResultApi {
+  /** @minLength 1 */
+  checkout_url: string;
+}
+
+export interface PaymentMethodCheckoutResponseApi {
+  status: boolean;
+  result: UpgradeToPaygPostResultApi;
+}
+
+export interface SetupIntentConfirmRequestApi {
+  /** @minLength 1 */
+  session_id: string;
+}
+
+export interface PaymentMethodConfirmResultApi {
+  /** @minLength 1 */
+  payment_method_id: string;
+  set_as_default: boolean;
+}
+
+export interface PaymentMethodConfirmResponseApi {
+  status: boolean;
+  result: PaymentMethodConfirmResultApi;
+}
+
+export type StripeWebhookRequestApiData = {[key: string]: string};
+
+export interface StripeWebhookRequestApi {
+  /** @minLength 1 */
+  id?: string;
+  /** @minLength 1 */
+  type?: string;
+  data?: StripeWebhookRequestApiData;
+}
+
+export type StripeWebhookResponseApiResult = { [key: string]: unknown };
+
+export interface StripeWebhookResponseApi {
+  /** @minLength 1 */
+  status: string;
+  result?: StripeWebhookResponseApiResult;
+}
+
+export interface UpgradeToPaygPostResponseApi {
+  status: boolean;
+  result: UpgradeToPaygPostResultApi;
+}
+
+export interface UpgradeToPaygConfirmRequestApi {
+  /** @minLength 1 */
+  session_id: string;
 }
 
 export type AgentPlaygroundGraphsListParams = {
@@ -13791,4 +14715,65 @@ sort_params?: string;
  * @minLength 1
  */
 filters?: string;
+};
+
+export type UsageAdminCustomPlanListParams = {
+organization_id: string;
+};
+
+export type UsageAdminEntitlementsListParams = {
+organization_id: string;
+};
+
+export type UsageAdminEntitlementsDeleteParams = {
+organization_id: string;
+};
+
+export type UsageAdminPricingListParams = {
+organization_id: string;
+};
+
+export type UsageAdminPricingDeleteParams = {
+organization_id: string;
+};
+
+export type UsageApiCallCountListParams = {
+year?: number;
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+month?: number;
+/**
+ * @minLength 1
+ */
+api_call_type?: string;
+};
+
+export type UsageUsageSummaryListParams = {
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+month?: number;
+year?: number;
+};
+
+export type UsageWorkspaceEvalSummaryListParams = {
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+month?: number;
+year?: number;
+workspace_id: string;
+};
+
+export type UsageWorkspaceUsageSummaryListParams = {
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+month?: number;
+year?: number;
 };
