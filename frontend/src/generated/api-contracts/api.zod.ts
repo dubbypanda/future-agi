@@ -18103,6 +18103,15 @@ export const SimulateRunTestsListResponse = zod.array(SimulateRunTestsListRespon
 
 
 /**
+ * Get all active tests
+ */
+export const SimulateRunTestsActiveListResponse = zod.object({
+  "active_tests": zod.record(zod.string(), zod.string()),
+  "total_active": zod.number()
+})
+
+
+/**
  * Create a new RunTest
  */
 export const simulateRunTestsCreateCreateBodyNameMax = 255;
@@ -18319,6 +18328,14 @@ export const SimulateRunTestsDeleteResponse = zod.object({
  */
 export const SimulateRunTestsAnalyticsListParams = zod.object({
   "run_test_id": zod.string()
+})
+
+export const SimulateRunTestsAnalyticsListResponse = zod.object({
+  "run_test_info": zod.record(zod.string(), zod.string()).describe('Run test metadata'),
+  "fail_rate_trends": zod.array(zod.record(zod.string(), zod.string())).describe('Fail-rate trend points'),
+  "evaluation_score_trends": zod.array(zod.record(zod.string(), zod.string())).describe('Evaluation score trend points'),
+  "performance_comparison": zod.array(zod.record(zod.string(), zod.string())).describe('Per-execution performance rows'),
+  "summary_stats": zod.record(zod.string(), zod.string()).optional().describe('Aggregate performance summary')
 })
 
 
@@ -18671,6 +18688,27 @@ export const SimulateRunTestsSdkCodeListParams = zod.object({
  */
 export const SimulateRunTestsStatusListParams = zod.object({
   "run_test_id": zod.string()
+})
+
+
+
+
+
+
+
+export const SimulateRunTestsStatusListResponse = zod.object({
+  "run_test_id": zod.string().min(1),
+  "execution_id": zod.string().min(1),
+  "status": zod.string().min(1),
+  "total_scenarios": zod.number(),
+  "total_calls": zod.number(),
+  "completed_calls": zod.number(),
+  "failed_calls": zod.number(),
+  "success_rate": zod.number(),
+  "start_time": zod.string().datetime({"offset":true}),
+  "end_time": zod.string().datetime({"offset":true}),
+  "scenarios": zod.array(zod.record(zod.string(), zod.string())),
+  "error": zod.string().min(1)
 })
 
 
@@ -19359,6 +19397,12 @@ export const SimulateTestExecutionsReadResponse = zod.object({
  */
 export const SimulateTestExecutionsAnalyticsListParams = zod.object({
   "test_execution_id": zod.string()
+})
+
+export const SimulateTestExecutionsAnalyticsListResponse = zod.object({
+  "fail_rate_over_test_runs": zod.record(zod.string(), zod.string()).describe('Fail rate data for scatter plot chart'),
+  "evaluation_categories_over_test_runs": zod.record(zod.string(), zod.string()).describe('Evaluation categories data for line graph chart'),
+  "metadata": zod.record(zod.string(), zod.string()).describe('Metadata about the analytics data')
 })
 
 

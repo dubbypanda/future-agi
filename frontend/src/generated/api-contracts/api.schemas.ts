@@ -5467,6 +5467,18 @@ export interface CallExecutionLogsResponseApi {
   readonly ingestion_pending?: boolean;
 }
 
+export type AllActiveTestsApiActiveTests = {[key: string]: string};
+
+export interface AllActiveTestsApi {
+  active_tests: AllActiveTestsApiActiveTests;
+  total_active: number;
+}
+
+export interface ErrorResponseApi {
+  /** @minLength 1 */
+  error: string;
+}
+
 export type CreateRunTestApiEvaluationsConfigItem = {[key: string]: string};
 
 export interface CreateRunTestApi {
@@ -5506,6 +5518,35 @@ export interface RunTestMessageResponseApi {
   readonly message?: string;
 }
 
+/**
+ * Run test metadata
+ */
+export type RunTestAnalyticsApiRunTestInfo = {[key: string]: string};
+
+export type RunTestAnalyticsApiFailRateTrendsItem = {[key: string]: string};
+
+export type RunTestAnalyticsApiEvaluationScoreTrendsItem = {[key: string]: string};
+
+export type RunTestAnalyticsApiPerformanceComparisonItem = {[key: string]: string};
+
+/**
+ * Aggregate performance summary
+ */
+export type RunTestAnalyticsApiSummaryStats = {[key: string]: string};
+
+export interface RunTestAnalyticsApi {
+  /** Run test metadata */
+  run_test_info: RunTestAnalyticsApiRunTestInfo;
+  /** Fail-rate trend points */
+  fail_rate_trends: RunTestAnalyticsApiFailRateTrendsItem[];
+  /** Evaluation score trend points */
+  evaluation_score_trends: RunTestAnalyticsApiEvaluationScoreTrendsItem[];
+  /** Per-execution performance rows */
+  performance_comparison: RunTestAnalyticsApiPerformanceComparisonItem[];
+  /** Aggregate performance summary */
+  summary_stats?: RunTestAnalyticsApiSummaryStats;
+}
+
 export interface TestExecutionBulkDeleteApi {
   /** List of specific test execution IDs to delete */
   test_execution_ids?: string[];
@@ -5519,11 +5560,6 @@ export interface TestExecutionBulkDeleteResponseApi {
   readonly run_test_id?: string;
   readonly deleted_count?: number;
   readonly deleted_ids?: readonly string[];
-}
-
-export interface ErrorResponseApi {
-  /** @minLength 1 */
-  error: string;
 }
 
 /**
@@ -5805,6 +5841,27 @@ export interface RunTestScenarioItemResponseApi {
   /** @minLength 1 */
   readonly name?: string;
   readonly row_count?: number;
+}
+
+export type TestExecutionStatusApiScenariosItem = {[key: string]: string};
+
+export interface TestExecutionStatusApi {
+  /** @minLength 1 */
+  run_test_id: string;
+  /** @minLength 1 */
+  execution_id: string;
+  /** @minLength 1 */
+  status: string;
+  total_scenarios: number;
+  total_calls: number;
+  completed_calls: number;
+  failed_calls: number;
+  success_rate: number;
+  start_time: string;
+  end_time: string;
+  scenarios: TestExecutionStatusApiScenariosItem[];
+  /** @minLength 1 */
+  error: string;
 }
 
 /**
@@ -6271,6 +6328,30 @@ export interface SimulatorAgentListResponseApi {
 }
 
 export interface SimulatorAgentValidationErrorResponseApi {[key: string]: string[]}
+
+/**
+ * Fail rate data for scatter plot chart
+ */
+export type TestExecutionAnalyticsApiFailRateOverTestRuns = {[key: string]: string};
+
+/**
+ * Evaluation categories data for line graph chart
+ */
+export type TestExecutionAnalyticsApiEvaluationCategoriesOverTestRuns = {[key: string]: string};
+
+/**
+ * Metadata about the analytics data
+ */
+export type TestExecutionAnalyticsApiMetadata = {[key: string]: string};
+
+export interface TestExecutionAnalyticsApi {
+  /** Fail rate data for scatter plot chart */
+  fail_rate_over_test_runs: TestExecutionAnalyticsApiFailRateOverTestRuns;
+  /** Evaluation categories data for line graph chart */
+  evaluation_categories_over_test_runs: TestExecutionAnalyticsApiEvaluationCategoriesOverTestRuns;
+  /** Metadata about the analytics data */
+  metadata: TestExecutionAnalyticsApiMetadata;
+}
 
 export interface CancelTestExecutionResponseApi {
   success: boolean;

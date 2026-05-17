@@ -4,7 +4,7 @@
     "paths": 964,
     "operations": 1326,
     "mutation_endpoints_without_body_schema": 316,
-    "operations_without_response_schema": 549
+    "operations_without_response_schema": 545
   },
   "by_group": {
     "accounts": {
@@ -89,7 +89,7 @@
       "paths": 105,
       "operations": 125,
       "mutation_endpoints_without_body_schema": 8,
-      "operations_without_response_schema": 26
+      "operations_without_response_schema": 22
     },
     "tracer": {
       "paths": 159,
@@ -6992,26 +6992,8 @@
     {
       "group": "simulate",
       "method": "GET",
-      "path": "/simulate/run-tests/active/",
-      "operation_id": "simulate_run-tests_active_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
       "path": "/simulate/run-tests/get-id-by-name/{run_test_name}/",
       "operation_id": "simulate_run-tests_get-id-by-name_read",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/run-tests/{run_test_id}/analytics/",
-      "operation_id": "simulate_run-tests_analytics_list",
       "tags": [
         "simulate"
       ]
@@ -7057,24 +7039,6 @@
       "method": "GET",
       "path": "/simulate/run-tests/{run_test_id}/sdk-code/",
       "operation_id": "simulate_run-tests_sdk-code_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/run-tests/{run_test_id}/status/",
-      "operation_id": "simulate_run-tests_status_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/test-executions/{test_execution_id}/analytics/",
-      "operation_id": "simulate_test-executions_analytics_list",
       "tags": [
         "simulate"
       ]

@@ -96,6 +96,16 @@ def test_test_execution_endpoints_have_response_contracts():
         ("POST", "/simulate/run-tests/{run_test_id}/rerun-test-executions/"): (
             "TestExecutionRerunResponse"
         ),
+        ("GET", "/simulate/run-tests/active/"): "AllActiveTests",
+        ("GET", "/simulate/run-tests/{run_test_id}/status/"): (
+            "TestExecutionStatus"
+        ),
+        ("GET", "/simulate/test-executions/{test_execution_id}/analytics/"): (
+            "TestExecutionAnalytics"
+        ),
+        ("GET", "/simulate/run-tests/{run_test_id}/analytics/"): (
+            "RunTestAnalytics"
+        ),
     }
 
     for (method, path), definition_name in expected.items():
@@ -111,6 +121,10 @@ def test_test_execution_contract_debt_stays_burned_down():
         "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/",
         "/simulate/run-tests/{run_test_id}/delete-test-executions/",
         "/simulate/run-tests/{run_test_id}/rerun-test-executions/",
+        "/simulate/run-tests/active/",
+        "/simulate/run-tests/{run_test_id}/status/",
+        "/simulate/test-executions/{test_execution_id}/analytics/",
+        "/simulate/run-tests/{run_test_id}/analytics/",
     }
     report = _debt_report()
 

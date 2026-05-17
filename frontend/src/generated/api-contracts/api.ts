@@ -117,6 +117,7 @@ import type {
   AgentccWebhookEventsListParams,
   AgentccWebhooksList200,
   AgentccWebhooksListParams,
+  AllActiveTestsApi,
   AnnotationLabelRestoreResponseApi,
   AnnotationQueueApi,
   AnnotationSummaryResponseApi,
@@ -362,6 +363,7 @@ import type {
   ReviewItemRequestApi,
   RunNewEvalsOnTestExecutionApi,
   RunNewEvalsResponseApi,
+  RunTestAnalyticsApi,
   RunTestErrorResponseApi,
   RunTestMessageResponseApi,
   RunTestResponseApi,
@@ -430,6 +432,7 @@ import type {
   SubmitAnnotationsApi,
   SyncLogApi,
   TTSVoiceApi,
+  TestExecutionAnalyticsApi,
   TestExecutionApi,
   TestExecutionBulkDeleteApi,
   TestExecutionBulkDeleteResponseApi,
@@ -438,6 +441,7 @@ import type {
   TestExecutionItemResponseApi,
   TestExecutionRerunApi,
   TestExecutionRerunResponseApi,
+  TestExecutionStatusApi,
   TokenObtainPairApi,
   ToolsApi,
   TraceApi,
@@ -35439,16 +35443,28 @@ export const simulateRunTestsList = async (params?: SimulateRunTestsListParams, 
 
 
 export type simulateRunTestsActiveListResponse200 = {
-  data: void
+  data: AllActiveTestsApi
   status: 200
+}
+
+export type simulateRunTestsActiveListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsActiveListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsActiveListResponseSuccess = (simulateRunTestsActiveListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsActiveListResponseError = (simulateRunTestsActiveListResponse404 | simulateRunTestsActiveListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsActiveListResponse = (simulateRunTestsActiveListResponseSuccess)
+export type simulateRunTestsActiveListResponse = (simulateRunTestsActiveListResponseSuccess | simulateRunTestsActiveListResponseError)
 
 export const getSimulateRunTestsActiveListUrl = () => {
 
@@ -35716,16 +35732,28 @@ export const simulateRunTestsDelete = async (runTestId: string, options?: Reques
 
 
 export type simulateRunTestsAnalyticsListResponse200 = {
-  data: void
+  data: RunTestAnalyticsApi
   status: 200
+}
+
+export type simulateRunTestsAnalyticsListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsAnalyticsListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsAnalyticsListResponseSuccess = (simulateRunTestsAnalyticsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsAnalyticsListResponseError = (simulateRunTestsAnalyticsListResponse404 | simulateRunTestsAnalyticsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsAnalyticsListResponse = (simulateRunTestsAnalyticsListResponseSuccess)
+export type simulateRunTestsAnalyticsListResponse = (simulateRunTestsAnalyticsListResponseSuccess | simulateRunTestsAnalyticsListResponseError)
 
 export const getSimulateRunTestsAnalyticsListUrl = (runTestId: string,) => {
 
@@ -36568,16 +36596,28 @@ export const simulateRunTestsSdkCodeList = async (runTestId: string, options?: R
 
 
 export type simulateRunTestsStatusListResponse200 = {
-  data: void
+  data: TestExecutionStatusApi
   status: 200
+}
+
+export type simulateRunTestsStatusListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsStatusListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsStatusListResponseSuccess = (simulateRunTestsStatusListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsStatusListResponseError = (simulateRunTestsStatusListResponse404 | simulateRunTestsStatusListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsStatusListResponse = (simulateRunTestsStatusListResponseSuccess)
+export type simulateRunTestsStatusListResponse = (simulateRunTestsStatusListResponseSuccess | simulateRunTestsStatusListResponseError)
 
 export const getSimulateRunTestsStatusListUrl = (runTestId: string,) => {
 
@@ -37339,16 +37379,28 @@ export const simulateTestExecutionsRead = async (testExecutionId: string, option
 
 
 export type simulateTestExecutionsAnalyticsListResponse200 = {
-  data: void
+  data: TestExecutionAnalyticsApi
   status: 200
+}
+
+export type simulateTestExecutionsAnalyticsListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsAnalyticsListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateTestExecutionsAnalyticsListResponseSuccess = (simulateTestExecutionsAnalyticsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsAnalyticsListResponseError = (simulateTestExecutionsAnalyticsListResponse404 | simulateTestExecutionsAnalyticsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsAnalyticsListResponse = (simulateTestExecutionsAnalyticsListResponseSuccess)
+export type simulateTestExecutionsAnalyticsListResponse = (simulateTestExecutionsAnalyticsListResponseSuccess | simulateTestExecutionsAnalyticsListResponseError)
 
 export const getSimulateTestExecutionsAnalyticsListUrl = (testExecutionId: string,) => {
 

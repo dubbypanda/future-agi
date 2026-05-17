@@ -131,10 +131,12 @@ from simulate.serializers.run_test import (
     RunTestSerializer,
 )
 from simulate.serializers.test_execution import (
+    AllActiveTestsSerializer,
     CallExecutionDetailSerializer,
     CallExecutionSerializer,
     CallExecutionSnapshotSerializer,
     PerformanceSummarySerializer,
+    RunTestAnalyticsSerializer,
     TestExecutionAnalyticsSerializer,
     TestExecutionBulkDeleteSerializer,
     TestExecutionBulkDeleteResponseSerializer,
@@ -142,6 +144,7 @@ from simulate.serializers.test_execution import (
     TestExecutionColumnOrderResponseSerializer,
     TestExecutionRerunSerializer,
     TestExecutionRerunResponseSerializer,
+    TestExecutionStatusSerializer,
     TestExecutionSerializer,
 )
 
@@ -862,6 +865,13 @@ class TestExecutionStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: TestExecutionStatusSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, run_test_id, *args, **kwargs):
         """Get test execution status"""
         try:
@@ -1057,6 +1067,13 @@ class AllActiveTestsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: AllActiveTestsSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         """Get all active tests"""
         try:
@@ -2732,6 +2749,13 @@ class TestExecutionAnalyticsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: TestExecutionAnalyticsSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, test_execution_id, *args, **kwargs):
         """
         Get analytics data for a specific test execution
@@ -2990,6 +3014,13 @@ class RunTestAnalyticsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: RunTestAnalyticsSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, run_test_id, *args, **kwargs):
         """
         Get analytics data for a specific run test across multiple test executions

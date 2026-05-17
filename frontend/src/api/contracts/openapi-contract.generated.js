@@ -13572,7 +13572,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_run-tests_active_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AllActiveTests"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/create/": {
@@ -13666,7 +13676,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_run-tests_analytics_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RunTestAnalytics"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/{run_test_id}/call-executions/": {
@@ -13955,7 +13975,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_run-tests_status_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TestExecutionStatus"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/scenarios/": {
@@ -14305,7 +14335,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_test-executions_analytics_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TestExecutionAnalytics"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/cancel/": {
@@ -24069,6 +24109,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AllActiveTests": {
+      "required": [
+        "active_tests",
+        "total_active"
+      ],
+      "type": "object",
+      "properties": {
+        "active_tests": {
+          "title": "Active tests",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "total_active": {
+          "title": "Total active",
+          "type": "integer"
+        }
+      }
+    },
     "AnnotationLabelRestoreResponse": {
       "required": [
         "result"
@@ -32092,6 +32153,68 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "RunTestAnalytics": {
+      "required": [
+        "run_test_info",
+        "fail_rate_trends",
+        "evaluation_score_trends",
+        "performance_comparison"
+      ],
+      "type": "object",
+      "properties": {
+        "run_test_info": {
+          "title": "Run test info",
+          "description": "Run test metadata",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "fail_rate_trends": {
+          "description": "Fail-rate trend points",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "evaluation_score_trends": {
+          "description": "Evaluation score trend points",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "performance_comparison": {
+          "description": "Per-execution performance rows",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "summary_stats": {
+          "title": "Summary stats",
+          "description": "Aggregate performance summary",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
     "RunTestErrorResponse": {
       "type": "object",
       "properties": {
@@ -34190,6 +34313,43 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TestExecutionAnalytics": {
+      "required": [
+        "fail_rate_over_test_runs",
+        "evaluation_categories_over_test_runs",
+        "metadata"
+      ],
+      "type": "object",
+      "properties": {
+        "fail_rate_over_test_runs": {
+          "title": "Fail rate over test runs",
+          "description": "Fail rate data for scatter plot chart",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "evaluation_categories_over_test_runs": {
+          "title": "Evaluation categories over test runs",
+          "description": "Evaluation categories data for line graph chart",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "metadata": {
+          "title": "Metadata",
+          "description": "Metadata about the analytics data",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
     "TestExecutionBulkDelete": {
       "type": "object",
       "properties": {
@@ -34450,6 +34610,87 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Overall failure count",
           "type": "integer",
           "readOnly": true
+        }
+      }
+    },
+    "TestExecutionStatus": {
+      "required": [
+        "run_test_id",
+        "execution_id",
+        "status",
+        "total_scenarios",
+        "total_calls",
+        "completed_calls",
+        "failed_calls",
+        "success_rate",
+        "start_time",
+        "end_time",
+        "scenarios",
+        "error"
+      ],
+      "type": "object",
+      "properties": {
+        "run_test_id": {
+          "title": "Run test id",
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_id": {
+          "title": "Execution id",
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "total_scenarios": {
+          "title": "Total scenarios",
+          "type": "integer"
+        },
+        "total_calls": {
+          "title": "Total calls",
+          "type": "integer"
+        },
+        "completed_calls": {
+          "title": "Completed calls",
+          "type": "integer"
+        },
+        "failed_calls": {
+          "title": "Failed calls",
+          "type": "integer"
+        },
+        "success_rate": {
+          "title": "Success rate",
+          "type": "number"
+        },
+        "start_time": {
+          "title": "Start time",
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_time": {
+          "title": "End time",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
         }
       }
     },

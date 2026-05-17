@@ -1356,6 +1356,24 @@ class TestExecutionAnalyticsSerializer(serializers.Serializer):
     metadata = serializers.DictField(help_text="Metadata about the analytics data")
 
 
+class RunTestAnalyticsSerializer(serializers.Serializer):
+    """Serializer for run-test analytics across multiple test executions."""
+
+    run_test_info = serializers.DictField(help_text="Run test metadata")
+    fail_rate_trends = serializers.ListField(
+        child=serializers.DictField(), help_text="Fail-rate trend points"
+    )
+    evaluation_score_trends = serializers.ListField(
+        child=serializers.DictField(), help_text="Evaluation score trend points"
+    )
+    performance_comparison = serializers.ListField(
+        child=serializers.DictField(), help_text="Per-execution performance rows"
+    )
+    summary_stats = serializers.DictField(
+        required=False, help_text="Aggregate performance summary"
+    )
+
+
 class TestExecutionRerunSerializer(serializers.Serializer):
     """Serializer for bulk test execution rerun requests"""
 
