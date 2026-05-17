@@ -243,6 +243,27 @@ import type {
   LiveKitOkResponseApi,
   LiveKitTemporalSignalRequestApi,
   LiveKitTranscriptsRequestApi,
+  MCPAnalyticsSummaryResponseApi,
+  MCPAnalyticsTimelineResponseApi,
+  MCPAnalyticsToolsResponseApi,
+  MCPConnectionResponseApi,
+  MCPConnectionUpdateApi,
+  MCPErrorResponseApi,
+  MCPHealthResponseApi,
+  MCPOAuthApproveInfoResponseApi,
+  MCPOAuthApproveRequestApi,
+  MCPOAuthAuthorizeResponseApi,
+  MCPOAuthConsentRequestApi,
+  MCPOAuthRedirectResponseApi,
+  MCPOAuthTokenErrorResponseApi,
+  MCPOAuthTokenRequestApi,
+  MCPOAuthTokenResponseApi,
+  MCPSessionListResponseApi,
+  MCPToolCallRequestApi,
+  MCPToolCallResponseApi,
+  MCPToolGroupConfigUpdateApi,
+  MCPToolGroupsResponseApi,
+  MCPToolListResponseApi,
   ModelHubAnnotationQueuesAutomationRulesList200,
   ModelHubAnnotationQueuesAutomationRulesListParams,
   ModelHubAnnotationQueuesExportAnnotationsParams,
@@ -13092,16 +13113,23 @@ export const integrationsSyncLogsRead = async (id: string, options?: RequestInit
 
 
 export type mcpAnalyticsSummaryListResponse200 = {
-  data: void
+  data: MCPAnalyticsSummaryResponseApi
   status: 200
+}
+
+export type mcpAnalyticsSummaryListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpAnalyticsSummaryListResponseSuccess = (mcpAnalyticsSummaryListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpAnalyticsSummaryListResponseError = (mcpAnalyticsSummaryListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpAnalyticsSummaryListResponse = (mcpAnalyticsSummaryListResponseSuccess)
+export type mcpAnalyticsSummaryListResponse = (mcpAnalyticsSummaryListResponseSuccess | mcpAnalyticsSummaryListResponseError)
 
 export const getMcpAnalyticsSummaryListUrl = () => {
 
@@ -13128,16 +13156,23 @@ export const mcpAnalyticsSummaryList = async ( options?: RequestInit): Promise<m
 
 
 export type mcpAnalyticsTimelineListResponse200 = {
-  data: void
+  data: MCPAnalyticsTimelineResponseApi
   status: 200
+}
+
+export type mcpAnalyticsTimelineListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpAnalyticsTimelineListResponseSuccess = (mcpAnalyticsTimelineListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpAnalyticsTimelineListResponseError = (mcpAnalyticsTimelineListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpAnalyticsTimelineListResponse = (mcpAnalyticsTimelineListResponseSuccess)
+export type mcpAnalyticsTimelineListResponse = (mcpAnalyticsTimelineListResponseSuccess | mcpAnalyticsTimelineListResponseError)
 
 export const getMcpAnalyticsTimelineListUrl = () => {
 
@@ -13164,16 +13199,23 @@ export const mcpAnalyticsTimelineList = async ( options?: RequestInit): Promise<
 
 
 export type mcpAnalyticsToolsListResponse200 = {
-  data: void
+  data: MCPAnalyticsToolsResponseApi
   status: 200
+}
+
+export type mcpAnalyticsToolsListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpAnalyticsToolsListResponseSuccess = (mcpAnalyticsToolsListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpAnalyticsToolsListResponseError = (mcpAnalyticsToolsListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpAnalyticsToolsListResponse = (mcpAnalyticsToolsListResponseSuccess)
+export type mcpAnalyticsToolsListResponse = (mcpAnalyticsToolsListResponseSuccess | mcpAnalyticsToolsListResponseError)
 
 export const getMcpAnalyticsToolsListUrl = () => {
 
@@ -13200,16 +13242,23 @@ export const mcpAnalyticsToolsList = async ( options?: RequestInit): Promise<mcp
 
 
 export type mcpConfigListResponse200 = {
-  data: void
+  data: MCPConnectionResponseApi
   status: 200
+}
+
+export type mcpConfigListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpConfigListResponseSuccess = (mcpConfigListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpConfigListResponseError = (mcpConfigListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpConfigListResponse = (mcpConfigListResponseSuccess)
+export type mcpConfigListResponse = (mcpConfigListResponseSuccess | mcpConfigListResponseError)
 
 export const getMcpConfigListUrl = () => {
 
@@ -13236,16 +13285,28 @@ export const mcpConfigList = async ( options?: RequestInit): Promise<mcpConfigLi
 
 
 export type mcpConfigUpdateResponse200 = {
-  data: void
+  data: MCPConnectionResponseApi
   status: 200
+}
+
+export type mcpConfigUpdateResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
+}
+
+export type mcpConfigUpdateResponse404 = {
+  data: MCPErrorResponseApi
+  status: 404
 }
 
 export type mcpConfigUpdateResponseSuccess = (mcpConfigUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpConfigUpdateResponseError = (mcpConfigUpdateResponse403 | mcpConfigUpdateResponse404) & {
+  headers: Headers;
+};
 
-export type mcpConfigUpdateResponse = (mcpConfigUpdateResponseSuccess)
+export type mcpConfigUpdateResponse = (mcpConfigUpdateResponseSuccess | mcpConfigUpdateResponseError)
 
 export const getMcpConfigUpdateUrl = () => {
 
@@ -13258,21 +13319,22 @@ export const getMcpConfigUpdateUrl = () => {
 /**
  * Get or update MCP connection configuration.
  */
-export const mcpConfigUpdate = async ( options?: RequestInit): Promise<mcpConfigUpdateResponse> => {
+export const mcpConfigUpdate = async (mCPConnectionUpdateApi: MCPConnectionUpdateApi, options?: RequestInit): Promise<mcpConfigUpdateResponse> => {
 
   return apiMutator<mcpConfigUpdateResponse>(getMcpConfigUpdateUrl(),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPConnectionUpdateApi,)
   }
 );}
 
 
 
 export type mcpConfigToolGroupsListResponse200 = {
-  data: void
+  data: MCPToolGroupsResponseApi
   status: 200
 }
 
@@ -13308,16 +13370,23 @@ export const mcpConfigToolGroupsList = async ( options?: RequestInit): Promise<m
 
 
 export type mcpConfigToolGroupsUpdateResponse200 = {
-  data: void
+  data: MCPToolGroupsResponseApi
   status: 200
+}
+
+export type mcpConfigToolGroupsUpdateResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpConfigToolGroupsUpdateResponseSuccess = (mcpConfigToolGroupsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpConfigToolGroupsUpdateResponseError = (mcpConfigToolGroupsUpdateResponse403) & {
+  headers: Headers;
+};
 
-export type mcpConfigToolGroupsUpdateResponse = (mcpConfigToolGroupsUpdateResponseSuccess)
+export type mcpConfigToolGroupsUpdateResponse = (mcpConfigToolGroupsUpdateResponseSuccess | mcpConfigToolGroupsUpdateResponseError)
 
 export const getMcpConfigToolGroupsUpdateUrl = () => {
 
@@ -13330,21 +13399,22 @@ export const getMcpConfigToolGroupsUpdateUrl = () => {
 /**
  * Get or update tool group configuration.
  */
-export const mcpConfigToolGroupsUpdate = async ( options?: RequestInit): Promise<mcpConfigToolGroupsUpdateResponse> => {
+export const mcpConfigToolGroupsUpdate = async (mCPToolGroupConfigUpdateApi: MCPToolGroupConfigUpdateApi, options?: RequestInit): Promise<mcpConfigToolGroupsUpdateResponse> => {
 
   return apiMutator<mcpConfigToolGroupsUpdateResponse>(getMcpConfigToolGroupsUpdateUrl(),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPToolGroupConfigUpdateApi,)
   }
 );}
 
 
 
 export type mcpHealthListResponse200 = {
-  data: void
+  data: MCPHealthResponseApi
   status: 200
 }
 
@@ -13379,17 +13449,44 @@ export const mcpHealthList = async ( options?: RequestInit): Promise<mcpHealthLi
 
 
 
-export type mcpInternalToolCallCreateResponse201 = {
-  data: void
-  status: 201
+export type mcpInternalToolCallCreateResponse200 = {
+  data: MCPToolCallResponseApi
+  status: 200
 }
 
-export type mcpInternalToolCallCreateResponseSuccess = (mcpInternalToolCallCreateResponse201) & {
+export type mcpInternalToolCallCreateResponse400 = {
+  data: MCPErrorResponseApi
+  status: 400
+}
+
+export type mcpInternalToolCallCreateResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
+}
+
+export type mcpInternalToolCallCreateResponse404 = {
+  data: MCPErrorResponseApi
+  status: 404
+}
+
+export type mcpInternalToolCallCreateResponse429 = {
+  data: MCPErrorResponseApi
+  status: 429
+}
+
+export type mcpInternalToolCallCreateResponse500 = {
+  data: MCPErrorResponseApi
+  status: 500
+}
+
+export type mcpInternalToolCallCreateResponseSuccess = (mcpInternalToolCallCreateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpInternalToolCallCreateResponseError = (mcpInternalToolCallCreateResponse400 | mcpInternalToolCallCreateResponse403 | mcpInternalToolCallCreateResponse404 | mcpInternalToolCallCreateResponse429 | mcpInternalToolCallCreateResponse500) & {
+  headers: Headers;
+};
 
-export type mcpInternalToolCallCreateResponse = (mcpInternalToolCallCreateResponseSuccess)
+export type mcpInternalToolCallCreateResponse = (mcpInternalToolCallCreateResponseSuccess | mcpInternalToolCallCreateResponseError)
 
 export const getMcpInternalToolCallCreateUrl = () => {
 
@@ -13402,30 +13499,38 @@ export const getMcpInternalToolCallCreateUrl = () => {
 /**
  * Execute a tool call via internal API (used by stdio proxy).
  */
-export const mcpInternalToolCallCreate = async ( options?: RequestInit): Promise<mcpInternalToolCallCreateResponse> => {
+export const mcpInternalToolCallCreate = async (mCPToolCallRequestApi: MCPToolCallRequestApi, options?: RequestInit): Promise<mcpInternalToolCallCreateResponse> => {
 
   return apiMutator<mcpInternalToolCallCreateResponse>(getMcpInternalToolCallCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPToolCallRequestApi,)
   }
 );}
 
 
 
 export type mcpInternalToolsListResponse200 = {
-  data: void
+  data: MCPToolListResponseApi
   status: 200
+}
+
+export type mcpInternalToolsListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpInternalToolsListResponseSuccess = (mcpInternalToolsListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpInternalToolsListResponseError = (mcpInternalToolsListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpInternalToolsListResponse = (mcpInternalToolsListResponseSuccess)
+export type mcpInternalToolsListResponse = (mcpInternalToolsListResponseSuccess | mcpInternalToolsListResponseError)
 
 export const getMcpInternalToolsListUrl = () => {
 
@@ -13452,16 +13557,28 @@ export const mcpInternalToolsList = async ( options?: RequestInit): Promise<mcpI
 
 
 export type mcpOauthApproveInfoListResponse200 = {
-  data: void
+  data: MCPOAuthApproveInfoResponseApi
   status: 200
+}
+
+export type mcpOauthApproveInfoListResponse400 = {
+  data: MCPErrorResponseApi
+  status: 400
+}
+
+export type mcpOauthApproveInfoListResponse404 = {
+  data: MCPErrorResponseApi
+  status: 404
 }
 
 export type mcpOauthApproveInfoListResponseSuccess = (mcpOauthApproveInfoListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpOauthApproveInfoListResponseError = (mcpOauthApproveInfoListResponse400 | mcpOauthApproveInfoListResponse404) & {
+  headers: Headers;
+};
 
-export type mcpOauthApproveInfoListResponse = (mcpOauthApproveInfoListResponseSuccess)
+export type mcpOauthApproveInfoListResponse = (mcpOauthApproveInfoListResponseSuccess | mcpOauthApproveInfoListResponseError)
 
 export const getMcpOauthApproveInfoListUrl = () => {
 
@@ -13489,17 +13606,34 @@ export const mcpOauthApproveInfoList = async ( options?: RequestInit): Promise<m
 
 
 
-export type mcpOauthApproveCreateResponse201 = {
-  data: void
-  status: 201
+export type mcpOauthApproveCreateResponse200 = {
+  data: MCPOAuthRedirectResponseApi
+  status: 200
 }
 
-export type mcpOauthApproveCreateResponseSuccess = (mcpOauthApproveCreateResponse201) & {
+export type mcpOauthApproveCreateResponse400 = {
+  data: MCPErrorResponseApi
+  status: 400
+}
+
+export type mcpOauthApproveCreateResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
+}
+
+export type mcpOauthApproveCreateResponse404 = {
+  data: MCPErrorResponseApi
+  status: 404
+}
+
+export type mcpOauthApproveCreateResponseSuccess = (mcpOauthApproveCreateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpOauthApproveCreateResponseError = (mcpOauthApproveCreateResponse400 | mcpOauthApproveCreateResponse403 | mcpOauthApproveCreateResponse404) & {
+  headers: Headers;
+};
 
-export type mcpOauthApproveCreateResponse = (mcpOauthApproveCreateResponseSuccess)
+export type mcpOauthApproveCreateResponse = (mcpOauthApproveCreateResponseSuccess | mcpOauthApproveCreateResponseError)
 
 export const getMcpOauthApproveCreateUrl = () => {
 
@@ -13514,30 +13648,38 @@ export const getMcpOauthApproveCreateUrl = () => {
 Requires JWT auth (authenticated user).
  * @summary POST /mcp/oauth/approve/ - Process user approval decision.
  */
-export const mcpOauthApproveCreate = async ( options?: RequestInit): Promise<mcpOauthApproveCreateResponse> => {
+export const mcpOauthApproveCreate = async (mCPOAuthApproveRequestApi: MCPOAuthApproveRequestApi, options?: RequestInit): Promise<mcpOauthApproveCreateResponse> => {
 
   return apiMutator<mcpOauthApproveCreateResponse>(getMcpOauthApproveCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPOAuthApproveRequestApi,)
   }
 );}
 
 
 
 export type mcpOauthAuthorizeListResponse200 = {
-  data: void
+  data: MCPOAuthAuthorizeResponseApi
   status: 200
+}
+
+export type mcpOauthAuthorizeListResponse400 = {
+  data: MCPErrorResponseApi
+  status: 400
 }
 
 export type mcpOauthAuthorizeListResponseSuccess = (mcpOauthAuthorizeListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpOauthAuthorizeListResponseError = (mcpOauthAuthorizeListResponse400) & {
+  headers: Headers;
+};
 
-export type mcpOauthAuthorizeListResponse = (mcpOauthAuthorizeListResponseSuccess)
+export type mcpOauthAuthorizeListResponse = (mcpOauthAuthorizeListResponseSuccess | mcpOauthAuthorizeListResponseError)
 
 export const getMcpOauthAuthorizeListUrl = () => {
 
@@ -13563,17 +13705,29 @@ export const mcpOauthAuthorizeList = async ( options?: RequestInit): Promise<mcp
 
 
 
-export type mcpOauthConsentCreateResponse201 = {
-  data: void
-  status: 201
+export type mcpOauthConsentCreateResponse200 = {
+  data: MCPOAuthRedirectResponseApi
+  status: 200
 }
 
-export type mcpOauthConsentCreateResponseSuccess = (mcpOauthConsentCreateResponse201) & {
+export type mcpOauthConsentCreateResponse400 = {
+  data: MCPErrorResponseApi
+  status: 400
+}
+
+export type mcpOauthConsentCreateResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
+}
+
+export type mcpOauthConsentCreateResponseSuccess = (mcpOauthConsentCreateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpOauthConsentCreateResponseError = (mcpOauthConsentCreateResponse400 | mcpOauthConsentCreateResponse403) & {
+  headers: Headers;
+};
 
-export type mcpOauthConsentCreateResponse = (mcpOauthConsentCreateResponseSuccess)
+export type mcpOauthConsentCreateResponse = (mcpOauthConsentCreateResponseSuccess | mcpOauthConsentCreateResponseError)
 
 export const getMcpOauthConsentCreateUrl = () => {
 
@@ -13586,30 +13740,43 @@ export const getMcpOauthConsentCreateUrl = () => {
 /**
  * POST /mcp/oauth/consent/ — Process user consent decision.
  */
-export const mcpOauthConsentCreate = async ( options?: RequestInit): Promise<mcpOauthConsentCreateResponse> => {
+export const mcpOauthConsentCreate = async (mCPOAuthConsentRequestApi: MCPOAuthConsentRequestApi, options?: RequestInit): Promise<mcpOauthConsentCreateResponse> => {
 
   return apiMutator<mcpOauthConsentCreateResponse>(getMcpOauthConsentCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPOAuthConsentRequestApi,)
   }
 );}
 
 
 
-export type mcpOauthTokenCreateResponse201 = {
-  data: void
-  status: 201
+export type mcpOauthTokenCreateResponse200 = {
+  data: MCPOAuthTokenResponseApi
+  status: 200
 }
 
-export type mcpOauthTokenCreateResponseSuccess = (mcpOauthTokenCreateResponse201) & {
+export type mcpOauthTokenCreateResponse400 = {
+  data: MCPOAuthTokenErrorResponseApi
+  status: 400
+}
+
+export type mcpOauthTokenCreateResponse401 = {
+  data: MCPOAuthTokenErrorResponseApi
+  status: 401
+}
+
+export type mcpOauthTokenCreateResponseSuccess = (mcpOauthTokenCreateResponse200) & {
   headers: Headers;
 };
-;
+export type mcpOauthTokenCreateResponseError = (mcpOauthTokenCreateResponse400 | mcpOauthTokenCreateResponse401) & {
+  headers: Headers;
+};
 
-export type mcpOauthTokenCreateResponse = (mcpOauthTokenCreateResponseSuccess)
+export type mcpOauthTokenCreateResponse = (mcpOauthTokenCreateResponseSuccess | mcpOauthTokenCreateResponseError)
 
 export const getMcpOauthTokenCreateUrl = () => {
 
@@ -13622,30 +13789,38 @@ export const getMcpOauthTokenCreateUrl = () => {
 /**
  * POST /mcp/oauth/token/ — Exchange code or refresh token for access token.
  */
-export const mcpOauthTokenCreate = async ( options?: RequestInit): Promise<mcpOauthTokenCreateResponse> => {
+export const mcpOauthTokenCreate = async (mCPOAuthTokenRequestApi: MCPOAuthTokenRequestApi, options?: RequestInit): Promise<mcpOauthTokenCreateResponse> => {
 
   return apiMutator<mcpOauthTokenCreateResponse>(getMcpOauthTokenCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPOAuthTokenRequestApi,)
   }
 );}
 
 
 
 export type mcpSessionsListResponse200 = {
-  data: void
+  data: MCPSessionListResponseApi
   status: 200
+}
+
+export type mcpSessionsListResponse403 = {
+  data: MCPErrorResponseApi
+  status: 403
 }
 
 export type mcpSessionsListResponseSuccess = (mcpSessionsListResponse200) & {
   headers: Headers;
 };
-;
+export type mcpSessionsListResponseError = (mcpSessionsListResponse403) & {
+  headers: Headers;
+};
 
-export type mcpSessionsListResponse = (mcpSessionsListResponseSuccess)
+export type mcpSessionsListResponse = (mcpSessionsListResponseSuccess | mcpSessionsListResponseError)
 
 export const getMcpSessionsListUrl = () => {
 

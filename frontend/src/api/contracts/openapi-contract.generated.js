@@ -4874,7 +4874,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_analytics_summary_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPAnalyticsSummaryResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/analytics/timeline/": {
@@ -4882,7 +4889,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_analytics_timeline_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPAnalyticsTimelineResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/analytics/tools/": {
@@ -4890,7 +4904,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_analytics_tools_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPAnalyticsToolsResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/config/": {
@@ -4898,13 +4919,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_config_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectionResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "mcp_config_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPConnectionUpdate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectionResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/config/tool-groups/": {
@@ -4912,13 +4952,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_config_tool-groups_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPToolGroupsResponse"
+          }
+        }
       },
       "put": {
         "operationId": "mcp_config_tool-groups_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPToolGroupConfigUpdate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPToolGroupsResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/health/": {
@@ -4926,15 +4979,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_health_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPHealthResponse"
+          }
+        }
       }
     },
     "/mcp/internal/tool-call/": {
       "post": {
         "operationId": "mcp_internal_tool-call_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPToolCallRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPToolCallResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "429": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/internal/tools/": {
@@ -4942,7 +5020,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_internal_tools_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPToolListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/oauth/approve-info/": {
@@ -4950,15 +5035,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_oauth_approve-info_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPOAuthApproveInfoResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/oauth/approve/": {
       "post": {
         "operationId": "mcp_oauth_approve_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPOAuthApproveRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPOAuthRedirectResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/oauth/authorize/": {
@@ -4966,23 +5076,54 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_oauth_authorize_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPOAuthAuthorizeResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/oauth/consent/": {
       "post": {
         "operationId": "mcp_oauth_consent_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPOAuthConsentRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPOAuthRedirectResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/oauth/token/": {
       "post": {
         "operationId": "mcp_oauth_token_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPOAuthTokenRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPOAuthTokenResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/MCPOAuthTokenErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/MCPOAuthTokenErrorResponse"
+          }
+        }
       }
     },
     "/mcp/sessions/": {
@@ -4990,7 +5131,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "mcp_sessions_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPSessionListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/MCPErrorResponse"
+          }
+        }
       }
     },
     "/mcp/sessions/{session_id}/": {
@@ -29657,6 +29805,458 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "MCPAnalyticsSummaryResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPUsageSummary"
+        }
+      }
+    },
+    "MCPAnalyticsTimelineResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPUsageTimeline"
+          }
+        }
+      }
+    },
+    "MCPAnalyticsToolsResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPUsageToolBreakdown"
+          }
+        }
+      }
+    },
+    "MCPConnectionResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPConnectionResult"
+        }
+      }
+    },
+    "MCPConnectionUpdate": {
+      "type": "object",
+      "properties": {
+        "connection_mode": {
+          "title": "Connection mode",
+          "type": "string",
+          "enum": [
+            "remote",
+            "stdio"
+          ]
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        }
+      }
+    },
+    "MCPErrorResponse": {
+      "required": [
+        "error"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "minLength": 1
+        },
+        "retry_after": {
+          "title": "Retry after",
+          "type": "integer"
+        }
+      }
+    },
+    "MCPHealthResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPHealthResult"
+        }
+      }
+    },
+    "MCPOAuthApproveInfoResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPOAuthApproveInfoResult"
+        }
+      }
+    },
+    "MCPOAuthApproveRequest": {
+      "required": [
+        "request_id"
+      ],
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "title": "Request id",
+          "type": "string",
+          "minLength": 1
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean",
+          "default": false
+        },
+        "selected_groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      }
+    },
+    "MCPOAuthAuthorizeResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPOAuthAuthorizeResponseResult"
+        }
+      }
+    },
+    "MCPOAuthConsentRequest": {
+      "required": [
+        "client_id",
+        "redirect_uri"
+      ],
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "title": "Client id",
+          "type": "string",
+          "minLength": 1
+        },
+        "redirect_uri": {
+          "title": "Redirect uri",
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "approved": {
+          "title": "Approved",
+          "type": "boolean",
+          "default": false
+        },
+        "selected_groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      }
+    },
+    "MCPOAuthRedirectResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPOAuthRedirectResult"
+        }
+      }
+    },
+    "MCPOAuthTokenErrorResponse": {
+      "required": [
+        "error"
+      ],
+      "type": "object",
+      "properties": {
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "minLength": 1
+        },
+        "error_description": {
+          "title": "Error description",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MCPOAuthTokenRequest": {
+      "required": [
+        "grant_type",
+        "client_id",
+        "client_secret"
+      ],
+      "type": "object",
+      "properties": {
+        "grant_type": {
+          "title": "Grant type",
+          "type": "string",
+          "enum": [
+            "authorization_code",
+            "refresh_token"
+          ]
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "minLength": 1
+        },
+        "refresh_token": {
+          "title": "Refresh token",
+          "type": "string",
+          "minLength": 1
+        },
+        "client_id": {
+          "title": "Client id",
+          "type": "string",
+          "minLength": 1
+        },
+        "client_secret": {
+          "title": "Client secret",
+          "type": "string",
+          "minLength": 1
+        },
+        "redirect_uri": {
+          "title": "Redirect uri",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MCPOAuthTokenResponse": {
+      "required": [
+        "access_token",
+        "token_type",
+        "expires_in",
+        "scope"
+      ],
+      "type": "object",
+      "properties": {
+        "access_token": {
+          "title": "Access token",
+          "type": "string",
+          "minLength": 1
+        },
+        "token_type": {
+          "title": "Token type",
+          "type": "string",
+          "enum": [
+            "Bearer"
+          ]
+        },
+        "expires_in": {
+          "title": "Expires in",
+          "type": "integer"
+        },
+        "refresh_token": {
+          "title": "Refresh token",
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        }
+      }
+    },
+    "MCPSessionListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPSession"
+          }
+        }
+      }
+    },
+    "MCPToolCallRequest": {
+      "required": [
+        "tool_name"
+      ],
+      "type": "object",
+      "properties": {
+        "tool_name": {
+          "title": "Tool name",
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "title": "Params",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "default": {}
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "MCPToolCallResponse": {
+      "required": [
+        "status",
+        "result",
+        "session_id"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/MCPToolCallResult"
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "MCPToolGroupConfigUpdate": {
+      "type": "object",
+      "properties": {
+        "enabled_groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "disabled_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "MCPToolGroupsResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPToolGroupConfig"
+        }
+      }
+    },
+    "MCPToolListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/MCPToolListResult"
+        }
+      }
+    },
     "NodeExecutionDetailResponse": {
       "required": [
         "result"
@@ -38619,6 +39219,401 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "MCPUsageSummary": {
+      "required": [
+        "total_calls",
+        "total_sessions",
+        "avg_latency_ms",
+        "error_rate",
+        "active_sessions"
+      ],
+      "type": "object",
+      "properties": {
+        "total_calls": {
+          "title": "Total calls",
+          "type": "integer"
+        },
+        "total_sessions": {
+          "title": "Total sessions",
+          "type": "integer"
+        },
+        "avg_latency_ms": {
+          "title": "Avg latency ms",
+          "type": "number"
+        },
+        "error_rate": {
+          "title": "Error rate",
+          "type": "number"
+        },
+        "active_sessions": {
+          "title": "Active sessions",
+          "type": "integer"
+        }
+      }
+    },
+    "MCPUsageTimeline": {
+      "required": [
+        "timestamp",
+        "call_count"
+      ],
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string",
+          "format": "date-time"
+        },
+        "call_count": {
+          "title": "Call count",
+          "type": "integer"
+        }
+      }
+    },
+    "MCPUsageToolBreakdown": {
+      "required": [
+        "tool_name",
+        "call_count",
+        "avg_latency_ms",
+        "error_rate"
+      ],
+      "type": "object",
+      "properties": {
+        "tool_name": {
+          "title": "Tool name",
+          "type": "string",
+          "minLength": 1
+        },
+        "call_count": {
+          "title": "Call count",
+          "type": "integer"
+        },
+        "avg_latency_ms": {
+          "title": "Avg latency ms",
+          "type": "number"
+        },
+        "error_rate": {
+          "title": "Error rate",
+          "type": "number"
+        }
+      }
+    },
+    "MCPConnectionResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "connection_mode": {
+          "title": "Connection mode",
+          "type": "string",
+          "enum": [
+            "remote",
+            "stdio"
+          ]
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        },
+        "client_name": {
+          "title": "Client name",
+          "type": "string",
+          "maxLength": 100
+        },
+        "client_version": {
+          "title": "Client version",
+          "type": "string",
+          "maxLength": 50
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "tool_config": {
+          "$ref": "#/definitions/MCPToolGroupConfig"
+        },
+        "mcp_url": {
+          "title": "Mcp url",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        }
+      }
+    },
+    "MCPHealthResult": {
+      "required": [
+        "healthy",
+        "tool_count",
+        "version"
+      ],
+      "type": "object",
+      "properties": {
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "tool_count": {
+          "title": "Tool count",
+          "type": "integer"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MCPOAuthApproveInfoResult": {
+      "required": [
+        "client_name",
+        "client_id",
+        "scopes",
+        "redirect_uri",
+        "available_groups"
+      ],
+      "type": "object",
+      "properties": {
+        "client_name": {
+          "title": "Client name",
+          "type": "string",
+          "minLength": 1
+        },
+        "client_id": {
+          "title": "Client id",
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "redirect_uri": {
+          "title": "Redirect uri",
+          "type": "string",
+          "minLength": 1
+        },
+        "available_groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPToolGroupChoice"
+          }
+        }
+      }
+    },
+    "MCPOAuthAuthorizeResponseResult": {
+      "required": [
+        "client_name",
+        "client_id",
+        "redirect_uri",
+        "state",
+        "available_groups"
+      ],
+      "type": "object",
+      "properties": {
+        "client_name": {
+          "title": "Client name",
+          "type": "string",
+          "minLength": 1
+        },
+        "client_id": {
+          "title": "Client id",
+          "type": "string",
+          "minLength": 1
+        },
+        "redirect_uri": {
+          "title": "Redirect uri",
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "available_groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPToolGroupChoice"
+          }
+        }
+      }
+    },
+    "MCPOAuthRedirectResult": {
+      "required": [
+        "redirect_url"
+      ],
+      "type": "object",
+      "properties": {
+        "redirect_url": {
+          "title": "Redirect url",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "MCPSession": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "active",
+            "idle",
+            "disconnected",
+            "revoked"
+          ]
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string",
+          "enum": [
+            "streamable_http",
+            "sse",
+            "stdio"
+          ]
+        },
+        "client_name": {
+          "title": "Client name",
+          "type": "string",
+          "maxLength": 100
+        },
+        "client_version": {
+          "title": "Client version",
+          "type": "string",
+          "maxLength": 50
+        },
+        "client_os": {
+          "title": "Client os",
+          "type": "string",
+          "maxLength": 50
+        },
+        "started_at": {
+          "title": "Started at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "last_activity_at": {
+          "title": "Last activity at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "ended_at": {
+          "title": "Ended at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "tool_call_count": {
+          "title": "Tool call count",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "error_count": {
+          "title": "Error count",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        }
+      }
+    },
+    "MCPToolCallResult": {
+      "required": [
+        "content",
+        "data",
+        "is_error",
+        "error_code"
+      ],
+      "type": "object",
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "x-nullable": true
+        },
+        "data": {
+          "title": "Data",
+          "type": "object",
+          "x-nullable": true
+        },
+        "is_error": {
+          "title": "Is error",
+          "type": "boolean"
+        },
+        "error_code": {
+          "title": "Error code",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "MCPToolGroupConfig": {
+      "type": "object",
+      "properties": {
+        "enabled_groups": {
+          "title": "Enabled groups",
+          "type": "object"
+        },
+        "disabled_tools": {
+          "title": "Disabled tools",
+          "type": "object"
+        },
+        "available_groups": {
+          "title": "Available groups",
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
+    "MCPToolListResult": {
+      "required": [
+        "tools",
+        "total",
+        "session_id"
+      ],
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ToolDiscoveryItem"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
     "NodeExecutionDetailResult": {
       "type": "object",
       "properties": {
@@ -41418,6 +42413,80 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "MCPToolGroupChoice": {
+      "required": [
+        "slug",
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "slug": {
+          "title": "Slug",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "checked": {
+          "title": "Checked",
+          "type": "boolean"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      }
+    },
+    "ToolDiscoveryItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "category": {
+          "title": "Category",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "readOnly": true
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ToolParameter"
+          },
+          "readOnly": true
+        },
+        "returns": {
+          "title": "Returns",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        }
+      }
+    },
     "NodeExecutionData": {
       "type": "object",
       "properties": {
@@ -41881,47 +42950,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "x-nullable": true
     },
-    "ToolDiscoveryItem": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string",
-          "readOnly": true,
-          "minLength": 1
-        },
-        "category": {
-          "title": "Category",
-          "type": "string",
-          "readOnly": true,
-          "minLength": 1
-        },
-        "description": {
-          "title": "Description",
-          "type": "string",
-          "readOnly": true
-        },
-        "parameters": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/ToolParameter"
-          },
-          "readOnly": true
-        },
-        "returns": {
-          "title": "Returns",
-          "type": "object",
-          "readOnly": true,
-          "x-nullable": true
-        },
-        "metadata": {
-          "title": "Metadata",
-          "type": "object",
-          "readOnly": true,
-          "x-nullable": true
-        }
-      }
-    },
     "TracesAggregates": {
       "required": [
         "total_traces",
@@ -42189,6 +43217,33 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ToolParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "readOnly": true
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean",
+          "readOnly": true
+        }
+      }
+    },
     "KeyMoment": {
       "required": [
         "kevinified",
@@ -42358,33 +43413,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Arguments",
           "type": "string",
           "minLength": 1
-        }
-      }
-    },
-    "ToolParameter": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string",
-          "readOnly": true,
-          "minLength": 1
-        },
-        "type": {
-          "title": "Type",
-          "type": "string",
-          "readOnly": true,
-          "minLength": 1
-        },
-        "description": {
-          "title": "Description",
-          "type": "string",
-          "readOnly": true
-        },
-        "required": {
-          "title": "Required",
-          "type": "boolean",
-          "readOnly": true
         }
       }
     }

@@ -3,7 +3,7 @@
 from urllib.parse import urlencode
 
 import structlog
-from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,6 +20,15 @@ from mcp_server.oauth_utils import (
     generate_refresh_token,
     verify_client_secret,
 )
+from mcp_server.serializers.contracts import (
+    MCPErrorResponseSerializer,
+    MCPOAuthAuthorizeResponseSerializer,
+    MCPOAuthConsentRequestSerializer,
+    MCPOAuthRedirectResponseSerializer,
+    MCPOAuthTokenErrorResponseSerializer,
+    MCPOAuthTokenRequestSerializer,
+    MCPOAuthTokenResponseSerializer,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -27,6 +36,12 @@ logger = structlog.get_logger(__name__)
 class MCPOAuthAuthorizeView(APIView):
     """GET /mcp/oauth/authorize/ — Return consent screen data."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPOAuthAuthorizeResponseSerializer,
+            400: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         client_id = request.query_params.get("client_id")
         redirect_uri = request.query_params.get("redirect_uri")
@@ -94,6 +109,14 @@ class MCPOAuthAuthorizeView(APIView):
 class MCPOAuthConsentView(APIView):
     """POST /mcp/oauth/consent/ — Process user consent decision."""
 
+    @swagger_auto_schema(
+        request_body=MCPOAuthConsentRequestSerializer,
+        responses={
+            200: MCPOAuthRedirectResponseSerializer,
+            400: MCPErrorResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         user = request.user
         organization = getattr(request, "organization", None) or getattr(
@@ -178,6 +201,14 @@ class MCPOAuthTokenView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        request_body=MCPOAuthTokenRequestSerializer,
+        responses={
+            200: MCPOAuthTokenResponseSerializer,
+            400: MCPOAuthTokenErrorResponseSerializer,
+            401: MCPOAuthTokenErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         grant_type = request.data.get("grant_type")
 

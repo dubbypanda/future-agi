@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 306,
-    "operations_without_response_schema": 516
+    "mutation_endpoints_without_body_schema": 300,
+    "operations_without_response_schema": 500
   },
   "by_group": {
     "accounts": {
@@ -64,8 +64,8 @@
     "mcp": {
       "paths": 15,
       "operations": 17,
-      "mutation_endpoints_without_body_schema": 6,
-      "operations_without_response_schema": 16
+      "mutation_endpoints_without_body_schema": 0,
+      "operations_without_response_schema": 0
     },
     "model-hub": {
       "paths": 365,
@@ -946,60 +946,6 @@
       "operation_id": "falcon-ai_skills_partial_update",
       "tags": [
         "falcon-ai"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "PUT",
-      "path": "/mcp/config/",
-      "operation_id": "mcp_config_update",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "PUT",
-      "path": "/mcp/config/tool-groups/",
-      "operation_id": "mcp_config_tool-groups_update",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/internal/tool-call/",
-      "operation_id": "mcp_internal_tool-call_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/approve/",
-      "operation_id": "mcp_oauth_approve_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/consent/",
-      "operation_id": "mcp_oauth_consent_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/token/",
-      "operation_id": "mcp_oauth_token_create",
-      "tags": [
-        "mcp"
       ]
     },
     {
@@ -4170,150 +4116,6 @@
       "operation_id": "falcon-ai_skills_partial_update",
       "tags": [
         "falcon-ai"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/analytics/summary/",
-      "operation_id": "mcp_analytics_summary_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/analytics/timeline/",
-      "operation_id": "mcp_analytics_timeline_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/analytics/tools/",
-      "operation_id": "mcp_analytics_tools_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/config/",
-      "operation_id": "mcp_config_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "PUT",
-      "path": "/mcp/config/",
-      "operation_id": "mcp_config_update",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/config/tool-groups/",
-      "operation_id": "mcp_config_tool-groups_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "PUT",
-      "path": "/mcp/config/tool-groups/",
-      "operation_id": "mcp_config_tool-groups_update",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/health/",
-      "operation_id": "mcp_health_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/internal/tool-call/",
-      "operation_id": "mcp_internal_tool-call_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/internal/tools/",
-      "operation_id": "mcp_internal_tools_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/oauth/approve-info/",
-      "operation_id": "mcp_oauth_approve-info_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/approve/",
-      "operation_id": "mcp_oauth_approve_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/oauth/authorize/",
-      "operation_id": "mcp_oauth_authorize_list",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/consent/",
-      "operation_id": "mcp_oauth_consent_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "POST",
-      "path": "/mcp/oauth/token/",
-      "operation_id": "mcp_oauth_token_create",
-      "tags": [
-        "mcp"
-      ]
-    },
-    {
-      "group": "mcp",
-      "method": "GET",
-      "path": "/mcp/sessions/",
-      "operation_id": "mcp_sessions_list",
-      "tags": [
-        "mcp"
       ]
     },
     {

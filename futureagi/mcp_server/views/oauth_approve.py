@@ -10,6 +10,7 @@ import time
 import structlog
 from django.conf import settings
 from django.core.cache import cache
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,6 +21,12 @@ from mcp_server.oauth_provider import (
     CODE_PREFIX,
     CODE_TTL,
     FutureAGIAuthorizationCode,
+)
+from mcp_server.serializers.contracts import (
+    MCPErrorResponseSerializer,
+    MCPOAuthApproveInfoResponseSerializer,
+    MCPOAuthApproveRequestSerializer,
+    MCPOAuthRedirectResponseSerializer,
 )
 
 logger = structlog.get_logger(__name__)
@@ -34,6 +41,13 @@ class MCPOAuthApproveInfoView(APIView):
 
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPOAuthApproveInfoResponseSerializer,
+            400: MCPErrorResponseSerializer,
+            404: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         request_id = request.query_params.get("request_id")
         if not request_id:
@@ -87,6 +101,15 @@ class MCPOAuthApproveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=MCPOAuthApproveRequestSerializer,
+        responses={
+            200: MCPOAuthRedirectResponseSerializer,
+            400: MCPErrorResponseSerializer,
+            403: MCPErrorResponseSerializer,
+            404: MCPErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         user = request.user
         organization = getattr(request, "organization", None) or getattr(

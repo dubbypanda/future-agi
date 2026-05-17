@@ -1,6 +1,7 @@
 """Dashboard API endpoints for MCP configuration."""
 
 from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,6 +11,11 @@ from mcp_server.models.tool_config import MCPToolGroupConfig
 from mcp_server.serializers.connection import (
     MCPConnectionSerializer,
     MCPConnectionUpdateSerializer,
+)
+from mcp_server.serializers.contracts import (
+    MCPConnectionResponseSerializer,
+    MCPErrorResponseSerializer,
+    MCPToolGroupsResponseSerializer,
 )
 from mcp_server.serializers.tool_config import MCPToolGroupConfigUpdateSerializer
 
@@ -24,6 +30,12 @@ class MCPConfigView(APIView):
         )
         return f"{host}/mcp" if host else None
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPConnectionResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         user = request.user
         organization = request.organization
@@ -54,6 +66,14 @@ class MCPConfigView(APIView):
         result["mcp_url"] = self._get_mcp_url()
         return Response({"status": True, "result": result})
 
+    @swagger_auto_schema(
+        request_body=MCPConnectionUpdateSerializer,
+        responses={
+            200: MCPConnectionResponseSerializer,
+            403: MCPErrorResponseSerializer,
+            404: MCPErrorResponseSerializer,
+        },
+    )
     def put(self, request):
         user = request.user
         organization = request.organization
@@ -89,6 +109,7 @@ class MCPConfigView(APIView):
 class MCPToolGroupsView(APIView):
     """Get or update tool group configuration."""
 
+    @swagger_auto_schema(responses={200: MCPToolGroupsResponseSerializer})
     def get(self, request):
         user = request.user
         workspace = request.workspace
@@ -125,6 +146,13 @@ class MCPToolGroupsView(APIView):
         serializer = MCPToolGroupConfigSerializer(config)
         return Response({"status": True, "result": serializer.data})
 
+    @swagger_auto_schema(
+        request_body=MCPToolGroupConfigUpdateSerializer,
+        responses={
+            200: MCPToolGroupsResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def put(self, request):
         user = request.user
         organization = request.organization

@@ -3,7 +3,7 @@
 import time
 
 import structlog
-from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,6 +12,12 @@ from ai_tools.registry import registry
 from mcp_server.constants import CATEGORY_TO_GROUP
 from mcp_server.exceptions import RateLimitExceededError
 from mcp_server.rate_limiter import check_rate_limit, get_rate_limit_tier
+from mcp_server.serializers.contracts import (
+    MCPErrorResponseSerializer,
+    MCPToolCallRequestSerializer,
+    MCPToolCallResponseSerializer,
+    MCPToolListResponseSerializer,
+)
 from mcp_server.usage_helpers import (
     get_enabled_tools,
     get_or_create_connection,
@@ -26,6 +32,17 @@ logger = structlog.get_logger(__name__)
 class MCPToolCallView(APIView):
     """Execute a tool call via internal API (used by stdio proxy)."""
 
+    @swagger_auto_schema(
+        request_body=MCPToolCallRequestSerializer,
+        responses={
+            200: MCPToolCallResponseSerializer,
+            400: MCPErrorResponseSerializer,
+            403: MCPErrorResponseSerializer,
+            404: MCPErrorResponseSerializer,
+            429: MCPErrorResponseSerializer,
+            500: MCPErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         tool_name = request.data.get("tool_name")
         params = request.data.get("params", {})
@@ -145,6 +162,12 @@ class MCPToolCallView(APIView):
 class MCPToolListView(APIView):
     """List available tools for the authenticated user."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPToolListResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         user = request.user
         organization = getattr(request, "organization", None) or getattr(

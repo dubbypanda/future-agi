@@ -2,20 +2,32 @@
 
 from datetime import timedelta
 
-from django.conf import settings
-from django.db.models import Avg, Count, F, Q
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncHour
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from mcp_server.models.session import MCPSession
 from mcp_server.models.usage import MCPUsageRecord
+from mcp_server.serializers.contracts import (
+    MCPAnalyticsSummaryResponseSerializer,
+    MCPAnalyticsTimelineResponseSerializer,
+    MCPAnalyticsToolsResponseSerializer,
+    MCPErrorResponseSerializer,
+)
 
 
 class MCPAnalyticsSummaryView(APIView):
     """Usage summary (total calls, sessions, latency)."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPAnalyticsSummaryResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         organization = getattr(request, "organization", None) or getattr(
             request.user, "organization", None
@@ -69,6 +81,12 @@ class MCPAnalyticsSummaryView(APIView):
 class MCPAnalyticsToolsView(APIView):
     """Per-tool usage breakdown."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPAnalyticsToolsResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         organization = getattr(request, "organization", None) or getattr(
             request.user, "organization", None
@@ -115,6 +133,12 @@ class MCPAnalyticsToolsView(APIView):
 class MCPAnalyticsTimelineView(APIView):
     """Tool calls over time (hourly buckets)."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPAnalyticsTimelineResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         organization = getattr(request, "organization", None) or getattr(
             request.user, "organization", None

@@ -1,17 +1,27 @@
 """Dashboard API endpoints for MCP sessions."""
 
-from django.conf import settings
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from mcp_server.models.session import MCPSession
+from mcp_server.serializers.contracts import (
+    MCPErrorResponseSerializer,
+    MCPSessionListResponseSerializer,
+)
 from mcp_server.serializers.session import MCPSessionSerializer
 
 
 class MCPSessionListView(APIView):
     """List active and recent MCP sessions."""
 
+    @swagger_auto_schema(
+        responses={
+            200: MCPSessionListResponseSerializer,
+            403: MCPErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         user = request.user
         organization = getattr(request, "organization", None) or getattr(
