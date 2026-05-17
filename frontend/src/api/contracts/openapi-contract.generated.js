@@ -12412,7 +12412,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/activate/": {
       "post": {
         "operationId": "simulate_agent-definitions_versions_activate_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {
@@ -12459,7 +12461,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/": {
       "post": {
         "operationId": "simulate_agent-definitions_versions_restore_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {

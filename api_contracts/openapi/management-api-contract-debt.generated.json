@@ -3,7 +3,7 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 327,
+    "mutation_endpoints_without_body_schema": 325,
     "operations_without_response_schema": 560
   },
   "by_group": {
@@ -88,7 +88,7 @@
     "simulate": {
       "paths": 105,
       "operations": 125,
-      "mutation_endpoints_without_body_schema": 19,
+      "mutation_endpoints_without_body_schema": 17,
       "operations_without_response_schema": 37
     },
     "tracer": {
@@ -2377,24 +2377,6 @@
       "operation_id": "sdk_api_v1_new-eval_create",
       "tags": [
         "sdk"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/agent-definitions/{agent_id}/versions/{version_id}/activate/",
-      "operation_id": "simulate_agent-definitions_versions_activate_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/",
-      "operation_id": "simulate_agent-definitions_versions_restore_create",
-      "tags": [
-        "simulate"
       ]
     },
     {

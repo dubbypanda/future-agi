@@ -24100,7 +24100,16 @@
             "post": {
                 "operationId": "simulate_agent-definitions_versions_activate_create",
                 "description": "Activate a specific agent version.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -24228,7 +24237,16 @@
             "post": {
                 "operationId": "simulate_agent-definitions_versions_restore_create",
                 "description": "Restore agent definition from a specific version.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",

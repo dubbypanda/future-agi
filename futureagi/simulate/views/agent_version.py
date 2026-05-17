@@ -28,6 +28,7 @@ from simulate.utils.eval_summary import (
     _get_completed_call_executions_for_agent_version,
     _get_eval_config_for_agent_version,
 )
+from tfc.utils.api_serializers import EmptyRequestSerializer
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -291,6 +292,7 @@ class ActivateAgentVersionView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
         responses={200: AgentVersionActivateResponseSerializer},
     )
     def post(self, request, agent_id, version_id, *args, **kwargs):
@@ -399,6 +401,7 @@ class RestoreAgentVersionView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
         responses={200: AgentVersionRestoreResponseSerializer},
     )
     def post(self, request, agent_id, version_id, *args, **kwargs):

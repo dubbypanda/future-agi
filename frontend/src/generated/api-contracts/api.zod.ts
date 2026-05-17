@@ -15439,6 +15439,10 @@ export const SimulateAgentDefinitionsVersionsActivateCreateParams = zod.object({
   "version_id": zod.string()
 })
 
+export const SimulateAgentDefinitionsVersionsActivateCreateBody = zod.object({
+
+})
+
 
 
 
@@ -15617,6 +15621,10 @@ export const SimulateAgentDefinitionsVersionsEvalSummaryListParams = zod.object(
 export const SimulateAgentDefinitionsVersionsRestoreCreateParams = zod.object({
   "agent_id": zod.string(),
   "version_id": zod.string()
+})
+
+export const SimulateAgentDefinitionsVersionsRestoreCreateBody = zod.object({
+
 })
 
 

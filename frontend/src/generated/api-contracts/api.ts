@@ -32800,14 +32800,16 @@ export const getSimulateAgentDefinitionsVersionsActivateCreateUrl = (agentId: st
  * Activate a specific agent version.
  */
 export const simulateAgentDefinitionsVersionsActivateCreate = async (agentId: string,
-    versionId: string, options?: RequestInit): Promise<simulateAgentDefinitionsVersionsActivateCreateResponse> => {
+    versionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateAgentDefinitionsVersionsActivateCreateResponse> => {
 
   return apiMutator<simulateAgentDefinitionsVersionsActivateCreateResponse>(getSimulateAgentDefinitionsVersionsActivateCreateUrl(agentId,versionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -32952,14 +32954,16 @@ export const getSimulateAgentDefinitionsVersionsRestoreCreateUrl = (agentId: str
  * Restore agent definition from a specific version.
  */
 export const simulateAgentDefinitionsVersionsRestoreCreate = async (agentId: string,
-    versionId: string, options?: RequestInit): Promise<simulateAgentDefinitionsVersionsRestoreCreateResponse> => {
+    versionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateAgentDefinitionsVersionsRestoreCreateResponse> => {
 
   return apiMutator<simulateAgentDefinitionsVersionsRestoreCreateResponse>(getSimulateAgentDefinitionsVersionsRestoreCreateUrl(agentId,versionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 

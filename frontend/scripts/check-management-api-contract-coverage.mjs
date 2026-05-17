@@ -15,7 +15,7 @@ const swaggerPath = path.join(
 );
 
 const MIN_ENDPOINTS = 960;
-const MAX_MUTATIONS_WITHOUT_BODY_SCHEMA = 327;
+const MAX_MUTATIONS_WITHOUT_BODY_SCHEMA = 325;
 const MAX_OPERATIONS_WITHOUT_RESPONSE_SCHEMA = 560;
 const MIN_GROUP_PATHS = {
   accounts: 75,
