@@ -27788,7 +27788,16 @@
             "post": {
                 "operationId": "simulate_test-executions_cancel_create",
                 "description": "Cancel a test execution",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -27856,10 +27865,40 @@
             "put": {
                 "operationId": "simulate_test-executions_column-order_update",
                 "description": "Update column order for a test execution",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TestExecutionColumnOrder"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/TestExecutionColumnOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -27940,10 +27979,34 @@
             "post": {
                 "operationId": "simulate_test-executions_eval-explanation-summary_refresh_create",
                 "description": "Refresh the evaluation explanation summary by recalculating it.\nThis endpoint triggers the summary calculation task again.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiSuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -28004,7 +28067,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiSuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -28024,10 +28102,40 @@
             "post": {
                 "operationId": "simulate_test-executions_optimiser-analysis_refresh_create",
                 "description": "Trigger a new agent optimiser analysis run.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiSuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -52379,6 +52487,77 @@
                     "title": "Test execution id",
                     "type": "string",
                     "format": "uuid",
+                    "x-nullable": true
+                }
+            }
+        },
+        "ColumnOrder": {
+            "required": [
+                "column_name",
+                "id",
+                "visible"
+            ],
+            "type": "object",
+            "properties": {
+                "column_name": {
+                    "title": "Column name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "visible": {
+                    "title": "Visible",
+                    "type": "boolean"
+                }
+            }
+        },
+        "TestExecutionColumnOrder": {
+            "required": [
+                "column_order"
+            ],
+            "type": "object",
+            "properties": {
+                "column_order": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ColumnOrder"
+                    }
+                }
+            }
+        },
+        "TestExecutionColumnOrderResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "column_order": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ColumnOrder"
+                    },
+                    "readOnly": true
+                }
+            }
+        },
+        "ApiSuccessResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
                     "x-nullable": true
                 }
             }

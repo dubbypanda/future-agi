@@ -1318,6 +1318,13 @@ class TestExecutionColumnOrderSerializer(serializers.Serializer):
     column_order = ColumnOrderSerializer(many=True)
 
 
+class TestExecutionColumnOrderResponseSerializer(serializers.Serializer):
+    """Response serializer for persisted test-execution column order."""
+
+    message = serializers.CharField(read_only=True)
+    column_order = ColumnOrderSerializer(many=True, read_only=True)
+
+
 class PerformanceSummarySerializer(serializers.Serializer):
     """Serializer for Performance Summary data"""
 

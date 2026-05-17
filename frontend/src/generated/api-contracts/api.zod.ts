@@ -19321,6 +19321,10 @@ export const SimulateTestExecutionsCancelCreateParams = zod.object({
   "test_execution_id": zod.string()
 })
 
+export const SimulateTestExecutionsCancelCreateBody = zod.object({
+
+})
+
 
 
 
@@ -19356,6 +19360,32 @@ export const SimulateTestExecutionsColumnOrderUpdateParams = zod.object({
 })
 
 
+
+
+
+export const SimulateTestExecutionsColumnOrderUpdateBody = zod.object({
+  "column_order": zod.array(zod.object({
+  "column_name": zod.string().min(1),
+  "id": zod.string().min(1),
+  "visible": zod.boolean()
+}))
+})
+
+
+
+
+
+
+export const SimulateTestExecutionsColumnOrderUpdateResponse = zod.object({
+  "message": zod.string().min(1).optional(),
+  "column_order": zod.array(zod.object({
+  "column_name": zod.string().min(1),
+  "id": zod.string().min(1),
+  "visible": zod.boolean()
+})).optional()
+})
+
+
 /**
  * Delete a specific test execution
  */
@@ -19385,6 +19415,19 @@ export const SimulateTestExecutionsEvalExplanationSummaryRefreshCreateParams = z
   "test_execution_id": zod.string()
 })
 
+export const SimulateTestExecutionsEvalExplanationSummaryRefreshCreateBody = zod.object({
+
+})
+
+export const simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseStatusDefault = true;
+
+export const SimulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse = zod.object({
+  "status": zod.boolean().default(simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseStatusDefault),
+  "result": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Get combined KPI values for a specific run test
@@ -19406,12 +19449,34 @@ export const SimulateTestExecutionsOptimiserAnalysisListParams = zod.object({
   "test_execution_id": zod.string()
 })
 
+export const simulateTestExecutionsOptimiserAnalysisListResponseStatusDefault = true;
+
+export const SimulateTestExecutionsOptimiserAnalysisListResponse = zod.object({
+  "status": zod.boolean().default(simulateTestExecutionsOptimiserAnalysisListResponseStatusDefault),
+  "result": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Trigger a new agent optimiser analysis run.
  */
 export const SimulateTestExecutionsOptimiserAnalysisRefreshCreateParams = zod.object({
   "test_execution_id": zod.string()
+})
+
+export const SimulateTestExecutionsOptimiserAnalysisRefreshCreateBody = zod.object({
+
+})
+
+export const simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseStatusDefault = true;
+
+export const SimulateTestExecutionsOptimiserAnalysisRefreshCreateResponse = zod.object({
+  "status": zod.boolean().default(simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseStatusDefault),
+  "result": zod.object({
+
+}).passthrough().optional()
 })
 
 

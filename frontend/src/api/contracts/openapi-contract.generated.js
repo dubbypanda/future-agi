@@ -14281,7 +14281,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/cancel/": {
       "post": {
         "operationId": "simulate_test-executions_cancel_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {
@@ -14310,9 +14312,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/column-order/": {
       "put": {
         "operationId": "simulate_test-executions_column-order_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/TestExecutionColumnOrder"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TestExecutionColumnOrderResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/delete/": {
@@ -14344,9 +14361,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/refresh/": {
       "post": {
         "operationId": "simulate_test-executions_eval-explanation-summary_refresh_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ApiSuccessResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/kpis/": {
@@ -14372,15 +14401,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_test-executions_optimiser-analysis_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ApiSuccessResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/": {
       "post": {
         "operationId": "simulate_test-executions_optimiser-analysis_refresh_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ApiSuccessResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/performance-summary/": {
@@ -24503,6 +24557,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ApiSuccessResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
     "AssignItems": {
       "required": [
         "item_ids"
@@ -34091,6 +34160,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TestExecutionColumnOrder": {
+      "required": [
+        "column_order"
+      ],
+      "type": "object",
+      "properties": {
+        "column_order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ColumnOrder"
+          }
+        }
+      }
+    },
+    "TestExecutionColumnOrderResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "column_order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ColumnOrder"
+          },
+          "readOnly": true
+        }
+      }
+    },
     "TestExecutionItemResponse": {
       "type": "object",
       "properties": {
@@ -37623,6 +37724,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "count": {
           "title": "Count",
           "type": "integer"
+        }
+      }
+    },
+    "ColumnOrder": {
+      "required": [
+        "column_name",
+        "id",
+        "visible"
+      ],
+      "type": "object",
+      "properties": {
+        "column_name": {
+          "title": "Column name",
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "visible": {
+          "title": "Visible",
+          "type": "boolean"
         }
       }
     },

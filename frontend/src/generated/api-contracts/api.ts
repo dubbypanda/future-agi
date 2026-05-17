@@ -128,6 +128,7 @@ import type {
   ApiPublicOtelV1TracesCreateBodyOne,
   ApiPublicOtelV1TracesCreateBodyTwo,
   ApiSelectionTooLargeErrorApi,
+  ApiSuccessResponseApi,
   ApiTracesSpanAttributeDetailListParams,
   ApiTracesSpanAttributeKeysListParams,
   ApiTracesSpanAttributeValuesListParams,
@@ -430,6 +431,8 @@ import type {
   SyncLogApi,
   TTSVoiceApi,
   TestExecutionApi,
+  TestExecutionColumnOrderApi,
+  TestExecutionColumnOrderResponseApi,
   TestExecutionItemResponseApi,
   TokenObtainPairApi,
   ToolsApi,
@@ -37369,14 +37372,16 @@ export const getSimulateTestExecutionsCancelCreateUrl = (testExecutionId: string
 /**
  * Cancel a test execution
  */
-export const simulateTestExecutionsCancelCreate = async (testExecutionId: string, options?: RequestInit): Promise<simulateTestExecutionsCancelCreateResponse> => {
+export const simulateTestExecutionsCancelCreate = async (testExecutionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateTestExecutionsCancelCreateResponse> => {
 
   return apiMutator<simulateTestExecutionsCancelCreateResponse>(getSimulateTestExecutionsCancelCreateUrl(testExecutionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -37428,16 +37433,33 @@ export const simulateTestExecutionsChatCallExecutionsBatchCreate = async (testEx
 
 
 export type simulateTestExecutionsColumnOrderUpdateResponse200 = {
-  data: void
+  data: TestExecutionColumnOrderResponseApi
   status: 200
+}
+
+export type simulateTestExecutionsColumnOrderUpdateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulateTestExecutionsColumnOrderUpdateResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsColumnOrderUpdateResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateTestExecutionsColumnOrderUpdateResponseSuccess = (simulateTestExecutionsColumnOrderUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsColumnOrderUpdateResponseError = (simulateTestExecutionsColumnOrderUpdateResponse400 | simulateTestExecutionsColumnOrderUpdateResponse404 | simulateTestExecutionsColumnOrderUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsColumnOrderUpdateResponse = (simulateTestExecutionsColumnOrderUpdateResponseSuccess)
+export type simulateTestExecutionsColumnOrderUpdateResponse = (simulateTestExecutionsColumnOrderUpdateResponseSuccess | simulateTestExecutionsColumnOrderUpdateResponseError)
 
 export const getSimulateTestExecutionsColumnOrderUpdateUrl = (testExecutionId: string,) => {
 
@@ -37450,14 +37472,16 @@ export const getSimulateTestExecutionsColumnOrderUpdateUrl = (testExecutionId: s
 /**
  * Update column order for a test execution
  */
-export const simulateTestExecutionsColumnOrderUpdate = async (testExecutionId: string, options?: RequestInit): Promise<simulateTestExecutionsColumnOrderUpdateResponse> => {
+export const simulateTestExecutionsColumnOrderUpdate = async (testExecutionId: string,
+    testExecutionColumnOrderApi: TestExecutionColumnOrderApi, options?: RequestInit): Promise<simulateTestExecutionsColumnOrderUpdateResponse> => {
 
   return apiMutator<simulateTestExecutionsColumnOrderUpdateResponse>(getSimulateTestExecutionsColumnOrderUpdateUrl(testExecutionId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      testExecutionColumnOrderApi,)
   }
 );}
 
@@ -37548,17 +37572,29 @@ export const simulateTestExecutionsEvalExplanationSummaryList = async (testExecu
 
 
 
-export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse201 = {
-  data: void
-  status: 201
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse200 = {
+  data: ApiSuccessResponseApi
+  status: 200
 }
 
-export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseSuccess = (simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse201) & {
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseSuccess = (simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseError = (simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse404 | simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse = (simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseSuccess)
+export type simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse = (simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseSuccess | simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponseError)
 
 export const getSimulateTestExecutionsEvalExplanationSummaryRefreshCreateUrl = (testExecutionId: string,) => {
 
@@ -37572,14 +37608,16 @@ export const getSimulateTestExecutionsEvalExplanationSummaryRefreshCreateUrl = (
  * Refresh the evaluation explanation summary by recalculating it.
 This endpoint triggers the summary calculation task again.
  */
-export const simulateTestExecutionsEvalExplanationSummaryRefreshCreate = async (testExecutionId: string, options?: RequestInit): Promise<simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse> => {
+export const simulateTestExecutionsEvalExplanationSummaryRefreshCreate = async (testExecutionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse> => {
 
   return apiMutator<simulateTestExecutionsEvalExplanationSummaryRefreshCreateResponse>(getSimulateTestExecutionsEvalExplanationSummaryRefreshCreateUrl(testExecutionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -37634,16 +37672,28 @@ export const simulateTestExecutionsKpisList = async (testExecutionId: string, op
 
 
 export type simulateTestExecutionsOptimiserAnalysisListResponse200 = {
-  data: void
+  data: ApiSuccessResponseApi
   status: 200
+}
+
+export type simulateTestExecutionsOptimiserAnalysisListResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsOptimiserAnalysisListResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulateTestExecutionsOptimiserAnalysisListResponseSuccess = (simulateTestExecutionsOptimiserAnalysisListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsOptimiserAnalysisListResponseError = (simulateTestExecutionsOptimiserAnalysisListResponse404 | simulateTestExecutionsOptimiserAnalysisListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsOptimiserAnalysisListResponse = (simulateTestExecutionsOptimiserAnalysisListResponseSuccess)
+export type simulateTestExecutionsOptimiserAnalysisListResponse = (simulateTestExecutionsOptimiserAnalysisListResponseSuccess | simulateTestExecutionsOptimiserAnalysisListResponseError)
 
 export const getSimulateTestExecutionsOptimiserAnalysisListUrl = (testExecutionId: string,) => {
 
@@ -37670,17 +37720,34 @@ export const simulateTestExecutionsOptimiserAnalysisList = async (testExecutionI
 
 
 
-export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse201 = {
-  data: void
-  status: 201
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse200 = {
+  data: ApiSuccessResponseApi
+  status: 200
 }
 
-export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseSuccess = (simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse201) & {
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseSuccess = (simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseError = (simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse400 | simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse404 | simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse = (simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseSuccess)
+export type simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse = (simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseSuccess | simulateTestExecutionsOptimiserAnalysisRefreshCreateResponseError)
 
 export const getSimulateTestExecutionsOptimiserAnalysisRefreshCreateUrl = (testExecutionId: string,) => {
 
@@ -37693,14 +37760,16 @@ export const getSimulateTestExecutionsOptimiserAnalysisRefreshCreateUrl = (testE
 /**
  * Trigger a new agent optimiser analysis run.
  */
-export const simulateTestExecutionsOptimiserAnalysisRefreshCreate = async (testExecutionId: string, options?: RequestInit): Promise<simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse> => {
+export const simulateTestExecutionsOptimiserAnalysisRefreshCreate = async (testExecutionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse> => {
 
   return apiMutator<simulateTestExecutionsOptimiserAnalysisRefreshCreateResponse>(getSimulateTestExecutionsOptimiserAnalysisRefreshCreateUrl(testExecutionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 

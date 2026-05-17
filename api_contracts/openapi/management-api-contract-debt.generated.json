@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 322,
-    "operations_without_response_schema": 555
+    "mutation_endpoints_without_body_schema": 318,
+    "operations_without_response_schema": 551
   },
   "by_group": {
     "accounts": {
@@ -88,8 +88,8 @@
     "simulate": {
       "paths": 105,
       "operations": 125,
-      "mutation_endpoints_without_body_schema": 14,
-      "operations_without_response_schema": 32
+      "mutation_endpoints_without_body_schema": 10,
+      "operations_without_response_schema": 28
     },
     "tracer": {
       "paths": 159,
@@ -2463,44 +2463,8 @@
     {
       "group": "simulate",
       "method": "POST",
-      "path": "/simulate/test-executions/{test_execution_id}/cancel/",
-      "operation_id": "simulate_test-executions_cancel_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
       "path": "/simulate/test-executions/{test_execution_id}/chat/call-executions/batch/",
       "operation_id": "simulate_test-executions_chat_call-executions_batch_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PUT",
-      "path": "/simulate/test-executions/{test_execution_id}/column-order/",
-      "operation_id": "simulate_test-executions_column-order_update",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/refresh/",
-      "operation_id": "simulate_test-executions_eval-explanation-summary_refresh_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/",
-      "operation_id": "simulate_test-executions_optimiser-analysis_refresh_create",
       "tags": [
         "simulate"
       ]
@@ -7156,42 +7120,6 @@
       "method": "POST",
       "path": "/simulate/test-executions/{test_execution_id}/chat/call-executions/batch/",
       "operation_id": "simulate_test-executions_chat_call-executions_batch_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PUT",
-      "path": "/simulate/test-executions/{test_execution_id}/column-order/",
-      "operation_id": "simulate_test-executions_column-order_update",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/refresh/",
-      "operation_id": "simulate_test-executions_eval-explanation-summary_refresh_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/test-executions/{test_execution_id}/optimiser-analysis/",
-      "operation_id": "simulate_test-executions_optimiser-analysis_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/",
-      "operation_id": "simulate_test-executions_optimiser-analysis_refresh_create",
       "tags": [
         "simulate"
       ]

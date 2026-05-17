@@ -6219,6 +6219,31 @@ export interface CancelTestExecutionResponseApi {
   test_execution_id: string;
 }
 
+export interface ColumnOrderApi {
+  /** @minLength 1 */
+  column_name: string;
+  /** @minLength 1 */
+  id: string;
+  visible: boolean;
+}
+
+export interface TestExecutionColumnOrderApi {
+  column_order: ColumnOrderApi[];
+}
+
+export interface TestExecutionColumnOrderResponseApi {
+  /** @minLength 1 */
+  readonly message?: string;
+  readonly column_order?: readonly ColumnOrderApi[];
+}
+
+export type ApiSuccessResponseApiResult = { [key: string]: unknown };
+
+export interface ApiSuccessResponseApi {
+  status?: boolean;
+  result?: ApiSuccessResponseApiResult;
+}
+
 /**
  * Performance metrics including pass rate, total test runs, and latest fail rate
  */

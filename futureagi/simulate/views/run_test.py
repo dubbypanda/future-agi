@@ -138,6 +138,7 @@ from simulate.serializers.test_execution import (
     TestExecutionAnalyticsSerializer,
     TestExecutionBulkDeleteSerializer,
     TestExecutionColumnOrderSerializer,
+    TestExecutionColumnOrderResponseSerializer,
     TestExecutionRerunSerializer,
     TestExecutionSerializer,
 )
@@ -171,6 +172,11 @@ from simulate.utils.test_execution_utils import TestExecutionUtils
 from tfc.ee_gates import strip_turing_from_config_options
 from tfc.settings import settings as app_settings
 from tfc.settings.settings import VAPI_INDIAN_PHONE_NUMBER_ID
+from tfc.utils.api_serializers import (
+    ApiErrorResponseSerializer,
+    ApiSuccessResponseSerializer,
+    EmptyRequestSerializer,
+)
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -899,6 +905,7 @@ class TestExecutionCancelView(APIView):
         self.gm = GeneralMethods()
 
     @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
         responses={
             200: CancelTestExecutionResponseSerializer,
             400: ErrorResponseSerializer,
@@ -3597,6 +3604,15 @@ class TestExecutionColumnOrderView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=TestExecutionColumnOrderSerializer,
+        responses={
+            200: TestExecutionColumnOrderResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def put(self, request, test_execution_id, *args, **kwargs):
         """Update column order for a test execution"""
         try:
@@ -5643,6 +5659,14 @@ class RunTestEvalExplanationSummaryRefreshView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
+        responses={
+            200: ApiSuccessResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def post(self, request, test_execution_id, *args, **kwargs):
         """
         Refresh the evaluation explanation summary by recalculating it.
@@ -5686,6 +5710,13 @@ class TestExecutionOptimiserAnalysisView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: ApiSuccessResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def get(self, request, test_execution_id, *args, **kwargs):
         """
         Fetch the agent optimiser analysis for a test execution.
@@ -5726,6 +5757,15 @@ class TestExecutionOptimiserAnalysisRefreshView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
+        responses={
+            200: ApiSuccessResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def post(self, request, test_execution_id, *args, **kwargs):
         """
         Trigger a new agent optimiser analysis run.
