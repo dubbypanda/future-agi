@@ -77,13 +77,34 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/custom-metric/test/",
         "/model-hub/custom-metric/update/",
         "/model-hub/custom-metric/{model_id}/",
+        "/model-hub/column-config/{column_id}/",
+        "/model-hub/dataset/columns/{dataset_id}/",
+        "/model-hub/dataset/{dataset_id}/json-schema/",
         "/model-hub/datasets/{dataset_id}/add-api-column/",
         "/model-hub/datasets/{dataset_id}/add_vector_db_column/",
         "/model-hub/datasets/{dataset_id}/classify-column/",
+        "/model-hub/datasets/{dataset_id}/compare-datasets/",
+        "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/",
+        "/model-hub/datasets/{dataset_id}/compare-datasets/download/",
+        "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/",
+        "/model-hub/datasets/{dataset_id}/compare-stats/",
         "/model-hub/datasets/{dataset_id}/conditional-column/",
         "/model-hub/datasets/{dataset_id}/extract-entities/",
         "/model-hub/datasets/{dataset_id}/preview/{operation_type}/",
+        "/model-hub/datasets/compare/get-evals-list/",
+        "/model-hub/datasets/compare/preview-run-eval/",
+        "/model-hub/datasets/delete-compare/{compare_id}/",
+        "/model-hub/datasets/explanation-summary/{dataset_id}/",
+        "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/",
+        "/model-hub/datasets/get-base-columns/",
+        "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/",
+        "/model-hub/datasets/huggingface/detail/",
+        "/model-hub/datasets/huggingface/list/",
         "/model-hub/dataset/{dataset_id}/run-prompt-stats/",
+        "/model-hub/develops/create-dataset-from-huggingface/",
+        "/model-hub/develops/dataset-creation-progress/{dataset_id}/",
+        "/model-hub/develops/get-huggingface-dataset-config/",
+        "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/",
         "/model-hub/develops/{dataset_id}/extract-json-column/",
         "/model-hub/create_custom_evals/",
         "/model-hub/delete-eval-template/",
@@ -226,6 +247,21 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("POST", "/model-hub/datasets/{dataset_id}/classify-column/"): (
             "ClassifyColumnRequest"
         ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/"): (
+            "CompareDataset"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/"): (
+            "UserEval"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/download/"): (
+            "CompareDataset"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/"): (
+            "CompareStartEvalsRequest"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-stats/"): (
+            "CompareDatasetStatsRequest"
+        ),
         ("POST", "/model-hub/datasets/{dataset_id}/conditional-column/"): (
             "ConditionalColumnRequest"
         ),
@@ -234,6 +270,30 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ),
         ("POST", "/model-hub/datasets/{dataset_id}/preview/{operation_type}/"): (
             "PreviewDatasetOperationRequest"
+        ),
+        ("POST", "/model-hub/datasets/compare/get-evals-list/"): (
+            "CompareEvalsListRequest"
+        ),
+        ("POST", "/model-hub/datasets/compare/preview-run-eval/"): (
+            "ComparePreviewRunEvalRequest"
+        ),
+        ("POST", "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/"): (
+            "ModelHubEmptyRequest"
+        ),
+        ("POST", "/model-hub/datasets/huggingface/detail/"): (
+            "HuggingFaceDatasetDetailRequest"
+        ),
+        ("POST", "/model-hub/datasets/huggingface/list/"): (
+            "HuggingFaceDatasetListRequest"
+        ),
+        ("POST", "/model-hub/develops/create-dataset-from-huggingface/"): (
+            "HuggingFaceDatasetCreateRequest"
+        ),
+        ("POST", "/model-hub/develops/get-huggingface-dataset-config/"): (
+            "HuggingFaceDatasetConfigRequest"
+        ),
+        ("POST", "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/"): (
+            "HuggingFaceAddRowsRequest"
         ),
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (
             "ExtractJsonColumnRequest"
@@ -433,6 +493,13 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/custom-metric/test/"): "CustomMetricTestResponse",
         ("POST", "/model-hub/custom-metric/update/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/custom-metric/{model_id}/"): "ModelHubPaginatedResponse",
+        ("GET", "/model-hub/column-config/{column_id}/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/dataset/columns/{dataset_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/dataset/{dataset_id}/json-schema/"): (
+            "ModelHubJSONResponse"
+        ),
         ("POST", "/model-hub/datasets/{dataset_id}/add-api-column/"): (
             "ModelHubJSONResponse"
         ),
@@ -440,6 +507,21 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "ModelHubJSONResponse"
         ),
         ("POST", "/model-hub/datasets/{dataset_id}/classify-column/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/download/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/{dataset_id}/compare-stats/"): (
             "ModelHubJSONResponse"
         ),
         ("POST", "/model-hub/datasets/{dataset_id}/conditional-column/"): (
@@ -451,7 +533,50 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/datasets/{dataset_id}/preview/{operation_type}/"): (
             "ModelHubJSONResponse"
         ),
+        ("POST", "/model-hub/datasets/compare/get-evals-list/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/compare/preview-run-eval/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/datasets/delete-compare/{compare_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("DELETE", "/model-hub/datasets/delete-compare/{compare_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/datasets/explanation-summary/{dataset_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/datasets/get-base-columns/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("DELETE", "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/huggingface/detail/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/datasets/huggingface/list/"): (
+            "ModelHubJSONResponse"
+        ),
         ("GET", "/model-hub/dataset/{dataset_id}/run-prompt-stats/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/develops/create-dataset-from-huggingface/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/develops/dataset-creation-progress/{dataset_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/develops/get-huggingface-dataset-config/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/"): (
             "ModelHubJSONResponse"
         ),
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (

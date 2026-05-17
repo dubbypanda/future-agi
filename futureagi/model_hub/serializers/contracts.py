@@ -713,3 +713,70 @@ class LegacyEvalTemplatesRequestSerializer(serializers.Serializer):
         required=False,
         default=list,
     )
+
+
+class HuggingFaceDatasetConfigRequestSerializer(serializers.Serializer):
+    dataset_path = serializers.CharField()
+
+
+class HuggingFaceDatasetListRequestSerializer(serializers.Serializer):
+    search_query = serializers.CharField(required=False, allow_blank=True, default="")
+    filter_params = serializers.JSONField(required=False, default=dict)
+
+
+class HuggingFaceDatasetDetailRequestSerializer(serializers.Serializer):
+    dataset_id = serializers.CharField()
+
+
+class HuggingFaceDatasetCreateRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, allow_blank=True, default="")
+    model_type = serializers.CharField(required=False, allow_blank=True, default="")
+    num_rows = serializers.IntegerField(required=False, min_value=0)
+    huggingface_dataset_name = serializers.CharField()
+    huggingface_dataset_config = serializers.CharField(required=False, allow_blank=True)
+    huggingface_dataset_split = serializers.CharField()
+
+
+class HuggingFaceAddRowsRequestSerializer(serializers.Serializer):
+    num_rows = serializers.IntegerField(required=False, min_value=0)
+    huggingface_dataset_name = serializers.CharField()
+    huggingface_dataset_config = serializers.CharField()
+    huggingface_dataset_split = serializers.CharField()
+
+
+class CompareDatasetStatsRequestSerializer(serializers.Serializer):
+    base_column_name = serializers.CharField()
+    dataset_ids = serializers.ListField(child=serializers.UUIDField())
+    stat_type = serializers.ChoiceField(
+        choices=["evaluation", "run_prompt"],
+        required=False,
+        default="evaluation",
+    )
+
+
+class CompareStartEvalsRequestSerializer(serializers.Serializer):
+    user_eval_names = serializers.ListField(child=serializers.CharField())
+    dataset_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
+
+
+class CompareEvalsListRequestSerializer(serializers.Serializer):
+    search_text = serializers.CharField(required=False, allow_blank=True, default="")
+    eval_type = serializers.ChoiceField(choices=["user"])
+    dataset_ids = serializers.ListField(child=serializers.UUIDField())
+
+
+class ComparePreviewRunEvalRequestSerializer(serializers.Serializer):
+    config = serializers.JSONField()
+    model = serializers.CharField(required=False, allow_blank=True, default="")
+    template_id = serializers.UUIDField()
+    dataset_ids = serializers.ListField(child=serializers.UUIDField())
+    dataset_info = serializers.JSONField(required=False, default=dict)
+    source = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="dataset_evaluation",
+    )

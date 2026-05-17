@@ -14211,6 +14211,25 @@ export const ModelHubColumnConfigReadParams = zod.object({
   "column_id": zod.string()
 })
 
+export const ModelHubColumnConfigReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Get the configuration for all operations in a dataset
@@ -15086,6 +15105,25 @@ export const ModelHubDatasetColumnsReadParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const ModelHubDatasetColumnsReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetAnnotationSummaryListParams = zod.object({
   "dataset_id": zod.string()
@@ -15127,6 +15165,25 @@ export const ModelHubDatasetJsonSchemaListParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const ModelHubDatasetJsonSchemaListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetRunPromptStatsListParams = zod.object({
   "dataset_id": zod.string()
@@ -15152,8 +15209,92 @@ export const ModelHubDatasetRunPromptStatsListResponse = zod.object({
 })
 
 
+export const modelHubDatasetsCompareGetEvalsListCreateBodySearchTextDefault = ``;
+
+export const ModelHubDatasetsCompareGetEvalsListCreateBody = zod.object({
+  "search_text": zod.string().default(modelHubDatasetsCompareGetEvalsListCreateBodySearchTextDefault),
+  "eval_type": zod.enum(['user']),
+  "dataset_ids": zod.array(zod.string().uuid())
+})
+
+export const ModelHubDatasetsCompareGetEvalsListCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const modelHubDatasetsComparePreviewRunEvalCreateBodyModelDefault = ``;
+export const modelHubDatasetsComparePreviewRunEvalCreateBodyDatasetInfoDefault = {  };
+export const modelHubDatasetsComparePreviewRunEvalCreateBodySourceDefault = `dataset_evaluation`;
+
+export const ModelHubDatasetsComparePreviewRunEvalCreateBody = zod.object({
+  "config": zod.object({
+
+}).passthrough(),
+  "model": zod.string().default(modelHubDatasetsComparePreviewRunEvalCreateBodyModelDefault),
+  "template_id": zod.string().uuid(),
+  "dataset_ids": zod.array(zod.string().uuid()),
+  "dataset_info": zod.object({
+
+}).passthrough().default(modelHubDatasetsComparePreviewRunEvalCreateBodyDatasetInfoDefault),
+  "source": zod.string().default(modelHubDatasetsComparePreviewRunEvalCreateBodySourceDefault)
+})
+
+export const ModelHubDatasetsComparePreviewRunEvalCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubDatasetsDeleteCompareReadParams = zod.object({
   "compare_id": zod.string()
+})
+
+export const ModelHubDatasetsDeleteCompareReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15161,14 +15302,95 @@ export const ModelHubDatasetsDeleteCompareDeleteParams = zod.object({
   "compare_id": zod.string()
 })
 
+export const ModelHubDatasetsDeleteCompareDeleteResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetsExplanationSummaryReadParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const ModelHubDatasetsExplanationSummaryReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetsExplanationSummaryRefreshCreateParams = zod.object({
   "dataset_id": zod.string()
+})
+
+export const ModelHubDatasetsExplanationSummaryRefreshCreateBody = zod.object({
+
+}).passthrough()
+
+export const ModelHubDatasetsExplanationSummaryRefreshCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const ModelHubDatasetsGetBaseColumnsListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15177,10 +15399,105 @@ export const ModelHubDatasetsGetCompareRowReadParams = zod.object({
   "row_id": zod.string()
 })
 
+export const ModelHubDatasetsGetCompareRowReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetsGetCompareRowDeleteParams = zod.object({
   "compare_id": zod.string(),
   "row_id": zod.string()
+})
+
+export const ModelHubDatasetsGetCompareRowDeleteResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+
+
+
+export const ModelHubDatasetsHuggingfaceDetailCreateBody = zod.object({
+  "dataset_id": zod.string().min(1)
+})
+
+export const ModelHubDatasetsHuggingfaceDetailCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const modelHubDatasetsHuggingfaceListCreateBodySearchQueryDefault = ``;
+export const modelHubDatasetsHuggingfaceListCreateBodyFilterParamsDefault = {  };
+
+export const ModelHubDatasetsHuggingfaceListCreateBody = zod.object({
+  "search_query": zod.string().default(modelHubDatasetsHuggingfaceListCreateBodySearchQueryDefault),
+  "filter_params": zod.object({
+
+}).passthrough().default(modelHubDatasetsHuggingfaceListCreateBodyFilterParamsDefault)
+})
+
+export const ModelHubDatasetsHuggingfaceListCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15309,14 +15626,128 @@ export const ModelHubDatasetsCompareDatasetsCreateParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const modelHubDatasetsCompareDatasetsCreateBodyPageSizeDefault = 10;
+export const modelHubDatasetsCompareDatasetsCreateBodyCurrentPageIndexDefault = 0;
+export const modelHubDatasetsCompareDatasetsCreateBodyDatasetInfoDefault = {  };
+export const modelHubDatasetsCompareDatasetsCreateBodyCommonColumnNamesDefault = [];
+
+export const ModelHubDatasetsCompareDatasetsCreateBody = zod.object({
+  "compare_id": zod.string().uuid().optional(),
+  "page_size": zod.number().default(modelHubDatasetsCompareDatasetsCreateBodyPageSizeDefault),
+  "current_page_index": zod.number().default(modelHubDatasetsCompareDatasetsCreateBodyCurrentPageIndexDefault),
+  "base_column_name": zod.string().min(1),
+  "dataset_info": zod.object({
+
+}).passthrough().default(modelHubDatasetsCompareDatasetsCreateBodyDatasetInfoDefault),
+  "common_column_names": zod.array(zod.string().min(1)).default(modelHubDatasetsCompareDatasetsCreateBodyCommonColumnNamesDefault),
+  "dataset_ids": zod.array(zod.string().uuid())
+})
+
+export const ModelHubDatasetsCompareDatasetsCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetsCompareDatasetsAddEvalCreateParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const modelHubDatasetsCompareDatasetsAddEvalCreateBodyNameMax = 50;
+
+export const modelHubDatasetsCompareDatasetsAddEvalCreateBodyTemplateIdMax = 500;
+
+export const modelHubDatasetsCompareDatasetsAddEvalCreateBodyErrorLocalizerDefault = false;
+export const modelHubDatasetsCompareDatasetsAddEvalCreateBodyModelMax = 100;
+
+
+
+export const ModelHubDatasetsCompareDatasetsAddEvalCreateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubDatasetsCompareDatasetsAddEvalCreateBodyNameMax),
+  "template_id": zod.string().min(1).max(modelHubDatasetsCompareDatasetsAddEvalCreateBodyTemplateIdMax),
+  "config": zod.object({
+
+}).passthrough(),
+  "kb_id": zod.string().uuid().optional(),
+  "error_localizer": zod.boolean().default(modelHubDatasetsCompareDatasetsAddEvalCreateBodyErrorLocalizerDefault),
+  "model": zod.string().min(1).max(modelHubDatasetsCompareDatasetsAddEvalCreateBodyModelMax).optional(),
+  "composite_weight_overrides": zod.object({
+
+}).passthrough().optional()
+})
+
+export const ModelHubDatasetsCompareDatasetsAddEvalCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDatasetsCompareDatasetsDownloadCreateParams = zod.object({
   "dataset_id": zod.string()
+})
+
+export const modelHubDatasetsCompareDatasetsDownloadCreateBodyPageSizeDefault = 10;
+export const modelHubDatasetsCompareDatasetsDownloadCreateBodyCurrentPageIndexDefault = 0;
+export const modelHubDatasetsCompareDatasetsDownloadCreateBodyDatasetInfoDefault = {  };
+export const modelHubDatasetsCompareDatasetsDownloadCreateBodyCommonColumnNamesDefault = [];
+
+export const ModelHubDatasetsCompareDatasetsDownloadCreateBody = zod.object({
+  "compare_id": zod.string().uuid().optional(),
+  "page_size": zod.number().default(modelHubDatasetsCompareDatasetsDownloadCreateBodyPageSizeDefault),
+  "current_page_index": zod.number().default(modelHubDatasetsCompareDatasetsDownloadCreateBodyCurrentPageIndexDefault),
+  "base_column_name": zod.string().min(1),
+  "dataset_info": zod.object({
+
+}).passthrough().default(modelHubDatasetsCompareDatasetsDownloadCreateBodyDatasetInfoDefault),
+  "common_column_names": zod.array(zod.string().min(1)).default(modelHubDatasetsCompareDatasetsDownloadCreateBodyCommonColumnNamesDefault),
+  "dataset_ids": zod.array(zod.string().uuid())
+})
+
+export const ModelHubDatasetsCompareDatasetsDownloadCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15325,8 +15756,63 @@ export const ModelHubDatasetsCompareDatasetsStartEvalCreateParams = zod.object({
 })
 
 
+export const modelHubDatasetsCompareDatasetsStartEvalCreateBodyDatasetIdsDefault = [];
+
+export const ModelHubDatasetsCompareDatasetsStartEvalCreateBody = zod.object({
+  "user_eval_names": zod.array(zod.string().min(1)),
+  "dataset_ids": zod.array(zod.string().uuid()).default(modelHubDatasetsCompareDatasetsStartEvalCreateBodyDatasetIdsDefault)
+})
+
+export const ModelHubDatasetsCompareDatasetsStartEvalCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubDatasetsCompareStatsCreateParams = zod.object({
   "dataset_id": zod.string()
+})
+
+
+export const modelHubDatasetsCompareStatsCreateBodyStatTypeDefault = `evaluation`;
+
+export const ModelHubDatasetsCompareStatsCreateBody = zod.object({
+  "base_column_name": zod.string().min(1),
+  "dataset_ids": zod.array(zod.string().uuid()),
+  "stat_type": zod.enum(['evaluation', 'run_prompt']).default(modelHubDatasetsCompareStatsCreateBodyStatTypeDefault)
+})
+
+export const ModelHubDatasetsCompareStatsCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15519,6 +16005,43 @@ export const ModelHubDevelopsCloneDatasetCreateParams = zod.object({
 })
 
 
+export const modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyNameDefault = ``;
+export const modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyModelTypeDefault = ``;
+export const modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyNumRowsMin = 0;
+
+
+
+
+
+export const ModelHubDevelopsCreateDatasetFromHuggingfaceCreateBody = zod.object({
+  "name": zod.string().default(modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyNameDefault),
+  "model_type": zod.string().default(modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyModelTypeDefault),
+  "num_rows": zod.number().min(modelHubDevelopsCreateDatasetFromHuggingfaceCreateBodyNumRowsMin).optional(),
+  "huggingface_dataset_name": zod.string().min(1),
+  "huggingface_dataset_config": zod.string().optional(),
+  "huggingface_dataset_split": zod.string().min(1)
+})
+
+export const ModelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 /**
  * API endpoint to check the progress of dataset creation from file upload
  */
@@ -15526,9 +16049,55 @@ export const ModelHubDevelopsDatasetCreationProgressReadParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const ModelHubDevelopsDatasetCreationProgressReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubDevelopsGetDerivedDatasetsReadParams = zod.object({
   "dataset_id": zod.string()
+})
+
+
+
+
+
+export const ModelHubDevelopsGetHuggingfaceDatasetConfigCreateBody = zod.object({
+  "dataset_path": zod.string().min(1)
+})
+
+export const ModelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -15582,6 +16151,39 @@ export const ModelHubDevelopsAddRowsFromExistingDatasetCreateParams = zod.object
 
 export const ModelHubDevelopsAddRowsFromHuggingfaceCreateParams = zod.object({
   "dataset_id": zod.string()
+})
+
+export const modelHubDevelopsAddRowsFromHuggingfaceCreateBodyNumRowsMin = 0;
+
+
+
+
+
+
+export const ModelHubDevelopsAddRowsFromHuggingfaceCreateBody = zod.object({
+  "num_rows": zod.number().min(modelHubDevelopsAddRowsFromHuggingfaceCreateBodyNumRowsMin).optional(),
+  "huggingface_dataset_name": zod.string().min(1),
+  "huggingface_dataset_config": zod.string().min(1),
+  "huggingface_dataset_split": zod.string().min(1)
+})
+
+export const ModelHubDevelopsAddRowsFromHuggingfaceCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 

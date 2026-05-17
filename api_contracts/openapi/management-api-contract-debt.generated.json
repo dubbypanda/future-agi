@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1323,
-    "mutation_endpoints_without_body_schema": 64,
-    "operations_without_response_schema": 107
+    "mutation_endpoints_without_body_schema": 51,
+    "operations_without_response_schema": 86
   },
   "by_group": {
     "accounts": {
@@ -70,8 +70,8 @@
     "model-hub": {
       "paths": 365,
       "operations": 475,
-      "mutation_endpoints_without_body_schema": 64,
-      "operations_without_response_schema": 107
+      "mutation_endpoints_without_body_schema": 51,
+      "operations_without_response_schema": 86
     },
     "saml2_auth": {
       "paths": 12,
@@ -111,96 +111,6 @@
     }
   },
   "mutation_endpoints_without_body_schema": [
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/compare/get-evals-list/",
-      "operation_id": "model-hub_datasets_compare_get-evals-list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/compare/preview-run-eval/",
-      "operation_id": "model-hub_datasets_compare_preview-run-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/",
-      "operation_id": "model-hub_datasets_explanation-summary_refresh_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/huggingface/detail/",
-      "operation_id": "model-hub_datasets_huggingface_detail_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/huggingface/list/",
-      "operation_id": "model-hub_datasets_huggingface_list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/",
-      "operation_id": "model-hub_datasets_compare-datasets_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/",
-      "operation_id": "model-hub_datasets_compare-datasets_add-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/download/",
-      "operation_id": "model-hub_datasets_compare-datasets_download_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/",
-      "operation_id": "model-hub_datasets_compare-datasets_start-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-stats/",
-      "operation_id": "model-hub_datasets_compare-stats_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
     {
       "group": "model-hub",
       "method": "POST",
@@ -276,15 +186,6 @@
     {
       "group": "model-hub",
       "method": "POST",
-      "path": "/model-hub/develops/create-dataset-from-huggingface/",
-      "operation_id": "model-hub_develops_create-dataset-from-huggingface_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
       "path": "/model-hub/develops/create-dataset-from-local-file/",
       "operation_id": "model-hub_develops_create-dataset-from-local-file_create",
       "tags": [
@@ -332,15 +233,6 @@
       "method": "POST",
       "path": "/model-hub/develops/get-cell-data/",
       "operation_id": "model-hub_develops_get-cell-data_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/develops/get-huggingface-dataset-config/",
-      "operation_id": "model-hub_develops_get-huggingface-dataset-config_create",
       "tags": [
         "model-hub"
       ]
@@ -413,15 +305,6 @@
       "method": "POST",
       "path": "/model-hub/develops/{dataset_id}/add_rows_from_existing_dataset/",
       "operation_id": "model-hub_develops_add_rows_from_existing_dataset_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/",
-      "operation_id": "model-hub_develops_add_rows_from_huggingface_create",
       "tags": [
         "model-hub"
       ]
@@ -692,161 +575,8 @@
     {
       "group": "model-hub",
       "method": "GET",
-      "path": "/model-hub/column-config/{column_id}/",
-      "operation_id": "model-hub_column-config_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/dataset/columns/{dataset_id}/",
-      "operation_id": "model-hub_dataset_columns_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
       "path": "/model-hub/dataset/{dataset_id}/eval-stats/",
       "operation_id": "model-hub_dataset_eval-stats_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/dataset/{dataset_id}/json-schema/",
-      "operation_id": "model-hub_dataset_json-schema_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/compare/get-evals-list/",
-      "operation_id": "model-hub_datasets_compare_get-evals-list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/compare/preview-run-eval/",
-      "operation_id": "model-hub_datasets_compare_preview-run-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/datasets/delete-compare/{compare_id}/",
-      "operation_id": "model-hub_datasets_delete-compare_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/datasets/explanation-summary/{dataset_id}/",
-      "operation_id": "model-hub_datasets_explanation-summary_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/",
-      "operation_id": "model-hub_datasets_explanation-summary_refresh_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/datasets/get-base-columns/",
-      "operation_id": "model-hub_datasets_get-base-columns_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/",
-      "operation_id": "model-hub_datasets_get-compare-row_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/huggingface/detail/",
-      "operation_id": "model-hub_datasets_huggingface_detail_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/huggingface/list/",
-      "operation_id": "model-hub_datasets_huggingface_list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/",
-      "operation_id": "model-hub_datasets_compare-datasets_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/",
-      "operation_id": "model-hub_datasets_compare-datasets_add-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/download/",
-      "operation_id": "model-hub_datasets_compare-datasets_download_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/",
-      "operation_id": "model-hub_datasets_compare-datasets_start-eval_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/datasets/{dataset_id}/compare-stats/",
-      "operation_id": "model-hub_datasets_compare-stats_create",
       "tags": [
         "model-hub"
       ]
@@ -926,15 +656,6 @@
     {
       "group": "model-hub",
       "method": "POST",
-      "path": "/model-hub/develops/create-dataset-from-huggingface/",
-      "operation_id": "model-hub_develops_create-dataset-from-huggingface_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
       "path": "/model-hub/develops/create-dataset-from-local-file/",
       "operation_id": "model-hub_develops_create-dataset-from-local-file_create",
       "tags": [
@@ -964,15 +685,6 @@
       "method": "POST",
       "path": "/model-hub/develops/create-synthetic-dataset/",
       "operation_id": "model-hub_develops_create-synthetic-dataset_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/develops/dataset-creation-progress/{dataset_id}/",
-      "operation_id": "model-hub_develops_dataset-creation-progress_read",
       "tags": [
         "model-hub"
       ]
@@ -1018,15 +730,6 @@
       "method": "GET",
       "path": "/model-hub/develops/get-derived-datasets/{dataset_id}/",
       "operation_id": "model-hub_develops_get-derived-datasets_read",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/develops/get-huggingface-dataset-config/",
-      "operation_id": "model-hub_develops_get-huggingface-dataset-config_create",
       "tags": [
         "model-hub"
       ]
@@ -1135,15 +838,6 @@
       "method": "POST",
       "path": "/model-hub/develops/{dataset_id}/add_rows_from_existing_dataset/",
       "operation_id": "model-hub_develops_add_rows_from_existing_dataset_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/",
-      "operation_id": "model-hub_develops_add_rows_from_huggingface_create",
       "tags": [
         "model-hub"
       ]

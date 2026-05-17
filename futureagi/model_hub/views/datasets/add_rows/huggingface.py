@@ -4,6 +4,7 @@ import uuid
 import structlog
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -11,6 +12,11 @@ from rest_framework.views import APIView
 logger = structlog.get_logger(__name__)
 from model_hub.models.choices import SourceChoices, StatusType
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    HuggingFaceAddRowsRequestSerializer,
+    ModelHubJSONResponseSerializer,
+)
 from model_hub.utils.utils import (
     get_data_type_huggingface,
     load_hf_dataset_with_retries,
@@ -19,13 +25,17 @@ from model_hub.views.datasets.create.huggingface import CreateDatasetFromHugging
 from model_hub.views.utils.hugginface import process_huggingface_dataset
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
+
 try:
     from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
 except ImportError:
     APICallStatusChoices = None
     APICallTypeChoices = None
 try:
-    from ee.usage.utils.usage_entries import ROW_LIMIT_REACHED_MESSAGE, log_and_deduct_cost_for_resource_request
+    from ee.usage.utils.usage_entries import (
+        ROW_LIMIT_REACHED_MESSAGE,
+        log_and_deduct_cost_for_resource_request,
+    )
 except ImportError:
     ROW_LIMIT_REACHED_MESSAGE = None
     log_and_deduct_cost_for_resource_request = None
@@ -36,6 +46,10 @@ class AddRowsFromHuggingFaceView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
+    @swagger_auto_schema(
+        request_body=HuggingFaceAddRowsRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
             num_rows = request.data.get("num_rows")

@@ -11,6 +11,7 @@ import pandas as pd
 import structlog
 from django.db import close_old_connections, transaction
 from django.db.utils import OperationalError
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +33,10 @@ from model_hub.models.choices import (
     determine_data_type,
 )
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    ModelHubJSONResponseSerializer,
+)
 from model_hub.serializers.develop_dataset import UploadFileForm
 from model_hub.utils.file_reader import FileProcessor
 from tfc.settings.settings import UPLOAD_BUCKET_NAME
@@ -48,13 +53,17 @@ from tfc.utils.storage_client import (
     extract_object_key,
     get_storage_client,
 )
+
 try:
     from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
 except ImportError:
     APICallStatusChoices = None
     APICallTypeChoices = None
 try:
-    from ee.usage.utils.usage_entries import ROW_LIMIT_REACHED_MESSAGE, log_and_deduct_cost_for_resource_request
+    from ee.usage.utils.usage_entries import (
+        ROW_LIMIT_REACHED_MESSAGE,
+        log_and_deduct_cost_for_resource_request,
+    )
 except ImportError:
     ROW_LIMIT_REACHED_MESSAGE = None
     log_and_deduct_cost_for_resource_request = None
@@ -1070,6 +1079,9 @@ class DatasetCreationProgressView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (JSONParser,)
 
+    @swagger_auto_schema(
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
             # Get dataset and validate ownership

@@ -4,6 +4,7 @@ import uuid
 import requests
 import structlog
 from django.db import transaction
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -22,6 +23,12 @@ from model_hub.models.choices import (
     StatusType,
 )
 from model_hub.models.develop_dataset import Column, Dataset, Row
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    HuggingFaceDatasetConfigRequestSerializer,
+    HuggingFaceDatasetCreateRequestSerializer,
+    ModelHubJSONResponseSerializer,
+)
 from model_hub.serializers.develop_dataset import DatasetSerializer, UploadFileForm
 from model_hub.utils.utils import (
     get_data_type_huggingface,
@@ -36,13 +43,17 @@ from tfc.settings.settings import HUGGINGFACE_API_TOKEN
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.parse_errors import parse_serialized_errors
+
 try:
     from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
 except ImportError:
     APICallStatusChoices = None
     APICallTypeChoices = None
 try:
-    from ee.usage.utils.usage_entries import ROW_LIMIT_REACHED_MESSAGE, log_and_deduct_cost_for_resource_request
+    from ee.usage.utils.usage_entries import (
+        ROW_LIMIT_REACHED_MESSAGE,
+        log_and_deduct_cost_for_resource_request,
+    )
 except ImportError:
     ROW_LIMIT_REACHED_MESSAGE = None
     log_and_deduct_cost_for_resource_request = None
@@ -54,6 +65,10 @@ class GetHuggingFaceDatasetConfigView(APIView):
     renderer_classes = [JSONRenderer]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
+    @swagger_auto_schema(
+        request_body=HuggingFaceDatasetConfigRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             # form = UploadFileForm(request.POST, request.FILES)
@@ -134,6 +149,10 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
                 get_error_message("FAILED_TO_LOAD_DATASET_FROM_HUGGINGFACE")
             )
 
+    @swagger_auto_schema(
+        request_body=HuggingFaceDatasetCreateRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             call_log_row_entry = log_and_deduct_cost_for_resource_request(

@@ -10006,7 +10006,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_column-config_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/columns/{column_id}/operation-config/": {
@@ -10688,7 +10707,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_dataset_columns_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/dataset/{dataset_id}/annotation-summary/": {
@@ -10725,7 +10763,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_dataset_json-schema_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/dataset/{dataset_id}/run-prompt-stats/": {
@@ -10758,17 +10815,59 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/compare/get-evals-list/": {
       "post": {
         "operationId": "model-hub_datasets_compare_get-evals-list_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompareEvalsListRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/compare/preview-run-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare_preview-run-eval_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ComparePreviewRunEvalRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/delete-compare/{compare_id}/": {
@@ -10776,13 +10875,51 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_datasets_delete-compare_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "model-hub_datasets_delete-compare_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/explanation-summary/{dataset_id}/": {
@@ -10790,15 +10927,55 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_datasets_explanation-summary_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/": {
       "post": {
         "operationId": "model-hub_datasets_explanation-summary_refresh_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ModelHubEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/get-base-columns/": {
@@ -10806,7 +10983,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_datasets_get-base-columns_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/": {
@@ -10814,29 +11010,109 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_datasets_get-compare-row_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "model-hub_datasets_get-compare-row_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/huggingface/detail/": {
       "post": {
         "operationId": "model-hub_datasets_huggingface_detail_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/HuggingFaceDatasetDetailRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/huggingface/list/": {
       "post": {
         "operationId": "model-hub_datasets_huggingface_list_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/HuggingFaceDatasetListRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/add-api-column/": {
@@ -10929,41 +11205,146 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-datasets/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompareDataset"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_add-eval_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UserEval"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/compare-datasets/download/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_download_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompareDataset"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_start-eval_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompareStartEvalsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/compare-stats/": {
       "post": {
         "operationId": "model-hub_datasets_compare-stats_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompareDatasetStatsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/datasets/{dataset_id}/conditional-column/": {
@@ -11176,9 +11557,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-dataset-from-huggingface/": {
       "post": {
         "operationId": "model-hub_develops_create-dataset-from-huggingface_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/HuggingFaceDatasetCreateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/develops/create-dataset-from-local-file/": {
@@ -11218,7 +11620,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_develops_dataset-creation-progress_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/develops/delete_dataset/": {
@@ -11272,9 +11693,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-huggingface-dataset-config/": {
       "post": {
         "operationId": "model-hub_develops_get-huggingface-dataset-config_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/HuggingFaceDatasetConfigRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/develops/get-row-diff/": {
@@ -11376,9 +11818,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_from_huggingface_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/HuggingFaceAddRowsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/develops/{dataset_id}/add_static_column/": {
@@ -35811,6 +36274,178 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CompareDataset": {
+      "required": [
+        "base_column_name",
+        "dataset_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "compare_id": {
+          "title": "Compare id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "page_size": {
+          "title": "Page size",
+          "type": "integer",
+          "default": 10
+        },
+        "current_page_index": {
+          "title": "Current page index",
+          "type": "integer",
+          "default": 0
+        },
+        "base_column_name": {
+          "title": "Base column name",
+          "type": "string",
+          "minLength": 1
+        },
+        "dataset_info": {
+          "title": "Dataset info",
+          "type": "object",
+          "default": {}
+        },
+        "common_column_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "CompareDatasetStatsRequest": {
+      "required": [
+        "base_column_name",
+        "dataset_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "base_column_name": {
+          "title": "Base column name",
+          "type": "string",
+          "minLength": 1
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "stat_type": {
+          "title": "Stat type",
+          "type": "string",
+          "enum": [
+            "evaluation",
+            "run_prompt"
+          ],
+          "default": "evaluation"
+        }
+      }
+    },
+    "CompareEvalsListRequest": {
+      "required": [
+        "eval_type",
+        "dataset_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "search_text": {
+          "title": "Search text",
+          "type": "string",
+          "default": ""
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "enum": [
+            "user"
+          ]
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "ComparePreviewRunEvalRequest": {
+      "required": [
+        "config",
+        "template_id",
+        "dataset_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "default": ""
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "dataset_info": {
+          "title": "Dataset info",
+          "type": "object",
+          "default": {}
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "default": "dataset_evaluation"
+        }
+      }
+    },
+    "CompareStartEvalsRequest": {
+      "required": [
+        "user_eval_names"
+      ],
+      "type": "object",
+      "properties": {
+        "user_eval_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        }
+      }
+    },
     "CompositeEvalAdhocExecuteRequest": {
       "required": [
         "mapping",
@@ -40946,6 +41581,115 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Result",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "HuggingFaceAddRowsRequest": {
+      "required": [
+        "huggingface_dataset_name",
+        "huggingface_dataset_config",
+        "huggingface_dataset_split"
+      ],
+      "type": "object",
+      "properties": {
+        "num_rows": {
+          "title": "Num rows",
+          "type": "integer",
+          "minimum": 0
+        },
+        "huggingface_dataset_name": {
+          "title": "Huggingface dataset name",
+          "type": "string",
+          "minLength": 1
+        },
+        "huggingface_dataset_config": {
+          "title": "Huggingface dataset config",
+          "type": "string",
+          "minLength": 1
+        },
+        "huggingface_dataset_split": {
+          "title": "Huggingface dataset split",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "HuggingFaceDatasetConfigRequest": {
+      "required": [
+        "dataset_path"
+      ],
+      "type": "object",
+      "properties": {
+        "dataset_path": {
+          "title": "Dataset path",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "HuggingFaceDatasetCreateRequest": {
+      "required": [
+        "huggingface_dataset_name",
+        "huggingface_dataset_split"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "default": ""
+        },
+        "model_type": {
+          "title": "Model type",
+          "type": "string",
+          "default": ""
+        },
+        "num_rows": {
+          "title": "Num rows",
+          "type": "integer",
+          "minimum": 0
+        },
+        "huggingface_dataset_name": {
+          "title": "Huggingface dataset name",
+          "type": "string",
+          "minLength": 1
+        },
+        "huggingface_dataset_config": {
+          "title": "Huggingface dataset config",
+          "type": "string"
+        },
+        "huggingface_dataset_split": {
+          "title": "Huggingface dataset split",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "HuggingFaceDatasetDetailRequest": {
+      "required": [
+        "dataset_id"
+      ],
+      "type": "object",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "HuggingFaceDatasetListRequest": {
+      "type": "object",
+      "properties": {
+        "search_query": {
+          "title": "Search query",
+          "type": "string",
+          "default": ""
+        },
+        "filter_params": {
+          "title": "Filter params",
+          "type": "object",
+          "default": {}
         }
       }
     },
@@ -52411,6 +53155,53 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "send_credential": {
           "title": "Send credential",
           "type": "boolean"
+        }
+      }
+    },
+    "UserEval": {
+      "required": [
+        "name",
+        "template_id",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "composite_weight_overrides": {
+          "title": "Composite weight overrides",
+          "type": "object",
+          "x-nullable": true
         }
       }
     },

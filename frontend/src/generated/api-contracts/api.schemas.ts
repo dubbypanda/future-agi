@@ -4826,6 +4826,44 @@ export interface AnnotationSummaryResponseApi {
   result: AnnotationSummaryResultApi;
 }
 
+export type CompareEvalsListRequestApiEvalType = typeof CompareEvalsListRequestApiEvalType[keyof typeof CompareEvalsListRequestApiEvalType];
+
+
+export const CompareEvalsListRequestApiEvalType = {
+  user: 'user',
+} as const;
+
+export interface CompareEvalsListRequestApi {
+  search_text?: string;
+  eval_type: CompareEvalsListRequestApiEvalType;
+  dataset_ids: string[];
+}
+
+export type ComparePreviewRunEvalRequestApiConfig = { [key: string]: unknown };
+
+export type ComparePreviewRunEvalRequestApiDatasetInfo = { [key: string]: unknown };
+
+export interface ComparePreviewRunEvalRequestApi {
+  config: ComparePreviewRunEvalRequestApiConfig;
+  model?: string;
+  template_id: string;
+  dataset_ids: string[];
+  dataset_info?: ComparePreviewRunEvalRequestApiDatasetInfo;
+  source?: string;
+}
+
+export interface HuggingFaceDatasetDetailRequestApi {
+  /** @minLength 1 */
+  dataset_id: string;
+}
+
+export type HuggingFaceDatasetListRequestApiFilterParams = { [key: string]: unknown };
+
+export interface HuggingFaceDatasetListRequestApi {
+  search_query?: string;
+  filter_params?: HuggingFaceDatasetListRequestApiFilterParams;
+}
+
 export type AddApiColumnRequestApiConfig = { [key: string]: unknown };
 
 export interface AddApiColumnRequestApi {
@@ -4867,6 +4905,65 @@ export interface ClassifyColumnRequestApi {
   new_column_name?: string;
 }
 
+export type CompareDatasetApiDatasetInfo = { [key: string]: unknown };
+
+export interface CompareDatasetApi {
+  compare_id?: string;
+  page_size?: number;
+  current_page_index?: number;
+  /** @minLength 1 */
+  base_column_name: string;
+  dataset_info?: CompareDatasetApiDatasetInfo;
+  common_column_names?: string[];
+  dataset_ids: string[];
+}
+
+export type UserEvalApiConfig = { [key: string]: unknown };
+
+export type UserEvalApiCompositeWeightOverrides = { [key: string]: unknown };
+
+export interface UserEvalApi {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  template_id: string;
+  config: UserEvalApiConfig;
+  kb_id?: string;
+  error_localizer?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  model?: string;
+  composite_weight_overrides?: UserEvalApiCompositeWeightOverrides;
+}
+
+export interface CompareStartEvalsRequestApi {
+  user_eval_names: string[];
+  dataset_ids?: string[];
+}
+
+export type CompareDatasetStatsRequestApiStatType = typeof CompareDatasetStatsRequestApiStatType[keyof typeof CompareDatasetStatsRequestApiStatType];
+
+
+export const CompareDatasetStatsRequestApiStatType = {
+  evaluation: 'evaluation',
+  run_prompt: 'run_prompt',
+} as const;
+
+export interface CompareDatasetStatsRequestApi {
+  /** @minLength 1 */
+  base_column_name: string;
+  dataset_ids: string[];
+  stat_type?: CompareDatasetStatsRequestApiStatType;
+}
+
 export type ConditionalColumnRequestApiConfigItem = { [key: string]: unknown };
 
 export interface ConditionalColumnRequestApi {
@@ -4900,6 +4997,34 @@ export interface PreviewDatasetOperationRequestApi {
 
 export interface DeleteEvalTemplateApi {
   eval_template_id: string;
+}
+
+export interface HuggingFaceDatasetCreateRequestApi {
+  name?: string;
+  model_type?: string;
+  /** @minimum 0 */
+  num_rows?: number;
+  /** @minLength 1 */
+  huggingface_dataset_name: string;
+  huggingface_dataset_config?: string;
+  /** @minLength 1 */
+  huggingface_dataset_split: string;
+}
+
+export interface HuggingFaceDatasetConfigRequestApi {
+  /** @minLength 1 */
+  dataset_path: string;
+}
+
+export interface HuggingFaceAddRowsRequestApi {
+  /** @minimum 0 */
+  num_rows?: number;
+  /** @minLength 1 */
+  huggingface_dataset_name: string;
+  /** @minLength 1 */
+  huggingface_dataset_config: string;
+  /** @minLength 1 */
+  huggingface_dataset_split: string;
 }
 
 export interface ExtractJsonColumnRequestApi {

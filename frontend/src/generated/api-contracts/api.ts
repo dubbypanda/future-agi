@@ -206,6 +206,11 @@ import type {
   ClassifyColumnRequestApi,
   ClickHouseHealthResponseApi,
   ColumnValuesRequestApi,
+  CompareDatasetApi,
+  CompareDatasetStatsRequestApi,
+  CompareEvalsListRequestApi,
+  ComparePreviewRunEvalRequestApi,
+  CompareStartEvalsRequestApi,
   CompositeEvalAdhocExecuteRequestApi,
   CompositeEvalCreateRequestApi,
   CompositeEvalExecuteRequestApi,
@@ -349,6 +354,11 @@ import type {
   GroundTruthSearchRequestApi,
   GroundTruthUploadRequestApi,
   HealthCheckResponseApi,
+  HuggingFaceAddRowsRequestApi,
+  HuggingFaceDatasetConfigRequestApi,
+  HuggingFaceDatasetCreateRequestApi,
+  HuggingFaceDatasetDetailRequestApi,
+  HuggingFaceDatasetListRequestApi,
   ImagineAnalysisResponseApi,
   ImportAnnotationsApi,
   IntegrationConnectionDetailApi,
@@ -949,6 +959,7 @@ import type {
   UserAlertMonitorLogApi,
   UserCodeExampleResponseApi,
   UserCreateApi,
+  UserEvalApi,
   UserFullNameUpdateRequestApi,
   UserIdsRequestApi,
   UserOnboardingApi,
@@ -21525,16 +21536,43 @@ export const modelHubCellsRunErrorLocalizerCreate = async (cellId: string,
 
 
 export type modelHubColumnConfigReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubColumnConfigReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubColumnConfigReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubColumnConfigReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubColumnConfigReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubColumnConfigReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubColumnConfigReadResponseSuccess = (modelHubColumnConfigReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubColumnConfigReadResponseError = (modelHubColumnConfigReadResponse400 | modelHubColumnConfigReadResponse403 | modelHubColumnConfigReadResponse404 | modelHubColumnConfigReadResponse409 | modelHubColumnConfigReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubColumnConfigReadResponse = (modelHubColumnConfigReadResponseSuccess)
+export type modelHubColumnConfigReadResponse = (modelHubColumnConfigReadResponseSuccess | modelHubColumnConfigReadResponseError)
 
 export const getModelHubColumnConfigReadUrl = (columnId: string,) => {
 
@@ -23130,16 +23168,43 @@ export const modelHubDatasetOptimizationTrialTrialScenarios = async (id: string,
 
 
 export type modelHubDatasetColumnsReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetColumnsReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetColumnsReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetColumnsReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetColumnsReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetColumnsReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetColumnsReadResponseSuccess = (modelHubDatasetColumnsReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetColumnsReadResponseError = (modelHubDatasetColumnsReadResponse400 | modelHubDatasetColumnsReadResponse403 | modelHubDatasetColumnsReadResponse404 | modelHubDatasetColumnsReadResponse409 | modelHubDatasetColumnsReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetColumnsReadResponse = (modelHubDatasetColumnsReadResponseSuccess)
+export type modelHubDatasetColumnsReadResponse = (modelHubDatasetColumnsReadResponseSuccess | modelHubDatasetColumnsReadResponseError)
 
 export const getModelHubDatasetColumnsReadUrl = (datasetId: string,) => {
 
@@ -23246,16 +23311,43 @@ export const modelHubDatasetEvalStatsList = async (datasetId: string, options?: 
 
 
 export type modelHubDatasetJsonSchemaListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetJsonSchemaListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetJsonSchemaListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetJsonSchemaListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetJsonSchemaListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetJsonSchemaListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetJsonSchemaListResponseSuccess = (modelHubDatasetJsonSchemaListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetJsonSchemaListResponseError = (modelHubDatasetJsonSchemaListResponse400 | modelHubDatasetJsonSchemaListResponse403 | modelHubDatasetJsonSchemaListResponse404 | modelHubDatasetJsonSchemaListResponse409 | modelHubDatasetJsonSchemaListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetJsonSchemaListResponse = (modelHubDatasetJsonSchemaListResponseSuccess)
+export type modelHubDatasetJsonSchemaListResponse = (modelHubDatasetJsonSchemaListResponseSuccess | modelHubDatasetJsonSchemaListResponseError)
 
 export const getModelHubDatasetJsonSchemaListUrl = (datasetId: string,) => {
 
@@ -23343,17 +23435,44 @@ export const modelHubDatasetRunPromptStatsList = async (datasetId: string, optio
 
 
 
-export type modelHubDatasetsCompareGetEvalsListCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareGetEvalsListCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareGetEvalsListCreateResponseSuccess = (modelHubDatasetsCompareGetEvalsListCreateResponse201) & {
+export type modelHubDatasetsCompareGetEvalsListCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareGetEvalsListCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareGetEvalsListCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareGetEvalsListCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareGetEvalsListCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareGetEvalsListCreateResponseSuccess = (modelHubDatasetsCompareGetEvalsListCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareGetEvalsListCreateResponseError = (modelHubDatasetsCompareGetEvalsListCreateResponse400 | modelHubDatasetsCompareGetEvalsListCreateResponse403 | modelHubDatasetsCompareGetEvalsListCreateResponse404 | modelHubDatasetsCompareGetEvalsListCreateResponse409 | modelHubDatasetsCompareGetEvalsListCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareGetEvalsListCreateResponse = (modelHubDatasetsCompareGetEvalsListCreateResponseSuccess)
+export type modelHubDatasetsCompareGetEvalsListCreateResponse = (modelHubDatasetsCompareGetEvalsListCreateResponseSuccess | modelHubDatasetsCompareGetEvalsListCreateResponseError)
 
 export const getModelHubDatasetsCompareGetEvalsListCreateUrl = () => {
 
@@ -23363,30 +23482,58 @@ export const getModelHubDatasetsCompareGetEvalsListCreateUrl = () => {
   return `/model-hub/datasets/compare/get-evals-list/`
 }
 
-export const modelHubDatasetsCompareGetEvalsListCreate = async ( options?: RequestInit): Promise<modelHubDatasetsCompareGetEvalsListCreateResponse> => {
+export const modelHubDatasetsCompareGetEvalsListCreate = async (compareEvalsListRequestApi: CompareEvalsListRequestApi, options?: RequestInit): Promise<modelHubDatasetsCompareGetEvalsListCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareGetEvalsListCreateResponse>(getModelHubDatasetsCompareGetEvalsListCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compareEvalsListRequestApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsComparePreviewRunEvalCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsComparePreviewRunEvalCreateResponseSuccess = (modelHubDatasetsComparePreviewRunEvalCreateResponse201) & {
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsComparePreviewRunEvalCreateResponseSuccess = (modelHubDatasetsComparePreviewRunEvalCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsComparePreviewRunEvalCreateResponseError = (modelHubDatasetsComparePreviewRunEvalCreateResponse400 | modelHubDatasetsComparePreviewRunEvalCreateResponse403 | modelHubDatasetsComparePreviewRunEvalCreateResponse404 | modelHubDatasetsComparePreviewRunEvalCreateResponse409 | modelHubDatasetsComparePreviewRunEvalCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsComparePreviewRunEvalCreateResponse = (modelHubDatasetsComparePreviewRunEvalCreateResponseSuccess)
+export type modelHubDatasetsComparePreviewRunEvalCreateResponse = (modelHubDatasetsComparePreviewRunEvalCreateResponseSuccess | modelHubDatasetsComparePreviewRunEvalCreateResponseError)
 
 export const getModelHubDatasetsComparePreviewRunEvalCreateUrl = () => {
 
@@ -23396,30 +23543,58 @@ export const getModelHubDatasetsComparePreviewRunEvalCreateUrl = () => {
   return `/model-hub/datasets/compare/preview-run-eval/`
 }
 
-export const modelHubDatasetsComparePreviewRunEvalCreate = async ( options?: RequestInit): Promise<modelHubDatasetsComparePreviewRunEvalCreateResponse> => {
+export const modelHubDatasetsComparePreviewRunEvalCreate = async (comparePreviewRunEvalRequestApi: ComparePreviewRunEvalRequestApi, options?: RequestInit): Promise<modelHubDatasetsComparePreviewRunEvalCreateResponse> => {
 
   return apiMutator<modelHubDatasetsComparePreviewRunEvalCreateResponse>(getModelHubDatasetsComparePreviewRunEvalCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      comparePreviewRunEvalRequestApi,)
   }
 );}
 
 
 
 export type modelHubDatasetsDeleteCompareReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetsDeleteCompareReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsDeleteCompareReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsDeleteCompareReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsDeleteCompareReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsDeleteCompareReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetsDeleteCompareReadResponseSuccess = (modelHubDatasetsDeleteCompareReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsDeleteCompareReadResponseError = (modelHubDatasetsDeleteCompareReadResponse400 | modelHubDatasetsDeleteCompareReadResponse403 | modelHubDatasetsDeleteCompareReadResponse404 | modelHubDatasetsDeleteCompareReadResponse409 | modelHubDatasetsDeleteCompareReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsDeleteCompareReadResponse = (modelHubDatasetsDeleteCompareReadResponseSuccess)
+export type modelHubDatasetsDeleteCompareReadResponse = (modelHubDatasetsDeleteCompareReadResponseSuccess | modelHubDatasetsDeleteCompareReadResponseError)
 
 export const getModelHubDatasetsDeleteCompareReadUrl = (compareId: string,) => {
 
@@ -23442,17 +23617,44 @@ export const modelHubDatasetsDeleteCompareRead = async (compareId: string, optio
 
 
 
-export type modelHubDatasetsDeleteCompareDeleteResponse204 = {
-  data: void
-  status: 204
+export type modelHubDatasetsDeleteCompareDeleteResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsDeleteCompareDeleteResponseSuccess = (modelHubDatasetsDeleteCompareDeleteResponse204) & {
+export type modelHubDatasetsDeleteCompareDeleteResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsDeleteCompareDeleteResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsDeleteCompareDeleteResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsDeleteCompareDeleteResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsDeleteCompareDeleteResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsDeleteCompareDeleteResponseSuccess = (modelHubDatasetsDeleteCompareDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsDeleteCompareDeleteResponseError = (modelHubDatasetsDeleteCompareDeleteResponse400 | modelHubDatasetsDeleteCompareDeleteResponse403 | modelHubDatasetsDeleteCompareDeleteResponse404 | modelHubDatasetsDeleteCompareDeleteResponse409 | modelHubDatasetsDeleteCompareDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsDeleteCompareDeleteResponse = (modelHubDatasetsDeleteCompareDeleteResponseSuccess)
+export type modelHubDatasetsDeleteCompareDeleteResponse = (modelHubDatasetsDeleteCompareDeleteResponseSuccess | modelHubDatasetsDeleteCompareDeleteResponseError)
 
 export const getModelHubDatasetsDeleteCompareDeleteUrl = (compareId: string,) => {
 
@@ -23476,16 +23678,43 @@ export const modelHubDatasetsDeleteCompareDelete = async (compareId: string, opt
 
 
 export type modelHubDatasetsExplanationSummaryReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetsExplanationSummaryReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsExplanationSummaryReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsExplanationSummaryReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsExplanationSummaryReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsExplanationSummaryReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetsExplanationSummaryReadResponseSuccess = (modelHubDatasetsExplanationSummaryReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsExplanationSummaryReadResponseError = (modelHubDatasetsExplanationSummaryReadResponse400 | modelHubDatasetsExplanationSummaryReadResponse403 | modelHubDatasetsExplanationSummaryReadResponse404 | modelHubDatasetsExplanationSummaryReadResponse409 | modelHubDatasetsExplanationSummaryReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsExplanationSummaryReadResponse = (modelHubDatasetsExplanationSummaryReadResponseSuccess)
+export type modelHubDatasetsExplanationSummaryReadResponse = (modelHubDatasetsExplanationSummaryReadResponseSuccess | modelHubDatasetsExplanationSummaryReadResponseError)
 
 export const getModelHubDatasetsExplanationSummaryReadUrl = (datasetId: string,) => {
 
@@ -23508,17 +23737,44 @@ export const modelHubDatasetsExplanationSummaryRead = async (datasetId: string, 
 
 
 
-export type modelHubDatasetsExplanationSummaryRefreshCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsExplanationSummaryRefreshCreateResponseSuccess = (modelHubDatasetsExplanationSummaryRefreshCreateResponse201) & {
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponseSuccess = (modelHubDatasetsExplanationSummaryRefreshCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponseError = (modelHubDatasetsExplanationSummaryRefreshCreateResponse400 | modelHubDatasetsExplanationSummaryRefreshCreateResponse403 | modelHubDatasetsExplanationSummaryRefreshCreateResponse404 | modelHubDatasetsExplanationSummaryRefreshCreateResponse409 | modelHubDatasetsExplanationSummaryRefreshCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsExplanationSummaryRefreshCreateResponse = (modelHubDatasetsExplanationSummaryRefreshCreateResponseSuccess)
+export type modelHubDatasetsExplanationSummaryRefreshCreateResponse = (modelHubDatasetsExplanationSummaryRefreshCreateResponseSuccess | modelHubDatasetsExplanationSummaryRefreshCreateResponseError)
 
 export const getModelHubDatasetsExplanationSummaryRefreshCreateUrl = (datasetId: string,) => {
 
@@ -23528,30 +23784,59 @@ export const getModelHubDatasetsExplanationSummaryRefreshCreateUrl = (datasetId:
   return `/model-hub/datasets/explanation-summary/${datasetId}/refresh/`
 }
 
-export const modelHubDatasetsExplanationSummaryRefreshCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsExplanationSummaryRefreshCreateResponse> => {
+export const modelHubDatasetsExplanationSummaryRefreshCreate = async (datasetId: string,
+    modelHubEmptyRequestApi: ModelHubEmptyRequestApi, options?: RequestInit): Promise<modelHubDatasetsExplanationSummaryRefreshCreateResponse> => {
 
   return apiMutator<modelHubDatasetsExplanationSummaryRefreshCreateResponse>(getModelHubDatasetsExplanationSummaryRefreshCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      modelHubEmptyRequestApi,)
   }
 );}
 
 
 
 export type modelHubDatasetsGetBaseColumnsListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetsGetBaseColumnsListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsGetBaseColumnsListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsGetBaseColumnsListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsGetBaseColumnsListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsGetBaseColumnsListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetsGetBaseColumnsListResponseSuccess = (modelHubDatasetsGetBaseColumnsListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsGetBaseColumnsListResponseError = (modelHubDatasetsGetBaseColumnsListResponse400 | modelHubDatasetsGetBaseColumnsListResponse403 | modelHubDatasetsGetBaseColumnsListResponse404 | modelHubDatasetsGetBaseColumnsListResponse409 | modelHubDatasetsGetBaseColumnsListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsGetBaseColumnsListResponse = (modelHubDatasetsGetBaseColumnsListResponseSuccess)
+export type modelHubDatasetsGetBaseColumnsListResponse = (modelHubDatasetsGetBaseColumnsListResponseSuccess | modelHubDatasetsGetBaseColumnsListResponseError)
 
 export const getModelHubDatasetsGetBaseColumnsListUrl = () => {
 
@@ -23575,16 +23860,43 @@ export const modelHubDatasetsGetBaseColumnsList = async ( options?: RequestInit)
 
 
 export type modelHubDatasetsGetCompareRowReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDatasetsGetCompareRowReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsGetCompareRowReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsGetCompareRowReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsGetCompareRowReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsGetCompareRowReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDatasetsGetCompareRowReadResponseSuccess = (modelHubDatasetsGetCompareRowReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsGetCompareRowReadResponseError = (modelHubDatasetsGetCompareRowReadResponse400 | modelHubDatasetsGetCompareRowReadResponse403 | modelHubDatasetsGetCompareRowReadResponse404 | modelHubDatasetsGetCompareRowReadResponse409 | modelHubDatasetsGetCompareRowReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsGetCompareRowReadResponse = (modelHubDatasetsGetCompareRowReadResponseSuccess)
+export type modelHubDatasetsGetCompareRowReadResponse = (modelHubDatasetsGetCompareRowReadResponseSuccess | modelHubDatasetsGetCompareRowReadResponseError)
 
 export const getModelHubDatasetsGetCompareRowReadUrl = (compareId: string,
     rowId: string,) => {
@@ -23609,17 +23921,44 @@ export const modelHubDatasetsGetCompareRowRead = async (compareId: string,
 
 
 
-export type modelHubDatasetsGetCompareRowDeleteResponse204 = {
-  data: void
-  status: 204
+export type modelHubDatasetsGetCompareRowDeleteResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsGetCompareRowDeleteResponseSuccess = (modelHubDatasetsGetCompareRowDeleteResponse204) & {
+export type modelHubDatasetsGetCompareRowDeleteResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsGetCompareRowDeleteResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsGetCompareRowDeleteResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsGetCompareRowDeleteResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsGetCompareRowDeleteResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsGetCompareRowDeleteResponseSuccess = (modelHubDatasetsGetCompareRowDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsGetCompareRowDeleteResponseError = (modelHubDatasetsGetCompareRowDeleteResponse400 | modelHubDatasetsGetCompareRowDeleteResponse403 | modelHubDatasetsGetCompareRowDeleteResponse404 | modelHubDatasetsGetCompareRowDeleteResponse409 | modelHubDatasetsGetCompareRowDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsGetCompareRowDeleteResponse = (modelHubDatasetsGetCompareRowDeleteResponseSuccess)
+export type modelHubDatasetsGetCompareRowDeleteResponse = (modelHubDatasetsGetCompareRowDeleteResponseSuccess | modelHubDatasetsGetCompareRowDeleteResponseError)
 
 export const getModelHubDatasetsGetCompareRowDeleteUrl = (compareId: string,
     rowId: string,) => {
@@ -23644,17 +23983,44 @@ export const modelHubDatasetsGetCompareRowDelete = async (compareId: string,
 
 
 
-export type modelHubDatasetsHuggingfaceDetailCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsHuggingfaceDetailCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsHuggingfaceDetailCreateResponseSuccess = (modelHubDatasetsHuggingfaceDetailCreateResponse201) & {
+export type modelHubDatasetsHuggingfaceDetailCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsHuggingfaceDetailCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsHuggingfaceDetailCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsHuggingfaceDetailCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsHuggingfaceDetailCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsHuggingfaceDetailCreateResponseSuccess = (modelHubDatasetsHuggingfaceDetailCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsHuggingfaceDetailCreateResponseError = (modelHubDatasetsHuggingfaceDetailCreateResponse400 | modelHubDatasetsHuggingfaceDetailCreateResponse403 | modelHubDatasetsHuggingfaceDetailCreateResponse404 | modelHubDatasetsHuggingfaceDetailCreateResponse409 | modelHubDatasetsHuggingfaceDetailCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsHuggingfaceDetailCreateResponse = (modelHubDatasetsHuggingfaceDetailCreateResponseSuccess)
+export type modelHubDatasetsHuggingfaceDetailCreateResponse = (modelHubDatasetsHuggingfaceDetailCreateResponseSuccess | modelHubDatasetsHuggingfaceDetailCreateResponseError)
 
 export const getModelHubDatasetsHuggingfaceDetailCreateUrl = () => {
 
@@ -23664,30 +24030,58 @@ export const getModelHubDatasetsHuggingfaceDetailCreateUrl = () => {
   return `/model-hub/datasets/huggingface/detail/`
 }
 
-export const modelHubDatasetsHuggingfaceDetailCreate = async ( options?: RequestInit): Promise<modelHubDatasetsHuggingfaceDetailCreateResponse> => {
+export const modelHubDatasetsHuggingfaceDetailCreate = async (huggingFaceDatasetDetailRequestApi: HuggingFaceDatasetDetailRequestApi, options?: RequestInit): Promise<modelHubDatasetsHuggingfaceDetailCreateResponse> => {
 
   return apiMutator<modelHubDatasetsHuggingfaceDetailCreateResponse>(getModelHubDatasetsHuggingfaceDetailCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      huggingFaceDatasetDetailRequestApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsHuggingfaceListCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsHuggingfaceListCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsHuggingfaceListCreateResponseSuccess = (modelHubDatasetsHuggingfaceListCreateResponse201) & {
+export type modelHubDatasetsHuggingfaceListCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsHuggingfaceListCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsHuggingfaceListCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsHuggingfaceListCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsHuggingfaceListCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsHuggingfaceListCreateResponseSuccess = (modelHubDatasetsHuggingfaceListCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsHuggingfaceListCreateResponseError = (modelHubDatasetsHuggingfaceListCreateResponse400 | modelHubDatasetsHuggingfaceListCreateResponse403 | modelHubDatasetsHuggingfaceListCreateResponse404 | modelHubDatasetsHuggingfaceListCreateResponse409 | modelHubDatasetsHuggingfaceListCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsHuggingfaceListCreateResponse = (modelHubDatasetsHuggingfaceListCreateResponseSuccess)
+export type modelHubDatasetsHuggingfaceListCreateResponse = (modelHubDatasetsHuggingfaceListCreateResponseSuccess | modelHubDatasetsHuggingfaceListCreateResponseError)
 
 export const getModelHubDatasetsHuggingfaceListCreateUrl = () => {
 
@@ -23697,14 +24091,15 @@ export const getModelHubDatasetsHuggingfaceListCreateUrl = () => {
   return `/model-hub/datasets/huggingface/list/`
 }
 
-export const modelHubDatasetsHuggingfaceListCreate = async ( options?: RequestInit): Promise<modelHubDatasetsHuggingfaceListCreateResponse> => {
+export const modelHubDatasetsHuggingfaceListCreate = async (huggingFaceDatasetListRequestApi: HuggingFaceDatasetListRequestApi, options?: RequestInit): Promise<modelHubDatasetsHuggingfaceListCreateResponse> => {
 
   return apiMutator<modelHubDatasetsHuggingfaceListCreateResponse>(getModelHubDatasetsHuggingfaceListCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      huggingFaceDatasetListRequestApi,)
   }
 );}
 
@@ -23896,17 +24291,44 @@ export const modelHubDatasetsClassifyColumnCreate = async (datasetId: string,
 
 
 
-export type modelHubDatasetsCompareDatasetsCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareDatasetsCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareDatasetsCreateResponseSuccess = (modelHubDatasetsCompareDatasetsCreateResponse201) & {
+export type modelHubDatasetsCompareDatasetsCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareDatasetsCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareDatasetsCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareDatasetsCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareDatasetsCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareDatasetsCreateResponseSuccess = (modelHubDatasetsCompareDatasetsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareDatasetsCreateResponseError = (modelHubDatasetsCompareDatasetsCreateResponse400 | modelHubDatasetsCompareDatasetsCreateResponse403 | modelHubDatasetsCompareDatasetsCreateResponse404 | modelHubDatasetsCompareDatasetsCreateResponse409 | modelHubDatasetsCompareDatasetsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareDatasetsCreateResponse = (modelHubDatasetsCompareDatasetsCreateResponseSuccess)
+export type modelHubDatasetsCompareDatasetsCreateResponse = (modelHubDatasetsCompareDatasetsCreateResponseSuccess | modelHubDatasetsCompareDatasetsCreateResponseError)
 
 export const getModelHubDatasetsCompareDatasetsCreateUrl = (datasetId: string,) => {
 
@@ -23916,30 +24338,59 @@ export const getModelHubDatasetsCompareDatasetsCreateUrl = (datasetId: string,) 
   return `/model-hub/datasets/${datasetId}/compare-datasets/`
 }
 
-export const modelHubDatasetsCompareDatasetsCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsCreateResponse> => {
+export const modelHubDatasetsCompareDatasetsCreate = async (datasetId: string,
+    compareDatasetApi: CompareDatasetApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareDatasetsCreateResponse>(getModelHubDatasetsCompareDatasetsCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compareDatasetApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareDatasetsAddEvalCreateResponseSuccess = (modelHubDatasetsCompareDatasetsAddEvalCreateResponse201) & {
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponseSuccess = (modelHubDatasetsCompareDatasetsAddEvalCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponseError = (modelHubDatasetsCompareDatasetsAddEvalCreateResponse400 | modelHubDatasetsCompareDatasetsAddEvalCreateResponse403 | modelHubDatasetsCompareDatasetsAddEvalCreateResponse404 | modelHubDatasetsCompareDatasetsAddEvalCreateResponse409 | modelHubDatasetsCompareDatasetsAddEvalCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse = (modelHubDatasetsCompareDatasetsAddEvalCreateResponseSuccess)
+export type modelHubDatasetsCompareDatasetsAddEvalCreateResponse = (modelHubDatasetsCompareDatasetsAddEvalCreateResponseSuccess | modelHubDatasetsCompareDatasetsAddEvalCreateResponseError)
 
 export const getModelHubDatasetsCompareDatasetsAddEvalCreateUrl = (datasetId: string,) => {
 
@@ -23949,30 +24400,59 @@ export const getModelHubDatasetsCompareDatasetsAddEvalCreateUrl = (datasetId: st
   return `/model-hub/datasets/${datasetId}/compare-datasets/add-eval/`
 }
 
-export const modelHubDatasetsCompareDatasetsAddEvalCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsAddEvalCreateResponse> => {
+export const modelHubDatasetsCompareDatasetsAddEvalCreate = async (datasetId: string,
+    userEvalApi: UserEvalApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsAddEvalCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareDatasetsAddEvalCreateResponse>(getModelHubDatasetsCompareDatasetsAddEvalCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      userEvalApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsCompareDatasetsDownloadCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareDatasetsDownloadCreateResponseSuccess = (modelHubDatasetsCompareDatasetsDownloadCreateResponse201) & {
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponseSuccess = (modelHubDatasetsCompareDatasetsDownloadCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponseError = (modelHubDatasetsCompareDatasetsDownloadCreateResponse400 | modelHubDatasetsCompareDatasetsDownloadCreateResponse403 | modelHubDatasetsCompareDatasetsDownloadCreateResponse404 | modelHubDatasetsCompareDatasetsDownloadCreateResponse409 | modelHubDatasetsCompareDatasetsDownloadCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareDatasetsDownloadCreateResponse = (modelHubDatasetsCompareDatasetsDownloadCreateResponseSuccess)
+export type modelHubDatasetsCompareDatasetsDownloadCreateResponse = (modelHubDatasetsCompareDatasetsDownloadCreateResponseSuccess | modelHubDatasetsCompareDatasetsDownloadCreateResponseError)
 
 export const getModelHubDatasetsCompareDatasetsDownloadCreateUrl = (datasetId: string,) => {
 
@@ -23982,30 +24462,59 @@ export const getModelHubDatasetsCompareDatasetsDownloadCreateUrl = (datasetId: s
   return `/model-hub/datasets/${datasetId}/compare-datasets/download/`
 }
 
-export const modelHubDatasetsCompareDatasetsDownloadCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsDownloadCreateResponse> => {
+export const modelHubDatasetsCompareDatasetsDownloadCreate = async (datasetId: string,
+    compareDatasetApi: CompareDatasetApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsDownloadCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareDatasetsDownloadCreateResponse>(getModelHubDatasetsCompareDatasetsDownloadCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compareDatasetApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareDatasetsStartEvalCreateResponseSuccess = (modelHubDatasetsCompareDatasetsStartEvalCreateResponse201) & {
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponseSuccess = (modelHubDatasetsCompareDatasetsStartEvalCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponseError = (modelHubDatasetsCompareDatasetsStartEvalCreateResponse400 | modelHubDatasetsCompareDatasetsStartEvalCreateResponse403 | modelHubDatasetsCompareDatasetsStartEvalCreateResponse404 | modelHubDatasetsCompareDatasetsStartEvalCreateResponse409 | modelHubDatasetsCompareDatasetsStartEvalCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse = (modelHubDatasetsCompareDatasetsStartEvalCreateResponseSuccess)
+export type modelHubDatasetsCompareDatasetsStartEvalCreateResponse = (modelHubDatasetsCompareDatasetsStartEvalCreateResponseSuccess | modelHubDatasetsCompareDatasetsStartEvalCreateResponseError)
 
 export const getModelHubDatasetsCompareDatasetsStartEvalCreateUrl = (datasetId: string,) => {
 
@@ -24015,30 +24524,59 @@ export const getModelHubDatasetsCompareDatasetsStartEvalCreateUrl = (datasetId: 
   return `/model-hub/datasets/${datasetId}/compare-datasets/start-eval/`
 }
 
-export const modelHubDatasetsCompareDatasetsStartEvalCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsStartEvalCreateResponse> => {
+export const modelHubDatasetsCompareDatasetsStartEvalCreate = async (datasetId: string,
+    compareStartEvalsRequestApi: CompareStartEvalsRequestApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsStartEvalCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareDatasetsStartEvalCreateResponse>(getModelHubDatasetsCompareDatasetsStartEvalCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compareStartEvalsRequestApi,)
   }
 );}
 
 
 
-export type modelHubDatasetsCompareStatsCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDatasetsCompareStatsCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDatasetsCompareStatsCreateResponseSuccess = (modelHubDatasetsCompareStatsCreateResponse201) & {
+export type modelHubDatasetsCompareStatsCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDatasetsCompareStatsCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDatasetsCompareStatsCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDatasetsCompareStatsCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDatasetsCompareStatsCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDatasetsCompareStatsCreateResponseSuccess = (modelHubDatasetsCompareStatsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDatasetsCompareStatsCreateResponseError = (modelHubDatasetsCompareStatsCreateResponse400 | modelHubDatasetsCompareStatsCreateResponse403 | modelHubDatasetsCompareStatsCreateResponse404 | modelHubDatasetsCompareStatsCreateResponse409 | modelHubDatasetsCompareStatsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDatasetsCompareStatsCreateResponse = (modelHubDatasetsCompareStatsCreateResponseSuccess)
+export type modelHubDatasetsCompareStatsCreateResponse = (modelHubDatasetsCompareStatsCreateResponseSuccess | modelHubDatasetsCompareStatsCreateResponseError)
 
 export const getModelHubDatasetsCompareStatsCreateUrl = (datasetId: string,) => {
 
@@ -24048,14 +24586,16 @@ export const getModelHubDatasetsCompareStatsCreateUrl = (datasetId: string,) => 
   return `/model-hub/datasets/${datasetId}/compare-stats/`
 }
 
-export const modelHubDatasetsCompareStatsCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDatasetsCompareStatsCreateResponse> => {
+export const modelHubDatasetsCompareStatsCreate = async (datasetId: string,
+    compareDatasetStatsRequestApi: CompareDatasetStatsRequestApi, options?: RequestInit): Promise<modelHubDatasetsCompareStatsCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareStatsCreateResponse>(getModelHubDatasetsCompareStatsCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compareDatasetStatsRequestApi,)
   }
 );}
 
@@ -24643,17 +25183,44 @@ export const modelHubDevelopsCloneDatasetCreate = async (datasetId: string, opti
 
 
 
-export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseSuccess = (modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse201) & {
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseSuccess = (modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseError = (modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse400 | modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse403 | modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse404 | modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse409 | modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse = (modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseSuccess)
+export type modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse = (modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseSuccess | modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponseError)
 
 export const getModelHubDevelopsCreateDatasetFromHuggingfaceCreateUrl = () => {
 
@@ -24663,14 +25230,15 @@ export const getModelHubDevelopsCreateDatasetFromHuggingfaceCreateUrl = () => {
   return `/model-hub/develops/create-dataset-from-huggingface/`
 }
 
-export const modelHubDevelopsCreateDatasetFromHuggingfaceCreate = async ( options?: RequestInit): Promise<modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse> => {
+export const modelHubDevelopsCreateDatasetFromHuggingfaceCreate = async (huggingFaceDatasetCreateRequestApi: HuggingFaceDatasetCreateRequestApi, options?: RequestInit): Promise<modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse> => {
 
   return apiMutator<modelHubDevelopsCreateDatasetFromHuggingfaceCreateResponse>(getModelHubDevelopsCreateDatasetFromHuggingfaceCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      huggingFaceDatasetCreateRequestApi,)
   }
 );}
 
@@ -24809,16 +25377,43 @@ export const modelHubDevelopsCreateSyntheticDatasetCreate = async ( options?: Re
 
 
 export type modelHubDevelopsDatasetCreationProgressReadResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubDevelopsDatasetCreationProgressReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDevelopsDatasetCreationProgressReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDevelopsDatasetCreationProgressReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDevelopsDatasetCreationProgressReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDevelopsDatasetCreationProgressReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubDevelopsDatasetCreationProgressReadResponseSuccess = (modelHubDevelopsDatasetCreationProgressReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDevelopsDatasetCreationProgressReadResponseError = (modelHubDevelopsDatasetCreationProgressReadResponse400 | modelHubDevelopsDatasetCreationProgressReadResponse403 | modelHubDevelopsDatasetCreationProgressReadResponse404 | modelHubDevelopsDatasetCreationProgressReadResponse409 | modelHubDevelopsDatasetCreationProgressReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDevelopsDatasetCreationProgressReadResponse = (modelHubDevelopsDatasetCreationProgressReadResponseSuccess)
+export type modelHubDevelopsDatasetCreationProgressReadResponse = (modelHubDevelopsDatasetCreationProgressReadResponseSuccess | modelHubDevelopsDatasetCreationProgressReadResponseError)
 
 export const getModelHubDevelopsDatasetCreationProgressReadUrl = (datasetId: string,) => {
 
@@ -25042,17 +25637,44 @@ export const modelHubDevelopsGetDerivedDatasetsRead = async (datasetId: string, 
 
 
 
-export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseSuccess = (modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse201) & {
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseSuccess = (modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseError = (modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse400 | modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse403 | modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse404 | modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse409 | modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse = (modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseSuccess)
+export type modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse = (modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseSuccess | modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponseError)
 
 export const getModelHubDevelopsGetHuggingfaceDatasetConfigCreateUrl = () => {
 
@@ -25062,14 +25684,15 @@ export const getModelHubDevelopsGetHuggingfaceDatasetConfigCreateUrl = () => {
   return `/model-hub/develops/get-huggingface-dataset-config/`
 }
 
-export const modelHubDevelopsGetHuggingfaceDatasetConfigCreate = async ( options?: RequestInit): Promise<modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse> => {
+export const modelHubDevelopsGetHuggingfaceDatasetConfigCreate = async (huggingFaceDatasetConfigRequestApi: HuggingFaceDatasetConfigRequestApi, options?: RequestInit): Promise<modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse> => {
 
   return apiMutator<modelHubDevelopsGetHuggingfaceDatasetConfigCreateResponse>(getModelHubDevelopsGetHuggingfaceDatasetConfigCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      huggingFaceDatasetConfigRequestApi,)
   }
 );}
 
@@ -25489,17 +26112,44 @@ export const modelHubDevelopsAddRowsFromExistingDatasetCreate = async (datasetId
 
 
 
-export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponseSuccess = (modelHubDevelopsAddRowsFromHuggingfaceCreateResponse201) & {
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponseSuccess = (modelHubDevelopsAddRowsFromHuggingfaceCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponseError = (modelHubDevelopsAddRowsFromHuggingfaceCreateResponse400 | modelHubDevelopsAddRowsFromHuggingfaceCreateResponse403 | modelHubDevelopsAddRowsFromHuggingfaceCreateResponse404 | modelHubDevelopsAddRowsFromHuggingfaceCreateResponse409 | modelHubDevelopsAddRowsFromHuggingfaceCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse = (modelHubDevelopsAddRowsFromHuggingfaceCreateResponseSuccess)
+export type modelHubDevelopsAddRowsFromHuggingfaceCreateResponse = (modelHubDevelopsAddRowsFromHuggingfaceCreateResponseSuccess | modelHubDevelopsAddRowsFromHuggingfaceCreateResponseError)
 
 export const getModelHubDevelopsAddRowsFromHuggingfaceCreateUrl = (datasetId: string,) => {
 
@@ -25509,14 +26159,16 @@ export const getModelHubDevelopsAddRowsFromHuggingfaceCreateUrl = (datasetId: st
   return `/model-hub/develops/${datasetId}/add_rows_from_huggingface/`
 }
 
-export const modelHubDevelopsAddRowsFromHuggingfaceCreate = async (datasetId: string, options?: RequestInit): Promise<modelHubDevelopsAddRowsFromHuggingfaceCreateResponse> => {
+export const modelHubDevelopsAddRowsFromHuggingfaceCreate = async (datasetId: string,
+    huggingFaceAddRowsRequestApi: HuggingFaceAddRowsRequestApi, options?: RequestInit): Promise<modelHubDevelopsAddRowsFromHuggingfaceCreateResponse> => {
 
   return apiMutator<modelHubDevelopsAddRowsFromHuggingfaceCreateResponse>(getModelHubDevelopsAddRowsFromHuggingfaceCreateUrl(datasetId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      huggingFaceAddRowsRequestApi,)
   }
 );}
 
