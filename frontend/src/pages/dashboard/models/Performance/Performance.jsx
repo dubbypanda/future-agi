@@ -192,7 +192,7 @@ const Performance = () => {
       dateFilter,
     ],
     queryFn: () =>
-      axios.post(`${endpoints.performance.graphData}${id}/`, {
+      axios.post(endpoints.performance.graphData(id), {
         startDate: dateFilter[0],
         endDate: dateFilter[1],
         aggBy: selectedAggregation,

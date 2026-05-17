@@ -614,7 +614,10 @@ export const endpoints = {
     files: apiPath("/model-hub/knowledge-base/files/"),
   },
   customMetric: {
-    list: legacyApiPath("/model-hub/custom-metric/"),
+    list: (modelId) =>
+      apiPath("/model-hub/custom-metric/{model_id}/", {
+        model_id: modelId,
+      }),
     create: apiPath("/model-hub/custom-metric/create/"),
     edit: apiPath("/model-hub/custom-metric/update/"),
     all: (modelId) =>
@@ -628,7 +631,7 @@ export const endpoints = {
     testMetric: apiPath("/model-hub/custom-metric/test/"),
   },
   performance: {
-    graphData: legacyApiPath("/model-hub/performance/"),
+    graphData: (id) => apiPath("/model-hub/performance/{id}/", { id }),
     tableData: (id) => apiPath("/model-hub/performance/detail/{id}/", { id }),
     tableExport: (id) => apiPath("/model-hub/performance/export/{id}/", { id }),
     getFilterOptions: (modelId) =>

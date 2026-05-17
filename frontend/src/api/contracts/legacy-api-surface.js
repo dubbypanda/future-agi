@@ -63,13 +63,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
       "Old model-management metric endpoint is still referenced by the legacy Models UI.",
     next: "Contract the old model-management API or retire the legacy Models UI.",
   },
-  "/model-hub/custom-metric/": {
-    group: "model-management",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Custom metric collection is still used by the legacy model performance UI.",
-    next: "Add serializers/OpenAPI coverage for custom metric collection, then move this path to apiPath(...).",
-  },
   "/model-hub/data-points/": {
     group: "model-management",
     status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
@@ -173,13 +166,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
     reason:
       "Old model detail endpoint is still referenced by the legacy Models UI.",
     next: "Contract the old model-management API or retire the legacy Models UI.",
-  },
-  "/model-hub/performance/": {
-    group: "model-management",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Legacy model performance graph endpoint is still used by the model Performance page.",
-    next: "Add serializers/OpenAPI coverage for performance graph data, then move this path to apiPath(...).",
   },
   "/model-hub/unique-properties/": {
     group: "model-management",
