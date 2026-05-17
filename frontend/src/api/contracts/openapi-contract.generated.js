@@ -10028,9 +10028,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/create_custom_evals/": {
       "post": {
         "operationId": "model-hub_create_custom_evals_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomEvalTemplateCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom-metric/all/{model_id}/": {
@@ -11046,9 +11067,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/delete-eval-template/": {
       "post": {
         "operationId": "model-hub_delete-eval-template_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/DeleteEvalTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/develops/add-as-new/": {
@@ -11523,9 +11565,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/duplicate-eval-template/": {
       "post": {
         "operationId": "model-hub_duplicate-eval-template_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/DuplicateEvalTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/embeddings/": {
@@ -11717,17 +11780,59 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-playground/": {
       "post": {
         "operationId": "model-hub_eval-playground_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalPlayGround"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-playground/feedback/": {
       "post": {
         "operationId": "model-hub_eval-playground_feedback_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalPlayGroundFeedback"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-sdk-code/": {
@@ -11735,7 +11840,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-sdk-code_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-summary-templates/": {
@@ -11830,9 +11954,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-template/create/": {
       "post": {
         "operationId": "model-hub_eval-template_create_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/bulk-delete/": {
@@ -12002,17 +12147,59 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-user-template/create/": {
       "post": {
         "operationId": "model-hub_eval-user-template_create_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalUserTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/evaluate-rows/": {
       "post": {
         "operationId": "model-hub_evaluate-rows_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SingleRowEvaluationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/experiment-detail/": {
@@ -16535,9 +16722,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/test-evaluation/": {
       "post": {
         "operationId": "model-hub_test-evaluation_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/TestEvalTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/tools/": {
@@ -16751,9 +16959,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/update-eval-template/": {
       "post": {
         "operationId": "model-hub_update-eval-template_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UpdateEvalTemplate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/upload-file/": {
@@ -35660,6 +35889,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CustomEvalTemplateCreate": {
+      "required": [
+        "name",
+        "required_keys"
+      ],
+      "type": "object",
+      "properties": {
+        "template_type": {
+          "title": "Template type",
+          "type": "string",
+          "enum": [
+            "Llm",
+            "Futureagi",
+            "Function"
+          ],
+          "default": "Futureagi"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "x-nullable": true
+        },
+        "criteria": {
+          "title": "Criteria",
+          "type": "string",
+          "default": "",
+          "maxLength": 100000,
+          "x-nullable": true
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "enum": [
+            "Pass/Fail",
+            "score",
+            "choices"
+          ],
+          "default": "Pass/Fail"
+        },
+        "required_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "default": {}
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean",
+          "default": false
+        },
+        "choices": {
+          "title": "Choices",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": {},
+          "x-nullable": true
+        },
+        "multi_choice": {
+          "title": "Multi choice",
+          "type": "boolean",
+          "default": false
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "maxLength": 500,
+          "x-nullable": true
+        }
+      }
+    },
     "CustomMetricListResponse": {
       "required": [
         "metrics"
@@ -36458,6 +36785,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "DeleteEvalTemplate": {
+      "required": [
+        "eval_template_id"
+      ],
+      "type": "object",
+      "properties": {
+        "eval_template_id": {
+          "title": "Eval template id",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
     "DeleteUser": {
       "required": [
         "user_id"
@@ -36685,6 +37025,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/DownloadInvoiceResult"
+        }
+      }
+    },
+    "DuplicateEvalTemplate": {
+      "required": [
+        "eval_template_id",
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "eval_template_id": {
+          "title": "Eval template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
         }
       }
     },
@@ -36995,6 +37355,142 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalPlayGround": {
+      "required": [
+        "template_id"
+      ],
+      "type": "object",
+      "properties": {
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "default": "turing_large",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "default": {},
+          "x-nullable": true
+        },
+        "params": {
+          "title": "Params",
+          "type": "object",
+          "default": {},
+          "x-nullable": true
+        },
+        "mapping": {
+          "title": "Mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "mapping_paths": {
+          "title": "Mapping paths",
+          "type": "object",
+          "x-nullable": true
+        },
+        "input_data_types": {
+          "title": "Input data types",
+          "type": "object",
+          "x-nullable": true
+        },
+        "row_context": {
+          "title": "Row context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "span_context": {
+          "title": "Span context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "trace_context": {
+          "title": "Trace context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "session_context": {
+          "title": "Session context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "call_context": {
+          "title": "Call context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "span_id": {
+          "title": "Span id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "trace_id": {
+          "title": "Trace id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "call_id": {
+          "title": "Call id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "EvalPlayGroundFeedback": {
+      "required": [
+        "log_id",
+        "action_type",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "log_id": {
+          "title": "Log id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_type": {
+          "title": "Action type",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "EvalSummaryComparisonResponse": {
       "type": "object",
       "properties": {}
@@ -37243,6 +37739,79 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Progress",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "EvalTemplate": {
+      "required": [
+        "name",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string",
+          "default": "system",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "eval_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "EvalUserTemplate": {
+      "required": [
+        "name",
+        "template_id",
+        "dataset_id",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
         }
       }
     },
@@ -47271,6 +47840,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SingleRowEvaluationRequest": {
+      "type": "object",
+      "properties": {
+        "user_eval_metric_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        },
+        "row_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        },
+        "selected_all_rows": {
+          "title": "Selected all rows",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
     "SkillCreate": {
       "required": [
         "name",
@@ -47845,6 +48440,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "TestEvalTemplate": {
+      "required": [
+        "config",
+        "name",
+        "output_type"
+      ],
+      "type": "object",
+      "properties": {
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "default": "turing_large",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "eval_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "criteria": {
+          "title": "Criteria",
+          "type": "string",
+          "x-nullable": true
+        },
+        "multi_choice": {
+          "title": "Multi choice",
+          "type": "boolean",
+          "default": false
+        },
+        "choices": {
+          "title": "Choices",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": {},
+          "x-nullable": true
+        },
+        "input_data_types": {
+          "title": "Input data types",
+          "type": "object",
+          "default": {}
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "default": "",
+          "maxLength": 255,
+          "x-nullable": true
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean",
+          "default": false
+        },
+        "required_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "default": []
+        },
+        "template_type": {
+          "title": "Template type",
+          "type": "string",
+          "default": "",
+          "minLength": 1
+        },
+        "eval_type_id": {
+          "title": "Eval type id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
         }
       }
     },
@@ -48940,6 +49633,89 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "maxLength": 10,
           "minLength": 6
+        }
+      }
+    },
+    "UpdateEvalTemplate": {
+      "required": [
+        "eval_template_id"
+      ],
+      "type": "object",
+      "properties": {
+        "eval_template_id": {
+          "title": "Eval template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "default": "",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "criteria": {
+          "title": "Criteria",
+          "type": "string",
+          "x-nullable": true
+        },
+        "eval_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "multi_choice": {
+          "title": "Multi choice",
+          "type": "boolean",
+          "default": false
+        },
+        "function_eval": {
+          "title": "Function eval",
+          "type": "boolean",
+          "default": false
+        },
+        "choices_map": {
+          "title": "Choices map",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": {},
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "default": {}
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "required_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
         }
       }
     },

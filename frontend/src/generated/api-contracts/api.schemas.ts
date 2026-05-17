@@ -4421,6 +4421,49 @@ export interface RerunOperationRequestApi {
   config?: RerunOperationRequestApiConfig;
 }
 
+export type CustomEvalTemplateCreateApiTemplateType = typeof CustomEvalTemplateCreateApiTemplateType[keyof typeof CustomEvalTemplateCreateApiTemplateType];
+
+
+export const CustomEvalTemplateCreateApiTemplateType = {
+  Llm: 'Llm',
+  Futureagi: 'Futureagi',
+  Function: 'Function',
+} as const;
+
+export type CustomEvalTemplateCreateApiOutputType = typeof CustomEvalTemplateCreateApiOutputType[keyof typeof CustomEvalTemplateCreateApiOutputType];
+
+
+export const CustomEvalTemplateCreateApiOutputType = {
+  'Pass/Fail': 'Pass/Fail',
+  score: 'score',
+  choices: 'choices',
+} as const;
+
+export type CustomEvalTemplateCreateApiConfig = {[key: string]: string};
+
+export type CustomEvalTemplateCreateApiChoices = {[key: string]: string};
+
+export interface CustomEvalTemplateCreateApi {
+  template_type?: CustomEvalTemplateCreateApiTemplateType;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  description?: string;
+  tags?: string[];
+  /** @maxLength 100000 */
+  criteria?: string;
+  output_type?: CustomEvalTemplateCreateApiOutputType;
+  required_keys: string[];
+  config?: CustomEvalTemplateCreateApiConfig;
+  check_internet?: boolean;
+  choices?: CustomEvalTemplateCreateApiChoices;
+  multi_choice?: boolean;
+  /** @maxLength 500 */
+  template_id?: string;
+}
+
 export interface CustomMetricListItemApi {
   id: string;
   /** @minLength 1 */
@@ -4853,12 +4896,25 @@ export interface PreviewDatasetOperationRequestApi {
   code?: string;
 }
 
+export interface DeleteEvalTemplateApi {
+  eval_template_id: string;
+}
+
 export interface ExtractJsonColumnRequestApi {
   column_id: string;
   /** @minLength 1 */
   json_key: string;
   new_column_name?: string;
   concurrency?: number;
+}
+
+export interface DuplicateEvalTemplateApi {
+  eval_template_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
 }
 
 export interface EvalGroupApi {
@@ -4877,10 +4933,111 @@ export interface EvalGroupApi {
   is_sample?: boolean;
 }
 
+export type EvalPlayGroundApiConfig = { [key: string]: unknown };
+
+export type EvalPlayGroundApiParams = { [key: string]: unknown };
+
+export type EvalPlayGroundApiMapping = { [key: string]: unknown };
+
+export type EvalPlayGroundApiMappingPaths = { [key: string]: unknown };
+
+export type EvalPlayGroundApiInputDataTypes = { [key: string]: unknown };
+
+export type EvalPlayGroundApiRowContext = { [key: string]: unknown };
+
+export type EvalPlayGroundApiSpanContext = { [key: string]: unknown };
+
+export type EvalPlayGroundApiTraceContext = { [key: string]: unknown };
+
+export type EvalPlayGroundApiSessionContext = { [key: string]: unknown };
+
+export type EvalPlayGroundApiCallContext = { [key: string]: unknown };
+
+export interface EvalPlayGroundApi {
+  template_id: string;
+  /** @maxLength 100 */
+  model?: string;
+  kb_id?: string;
+  error_localizer?: boolean;
+  config?: EvalPlayGroundApiConfig;
+  params?: EvalPlayGroundApiParams;
+  mapping?: EvalPlayGroundApiMapping;
+  mapping_paths?: EvalPlayGroundApiMappingPaths;
+  input_data_types?: EvalPlayGroundApiInputDataTypes;
+  row_context?: EvalPlayGroundApiRowContext;
+  span_context?: EvalPlayGroundApiSpanContext;
+  trace_context?: EvalPlayGroundApiTraceContext;
+  session_context?: EvalPlayGroundApiSessionContext;
+  call_context?: EvalPlayGroundApiCallContext;
+  span_id?: string;
+  trace_id?: string;
+  session_id?: string;
+  call_id?: string;
+}
+
+export interface EvalPlayGroundFeedbackApi {
+  log_id: string;
+  /** @minLength 1 */
+  action_type: string;
+  /** @minLength 1 */
+  value: string;
+  /** @minLength 1 */
+  explanation?: string;
+}
+
 export interface EvalSummaryTemplateMutationRequestApi {
   name?: string;
   description?: string;
   criteria?: string;
+}
+
+export type EvalTemplateApiConfig = { [key: string]: unknown };
+
+export interface EvalTemplateApi {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  owner?: string;
+  config: EvalTemplateApiConfig;
+  eval_tags?: string[];
+}
+
+export type EvalUserTemplateApiConfig = { [key: string]: unknown };
+
+export interface EvalUserTemplateApi {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  template_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  dataset_id: string;
+  config: EvalUserTemplateApiConfig;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  model?: string;
+}
+
+export interface SingleRowEvaluationRequestApi {
+  user_eval_metric_ids?: string[];
+  row_ids?: string[];
+  selected_all_rows?: boolean;
 }
 
 export interface ExperimentsTableGetApi {
@@ -5876,6 +6033,41 @@ export interface SecretApi {
   readonly updated_at?: string;
 }
 
+export type TestEvalTemplateApiConfig = { [key: string]: unknown };
+
+export type TestEvalTemplateApiChoices = {[key: string]: string};
+
+export type TestEvalTemplateApiInputDataTypes = { [key: string]: unknown };
+
+export interface TestEvalTemplateApi {
+  config: TestEvalTemplateApiConfig;
+  /** @maxLength 100 */
+  model?: string;
+  eval_tags?: string[];
+  criteria?: string;
+  multi_choice?: boolean;
+  choices?: TestEvalTemplateApiChoices;
+  input_data_types?: TestEvalTemplateApiInputDataTypes;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  /** @maxLength 255 */
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  output_type: string;
+  check_internet?: boolean;
+  required_keys?: string[];
+  /** @minLength 1 */
+  template_type?: string;
+  /** @maxLength 100 */
+  eval_type_id?: string;
+}
+
 export type ToolsApiConfig = { [key: string]: unknown };
 
 export type ToolsApiConfigType = typeof ToolsApiConfigType[keyof typeof ToolsApiConfigType];
@@ -5938,6 +6130,37 @@ export interface TTSVoiceApi {
   readonly voice_type?: TTSVoiceApiVoiceType;
   readonly created_at?: string;
   readonly updated_at?: string;
+}
+
+export type UpdateEvalTemplateApiChoicesMap = {[key: string]: string};
+
+export type UpdateEvalTemplateApiConfig = { [key: string]: unknown };
+
+export interface UpdateEvalTemplateApi {
+  eval_template_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  description?: string;
+  criteria?: string;
+  eval_tags?: string[];
+  multi_choice?: boolean;
+  function_eval?: boolean;
+  choices_map?: UpdateEvalTemplateApiChoicesMap;
+  config?: UpdateEvalTemplateApiConfig;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  model?: string;
+  check_internet?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+  required_keys?: string[];
 }
 
 export type UploadFileApiType = typeof UploadFileApiType[keyof typeof UploadFileApiType];

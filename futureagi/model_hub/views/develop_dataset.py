@@ -133,6 +133,7 @@ from model_hub.serializers.contracts import (
     LegacyKnowledgeBaseMutationRequestSerializer,
     MODEL_HUB_ERROR_RESPONSES,
     ModelHubJSONResponseSerializer,
+    SingleRowEvaluationRequestSerializer,
 )
 from model_hub.serializers.develop_optimisation import EvalTemplateSerializer
 from model_hub.serializers.eval_runner import UserEvalSerializer
@@ -10774,6 +10775,10 @@ class SingleRowEvaluationView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=SingleRowEvaluationRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             # Extract the user_eval_metric_ids and row_ids from the request data

@@ -11,6 +11,7 @@ import structlog
 # from ee.agenthub.feedback_agent_updated.utils import RAG
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import close_old_connections, models, transaction
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -51,6 +52,10 @@ from model_hub.models.develop_dataset import (
 )
 from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
 from model_hub.models.run_prompt import RunPrompter
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    ModelHubJSONResponseSerializer,
+)
 from model_hub.serializers.develop_optimisation import UserEvalMetricSerializer
 from model_hub.serializers.eval_runner import (
     CustomEvalTemplateCreateSerializer,
@@ -3120,6 +3125,10 @@ class CustomEvalTemplateCreateView(CreateAPIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=CustomEvalTemplateCreateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             organization = (
@@ -3206,6 +3215,10 @@ class EvalTemplateCreateView(CreateAPIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=EvalTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             organization = (
@@ -3236,6 +3249,10 @@ class EvalUserTemplateCreateView(CreateAPIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=EvalUserTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             organization = (

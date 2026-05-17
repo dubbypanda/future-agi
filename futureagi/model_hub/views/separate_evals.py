@@ -13,6 +13,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -35,6 +36,10 @@ from model_hub.models.evals_metric import (
 from model_hub.models.run_prompt import PromptEvalConfig
 from model_hub.serializers.develop_dataset import (
     EvalPlayGroundFeedbackSerializer,
+)
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    ModelHubJSONResponseSerializer,
 )
 from model_hub.serializers.eval_runner import (
     DeleteEvalTemplateSerializer,
@@ -5077,6 +5082,10 @@ class EvalPlayGroundAPIView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=EvalPlayGroundSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         from tfc.ee_gates import turing_oss_gate_for_template
 
@@ -5489,6 +5498,9 @@ class EvalCodeSnippetAPIView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
@@ -5560,6 +5572,10 @@ class EvalPlayGroundFeedbackAPIView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=EvalPlayGroundFeedbackSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             serializer = EvalPlayGroundFeedbackSerializer(data=request.data)
@@ -5705,6 +5721,10 @@ class UpdateEvalTemplateView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=UpdateEvalTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
@@ -5807,6 +5827,10 @@ class DeleteEvalTemplateView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=DeleteEvalTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
@@ -5869,6 +5893,10 @@ class DuplicateEvalTemplateView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=DuplicateEvalTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
@@ -5928,6 +5956,10 @@ class TestEvaluationTemplateAPIView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=TestEvalTemplateSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         from tfc.ee_gates import turing_oss_gate_for_template
 

@@ -84,8 +84,17 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/datasets/{dataset_id}/preview/{operation_type}/",
         "/model-hub/dataset/{dataset_id}/run-prompt-stats/",
         "/model-hub/develops/{dataset_id}/extract-json-column/",
+        "/model-hub/create_custom_evals/",
+        "/model-hub/delete-eval-template/",
+        "/model-hub/duplicate-eval-template/",
+        "/model-hub/evaluate-rows/",
+        "/model-hub/eval-playground/",
+        "/model-hub/eval-playground/feedback/",
+        "/model-hub/eval-sdk-code/",
         "/model-hub/eval-summary-templates/",
         "/model-hub/eval-summary-templates/{template_id}/",
+        "/model-hub/eval-template/create/",
+        "/model-hub/eval-user-template/create/",
         "/model-hub/embeddings/",
         "/model-hub/embeddings/{type}/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/",
@@ -131,6 +140,8 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/prompt-templates/{prompt_id}/derived-variables/{column_name}/schema/",
         "/model-hub/run-prompt-for-rows/",
         "/model-hub/run-prompt/",
+        "/model-hub/test-evaluation/",
+        "/model-hub/update-eval-template/",
         "/model-hub/upload-file/",
     }
 
@@ -193,6 +204,12 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (
             "ExtractJsonColumnRequest"
         ),
+        ("POST", "/model-hub/create_custom_evals/"): "CustomEvalTemplateCreate",
+        ("POST", "/model-hub/delete-eval-template/"): "DeleteEvalTemplate",
+        ("POST", "/model-hub/duplicate-eval-template/"): "DuplicateEvalTemplate",
+        ("POST", "/model-hub/evaluate-rows/"): "SingleRowEvaluationRequest",
+        ("POST", "/model-hub/eval-playground/"): "EvalPlayGround",
+        ("POST", "/model-hub/eval-playground/feedback/"): "EvalPlayGroundFeedback",
         ("POST", "/model-hub/experiments/v2/{experiment_id}/feedback/"): "Feedback",
         ("POST", "/model-hub/eval-summary-templates/"): (
             "EvalSummaryTemplateMutationRequest"
@@ -200,6 +217,8 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "EvalSummaryTemplateMutationRequest"
         ),
+        ("POST", "/model-hub/eval-template/create/"): "EvalTemplate",
+        ("POST", "/model-hub/eval-user-template/create/"): "EvalUserTemplate",
         ("POST", "/model-hub/get-column-values/"): "ColumnValuesRequest",
         (
             "POST",
@@ -271,6 +290,8 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ): "DerivedVariableExtractRequest",
         ("POST", "/model-hub/run-prompt-for-rows/"): "RunPromptForRowsRequest",
         ("POST", "/model-hub/run-prompt/"): "Litellm",
+        ("POST", "/model-hub/test-evaluation/"): "TestEvalTemplate",
+        ("POST", "/model-hub/update-eval-template/"): "UpdateEvalTemplate",
         ("POST", "/model-hub/upload-file/"): "UploadFile",
     }
 
@@ -336,11 +357,20 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (
             "ModelHubJSONResponse"
         ),
+        ("POST", "/model-hub/create_custom_evals/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/delete-eval-template/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/duplicate-eval-template/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/evaluate-rows/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-playground/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-playground/feedback/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/eval-sdk-code/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "ModelHubJSONResponse"
         ),
+        ("POST", "/model-hub/eval-template/create/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-user-template/create/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/embeddings/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/embeddings/{type}/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/"): (
@@ -463,6 +493,8 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt-for-rows/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/test-evaluation/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/update-eval-template/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/upload-file/"): "ModelHubJSONResponse",
     }
 

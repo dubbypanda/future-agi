@@ -397,3 +397,17 @@ class EvalSummaryTemplateMutationRequestSerializer(serializers.Serializer):
 class ColumnValuesRequestSerializer(serializers.Serializer):
     dataset_id = serializers.UUIDField()
     column_placeholders = serializers.JSONField()
+
+
+class SingleRowEvaluationRequestSerializer(serializers.Serializer):
+    user_eval_metric_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
+    row_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
+    selected_all_rows = serializers.BooleanField(required=False, default=False)

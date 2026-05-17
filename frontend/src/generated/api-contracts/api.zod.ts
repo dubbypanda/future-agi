@@ -14234,6 +14234,58 @@ export const ModelHubColumnsRerunOperationCreateResponse = zod.object({
 })
 
 
+export const modelHubCreateCustomEvalsCreateBodyTemplateTypeDefault = `Futureagi`;
+export const modelHubCreateCustomEvalsCreateBodyNameMax = 255;
+
+
+export const modelHubCreateCustomEvalsCreateBodyTagsDefault = [];
+export const modelHubCreateCustomEvalsCreateBodyCriteriaDefault = ``;
+export const modelHubCreateCustomEvalsCreateBodyCriteriaMax = 100000;
+
+export const modelHubCreateCustomEvalsCreateBodyOutputTypeDefault = `Pass/Fail`;
+export const modelHubCreateCustomEvalsCreateBodyConfigDefault = {  };
+export const modelHubCreateCustomEvalsCreateBodyCheckInternetDefault = false;
+export const modelHubCreateCustomEvalsCreateBodyChoicesDefault = {  };
+export const modelHubCreateCustomEvalsCreateBodyMultiChoiceDefault = false;
+export const modelHubCreateCustomEvalsCreateBodyTemplateIdMax = 500;
+
+
+
+export const ModelHubCreateCustomEvalsCreateBody = zod.object({
+  "template_type": zod.enum(['Llm', 'Futureagi', 'Function']).default(modelHubCreateCustomEvalsCreateBodyTemplateTypeDefault),
+  "name": zod.string().min(1).max(modelHubCreateCustomEvalsCreateBodyNameMax),
+  "description": zod.string().optional(),
+  "tags": zod.array(zod.string().min(1)).default(modelHubCreateCustomEvalsCreateBodyTagsDefault),
+  "criteria": zod.string().max(modelHubCreateCustomEvalsCreateBodyCriteriaMax).default(modelHubCreateCustomEvalsCreateBodyCriteriaDefault),
+  "output_type": zod.enum(['Pass/Fail', 'score', 'choices']).default(modelHubCreateCustomEvalsCreateBodyOutputTypeDefault),
+  "required_keys": zod.array(zod.string().min(1)),
+  "config": zod.record(zod.string(), zod.string()).default(modelHubCreateCustomEvalsCreateBodyConfigDefault),
+  "check_internet": zod.boolean().default(modelHubCreateCustomEvalsCreateBodyCheckInternetDefault),
+  "choices": zod.record(zod.string(), zod.string().min(1)).default(modelHubCreateCustomEvalsCreateBodyChoicesDefault),
+  "multi_choice": zod.boolean().default(modelHubCreateCustomEvalsCreateBodyMultiChoiceDefault),
+  "template_id": zod.string().max(modelHubCreateCustomEvalsCreateBodyTemplateIdMax).optional()
+})
+
+export const ModelHubCreateCustomEvalsCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubCustomMetricAllReadParams = zod.object({
   "model_id": zod.string()
 })
@@ -15396,6 +15448,30 @@ export const ModelHubDatasetsPreviewCreateResponse = zod.object({
 })
 
 
+export const ModelHubDeleteEvalTemplateCreateBody = zod.object({
+  "eval_template_id": zod.string().uuid()
+})
+
+export const ModelHubDeleteEvalTemplateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubDevelopsCloneDatasetCreateParams = zod.object({
   "dataset_id": zod.string()
 })
@@ -15637,6 +15713,35 @@ export const ModelHubDevelopsGetExperimentDatasetTableListParams = zod.object({
 })
 
 
+export const modelHubDuplicateEvalTemplateCreateBodyNameMax = 255;
+
+
+
+export const ModelHubDuplicateEvalTemplateCreateBody = zod.object({
+  "eval_template_id": zod.string().uuid(),
+  "name": zod.string().min(1).max(modelHubDuplicateEvalTemplateCreateBodyNameMax)
+})
+
+export const ModelHubDuplicateEvalTemplateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubEmbeddingsListResponse = zod.object({
   "status": zod.object({
 
@@ -15856,6 +15961,126 @@ export const ModelHubEvalGroupsDeleteParams = zod.object({
 })
 
 
+export const modelHubEvalPlaygroundCreateBodyModelDefault = `turing_large`;
+export const modelHubEvalPlaygroundCreateBodyModelMax = 100;
+
+export const modelHubEvalPlaygroundCreateBodyErrorLocalizerDefault = false;
+export const modelHubEvalPlaygroundCreateBodyConfigDefault = {  };
+export const modelHubEvalPlaygroundCreateBodyParamsDefault = {  };
+
+export const ModelHubEvalPlaygroundCreateBody = zod.object({
+  "template_id": zod.string().uuid(),
+  "model": zod.string().max(modelHubEvalPlaygroundCreateBodyModelMax).default(modelHubEvalPlaygroundCreateBodyModelDefault),
+  "kb_id": zod.string().uuid().optional(),
+  "error_localizer": zod.boolean().default(modelHubEvalPlaygroundCreateBodyErrorLocalizerDefault),
+  "config": zod.object({
+
+}).passthrough().default(modelHubEvalPlaygroundCreateBodyConfigDefault),
+  "params": zod.object({
+
+}).passthrough().default(modelHubEvalPlaygroundCreateBodyParamsDefault),
+  "mapping": zod.object({
+
+}).passthrough().optional(),
+  "mapping_paths": zod.object({
+
+}).passthrough().optional(),
+  "input_data_types": zod.object({
+
+}).passthrough().optional(),
+  "row_context": zod.object({
+
+}).passthrough().optional(),
+  "span_context": zod.object({
+
+}).passthrough().optional(),
+  "trace_context": zod.object({
+
+}).passthrough().optional(),
+  "session_context": zod.object({
+
+}).passthrough().optional(),
+  "call_context": zod.object({
+
+}).passthrough().optional(),
+  "span_id": zod.string().optional(),
+  "trace_id": zod.string().uuid().optional(),
+  "session_id": zod.string().uuid().optional(),
+  "call_id": zod.string().uuid().optional()
+})
+
+export const ModelHubEvalPlaygroundCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+
+
+
+
+
+export const ModelHubEvalPlaygroundFeedbackCreateBody = zod.object({
+  "log_id": zod.string().uuid(),
+  "action_type": zod.string().min(1),
+  "value": zod.string().min(1),
+  "explanation": zod.string().min(1).optional()
+})
+
+export const ModelHubEvalPlaygroundFeedbackCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const ModelHubEvalSdkCodeListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubEvalSummaryTemplatesListResponse = zod.object({
   "status": zod.object({
 
@@ -15934,6 +16159,44 @@ export const ModelHubEvalSummaryTemplatesUpdateResponse = zod.object({
 
 export const ModelHubEvalSummaryTemplatesDeleteParams = zod.object({
   "template_id": zod.string()
+})
+
+
+export const modelHubEvalTemplateCreateCreateBodyNameMax = 50;
+
+export const modelHubEvalTemplateCreateCreateBodyOwnerDefault = `system`;
+export const modelHubEvalTemplateCreateCreateBodyOwnerMax = 50;
+
+export const modelHubEvalTemplateCreateCreateBodyEvalTagsItemMax = 100;
+
+
+
+export const ModelHubEvalTemplateCreateCreateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalTemplateCreateCreateBodyNameMax),
+  "owner": zod.string().min(1).max(modelHubEvalTemplateCreateCreateBodyOwnerMax).default(modelHubEvalTemplateCreateCreateBodyOwnerDefault),
+  "config": zod.object({
+
+}).passthrough(),
+  "eval_tags": zod.array(zod.string().min(1).max(modelHubEvalTemplateCreateCreateBodyEvalTagsItemMax)).optional()
+})
+
+export const ModelHubEvalTemplateCreateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16082,6 +16345,76 @@ export const ModelHubEvalTemplatesVersionsRestoreCreateParams = zod.object({
 export const ModelHubEvalTemplatesVersionsSetDefaultUpdateParams = zod.object({
   "template_id": zod.string(),
   "version_id": zod.string()
+})
+
+
+export const modelHubEvalUserTemplateCreateCreateBodyNameMax = 50;
+
+export const modelHubEvalUserTemplateCreateCreateBodyTemplateIdMax = 500;
+
+export const modelHubEvalUserTemplateCreateCreateBodyDatasetIdMax = 500;
+
+export const modelHubEvalUserTemplateCreateCreateBodyModelMax = 100;
+
+
+
+export const ModelHubEvalUserTemplateCreateCreateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalUserTemplateCreateCreateBodyNameMax),
+  "template_id": zod.string().min(1).max(modelHubEvalUserTemplateCreateCreateBodyTemplateIdMax),
+  "dataset_id": zod.string().min(1).max(modelHubEvalUserTemplateCreateCreateBodyDatasetIdMax),
+  "config": zod.object({
+
+}).passthrough(),
+  "model": zod.string().min(1).max(modelHubEvalUserTemplateCreateCreateBodyModelMax).optional()
+})
+
+export const ModelHubEvalUserTemplateCreateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const modelHubEvaluateRowsCreateBodyUserEvalMetricIdsDefault = [];
+export const modelHubEvaluateRowsCreateBodyRowIdsDefault = [];
+export const modelHubEvaluateRowsCreateBodySelectedAllRowsDefault = false;
+
+export const ModelHubEvaluateRowsCreateBody = zod.object({
+  "user_eval_metric_ids": zod.array(zod.string().uuid()).default(modelHubEvaluateRowsCreateBodyUserEvalMetricIdsDefault),
+  "row_ids": zod.array(zod.string().uuid()).default(modelHubEvaluateRowsCreateBodyRowIdsDefault),
+  "selected_all_rows": zod.boolean().default(modelHubEvaluateRowsCreateBodySelectedAllRowsDefault)
+})
+
+export const ModelHubEvaluateRowsCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -21033,6 +21366,70 @@ export const ModelHubSecretsDeleteParams = zod.object({
 })
 
 
+export const modelHubTestEvaluationCreateBodyModelDefault = `turing_large`;
+export const modelHubTestEvaluationCreateBodyModelMax = 100;
+
+
+export const modelHubTestEvaluationCreateBodyEvalTagsDefault = [];
+export const modelHubTestEvaluationCreateBodyMultiChoiceDefault = false;
+export const modelHubTestEvaluationCreateBodyChoicesDefault = {  };
+export const modelHubTestEvaluationCreateBodyInputDataTypesDefault = {  };
+export const modelHubTestEvaluationCreateBodyNameMax = 255;
+
+export const modelHubTestEvaluationCreateBodyDescriptionDefault = ``;
+export const modelHubTestEvaluationCreateBodyDescriptionMax = 255;
+
+export const modelHubTestEvaluationCreateBodyOutputTypeMax = 50;
+
+export const modelHubTestEvaluationCreateBodyCheckInternetDefault = false;
+export const modelHubTestEvaluationCreateBodyRequiredKeysDefault = [];
+export const modelHubTestEvaluationCreateBodyTemplateTypeDefault = ``;
+
+export const modelHubTestEvaluationCreateBodyEvalTypeIdMax = 100;
+
+
+
+export const ModelHubTestEvaluationCreateBody = zod.object({
+  "config": zod.object({
+
+}).passthrough(),
+  "model": zod.string().max(modelHubTestEvaluationCreateBodyModelMax).default(modelHubTestEvaluationCreateBodyModelDefault),
+  "eval_tags": zod.array(zod.string().min(1)).default(modelHubTestEvaluationCreateBodyEvalTagsDefault),
+  "criteria": zod.string().optional(),
+  "multi_choice": zod.boolean().default(modelHubTestEvaluationCreateBodyMultiChoiceDefault),
+  "choices": zod.record(zod.string(), zod.string().min(1)).default(modelHubTestEvaluationCreateBodyChoicesDefault),
+  "input_data_types": zod.object({
+
+}).passthrough().default(modelHubTestEvaluationCreateBodyInputDataTypesDefault),
+  "name": zod.string().min(1).max(modelHubTestEvaluationCreateBodyNameMax),
+  "description": zod.string().max(modelHubTestEvaluationCreateBodyDescriptionMax).default(modelHubTestEvaluationCreateBodyDescriptionDefault),
+  "output_type": zod.string().min(1).max(modelHubTestEvaluationCreateBodyOutputTypeMax),
+  "check_internet": zod.boolean().default(modelHubTestEvaluationCreateBodyCheckInternetDefault),
+  "required_keys": zod.array(zod.string()).default(modelHubTestEvaluationCreateBodyRequiredKeysDefault),
+  "template_type": zod.string().min(1).default(modelHubTestEvaluationCreateBodyTemplateTypeDefault),
+  "eval_type_id": zod.string().max(modelHubTestEvaluationCreateBodyEvalTypeIdMax).optional()
+})
+
+export const ModelHubTestEvaluationCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubToolsListQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
@@ -21363,6 +21760,59 @@ export const ModelHubTtsVoicesPartialUpdateResponse = zod.object({
 
 export const ModelHubTtsVoicesDeleteParams = zod.object({
   "id": zod.string()
+})
+
+
+export const modelHubUpdateEvalTemplateCreateBodyDescriptionDefault = ``;
+export const modelHubUpdateEvalTemplateCreateBodyDescriptionMax = 255;
+
+
+export const modelHubUpdateEvalTemplateCreateBodyEvalTagsDefault = [];
+export const modelHubUpdateEvalTemplateCreateBodyMultiChoiceDefault = false;
+export const modelHubUpdateEvalTemplateCreateBodyFunctionEvalDefault = false;
+export const modelHubUpdateEvalTemplateCreateBodyChoicesMapDefault = {  };
+export const modelHubUpdateEvalTemplateCreateBodyConfigDefault = {  };
+export const modelHubUpdateEvalTemplateCreateBodyModelMax = 100;
+
+export const modelHubUpdateEvalTemplateCreateBodyNameMax = 255;
+
+
+export const modelHubUpdateEvalTemplateCreateBodyRequiredKeysDefault = [];
+
+export const ModelHubUpdateEvalTemplateCreateBody = zod.object({
+  "eval_template_id": zod.string().uuid(),
+  "description": zod.string().min(1).max(modelHubUpdateEvalTemplateCreateBodyDescriptionMax).default(modelHubUpdateEvalTemplateCreateBodyDescriptionDefault),
+  "criteria": zod.string().optional(),
+  "eval_tags": zod.array(zod.string().min(1)).default(modelHubUpdateEvalTemplateCreateBodyEvalTagsDefault),
+  "multi_choice": zod.boolean().default(modelHubUpdateEvalTemplateCreateBodyMultiChoiceDefault),
+  "function_eval": zod.boolean().default(modelHubUpdateEvalTemplateCreateBodyFunctionEvalDefault),
+  "choices_map": zod.record(zod.string(), zod.string().min(1)).default(modelHubUpdateEvalTemplateCreateBodyChoicesMapDefault),
+  "config": zod.object({
+
+}).passthrough().default(modelHubUpdateEvalTemplateCreateBodyConfigDefault),
+  "model": zod.string().min(1).max(modelHubUpdateEvalTemplateCreateBodyModelMax).optional(),
+  "check_internet": zod.boolean().optional(),
+  "name": zod.string().min(1).max(modelHubUpdateEvalTemplateCreateBodyNameMax).optional(),
+  "required_keys": zod.array(zod.string().min(1)).default(modelHubUpdateEvalTemplateCreateBodyRequiredKeysDefault)
+})
+
+export const ModelHubUpdateEvalTemplateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
