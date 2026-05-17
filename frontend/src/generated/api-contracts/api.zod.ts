@@ -15558,13 +15558,56 @@ export const ModelHubTtsVoicesDeleteParams = zod.object({
 })
 
 
+export const Saml2AuthAcsCreateBody = zod.object({
+  "SAMLResponse": zod.string().describe('Base64-encoded SAML response from the identity provider.'),
+  "RelayState": zod.string().optional().describe('Relay state configured for the organization IdP.')
+})
+
+
+export const Saml2AuthAuthCallbackListQueryParams = zod.object({
+  "code": zod.string().optional()
+})
+
+
 export const Saml2AuthAuthReadParams = zod.object({
   "format": zod.string()
+})
+
+export const Saml2AuthAuthReadQueryParams = zod.object({
+  "code": zod.string().optional()
+})
+
+
+export const Saml2AuthGithubCallbackListQueryParams = zod.object({
+  "code": zod.string().optional()
 })
 
 
 export const Saml2AuthGithubReadParams = zod.object({
   "format": zod.string()
+})
+
+export const Saml2AuthGithubReadQueryParams = zod.object({
+  "code": zod.string().optional()
+})
+
+
+
+
+
+export const Saml2AuthIdpLoginListQueryParams = zod.object({
+  "email": zod.string().email().min(1),
+  "next": zod.string().optional()
+})
+
+
+
+
+export const Saml2AuthIdpLoginListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "url": zod.string().url().min(1)
+})
 })
 
 
@@ -15591,6 +15634,22 @@ export const Saml2AuthIdpUploadsListResponse = zod.object({
 })
 
 
+export const Saml2AuthIdpUploadsCreateBody = zod.object({
+  "name": zod.string().optional().describe('Display name for the identity provider.'),
+  "identity_type": zod.number().describe('Identity provider type.'),
+  "is_enabled": zod.boolean().optional().describe('Whether this IdP is enabled.'),
+  "file": zod.instanceof(File).optional()
+})
+
+
+
+
+export const Saml2AuthIdpUploadsCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
+})
+
+
 export const Saml2AuthIdpUploadsReadParams = zod.object({
   "id": zod.string().describe('A unique value identifying this SAML Meta.')
 })
@@ -15612,9 +15671,39 @@ export const Saml2AuthIdpUploadsUpdateParams = zod.object({
   "id": zod.string().describe('A unique value identifying this SAML Meta.')
 })
 
+export const Saml2AuthIdpUploadsUpdateBody = zod.object({
+  "name": zod.string().optional().describe('Display name for the identity provider.'),
+  "identity_type": zod.number().describe('Identity provider type.'),
+  "is_enabled": zod.boolean().optional().describe('Whether this IdP is enabled.'),
+  "file": zod.instanceof(File).optional()
+})
+
+
+
+
+export const Saml2AuthIdpUploadsUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
+})
+
 
 export const Saml2AuthIdpUploadsDeleteParams = zod.object({
   "id": zod.string().describe('A unique value identifying this SAML Meta.')
+})
+
+
+export const Saml2AuthLoginListQueryParams = zod.object({
+  "provider": zod.enum(['google', 'github', 'microsoft'])
+})
+
+
+
+
+export const Saml2AuthLoginListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "url": zod.string().url().min(1)
+})
 })
 
 
@@ -15622,9 +15711,32 @@ export const Saml2AuthReadParams = zod.object({
   "format": zod.string()
 })
 
+export const Saml2AuthReadQueryParams = zod.object({
+  "provider": zod.enum(['google', 'github', 'microsoft'])
+})
+
+
+
+
+export const Saml2AuthReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "url": zod.string().url().min(1)
+})
+})
+
+
+export const Saml2AuthMicrosoftCallbackListQueryParams = zod.object({
+  "code": zod.string().optional()
+})
+
 
 export const Saml2AuthMicrosoftReadParams = zod.object({
   "format": zod.string()
+})
+
+export const Saml2AuthMicrosoftReadQueryParams = zod.object({
+  "code": zod.string().optional()
 })
 
 

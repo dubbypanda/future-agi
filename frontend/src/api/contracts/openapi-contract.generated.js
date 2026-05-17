@@ -12217,14 +12217,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "saml2_auth_acs_create",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/auth/callback/": {
       "get": {
         "operationId": "saml2_auth_auth_callback_list",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -12232,7 +12243,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_auth_read",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -12240,7 +12258,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_github_callback_list",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -12248,7 +12273,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_github_read",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -12256,8 +12288,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_idp-login_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "email": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "email",
+              "minLength": 1
+            }
+          },
+          "next": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLUrlResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/idp-uploads/": {
@@ -12313,7 +12367,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "saml2_auth_idp-uploads_create",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/idp-uploads/{id}/": {
@@ -12331,7 +12395,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "saml2_auth_idp-uploads_update",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "saml2_auth_idp-uploads_delete",
@@ -12344,23 +12418,68 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_login_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "provider": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "google",
+                "github",
+                "microsoft"
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLUrlResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/login{format}": {
       "get": {
         "operationId": "saml2_auth_read",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "provider": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "google",
+                "github",
+                "microsoft"
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLUrlResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/microsoft/callback/": {
       "get": {
         "operationId": "saml2_auth_microsoft_callback_list",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -12368,7 +12487,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "saml2_auth_microsoft_read",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {}
       }
     },
@@ -34323,6 +34449,62 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SAMLErrorResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "SAMLStringResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "SAMLUrlResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/SAMLUrlResult"
+        }
+      }
+    },
     "SDKCICDEvaluationRunAcceptedResponse": {
       "required": [
         "status",
@@ -41065,6 +41247,20 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "format": "uuid",
           "readOnly": true,
           "x-nullable": true
+        }
+      }
+    },
+    "SAMLUrlResult": {
+      "required": [
+        "url"
+      ],
+      "type": "object",
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
         }
       }
     },

@@ -3925,6 +3925,26 @@ export interface TTSVoiceApi {
   readonly updated_at?: string;
 }
 
+export type SAMLErrorResponseApiResult = { [key: string]: unknown };
+
+export type SAMLErrorResponseApiMessage = { [key: string]: unknown };
+
+export interface SAMLErrorResponseApi {
+  status: boolean;
+  result?: SAMLErrorResponseApiResult;
+  message?: SAMLErrorResponseApiMessage;
+}
+
+export interface SAMLUrlResultApi {
+  /** @minLength 1 */
+  url: string;
+}
+
+export interface SAMLUrlResponseApi {
+  status: boolean;
+  result: SAMLUrlResultApi;
+}
+
 export type SamlApiIdentityType = typeof SamlApiIdentityType[keyof typeof SamlApiIdentityType];
 
 
@@ -3941,6 +3961,12 @@ export interface SamlApi {
   readonly id?: string;
   readonly identity_type?: SamlApiIdentityType;
   is_enabled?: boolean;
+}
+
+export interface SAMLStringResponseApi {
+  status: boolean;
+  /** @minLength 1 */
+  result: string;
 }
 
 export type ConfigureEvaluationsApiInputs = {[key: string]: string};
@@ -11180,6 +11206,44 @@ export type ModelHubTtsVoicesList200 = {
   results: TTSVoiceApi[];
 };
 
+export type Saml2AuthAcsCreateBodyOne = {
+  /** Base64-encoded SAML response from the identity provider. */
+  SAMLResponse: string;
+  /** Relay state configured for the organization IdP. */
+  RelayState?: string;
+};
+
+export type Saml2AuthAcsCreateBodyTwo = {
+  /** Base64-encoded SAML response from the identity provider. */
+  SAMLResponse: string;
+  /** Relay state configured for the organization IdP. */
+  RelayState?: string;
+};
+
+export type Saml2AuthAuthCallbackListParams = {
+code?: string;
+};
+
+export type Saml2AuthAuthReadParams = {
+code?: string;
+};
+
+export type Saml2AuthGithubCallbackListParams = {
+code?: string;
+};
+
+export type Saml2AuthGithubReadParams = {
+code?: string;
+};
+
+export type Saml2AuthIdpLoginListParams = {
+/**
+ * @minLength 1
+ */
+email: string;
+next?: string;
+};
+
 export type Saml2AuthIdpUploadsListParams = {
 /**
  * A page number within the paginated result set.
@@ -11196,6 +11260,84 @@ export type Saml2AuthIdpUploadsList200 = {
   next?: string;
   previous?: string;
   results: SamlApi[];
+};
+
+export type Saml2AuthIdpUploadsCreateBodyOne = {
+  /** Display name for the identity provider. */
+  name?: string;
+  /** Identity provider type. */
+  identity_type: number;
+  /** Whether this IdP is enabled. */
+  is_enabled?: boolean;
+  /** SAML metadata XML file. */
+  file?: Blob;
+};
+
+export type Saml2AuthIdpUploadsCreateBodyTwo = {
+  /** Display name for the identity provider. */
+  name?: string;
+  /** Identity provider type. */
+  identity_type: number;
+  /** Whether this IdP is enabled. */
+  is_enabled?: boolean;
+  /** SAML metadata XML file. */
+  file?: Blob;
+};
+
+export type Saml2AuthIdpUploadsUpdateBodyOne = {
+  /** Display name for the identity provider. */
+  name?: string;
+  /** Identity provider type. */
+  identity_type: number;
+  /** Whether this IdP is enabled. */
+  is_enabled?: boolean;
+  /** SAML metadata XML file. */
+  file?: Blob;
+};
+
+export type Saml2AuthIdpUploadsUpdateBodyTwo = {
+  /** Display name for the identity provider. */
+  name?: string;
+  /** Identity provider type. */
+  identity_type: number;
+  /** Whether this IdP is enabled. */
+  is_enabled?: boolean;
+  /** SAML metadata XML file. */
+  file?: Blob;
+};
+
+export type Saml2AuthLoginListParams = {
+provider: Saml2AuthLoginListProvider;
+};
+
+export type Saml2AuthLoginListProvider = typeof Saml2AuthLoginListProvider[keyof typeof Saml2AuthLoginListProvider];
+
+
+export const Saml2AuthLoginListProvider = {
+  google: 'google',
+  github: 'github',
+  microsoft: 'microsoft',
+} as const;
+
+export type Saml2AuthReadParams = {
+provider: Saml2AuthReadProvider;
+};
+
+export type Saml2AuthReadProvider = typeof Saml2AuthReadProvider[keyof typeof Saml2AuthReadProvider];
+
+
+export const Saml2AuthReadProvider = {
+  google: 'google',
+  github: 'github',
+  microsoft: 'microsoft',
+} as const;
+
+export type Saml2AuthMicrosoftCallbackListParams = {
+code?: string;
+};
+
+export type Saml2AuthMicrosoftReadParams = {
+code?: string;
 };
 
 export type SdkApiV1EvaluatePipelineListParams = {

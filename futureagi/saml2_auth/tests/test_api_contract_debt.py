@@ -1,0 +1,105 @@
+import json
+from pathlib import Path
+
+
+def _repo_root():
+    return Path(__file__).resolve().parents[3]
+
+
+def _swagger():
+    with (
+        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
+    ).open() as f:
+        return json.load(f)
+
+
+def _debt_report():
+    with (
+        _repo_root()
+        / "api_contracts"
+        / "openapi"
+        / "management-api-contract-debt.generated.json"
+    ).open() as f:
+        return json.load(f)
+
+
+def _operation(path, method):
+    return _swagger()["paths"][path][method.lower()]
+
+
+def _form_param_names(operation):
+    return {
+        parameter["name"]
+        for parameter in operation.get("parameters", [])
+        if parameter.get("in") == "formData"
+    }
+
+
+def _response_ref(operation, status_code="200"):
+    return operation["responses"][status_code]["schema"]["$ref"].rsplit("/", 1)[-1]
+
+
+def test_saml_contract_debt_is_fully_burned_down():
+    report = _debt_report()
+
+    assert [
+        item
+        for item in report["mutation_endpoints_without_body_schema"]
+        if item["tags"] == ["saml2_auth"]
+    ] == []
+    assert [
+        item
+        for item in report["operations_without_response_schema"]
+        if item["tags"] == ["saml2_auth"]
+    ] == []
+
+
+def test_saml_form_mutations_have_form_data_contracts():
+    assert _form_param_names(_operation("/saml2_auth/acs/", "POST")) == {
+        "SAMLResponse",
+        "RelayState",
+    }
+    assert _form_param_names(_operation("/saml2_auth/idp-uploads/", "POST")) == {
+        "file",
+        "identity_type",
+        "is_enabled",
+        "name",
+    }
+    assert _form_param_names(_operation("/saml2_auth/idp-uploads/{id}/", "PUT")) == {
+        "file",
+        "identity_type",
+        "is_enabled",
+        "name",
+    }
+
+
+def test_saml_json_endpoints_have_response_contracts():
+    assert _response_ref(_operation("/saml2_auth/idp-login/", "GET")) == (
+        "SAMLUrlResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/login/", "GET")) == (
+        "SAMLUrlResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/", "POST")) == (
+        "SAMLStringResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/{id}/", "PUT")) == (
+        "SAMLStringResponse"
+    )
+
+
+def test_saml_oauth_callbacks_are_documented_as_redirects():
+    assert set(_operation("/saml2_auth/acs/", "POST")["responses"]) == {
+        "302",
+        "400",
+    }
+
+    for path in (
+        "/saml2_auth/auth/callback/",
+        "/saml2_auth/auth/callback{format}",
+        "/saml2_auth/github/callback/",
+        "/saml2_auth/github/callback{format}",
+        "/saml2_auth/microsoft/callback/",
+        "/saml2_auth/microsoft/callback{format}",
+    ):
+        assert set(_operation(path, "GET")["responses"]) == {"302"}

@@ -11,8 +11,10 @@ from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
+from drf_yasg import openapi
+from drf_yasg.utils import no_body, swagger_auto_schema
 from rest_framework import viewsets
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, entity
@@ -35,7 +37,15 @@ from analytics.utils import (
 )
 from saml2_auth.forms import IDPUploadForm
 from saml2_auth.models import SAMLMetadataModel
-from saml2_auth.serializers import SAMLSerializer
+from saml2_auth.serializers import (
+    SAMLAuthLoginQuerySerializer,
+    SAMLErrorResponseSerializer,
+    SAMLIDPLoginQuerySerializer,
+    SAMLOAuthCallbackQuerySerializer,
+    SAMLSerializer,
+    SAMLStringResponseSerializer,
+    SAMLUrlResponseSerializer,
+)
 from tfc.middleware.workspace_context import get_current_organization
 
 # from user.permissions_manager import PermissionManager
@@ -68,6 +78,60 @@ from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
+
+SAML_REDIRECT_RESPONSES = {
+    200: None,
+    201: None,
+    302: openapi.Response(description="Redirects to the configured frontend URL."),
+}
+
+SAML_ACS_FORM_PARAMETERS = [
+    openapi.Parameter(
+        "SAMLResponse",
+        openapi.IN_FORM,
+        type=openapi.TYPE_STRING,
+        required=True,
+        description="Base64-encoded SAML response from the identity provider.",
+    ),
+    openapi.Parameter(
+        "RelayState",
+        openapi.IN_FORM,
+        type=openapi.TYPE_STRING,
+        required=False,
+        description="Relay state configured for the organization IdP.",
+    ),
+]
+
+SAML_IDP_UPLOAD_FORM_PARAMETERS = [
+    openapi.Parameter(
+        "name",
+        openapi.IN_FORM,
+        type=openapi.TYPE_STRING,
+        required=False,
+        description="Display name for the identity provider.",
+    ),
+    openapi.Parameter(
+        "identity_type",
+        openapi.IN_FORM,
+        type=openapi.TYPE_INTEGER,
+        required=True,
+        description="Identity provider type.",
+    ),
+    openapi.Parameter(
+        "is_enabled",
+        openapi.IN_FORM,
+        type=openapi.TYPE_BOOLEAN,
+        required=False,
+        description="Whether this IdP is enabled.",
+    ),
+    openapi.Parameter(
+        "file",
+        openapi.IN_FORM,
+        type=openapi.TYPE_FILE,
+        required=False,
+        description="SAML metadata XML file.",
+    ),
+]
 
 try:
     import urllib.parse as _urlparse
@@ -136,7 +200,7 @@ def get_alias(request):
 
 class ACSView(APIView):
     _gm = GeneralMethods()
-    parser_classes = [FormParser, MultiPartParser, JSONParser]
+    parser_classes = [FormParser, MultiPartParser]
 
     def save_auth_response(self, authn_response, user_identity):
         """Save SAML authentication response to a file"""
@@ -158,6 +222,14 @@ class ACSView(APIView):
         except Exception as e:
             logger.error(f"Failed to save SAML response: {str(e)}")
 
+    @swagger_auto_schema(
+        request_body=no_body,
+        manual_parameters=SAML_ACS_FORM_PARAMETERS,
+        responses={
+            **SAML_REDIRECT_RESPONSES,
+            400: SAMLErrorResponseSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         try:
             resp = request.POST.get("SAMLResponse", None)
@@ -279,6 +351,13 @@ class IDPLoginView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        query_serializer=SAMLIDPLoginQuerySerializer,
+        responses={
+            200: SAMLUrlResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         msg = "SSO is not enabled for your organisation. Please contact to your administration."
         try:
@@ -371,7 +450,7 @@ class AvailableIDPs(APIView):
 class IDPUploadViews(viewsets.ModelViewSet):
     form = IDPUploadForm
     _gm = GeneralMethods()
-    parser_classes = (FormParser, MultiPartParser, JSONParser)  # Add this line
+    parser_classes = (FormParser, MultiPartParser)
     # authentication_classes = (ProgrammaticAuthentication,)
     permission_classes = (IsAuthenticated,)
     # rbac = 'idp'
@@ -379,7 +458,7 @@ class IDPUploadViews(viewsets.ModelViewSet):
     lookup_field = "id"
     lookup_url_kwarg = "id"
     http_method_names = ["get", "post", "head", "delete", "options", "put"]
-    parser_classes = (FormParser, MultiPartParser, JSONParser)  # Add this line
+    parser_classes = (FormParser, MultiPartParser)
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -439,6 +518,15 @@ class IDPUploadViews(viewsets.ModelViewSet):
             traceback.print_exc()
             return self._gm.internal_server_error_response(get_error_message("US25"))
 
+    @swagger_auto_schema(
+        request_body=no_body,
+        manual_parameters=SAML_IDP_UPLOAD_FORM_PARAMETERS,
+        responses={
+            200: SAMLStringResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+            500: SAMLErrorResponseSerializer,
+        },
+    )
     def create(self, request, *args, **kwargs):
         try:
             form = IDPUploadForm(request.POST, request.FILES)
@@ -480,6 +568,15 @@ class IDPUploadViews(viewsets.ModelViewSet):
             logger.error(e)
             return self._gm.internal_server_error_response(get_error_message("US25"))
 
+    @swagger_auto_schema(
+        request_body=no_body,
+        manual_parameters=SAML_IDP_UPLOAD_FORM_PARAMETERS,
+        responses={
+            200: SAMLStringResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+            500: SAMLErrorResponseSerializer,
+        },
+    )
     def update(self, request, *args, **kwargs):
         try:
             uuid = kwargs.get(self.lookup_url_kwarg)
@@ -519,6 +616,13 @@ class Auth0LoginView(APIView):
     permission_classes = (AllowAny,)
     authentication_classes = []
 
+    @swagger_auto_schema(
+        query_serializer=SAMLAuthLoginQuerySerializer,
+        responses={
+            200: SAMLUrlResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         provider = request.GET.get("provider", None)
         if not provider:
@@ -543,7 +647,7 @@ class Auth0LoginView(APIView):
             }
             auth_url = f"{GITHUB_OAUTH_URL}/authorize?" + urllib.parse.urlencode(params)
             logger.info(f"Redirecting user to GitHub auth URL: {auth_url}")
-            return self._gm.success_response(dict(url=auth_url))
+            return self._gm.success_response({"url": auth_url})
         elif provider == "microsoft":
             params = {
                 "client_id": MICROSOFT_CLIENT_ID,
@@ -556,7 +660,7 @@ class Auth0LoginView(APIView):
                 params
             )
             logger.info(f"Redirecting user to Microsoft auth URL: {auth_url}")
-            return self._gm.success_response(dict(url=auth_url))
+            return self._gm.success_response({"url": auth_url})
         else:
             return self._gm.bad_request("Not Implemented")
 
@@ -566,6 +670,10 @@ class Auth0CallbackView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        query_serializer=SAMLOAuthCallbackQuerySerializer,
+        responses=SAML_REDIRECT_RESPONSES,
+    )
     def get(self, request):
         try:
             new_org = "false"
@@ -680,6 +788,10 @@ class Auth0CallbackView(APIView):
 class GithubCallbackView(APIView):
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        query_serializer=SAMLOAuthCallbackQuerySerializer,
+        responses=SAML_REDIRECT_RESPONSES,
+    )
     def get(self, request):
         try:
             new_org = "false"
@@ -812,6 +924,10 @@ class GithubCallbackView(APIView):
 class MicrosoftCallbackView(APIView):
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        query_serializer=SAMLOAuthCallbackQuerySerializer,
+        responses=SAML_REDIRECT_RESPONSES,
+    )
     def get(self, request):
         try:
             new_org = "false"

@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 296,
-    "operations_without_response_schema": 489
+    "mutation_endpoints_without_body_schema": 293,
+    "operations_without_response_schema": 477
   },
   "by_group": {
     "accounts": {
@@ -76,8 +76,8 @@
     "saml2_auth": {
       "paths": 12,
       "operations": 15,
-      "mutation_endpoints_without_body_schema": 3,
-      "operations_without_response_schema": 12
+      "mutation_endpoints_without_body_schema": 0,
+      "operations_without_response_schema": 0
     },
     "sdk": {
       "paths": 9,
@@ -2242,33 +2242,6 @@
       "operation_id": "model-hub_upload-file_create",
       "tags": [
         "model-hub"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "POST",
-      "path": "/saml2_auth/acs/",
-      "operation_id": "saml2_auth_acs_create",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "POST",
-      "path": "/saml2_auth/idp-uploads/",
-      "operation_id": "saml2_auth_idp-uploads_create",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "PUT",
-      "path": "/saml2_auth/idp-uploads/{id}/",
-      "operation_id": "saml2_auth_idp-uploads_update",
-      "tags": [
-        "saml2_auth"
       ]
     },
     {
@@ -6267,114 +6240,6 @@
       "operation_id": "model-hub_upload-file_create",
       "tags": [
         "model-hub"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "POST",
-      "path": "/saml2_auth/acs/",
-      "operation_id": "saml2_auth_acs_create",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/auth/callback/",
-      "operation_id": "saml2_auth_auth_callback_list",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/auth/callback{format}",
-      "operation_id": "saml2_auth_auth_read",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/github/callback/",
-      "operation_id": "saml2_auth_github_callback_list",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/github/callback{format}",
-      "operation_id": "saml2_auth_github_read",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/idp-login/",
-      "operation_id": "saml2_auth_idp-login_list",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "POST",
-      "path": "/saml2_auth/idp-uploads/",
-      "operation_id": "saml2_auth_idp-uploads_create",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "PUT",
-      "path": "/saml2_auth/idp-uploads/{id}/",
-      "operation_id": "saml2_auth_idp-uploads_update",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/login/",
-      "operation_id": "saml2_auth_login_list",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/login{format}",
-      "operation_id": "saml2_auth_read",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/microsoft/callback/",
-      "operation_id": "saml2_auth_microsoft_callback_list",
-      "tags": [
-        "saml2_auth"
-      ]
-    },
-    {
-      "group": "saml2_auth",
-      "method": "GET",
-      "path": "/saml2_auth/microsoft/callback{format}",
-      "operation_id": "saml2_auth_microsoft_read",
-      "tags": [
-        "saml2_auth"
       ]
     },
     {

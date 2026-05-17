@@ -23649,12 +23649,37 @@
             "post": {
                 "operationId": "saml2_auth_acs_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "SAMLResponse",
+                        "in": "formData",
+                        "description": "Base64-encoded SAML response from the identity provider.",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "RelayState",
+                        "in": "formData",
+                        "description": "Relay state configured for the organization IdP.",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23665,10 +23690,17 @@
             "get": {
                 "operationId": "saml2_auth_auth_callback_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -23681,10 +23713,17 @@
             "get": {
                 "operationId": "saml2_auth_auth_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -23704,10 +23743,17 @@
             "get": {
                 "operationId": "saml2_auth_github_callback_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -23720,10 +23766,17 @@
             "get": {
                 "operationId": "saml2_auth_github_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -23743,10 +23796,34 @@
             "get": {
                 "operationId": "saml2_auth_idp-login_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "email",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "next",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLUrlResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23808,6 +23885,10 @@
                         }
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23815,12 +23896,60 @@
             "post": {
                 "operationId": "saml2_auth_idp-uploads_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "formData",
+                        "description": "Display name for the identity provider.",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "identity_type",
+                        "in": "formData",
+                        "description": "Identity provider type.",
+                        "required": true,
+                        "type": "integer"
+                    },
+                    {
+                        "name": "is_enabled",
+                        "in": "formData",
+                        "description": "Whether this IdP is enabled.",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "file",
+                        "in": "formData",
+                        "description": "SAML metadata XML file.",
+                        "required": false,
+                        "type": "file"
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLStringResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23840,6 +23969,10 @@
                         }
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23847,12 +23980,60 @@
             "put": {
                 "operationId": "saml2_auth_idp-uploads_update",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "formData",
+                        "description": "Display name for the identity provider.",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "identity_type",
+                        "in": "formData",
+                        "description": "Identity provider type.",
+                        "required": true,
+                        "type": "integer"
+                    },
+                    {
+                        "name": "is_enabled",
+                        "in": "formData",
+                        "description": "Whether this IdP is enabled.",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "file",
+                        "in": "formData",
+                        "description": "SAML metadata XML file.",
+                        "required": false,
+                        "type": "file"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLStringResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23866,6 +24047,10 @@
                         "description": ""
                     }
                 },
+                "consumes": [
+                    "application/x-www-form-urlencoded",
+                    "multipart/form-data"
+                ],
                 "tags": [
                     "saml2_auth"
                 ]
@@ -23884,10 +24069,31 @@
             "get": {
                 "operationId": "saml2_auth_login_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "enum": [
+                            "google",
+                            "github",
+                            "microsoft"
+                        ]
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLUrlResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23900,10 +24106,31 @@
             "get": {
                 "operationId": "saml2_auth_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "enum": [
+                            "google",
+                            "github",
+                            "microsoft"
+                        ]
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLUrlResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23923,10 +24150,17 @@
             "get": {
                 "operationId": "saml2_auth_microsoft_callback_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -23939,10 +24173,17 @@
             "get": {
                 "operationId": "saml2_auth_microsoft_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": ""
+                    "302": {
+                        "description": "Redirects to the configured frontend URL."
                     }
                 },
                 "tags": [
@@ -49555,6 +49796,58 @@
                 }
             }
         },
+        "SAMLErrorResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "SAMLUrlResult": {
+            "required": [
+                "url"
+            ],
+            "type": "object",
+            "properties": {
+                "url": {
+                    "title": "Url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                }
+            }
+        },
+        "SAMLUrlResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SAMLUrlResult"
+                }
+            }
+        },
         "SAML": {
             "type": "object",
             "properties": {
@@ -49583,6 +49876,24 @@
                 "is_enabled": {
                     "title": "Is enabled",
                     "type": "boolean"
+                }
+            }
+        },
+        "SAMLStringResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },

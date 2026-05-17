@@ -22,6 +22,7 @@ const outputPath = path.join(
 
 const MUTATION_METHODS = new Set(["post", "put", "patch"]);
 const NON_RESPONSE_OPTIONAL_METHODS = new Set(["delete"]);
+const NO_BODY_RESPONSE_STATUS = /^(204|205|304|3\d\d)$/;
 const HTTP_METHODS = new Set([
   "get",
   "post",
@@ -78,15 +79,28 @@ const operationsByKey = new Map(
 
 function hasBodySchema(method, operation) {
   if (!MUTATION_METHODS.has(method)) return true;
-  return (operation.parameters || []).some(
+  const parameters = operation.parameters || [];
+  const hasBodyParameter = parameters.some(
     (parameter) => parameter.in === "body" && parameter.schema,
   );
+  const hasFormDataContract = parameters.some(
+    (parameter) => parameter.in === "formData" && parameter.type,
+  );
+  return hasBodyParameter || hasFormDataContract;
 }
 
 function hasResponseSchema(method, operation) {
   if (NON_RESPONSE_OPTIONAL_METHODS.has(method)) return true;
-  return Object.values(operation.responses || {}).some(
+  const responses = operation.responses || {};
+  const hasSchema = Object.values(responses).some(
     (response) => response?.schema,
+  );
+  if (hasSchema) return true;
+
+  const statusCodes = Object.keys(responses);
+  return (
+    statusCodes.length > 0 &&
+    statusCodes.every((statusCode) => NO_BODY_RESPONSE_STATUS.test(statusCode))
   );
 }
 

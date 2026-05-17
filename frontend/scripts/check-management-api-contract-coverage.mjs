@@ -15,8 +15,8 @@ const swaggerPath = path.join(
 );
 
 const MIN_ENDPOINTS = 960;
-const MAX_MUTATIONS_WITHOUT_BODY_SCHEMA = 296;
-const MAX_OPERATIONS_WITHOUT_RESPONSE_SCHEMA = 489;
+const MAX_MUTATIONS_WITHOUT_BODY_SCHEMA = 293;
+const MAX_OPERATIONS_WITHOUT_RESPONSE_SCHEMA = 477;
 const MIN_GROUP_PATHS = {
   accounts: 75,
   agentcc: 100,
@@ -28,6 +28,7 @@ const MIN_GROUP_PATHS = {
 };
 const MUTATION_METHODS = new Set(["post", "put", "patch"]);
 const NON_RESPONSE_OPTIONAL_METHODS = new Set(["delete"]);
+const NO_BODY_RESPONSE_STATUS = /^(204|205|304|3\d\d)$/;
 const UNSUPPORTED_SWAGGER_2_SCHEMA_KEYS = new Set([
   "anyOf",
   "nullable",
@@ -59,17 +60,31 @@ Object.entries(paths).forEach(([pathName, pathSpec]) => {
 
 const mutationWithoutBodySchema = operations.filter(({ method, operation }) => {
   if (!MUTATION_METHODS.has(method)) return false;
-  return !(operation.parameters || []).some(
+  const parameters = operation.parameters || [];
+  const hasBodySchema = parameters.some(
     (parameter) => parameter.in === "body" && parameter.schema,
   );
+  const hasFormDataContract = parameters.some(
+    (parameter) => parameter.in === "formData" && parameter.type,
+  );
+  return !hasBodySchema && !hasFormDataContract;
 });
 
 const operationWithoutResponseSchema = operations.filter(
   ({ method, operation }) => {
     if (NON_RESPONSE_OPTIONAL_METHODS.has(method)) return false;
-    return !Object.values(operation.responses || {}).some(
+    const responses = operation.responses || {};
+    const hasResponseSchema = Object.values(responses).some(
       (response) => response?.schema,
     );
+    if (hasResponseSchema) return false;
+
+    const statusCodes = Object.keys(responses);
+    const isDocumentedNoBodyOperation =
+      statusCodes.length > 0 &&
+      statusCodes.every((statusCode) => NO_BODY_RESPONSE_STATUS.test(statusCode));
+
+    return !isDocumentedNoBodyOperation;
   },
 );
 

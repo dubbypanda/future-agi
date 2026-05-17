@@ -414,6 +414,9 @@ import type {
   RunTestNameResponseApi,
   RunTestResponseApi,
   RunTestScenarioItemResponseApi,
+  SAMLErrorResponseApi,
+  SAMLStringResponseApi,
+  SAMLUrlResponseApi,
   SDKCICDEvaluationRunAcceptedResponseApi,
   SDKCICDEvaluationRunsResponseApi,
   SDKConfigureEvaluationsRequestApi,
@@ -428,8 +431,23 @@ import type {
   SDKStandaloneEvalResponseApi,
   SDKStandaloneEvalV2RequestApi,
   SDKStandaloneEvalV2ResponseApi,
+  Saml2AuthAcsCreateBodyOne,
+  Saml2AuthAcsCreateBodyTwo,
+  Saml2AuthAuthCallbackListParams,
+  Saml2AuthAuthReadParams,
+  Saml2AuthGithubCallbackListParams,
+  Saml2AuthGithubReadParams,
+  Saml2AuthIdpLoginListParams,
+  Saml2AuthIdpUploadsCreateBodyOne,
+  Saml2AuthIdpUploadsCreateBodyTwo,
   Saml2AuthIdpUploadsList200,
   Saml2AuthIdpUploadsListParams,
+  Saml2AuthIdpUploadsUpdateBodyOne,
+  Saml2AuthIdpUploadsUpdateBodyTwo,
+  Saml2AuthLoginListParams,
+  Saml2AuthMicrosoftCallbackListParams,
+  Saml2AuthMicrosoftReadParams,
+  Saml2AuthReadParams,
   SamlApi,
   SavedViewDetailApi,
   SavedViewListApi,
@@ -31865,17 +31883,22 @@ export const modelHubUploadFileCreate = async ( options?: RequestInit): Promise<
 
 
 
-export type saml2AuthAcsCreateResponse201 = {
+export type saml2AuthAcsCreateResponse302 = {
   data: void
-  status: 201
+  status: 302
 }
 
-export type saml2AuthAcsCreateResponseSuccess = (saml2AuthAcsCreateResponse201) & {
+export type saml2AuthAcsCreateResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+;
+export type saml2AuthAcsCreateResponseError = (saml2AuthAcsCreateResponse302 | saml2AuthAcsCreateResponse400) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthAcsCreateResponse = (saml2AuthAcsCreateResponseSuccess)
+export type saml2AuthAcsCreateResponse = (saml2AuthAcsCreateResponseError)
 
 export const getSaml2AuthAcsCreateUrl = () => {
 
@@ -31885,42 +31908,50 @@ export const getSaml2AuthAcsCreateUrl = () => {
   return `/saml2_auth/acs/`
 }
 
-export const saml2AuthAcsCreate = async ( options?: RequestInit): Promise<saml2AuthAcsCreateResponse> => {
+export const saml2AuthAcsCreate = async (saml2AuthAcsCreateBody?: Saml2AuthAcsCreateBodyOne | Saml2AuthAcsCreateBodyTwo, options?: RequestInit): Promise<saml2AuthAcsCreateResponse> => {
 
   return apiMutator<saml2AuthAcsCreateResponse>(getSaml2AuthAcsCreateUrl(),
   {
     ...options,
     method: 'POST'
-
-
+    ,
+    body: JSON.stringify(
+      saml2AuthAcsCreateBody,)
   }
 );}
 
 
 
-export type saml2AuthAuthCallbackListResponse200 = {
+export type saml2AuthAuthCallbackListResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthAuthCallbackListResponseSuccess = (saml2AuthAuthCallbackListResponse200) & {
+;
+export type saml2AuthAuthCallbackListResponseError = (saml2AuthAuthCallbackListResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthAuthCallbackListResponse = (saml2AuthAuthCallbackListResponseSuccess)
+export type saml2AuthAuthCallbackListResponse = (saml2AuthAuthCallbackListResponseError)
 
-export const getSaml2AuthAuthCallbackListUrl = () => {
+export const getSaml2AuthAuthCallbackListUrl = (params?: Saml2AuthAuthCallbackListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/auth/callback/`
+  return stringifiedParams.length > 0 ? `/saml2_auth/auth/callback/?${stringifiedParams}` : `/saml2_auth/auth/callback/`
 }
 
-export const saml2AuthAuthCallbackList = async ( options?: RequestInit): Promise<saml2AuthAuthCallbackListResponse> => {
+export const saml2AuthAuthCallbackList = async (params?: Saml2AuthAuthCallbackListParams, options?: RequestInit): Promise<saml2AuthAuthCallbackListResponse> => {
 
-  return apiMutator<saml2AuthAuthCallbackListResponse>(getSaml2AuthAuthCallbackListUrl(),
+  return apiMutator<saml2AuthAuthCallbackListResponse>(getSaml2AuthAuthCallbackListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -31931,29 +31962,38 @@ export const saml2AuthAuthCallbackList = async ( options?: RequestInit): Promise
 
 
 
-export type saml2AuthAuthReadResponse200 = {
+export type saml2AuthAuthReadResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthAuthReadResponseSuccess = (saml2AuthAuthReadResponse200) & {
+;
+export type saml2AuthAuthReadResponseError = (saml2AuthAuthReadResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthAuthReadResponse = (saml2AuthAuthReadResponseSuccess)
+export type saml2AuthAuthReadResponse = (saml2AuthAuthReadResponseError)
 
-export const getSaml2AuthAuthReadUrl = (format: string,) => {
+export const getSaml2AuthAuthReadUrl = (format: string,
+    params?: Saml2AuthAuthReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/auth/callback${format}`
+  return stringifiedParams.length > 0 ? `/saml2_auth/auth/callback${format}?${stringifiedParams}` : `/saml2_auth/auth/callback${format}`
 }
 
-export const saml2AuthAuthRead = async (format: string, options?: RequestInit): Promise<saml2AuthAuthReadResponse> => {
+export const saml2AuthAuthRead = async (format: string,
+    params?: Saml2AuthAuthReadParams, options?: RequestInit): Promise<saml2AuthAuthReadResponse> => {
 
-  return apiMutator<saml2AuthAuthReadResponse>(getSaml2AuthAuthReadUrl(format),
+  return apiMutator<saml2AuthAuthReadResponse>(getSaml2AuthAuthReadUrl(format,params),
   {
     ...options,
     method: 'GET'
@@ -31964,29 +32004,36 @@ export const saml2AuthAuthRead = async (format: string, options?: RequestInit): 
 
 
 
-export type saml2AuthGithubCallbackListResponse200 = {
+export type saml2AuthGithubCallbackListResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthGithubCallbackListResponseSuccess = (saml2AuthGithubCallbackListResponse200) & {
+;
+export type saml2AuthGithubCallbackListResponseError = (saml2AuthGithubCallbackListResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthGithubCallbackListResponse = (saml2AuthGithubCallbackListResponseSuccess)
+export type saml2AuthGithubCallbackListResponse = (saml2AuthGithubCallbackListResponseError)
 
-export const getSaml2AuthGithubCallbackListUrl = () => {
+export const getSaml2AuthGithubCallbackListUrl = (params?: Saml2AuthGithubCallbackListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/github/callback/`
+  return stringifiedParams.length > 0 ? `/saml2_auth/github/callback/?${stringifiedParams}` : `/saml2_auth/github/callback/`
 }
 
-export const saml2AuthGithubCallbackList = async ( options?: RequestInit): Promise<saml2AuthGithubCallbackListResponse> => {
+export const saml2AuthGithubCallbackList = async (params?: Saml2AuthGithubCallbackListParams, options?: RequestInit): Promise<saml2AuthGithubCallbackListResponse> => {
 
-  return apiMutator<saml2AuthGithubCallbackListResponse>(getSaml2AuthGithubCallbackListUrl(),
+  return apiMutator<saml2AuthGithubCallbackListResponse>(getSaml2AuthGithubCallbackListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -31997,29 +32044,38 @@ export const saml2AuthGithubCallbackList = async ( options?: RequestInit): Promi
 
 
 
-export type saml2AuthGithubReadResponse200 = {
+export type saml2AuthGithubReadResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthGithubReadResponseSuccess = (saml2AuthGithubReadResponse200) & {
+;
+export type saml2AuthGithubReadResponseError = (saml2AuthGithubReadResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthGithubReadResponse = (saml2AuthGithubReadResponseSuccess)
+export type saml2AuthGithubReadResponse = (saml2AuthGithubReadResponseError)
 
-export const getSaml2AuthGithubReadUrl = (format: string,) => {
+export const getSaml2AuthGithubReadUrl = (format: string,
+    params?: Saml2AuthGithubReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/github/callback${format}`
+  return stringifiedParams.length > 0 ? `/saml2_auth/github/callback${format}?${stringifiedParams}` : `/saml2_auth/github/callback${format}`
 }
 
-export const saml2AuthGithubRead = async (format: string, options?: RequestInit): Promise<saml2AuthGithubReadResponse> => {
+export const saml2AuthGithubRead = async (format: string,
+    params?: Saml2AuthGithubReadParams, options?: RequestInit): Promise<saml2AuthGithubReadResponse> => {
 
-  return apiMutator<saml2AuthGithubReadResponse>(getSaml2AuthGithubReadUrl(format),
+  return apiMutator<saml2AuthGithubReadResponse>(getSaml2AuthGithubReadUrl(format,params),
   {
     ...options,
     method: 'GET'
@@ -32031,28 +32087,42 @@ export const saml2AuthGithubRead = async (format: string, options?: RequestInit)
 
 
 export type saml2AuthIdpLoginListResponse200 = {
-  data: void
+  data: SAMLUrlResponseApi
   status: 200
+}
+
+export type saml2AuthIdpLoginListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
 }
 
 export type saml2AuthIdpLoginListResponseSuccess = (saml2AuthIdpLoginListResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpLoginListResponseError = (saml2AuthIdpLoginListResponse400) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpLoginListResponse = (saml2AuthIdpLoginListResponseSuccess)
+export type saml2AuthIdpLoginListResponse = (saml2AuthIdpLoginListResponseSuccess | saml2AuthIdpLoginListResponseError)
 
-export const getSaml2AuthIdpLoginListUrl = () => {
+export const getSaml2AuthIdpLoginListUrl = (params: Saml2AuthIdpLoginListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/idp-login/`
+  return stringifiedParams.length > 0 ? `/saml2_auth/idp-login/?${stringifiedParams}` : `/saml2_auth/idp-login/`
 }
 
-export const saml2AuthIdpLoginList = async ( options?: RequestInit): Promise<saml2AuthIdpLoginListResponse> => {
+export const saml2AuthIdpLoginList = async (params: Saml2AuthIdpLoginListParams, options?: RequestInit): Promise<saml2AuthIdpLoginListResponse> => {
 
-  return apiMutator<saml2AuthIdpLoginListResponse>(getSaml2AuthIdpLoginListUrl(),
+  return apiMutator<saml2AuthIdpLoginListResponse>(getSaml2AuthIdpLoginListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32103,17 +32173,29 @@ export const saml2AuthIdpUploadsList = async (params?: Saml2AuthIdpUploadsListPa
 
 
 
-export type saml2AuthIdpUploadsCreateResponse201 = {
-  data: void
-  status: 201
+export type saml2AuthIdpUploadsCreateResponse200 = {
+  data: SAMLStringResponseApi
+  status: 200
 }
 
-export type saml2AuthIdpUploadsCreateResponseSuccess = (saml2AuthIdpUploadsCreateResponse201) & {
+export type saml2AuthIdpUploadsCreateResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+export type saml2AuthIdpUploadsCreateResponse500 = {
+  data: SAMLErrorResponseApi
+  status: 500
+}
+
+export type saml2AuthIdpUploadsCreateResponseSuccess = (saml2AuthIdpUploadsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpUploadsCreateResponseError = (saml2AuthIdpUploadsCreateResponse400 | saml2AuthIdpUploadsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpUploadsCreateResponse = (saml2AuthIdpUploadsCreateResponseSuccess)
+export type saml2AuthIdpUploadsCreateResponse = (saml2AuthIdpUploadsCreateResponseSuccess | saml2AuthIdpUploadsCreateResponseError)
 
 export const getSaml2AuthIdpUploadsCreateUrl = () => {
 
@@ -32123,14 +32205,15 @@ export const getSaml2AuthIdpUploadsCreateUrl = () => {
   return `/saml2_auth/idp-uploads/`
 }
 
-export const saml2AuthIdpUploadsCreate = async ( options?: RequestInit): Promise<saml2AuthIdpUploadsCreateResponse> => {
+export const saml2AuthIdpUploadsCreate = async (saml2AuthIdpUploadsCreateBody?: Saml2AuthIdpUploadsCreateBodyOne | Saml2AuthIdpUploadsCreateBodyTwo, options?: RequestInit): Promise<saml2AuthIdpUploadsCreateResponse> => {
 
   return apiMutator<saml2AuthIdpUploadsCreateResponse>(getSaml2AuthIdpUploadsCreateUrl(),
   {
     ...options,
     method: 'POST'
-
-
+    ,
+    body: JSON.stringify(
+      saml2AuthIdpUploadsCreateBody,)
   }
 );}
 
@@ -32170,16 +32253,28 @@ export const saml2AuthIdpUploadsRead = async (id: string, options?: RequestInit)
 
 
 export type saml2AuthIdpUploadsUpdateResponse200 = {
-  data: void
+  data: SAMLStringResponseApi
   status: 200
+}
+
+export type saml2AuthIdpUploadsUpdateResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+export type saml2AuthIdpUploadsUpdateResponse500 = {
+  data: SAMLErrorResponseApi
+  status: 500
 }
 
 export type saml2AuthIdpUploadsUpdateResponseSuccess = (saml2AuthIdpUploadsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpUploadsUpdateResponseError = (saml2AuthIdpUploadsUpdateResponse400 | saml2AuthIdpUploadsUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpUploadsUpdateResponse = (saml2AuthIdpUploadsUpdateResponseSuccess)
+export type saml2AuthIdpUploadsUpdateResponse = (saml2AuthIdpUploadsUpdateResponseSuccess | saml2AuthIdpUploadsUpdateResponseError)
 
 export const getSaml2AuthIdpUploadsUpdateUrl = (id: string,) => {
 
@@ -32189,14 +32284,16 @@ export const getSaml2AuthIdpUploadsUpdateUrl = (id: string,) => {
   return `/saml2_auth/idp-uploads/${id}/`
 }
 
-export const saml2AuthIdpUploadsUpdate = async (id: string, options?: RequestInit): Promise<saml2AuthIdpUploadsUpdateResponse> => {
+export const saml2AuthIdpUploadsUpdate = async (id: string,
+    saml2AuthIdpUploadsUpdateBody?: Saml2AuthIdpUploadsUpdateBodyOne | Saml2AuthIdpUploadsUpdateBodyTwo, options?: RequestInit): Promise<saml2AuthIdpUploadsUpdateResponse> => {
 
   return apiMutator<saml2AuthIdpUploadsUpdateResponse>(getSaml2AuthIdpUploadsUpdateUrl(id),
   {
     ...options,
     method: 'PUT'
-
-
+    ,
+    body: JSON.stringify(
+      saml2AuthIdpUploadsUpdateBody,)
   }
 );}
 
@@ -32236,28 +32333,42 @@ export const saml2AuthIdpUploadsDelete = async (id: string, options?: RequestIni
 
 
 export type saml2AuthLoginListResponse200 = {
-  data: void
+  data: SAMLUrlResponseApi
   status: 200
+}
+
+export type saml2AuthLoginListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
 }
 
 export type saml2AuthLoginListResponseSuccess = (saml2AuthLoginListResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthLoginListResponseError = (saml2AuthLoginListResponse400) & {
+  headers: Headers;
+};
 
-export type saml2AuthLoginListResponse = (saml2AuthLoginListResponseSuccess)
+export type saml2AuthLoginListResponse = (saml2AuthLoginListResponseSuccess | saml2AuthLoginListResponseError)
 
-export const getSaml2AuthLoginListUrl = () => {
+export const getSaml2AuthLoginListUrl = (params: Saml2AuthLoginListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/login/`
+  return stringifiedParams.length > 0 ? `/saml2_auth/login/?${stringifiedParams}` : `/saml2_auth/login/`
 }
 
-export const saml2AuthLoginList = async ( options?: RequestInit): Promise<saml2AuthLoginListResponse> => {
+export const saml2AuthLoginList = async (params: Saml2AuthLoginListParams, options?: RequestInit): Promise<saml2AuthLoginListResponse> => {
 
-  return apiMutator<saml2AuthLoginListResponse>(getSaml2AuthLoginListUrl(),
+  return apiMutator<saml2AuthLoginListResponse>(getSaml2AuthLoginListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32269,28 +32380,44 @@ export const saml2AuthLoginList = async ( options?: RequestInit): Promise<saml2A
 
 
 export type saml2AuthReadResponse200 = {
-  data: void
+  data: SAMLUrlResponseApi
   status: 200
+}
+
+export type saml2AuthReadResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
 }
 
 export type saml2AuthReadResponseSuccess = (saml2AuthReadResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthReadResponseError = (saml2AuthReadResponse400) & {
+  headers: Headers;
+};
 
-export type saml2AuthReadResponse = (saml2AuthReadResponseSuccess)
+export type saml2AuthReadResponse = (saml2AuthReadResponseSuccess | saml2AuthReadResponseError)
 
-export const getSaml2AuthReadUrl = (format: string,) => {
+export const getSaml2AuthReadUrl = (format: string,
+    params: Saml2AuthReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/login${format}`
+  return stringifiedParams.length > 0 ? `/saml2_auth/login${format}?${stringifiedParams}` : `/saml2_auth/login${format}`
 }
 
-export const saml2AuthRead = async (format: string, options?: RequestInit): Promise<saml2AuthReadResponse> => {
+export const saml2AuthRead = async (format: string,
+    params: Saml2AuthReadParams, options?: RequestInit): Promise<saml2AuthReadResponse> => {
 
-  return apiMutator<saml2AuthReadResponse>(getSaml2AuthReadUrl(format),
+  return apiMutator<saml2AuthReadResponse>(getSaml2AuthReadUrl(format,params),
   {
     ...options,
     method: 'GET'
@@ -32301,29 +32428,36 @@ export const saml2AuthRead = async (format: string, options?: RequestInit): Prom
 
 
 
-export type saml2AuthMicrosoftCallbackListResponse200 = {
+export type saml2AuthMicrosoftCallbackListResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthMicrosoftCallbackListResponseSuccess = (saml2AuthMicrosoftCallbackListResponse200) & {
+;
+export type saml2AuthMicrosoftCallbackListResponseError = (saml2AuthMicrosoftCallbackListResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthMicrosoftCallbackListResponse = (saml2AuthMicrosoftCallbackListResponseSuccess)
+export type saml2AuthMicrosoftCallbackListResponse = (saml2AuthMicrosoftCallbackListResponseError)
 
-export const getSaml2AuthMicrosoftCallbackListUrl = () => {
+export const getSaml2AuthMicrosoftCallbackListUrl = (params?: Saml2AuthMicrosoftCallbackListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/microsoft/callback/`
+  return stringifiedParams.length > 0 ? `/saml2_auth/microsoft/callback/?${stringifiedParams}` : `/saml2_auth/microsoft/callback/`
 }
 
-export const saml2AuthMicrosoftCallbackList = async ( options?: RequestInit): Promise<saml2AuthMicrosoftCallbackListResponse> => {
+export const saml2AuthMicrosoftCallbackList = async (params?: Saml2AuthMicrosoftCallbackListParams, options?: RequestInit): Promise<saml2AuthMicrosoftCallbackListResponse> => {
 
-  return apiMutator<saml2AuthMicrosoftCallbackListResponse>(getSaml2AuthMicrosoftCallbackListUrl(),
+  return apiMutator<saml2AuthMicrosoftCallbackListResponse>(getSaml2AuthMicrosoftCallbackListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32334,29 +32468,38 @@ export const saml2AuthMicrosoftCallbackList = async ( options?: RequestInit): Pr
 
 
 
-export type saml2AuthMicrosoftReadResponse200 = {
+export type saml2AuthMicrosoftReadResponse302 = {
   data: void
-  status: 200
+  status: 302
 }
 
-export type saml2AuthMicrosoftReadResponseSuccess = (saml2AuthMicrosoftReadResponse200) & {
+;
+export type saml2AuthMicrosoftReadResponseError = (saml2AuthMicrosoftReadResponse302) & {
   headers: Headers;
 };
-;
 
-export type saml2AuthMicrosoftReadResponse = (saml2AuthMicrosoftReadResponseSuccess)
+export type saml2AuthMicrosoftReadResponse = (saml2AuthMicrosoftReadResponseError)
 
-export const getSaml2AuthMicrosoftReadUrl = (format: string,) => {
+export const getSaml2AuthMicrosoftReadUrl = (format: string,
+    params?: Saml2AuthMicrosoftReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/saml2_auth/microsoft/callback${format}`
+  return stringifiedParams.length > 0 ? `/saml2_auth/microsoft/callback${format}?${stringifiedParams}` : `/saml2_auth/microsoft/callback${format}`
 }
 
-export const saml2AuthMicrosoftRead = async (format: string, options?: RequestInit): Promise<saml2AuthMicrosoftReadResponse> => {
+export const saml2AuthMicrosoftRead = async (format: string,
+    params?: Saml2AuthMicrosoftReadParams, options?: RequestInit): Promise<saml2AuthMicrosoftReadResponse> => {
 
-  return apiMutator<saml2AuthMicrosoftReadResponse>(getSaml2AuthMicrosoftReadUrl(format),
+  return apiMutator<saml2AuthMicrosoftReadResponse>(getSaml2AuthMicrosoftReadUrl(format,params),
   {
     ...options,
     method: 'GET'
