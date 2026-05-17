@@ -819,7 +819,7 @@ class TestCompleteItem:
         # item 2, not item 3.
         resp = auth_client.post(
             complete_url(queue_id, item_ids[0]),
-            {"exclude": f"{item_ids[0]},{item_ids[1]}"},
+            {"exclude": [str(item_ids[0]), str(item_ids[1])]},
             format="json",
         )
 

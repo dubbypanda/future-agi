@@ -3,7 +3,7 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 347,
+    "mutation_endpoints_without_body_schema": 343,
     "operations_without_response_schema": 594
   },
   "by_group": {
@@ -70,7 +70,7 @@
     "model-hub": {
       "paths": 365,
       "operations": 478,
-      "mutation_endpoints_without_body_schema": 148,
+      "mutation_endpoints_without_body_schema": 144,
       "operations_without_response_schema": 243
     },
     "saml2_auth": {
@@ -1034,42 +1034,6 @@
       "method": "POST",
       "path": "/model-hub/ai-eval-writer/",
       "operation_id": "model-hub_ai-eval-writer_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/annotation-queues/{id}/restore/",
-      "operation_id": "model-hub_annotation-queues_restore",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/",
-      "operation_id": "model-hub_annotation-queues_automation-rules_evaluate",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/annotation-queues/{queue_id}/items/{id}/release/",
-      "operation_id": "model-hub_annotation-queues_items_release_reservation",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/annotations-labels/{id}/restore/",
-      "operation_id": "model-hub_annotations-labels_restore",
       "tags": [
         "model-hub"
       ]

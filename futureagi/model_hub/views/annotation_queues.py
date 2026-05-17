@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
 from django.db.models.functions import Coalesce, Lower, TruncDate
 from django.utils import timezone
-from drf_yasg.utils import no_body, swagger_auto_schema
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -51,8 +51,8 @@ from model_hub.models.develop_annotations import AnnotationsLabels
 from model_hub.models.score import SCORE_SOURCE_FK_MAP, Score
 from model_hub.serializers.annotation_queues import (
     AddItemsSerializer,
-    AnnotationQueueListQuerySerializer,
     AnnotateDetailSerializer,
+    AnnotationQueueListQuerySerializer,
     AnnotationQueueSerializer,
     AssignItemsSerializer,
     AutomationRuleEvaluateAcceptedResponseSerializer,
@@ -72,21 +72,21 @@ from model_hub.serializers.annotation_queues import (
     QueueDiscussionResponseSerializer,
     QueueExportAnnotationsResponseSerializer,
     QueueExportQuerySerializer,
-    QueueExportToDatasetResponseSerializer,
     QueueExportToDatasetRequestSerializer,
+    QueueExportToDatasetResponseSerializer,
     QueueForSourceQuerySerializer,
     QueueHardDeleteRequestSerializer,
     QueueHardDeleteResponseSerializer,
     QueueImportAnnotationsResponseSerializer,
-    QueueItemAnnotationsResponseSerializer,
     QueueItemAnnotateDetailQuerySerializer,
+    QueueItemAnnotationsResponseSerializer,
     QueueItemListQuerySerializer,
     QueueItemNavigationRequestSerializer,
     QueueItemNextQuerySerializer,
-    QueueJsonResponseSerializer,
     QueueItemReviewCommentSerializer,
     QueueItemReviewThreadSerializer,
     QueueItemSerializer,
+    QueueJsonResponseSerializer,
     QueueLabelRequestSerializer,
     QueueNavigationResponseSerializer,
     QueueNextItemResponseSerializer,
@@ -116,11 +116,13 @@ from model_hub.utils.annotation_queue_helpers import (
     resolve_source_object,
 )
 from model_hub.utils.utils import send_message_to_channel
-from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
     ApiSelectionTooLargeErrorSerializer,
+    EmptyRequestSerializer,
 )
+from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.email import email_helper
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -2603,7 +2605,7 @@ def _check_annotation_queue_create_limit(org, workspace=None):
                 code=getattr(exc, "error_code", None),
                 upgrade_cta=getattr(exc, "upgrade_cta", None),
                 metadata=metadata,
-            )
+            ) from exc
         raise
 
 
@@ -2795,8 +2797,8 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
             {"deleted": True, "archived": True, "queue_id": str(instance.pk)}
         )
 
-    @swagger_auto_schema(
-        request_body=no_body,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={200: QueueStatusResponseSerializer, **ERROR_RESPONSES},
     )
     @action(detail=True, methods=["post"], url_path="restore")
@@ -5562,8 +5564,8 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
 
         return self._gm.success_response({"assigned": len(item_pks) * len(user_ids)})
 
-    @swagger_auto_schema(
-        request_body=no_body,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={200: QueueReleaseReservationResponseSerializer, **ERROR_RESPONSES},
     )
     @action(detail=True, methods=["post"], url_path="release")
@@ -6553,8 +6555,8 @@ class AutomationRuleViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelView
             created_by=self.request.user,
         )
 
-    @swagger_auto_schema(
-        request_body=no_body,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={
             200: QueueJsonResponseSerializer,
             202: AutomationRuleEvaluateAcceptedResponseSerializer,

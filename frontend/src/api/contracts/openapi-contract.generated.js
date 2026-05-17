@@ -5448,7 +5448,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/restore/": {
       "post": {
         "operationId": "model-hub_annotation-queues_restore",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {
@@ -5608,7 +5610,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/": {
       "post": {
         "operationId": "model-hub_annotation-queues_automation-rules_evaluate",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {
@@ -6287,7 +6291,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/release/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_release_reservation",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
           "200": {
@@ -6538,11 +6544,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations-labels/{id}/restore/": {
       "post": {
         "operationId": "model-hub_annotations-labels_restore",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/AnnotationsLabels"
+          "200": {
+            "$ref": "#/definitions/AnnotationLabelRestoreResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       }
@@ -23264,6 +23281,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AnnotationLabelRestoreResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/AnnotationsLabels"
+        }
+      }
+    },
     "AnnotationQueue": {
       "required": [
         "name"
@@ -26085,6 +26118,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "$ref": "#/definitions/EELicenseRevokeResult"
         }
       }
+    },
+    "EmptyRequest": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
     },
     "ErrorResponse": {
       "required": [

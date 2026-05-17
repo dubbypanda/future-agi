@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 from django.urls import reverse
+
 from model_hub.models.choices import AnnotatorRole
 from model_hub.serializers.annotation import AnnotationTaskSerializer
 from model_hub.serializers.annotation_queues import (
@@ -19,6 +20,7 @@ from model_hub.serializers.scores import (
     BulkCreateScoresSerializer,
     CreateScoreSerializer,
 )
+from tfc.utils.api_serializers import EmptyRequestSerializer
 from tfc.utils.general_methods import GeneralMethods
 
 CONTRACTED_ANNOTATION_FILTER_PATH_RE = (
@@ -157,6 +159,22 @@ class TestAnnotationApiContract:
                 "/model-hub/annotation-queues/{queue_id}/items/{id}/review/",
                 "post",
             ): "#/definitions/ReviewItemRequest",
+            (
+                "/model-hub/annotation-queues/{id}/restore/",
+                "post",
+            ): "#/definitions/EmptyRequest",
+            (
+                "/model-hub/annotation-queues/{queue_id}/items/{id}/release/",
+                "post",
+            ): "#/definitions/EmptyRequest",
+            (
+                "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/",
+                "post",
+            ): "#/definitions/EmptyRequest",
+            (
+                "/model-hub/annotations-labels/{id}/restore/",
+                "post",
+            ): "#/definitions/EmptyRequest",
             ("/model-hub/scores/", "post"): "#/definitions/CreateScore",
             ("/model-hub/scores/bulk/", "post"): "#/definitions/BulkCreateScores",
             (
@@ -206,6 +224,10 @@ class TestAnnotationApiContract:
                 "/model-hub/annotation-queues/{queue_id}/items/{id}/release/",
                 "post",
             ): "#/definitions/QueueReleaseReservationResponse",
+            (
+                "/model-hub/annotations-labels/{id}/restore/",
+                "post",
+            ): "#/definitions/AnnotationLabelRestoreResponse",
             (
                 "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/",
                 "get",
@@ -316,6 +338,13 @@ class TestAnnotationApiContract:
         assert custom_error.data["status"] is False
         assert custom_error.data["result"] == "Already running"
         assert custom_error.data["message"] == "Already running"
+
+    def test_empty_request_contract_rejects_surprise_payloads(self):
+        empty = EmptyRequestSerializer(data={})
+        assert empty.is_valid(), empty.errors
+
+        with_payload = EmptyRequestSerializer(data={"unexpected": "value"})
+        assert not with_payload.is_valid()
 
     def test_selection_contract_rejects_unknown_source_type(self):
         serializer = SelectionSerializer(

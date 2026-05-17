@@ -921,7 +921,7 @@ export default function AnnotateWorkspaceView() {
               {
                 queueId,
                 itemId: currentItemId,
-                exclude: itemHistory.join(","),
+                exclude: itemHistory,
                 excludeReviewStatus: requiresReview
                   ? "pending_review"
                   : undefined,
@@ -975,7 +975,7 @@ export default function AnnotateWorkspaceView() {
       {
         queueId,
         itemId: currentItemId,
-        exclude: itemHistory.join(","),
+        exclude: itemHistory,
         excludeReviewStatus: requiresReview ? "pending_review" : undefined,
         includeCompleted: includeCompletedItems,
       },

@@ -10172,7 +10172,16 @@
             "post": {
                 "operationId": "model-hub_annotation-queues_restore",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -10486,7 +10495,16 @@
                 "operationId": "model-hub_annotation-queues_automation-rules_evaluate",
                 "summary": "Trigger a manual rule run with a sync-or-async branch.",
                 "description": "Small runs (filter resolves to ≤ ``RULE_RUN_SYNC_THRESHOLD``) finish\nin the HTTP request and return 200 with the result — fast feedback\nfor the common case. Large runs (mostly first-ever runs on backlogs\nor rules with wide filters) hand the work to a Temporal activity and\nreturn 202 immediately. The activity emails creator + queue managers\non completion.\n\nThe peek is a cheap dry-run (``[:cap+1]`` LIMIT, no COUNT(*)) — sub-\n100ms even on 10M+ row trace tables — so this branch costs little\neven when it ends up taking the sync path.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -11881,7 +11899,16 @@
             "post": {
                 "operationId": "model-hub_annotation-queues_items_release_reservation",
                 "description": "Release reservation on an item.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -12349,12 +12376,39 @@
             "post": {
                 "operationId": "model-hub_annotations-labels_restore",
                 "description": "Restore a soft-deleted (archived) annotation label.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/AnnotationsLabels"
+                            "$ref": "#/definitions/AnnotationLabelRestoreResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     }
                 },
@@ -41628,6 +41682,11 @@
                 }
             }
         },
+        "EmptyRequest": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        },
         "QueueStatusResponse": {
             "required": [
                 "result"
@@ -43228,6 +43287,22 @@
                     "title": "Annotation count",
                     "type": "integer",
                     "readOnly": true
+                }
+            }
+        },
+        "AnnotationLabelRestoreResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/AnnotationsLabels"
                 }
             }
         },

@@ -7754,6 +7754,10 @@ export const ModelHubAnnotationQueuesRestoreParams = zod.object({
   "id": zod.string().uuid().describe('A UUID string identifying this annotation queue.')
 })
 
+export const ModelHubAnnotationQueuesRestoreBody = zod.object({
+
+})
+
 export const modelHubAnnotationQueuesRestoreResponseStatusDefault = true;
 export const modelHubAnnotationQueuesRestoreResponseResultNameMax = 255;
 
@@ -8106,6 +8110,10 @@ even when it ends up taking the sync path.
 export const ModelHubAnnotationQueuesAutomationRulesEvaluateParams = zod.object({
   "queue_id": zod.string(),
   "id": zod.string().uuid().describe('A UUID string identifying this automation rule.')
+})
+
+export const ModelHubAnnotationQueuesAutomationRulesEvaluateBody = zod.object({
+
 })
 
 export const modelHubAnnotationQueuesAutomationRulesEvaluateResponseStatusDefault = true;
@@ -8850,6 +8858,10 @@ export const ModelHubAnnotationQueuesItemsReleaseReservationParams = zod.object(
   "id": zod.string().uuid().describe('A UUID string identifying this queue item.')
 })
 
+export const ModelHubAnnotationQueuesItemsReleaseReservationBody = zod.object({
+
+})
+
 export const modelHubAnnotationQueuesItemsReleaseReservationResponseStatusDefault = true;
 
 export const ModelHubAnnotationQueuesItemsReleaseReservationResponse = zod.object({
@@ -9288,6 +9300,34 @@ export const ModelHubAnnotationsLabelsDeleteParams = zod.object({
  */
 export const ModelHubAnnotationsLabelsRestoreParams = zod.object({
   "id": zod.string()
+})
+
+export const ModelHubAnnotationsLabelsRestoreBody = zod.object({
+
+})
+
+export const modelHubAnnotationsLabelsRestoreResponseStatusDefault = true;
+export const modelHubAnnotationsLabelsRestoreResponseResultNameMax = 255;
+
+
+
+export const ModelHubAnnotationsLabelsRestoreResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsLabelsRestoreResponseStatusDefault),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(modelHubAnnotationsLabelsRestoreResponseResultNameMax),
+  "type": zod.enum(['text', 'numeric', 'categorical', 'star', 'thumbs_up_down']),
+  "organization": zod.string().uuid().optional(),
+  "settings": zod.object({
+
+}).passthrough().optional(),
+  "project": zod.string().uuid().optional(),
+  "description": zod.string().optional(),
+  "allow_notes": zod.boolean().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "trace_annotations_count": zod.number().optional(),
+  "annotation_count": zod.number().optional()
+})
 })
 
 

@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Case, CharField, Q, Value, When
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_yasg.utils import no_body, swagger_auto_schema
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -22,36 +22,37 @@ from accounts.models import User
 from agentic_eval.core.embeddings.embedding_manager import (
     EmbeddingManager,
 )
-from tfc.constants.levels import Level
 
-logger = structlog.get_logger(__name__)
+# from ee.agenthub.feedback_agent_updated.utils import RAG
+from model_hub.models import AnnotationTask
 from model_hub.models.choices import (
     AnnotationTypeChoices,
     CellStatus,
     DataTypeChoices,
     SourceChoices,
 )
-
-# from ee.agenthub.feedback_agent_updated.utils import RAG
-from model_hub.models import AnnotationTask
 from model_hub.models.develop_annotations import Annotations, AnnotationsLabels
-from model_hub.serializers.annotation import AnnotationTaskSerializer
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
+from model_hub.serializers.annotation import AnnotationTaskSerializer
 from model_hub.serializers.develop_annotations import (
-    AnnotationSummaryResponseSerializer,
+    AnnotationLabelRestoreResponseSerializer,
     AnnotationsLabelsSerializer,
     AnnotationsSerializer,
+    AnnotationSummaryResponseSerializer,
     UserSerializer,
 )
 from model_hub.utils.auto_annotate import generate_annotations_task
-from model_hub.utils.SQL_queries import SQLQueryHandler
 from model_hub.utils.utils import corpus_builder
-from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
+from tfc.constants.levels import Level
 from tfc.ee_gating import FeatureUnavailable
-from tfc.utils.api_serializers import ApiErrorResponseSerializer
+from tfc.utils.api_contracts import validated_request
+from tfc.utils.api_serializers import ApiErrorResponseSerializer, EmptyRequestSerializer
+from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
+
+logger = structlog.get_logger(__name__)
 
 ERROR_RESPONSES = {
     400: ApiErrorResponseSerializer,
@@ -322,7 +323,10 @@ class AnnotationsLabelsViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelV
 
         return self._gm.success_response("Annotation label created successfully")
 
-    @swagger_auto_schema(request_body=no_body)
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
+        responses={200: AnnotationLabelRestoreResponseSerializer, **ERROR_RESPONSES},
+    )
     @action(detail=True, methods=["post"], url_path="restore")
     def restore(self, request, pk=None):
         """Restore a soft-deleted (archived) annotation label."""
@@ -1809,9 +1813,7 @@ class AnnotationSummaryView(APIView):
             except ImportError:
                 pass
 
-            dataset = get_object_or_404(
-                Dataset, id=dataset_id, organization=organization
-            )
+            get_object_or_404(Dataset, id=dataset_id, organization=organization)
 
             # Score-only data path. Reads the unified Score model
             # (`source_type='dataset_row'`) instead of the legacy

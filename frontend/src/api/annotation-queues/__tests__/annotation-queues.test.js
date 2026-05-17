@@ -779,7 +779,7 @@ describe("Annotation Queues API", () => {
       result.current.mutate({
         queueId: "queue-1",
         itemId: "item-1",
-        exclude: "item-1",
+        exclude: ["item-1"],
         excludeReviewStatus: "pending_review",
       });
 
@@ -787,7 +787,7 @@ describe("Annotation Queues API", () => {
         expect(axios.post).toHaveBeenCalledWith(
           "/model-hub/annotation-queues/queue-1/items/item-1/complete/",
           {
-            exclude: "item-1",
+            exclude: ["item-1"],
             exclude_review_status: "pending_review",
           },
         );
@@ -866,14 +866,14 @@ describe("Annotation Queues API", () => {
       result.current.mutate({
         queueId: "queue-1",
         itemId: "item-1",
-        exclude: "item-1",
+        exclude: ["item-1"],
         includeCompleted: true,
       });
 
       await waitFor(() => {
         expect(axios.post).toHaveBeenCalledWith(
           "/model-hub/annotation-queues/queue-1/items/item-1/skip/",
-          { exclude: "item-1", include_completed: true },
+          { exclude: ["item-1"], include_completed: true },
         );
       });
     });

@@ -85,6 +85,11 @@ class AnnotationsLabelsSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class AnnotationLabelRestoreResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = AnnotationsLabelsSerializer()
+
+
 class AnnotationsSerializer(serializers.ModelSerializer):
     assigned_users = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()

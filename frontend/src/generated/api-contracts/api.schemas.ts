@@ -1689,6 +1689,8 @@ export interface QueueRemoveLabelResponseApi {
   result: QueueRemoveLabelResponseApiResult;
 }
 
+export interface EmptyRequestApi { [key: string]: unknown }
+
 export interface QueueStatusResponseApi {
   status?: boolean;
   result: AnnotationQueueApi;
@@ -2356,6 +2358,11 @@ export interface AnnotationsLabelsApi {
   readonly created_at?: string;
   readonly trace_annotations_count?: number;
   readonly annotation_count?: number;
+}
+
+export interface AnnotationLabelRestoreResponseApi {
+  status?: boolean;
+  result: AnnotationsLabelsApi;
 }
 
 export type AnnotationsApiStaticFields = { [key: string]: unknown };

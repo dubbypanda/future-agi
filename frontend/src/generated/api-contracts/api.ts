@@ -117,6 +117,7 @@ import type {
   AgentccWebhookEventsListParams,
   AgentccWebhooksList200,
   AgentccWebhooksListParams,
+  AnnotationLabelRestoreResponseApi,
   AnnotationQueueApi,
   AnnotationSummaryResponseApi,
   AnnotationTaskApi,
@@ -172,6 +173,7 @@ import type {
   EELicenseListResponseApi,
   EELicenseRevokeRequestApi,
   EELicenseRevokeResponseApi,
+  EmptyRequestApi,
   ErrorResponseApi,
   EvalConfigUpdateRequestApi,
   EvalConfigUpdateResponseApi,
@@ -14632,14 +14634,16 @@ export const getModelHubAnnotationQueuesRestoreUrl = (id: string,) => {
   return `/model-hub/annotation-queues/${id}/restore/`
 }
 
-export const modelHubAnnotationQueuesRestore = async (id: string, options?: RequestInit): Promise<modelHubAnnotationQueuesRestoreResponse> => {
+export const modelHubAnnotationQueuesRestore = async (id: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<modelHubAnnotationQueuesRestoreResponse> => {
 
   return apiMutator<modelHubAnnotationQueuesRestoreResponse>(getModelHubAnnotationQueuesRestoreUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -14995,14 +14999,16 @@ even when it ends up taking the sync path.
  * @summary Trigger a manual rule run with a sync-or-async branch.
  */
 export const modelHubAnnotationQueuesAutomationRulesEvaluate = async (queueId: string,
-    id: string, options?: RequestInit): Promise<modelHubAnnotationQueuesAutomationRulesEvaluateResponse> => {
+    id: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<modelHubAnnotationQueuesAutomationRulesEvaluateResponse> => {
 
   return apiMutator<modelHubAnnotationQueuesAutomationRulesEvaluateResponse>(getModelHubAnnotationQueuesAutomationRulesEvaluateUrl(queueId,id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -16276,14 +16282,16 @@ export const getModelHubAnnotationQueuesItemsReleaseReservationUrl = (queueId: s
  * Release reservation on an item.
  */
 export const modelHubAnnotationQueuesItemsReleaseReservation = async (queueId: string,
-    id: string, options?: RequestInit): Promise<modelHubAnnotationQueuesItemsReleaseReservationResponse> => {
+    id: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<modelHubAnnotationQueuesItemsReleaseReservationResponse> => {
 
   return apiMutator<modelHubAnnotationQueuesItemsReleaseReservationResponse>(getModelHubAnnotationQueuesItemsReleaseReservationUrl(queueId,id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -16709,17 +16717,34 @@ export const modelHubAnnotationsLabelsDelete = async (id: string, options?: Requ
 
 
 
-export type modelHubAnnotationsLabelsRestoreResponse201 = {
-  data: AnnotationsLabelsApi
-  status: 201
+export type modelHubAnnotationsLabelsRestoreResponse200 = {
+  data: AnnotationLabelRestoreResponseApi
+  status: 200
 }
 
-export type modelHubAnnotationsLabelsRestoreResponseSuccess = (modelHubAnnotationsLabelsRestoreResponse201) & {
+export type modelHubAnnotationsLabelsRestoreResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsLabelsRestoreResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsLabelsRestoreResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type modelHubAnnotationsLabelsRestoreResponseSuccess = (modelHubAnnotationsLabelsRestoreResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsLabelsRestoreResponseError = (modelHubAnnotationsLabelsRestoreResponse400 | modelHubAnnotationsLabelsRestoreResponse403 | modelHubAnnotationsLabelsRestoreResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsLabelsRestoreResponse = (modelHubAnnotationsLabelsRestoreResponseSuccess)
+export type modelHubAnnotationsLabelsRestoreResponse = (modelHubAnnotationsLabelsRestoreResponseSuccess | modelHubAnnotationsLabelsRestoreResponseError)
 
 export const getModelHubAnnotationsLabelsRestoreUrl = (id: string,) => {
 
@@ -16732,14 +16757,16 @@ export const getModelHubAnnotationsLabelsRestoreUrl = (id: string,) => {
 /**
  * Restore a soft-deleted (archived) annotation label.
  */
-export const modelHubAnnotationsLabelsRestore = async (id: string, options?: RequestInit): Promise<modelHubAnnotationsLabelsRestoreResponse> => {
+export const modelHubAnnotationsLabelsRestore = async (id: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<modelHubAnnotationsLabelsRestoreResponse> => {
 
   return apiMutator<modelHubAnnotationsLabelsRestoreResponse>(getModelHubAnnotationsLabelsRestoreUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 

@@ -8,6 +8,26 @@ class ApiSuccessResponseSerializer(serializers.Serializer):
     result = serializers.JSONField(required=False, allow_null=True)
 
 
+class EmptyRequestSerializer(serializers.Serializer):
+    """Explicit contract for mutation endpoints that accept no request body."""
+
+    class Meta:
+        swagger_schema_fields = {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        }
+
+    def to_internal_value(self, data):
+        if data is None or data == "":
+            return {}
+        if hasattr(data, "__len__") and len(data) == 0:
+            return {}
+        raise serializers.ValidationError(
+            "This endpoint does not accept a request body."
+        )
+
+
 class ApiErrorResponseSerializer(serializers.Serializer):
     """Common GeneralMethods error response envelope."""
 
