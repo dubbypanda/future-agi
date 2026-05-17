@@ -51,10 +51,20 @@ from model_hub.serializers.contracts import (
     EvalTemplateVersionCreateRequestSerializer,
     EvalMetricRequestSerializer,
     EvalTemplateNamesRequestSerializer,
+    GroundTruthConfigResponseSerializer,
     GroundTruthConfigRequestSerializer,
+    GroundTruthDataResponseSerializer,
+    GroundTruthDeleteResponseSerializer,
+    GroundTruthEmbedResponseSerializer,
+    GroundTruthListResponseSerializer,
     GroundTruthMappingRequestSerializer,
+    GroundTruthMappingResponseSerializer,
     GroundTruthRoleMappingRequestSerializer,
+    GroundTruthRoleMappingResponseSerializer,
     GroundTruthSearchRequestSerializer,
+    GroundTruthSearchResponseSerializer,
+    GroundTruthStatusResponseSerializer,
+    GroundTruthUploadResponseSerializer,
     GroundTruthUploadRequestSerializer,
     LegacyEvalTemplatesRequestSerializer,
     MODEL_HUB_ERROR_RESPONSES,
@@ -3789,7 +3799,7 @@ class GroundTruthListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: GroundTruthListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, template_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -3851,7 +3861,10 @@ class GroundTruthUploadView(APIView):
 
     @swagger_auto_schema(
         request_body=GroundTruthUploadRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: GroundTruthUploadResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, template_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -3974,7 +3987,10 @@ class GroundTruthMappingView(APIView):
 
     @swagger_auto_schema(
         request_body=GroundTruthMappingRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: GroundTruthMappingResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def put(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4015,7 +4031,10 @@ class GroundTruthRoleMappingView(APIView):
 
     @swagger_auto_schema(
         request_body=GroundTruthRoleMappingRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: GroundTruthRoleMappingResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def put(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4073,7 +4092,7 @@ class GroundTruthDataView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: GroundTruthDataResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4119,7 +4138,10 @@ class GroundTruthStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: GroundTruthStatusResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4158,7 +4180,10 @@ class GroundTruthDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: GroundTruthDeleteResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def delete(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4195,7 +4220,10 @@ class GroundTruthConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: GroundTruthConfigResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, template_id, *args, **kwargs):
         try:
@@ -4229,7 +4257,10 @@ class GroundTruthConfigView(APIView):
 
     @swagger_auto_schema(
         request_body=GroundTruthConfigRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: GroundTruthConfigResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def put(self, request, template_id, *args, **kwargs):
         from model_hub.types import GroundTruthConfigRequest
@@ -4289,7 +4320,10 @@ class GroundTruthSearchView(APIView):
 
     @swagger_auto_schema(
         request_body=GroundTruthSearchRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: GroundTruthSearchResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth
@@ -4350,7 +4384,7 @@ class GroundTruthTriggerEmbeddingView(APIView):
 
     @swagger_auto_schema(
         request_body=ModelHubEmptyRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={200: GroundTruthEmbedResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, ground_truth_id, *args, **kwargs):
         from model_hub.models.evals_metric import EvalGroundTruth

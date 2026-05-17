@@ -807,16 +807,16 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "ModelHubJSONResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/ground-truth/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthListResponse"
         ),
         ("POST", "/model-hub/eval-templates/{template_id}/ground-truth/upload/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthUploadResponse"
         ),
         ("GET", "/model-hub/eval-templates/{template_id}/ground-truth-config/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthConfigResponse"
         ),
         ("PUT", "/model-hub/eval-templates/{template_id}/ground-truth-config/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthConfigResponse"
         ),
         ("PUT", "/model-hub/eval-templates/{template_id}/update/"): (
             "ModelHubJSONResponse"
@@ -867,25 +867,25 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/get-eval-template-names"): "ModelHubJSONResponse",
         ("POST", "/model-hub/get-eval-templates"): "ModelHubJSONResponse",
         ("DELETE", "/model-hub/ground-truth/{ground_truth_id}/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthDeleteResponse"
         ),
         ("GET", "/model-hub/ground-truth/{ground_truth_id}/data/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthDataResponse"
         ),
         ("POST", "/model-hub/ground-truth/{ground_truth_id}/embed/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthEmbedResponse"
         ),
         ("PUT", "/model-hub/ground-truth/{ground_truth_id}/mapping/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthMappingResponse"
         ),
         ("PUT", "/model-hub/ground-truth/{ground_truth_id}/role-mapping/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthRoleMappingResponse"
         ),
         ("POST", "/model-hub/ground-truth/{ground_truth_id}/search/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthSearchResponse"
         ),
         ("GET", "/model-hub/ground-truth/{ground_truth_id}/status/"): (
-            "ModelHubJSONResponse"
+            "GroundTruthStatusResponse"
         ),
         ("GET", "/model-hub/kb/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/kb/"): "ModelHubJSONResponse",

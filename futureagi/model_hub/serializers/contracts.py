@@ -1115,6 +1115,144 @@ class GroundTruthSearchRequestSerializer(serializers.Serializer):
     max_results = serializers.IntegerField(required=False, min_value=1, max_value=20)
 
 
+class GroundTruthItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True)
+    file_name = serializers.CharField(required=False, allow_blank=True)
+    columns = serializers.ListField(child=serializers.CharField())
+    row_count = serializers.IntegerField()
+    variable_mapping = serializers.JSONField(required=False, allow_null=True)
+    role_mapping = serializers.JSONField(required=False, allow_null=True)
+    embedding_status = serializers.CharField(required=False)
+    embedded_row_count = serializers.IntegerField(required=False)
+    storage_type = serializers.CharField(required=False)
+    created_at = serializers.CharField(required=False, allow_blank=True)
+
+
+class GroundTruthListResponseResultSerializer(serializers.Serializer):
+    template_id = serializers.UUIDField()
+    items = GroundTruthItemSerializer(many=True)
+    total = serializers.IntegerField()
+
+
+class GroundTruthListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthListResponseResultSerializer()
+
+
+class GroundTruthUploadResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    row_count = serializers.IntegerField()
+    columns = serializers.ListField(child=serializers.CharField())
+    embedding_status = serializers.CharField()
+
+
+class GroundTruthUploadResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthUploadResponseResultSerializer()
+
+
+class GroundTruthMappingResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    variable_mapping = serializers.JSONField(required=False, allow_null=True)
+
+
+class GroundTruthMappingResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthMappingResponseResultSerializer()
+
+
+class GroundTruthRoleMappingResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    role_mapping = serializers.JSONField(required=False, allow_null=True)
+    embedding_status = serializers.CharField()
+
+
+class GroundTruthRoleMappingResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthRoleMappingResponseResultSerializer()
+
+
+class GroundTruthDataResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    total_rows = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+    columns = serializers.ListField(child=serializers.CharField())
+    rows = serializers.ListField(child=serializers.JSONField())
+
+
+class GroundTruthDataResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthDataResponseResultSerializer()
+
+
+class GroundTruthStatusResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    embedding_status = serializers.CharField()
+    embedded_row_count = serializers.IntegerField()
+    total_rows = serializers.IntegerField()
+    progress_percent = serializers.FloatField()
+
+
+class GroundTruthStatusResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthStatusResponseResultSerializer()
+
+
+class GroundTruthDeleteResponseResultSerializer(serializers.Serializer):
+    deleted = serializers.BooleanField()
+    id = serializers.UUIDField()
+
+
+class GroundTruthDeleteResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthDeleteResponseResultSerializer()
+
+
+class GroundTruthConfigSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField(required=False)
+    ground_truth_id = serializers.UUIDField(required=False, allow_null=True)
+    mode = serializers.CharField(required=False)
+    max_examples = serializers.IntegerField(required=False)
+    similarity_threshold = serializers.FloatField(required=False)
+    injection_format = serializers.CharField(required=False)
+
+
+class GroundTruthConfigResponseResultSerializer(serializers.Serializer):
+    ground_truth = GroundTruthConfigSerializer()
+
+
+class GroundTruthConfigResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthConfigResponseResultSerializer()
+
+
+class GroundTruthSearchResponseResultSerializer(serializers.Serializer):
+    query = serializers.CharField()
+    results = serializers.ListField(child=serializers.JSONField())
+    total = serializers.IntegerField()
+
+
+class GroundTruthSearchResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthSearchResponseResultSerializer()
+
+
+class GroundTruthEmbedResponseResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    embedding_status = serializers.CharField()
+    message = serializers.CharField()
+
+
+class GroundTruthEmbedResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthEmbedResponseResultSerializer()
+
+
 class EvalMetricRequestSerializer(serializers.Serializer):
     eval_template_id = serializers.UUIDField()
     filters = serializers.ListField(

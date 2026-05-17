@@ -18990,23 +18990,22 @@ export const ModelHubEvalTemplatesGroundTruthConfigListParams = zod.object({
   "template_id": zod.string()
 })
 
+
+
+
+
 export const ModelHubEvalTemplatesGroundTruthConfigListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "ground_truth": zod.object({
+  "enabled": zod.boolean().optional(),
+  "ground_truth_id": zod.string().uuid().optional(),
+  "mode": zod.string().min(1).optional(),
+  "max_examples": zod.number().optional(),
+  "similarity_threshold": zod.number().optional(),
+  "injection_format": zod.string().min(1).optional()
+})
+})
 })
 
 
@@ -19036,23 +19035,22 @@ export const ModelHubEvalTemplatesGroundTruthConfigUpdateBody = zod.object({
   "injection_format": zod.enum(['structured', 'conversational', 'xml']).default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyInjectionFormatDefault)
 })
 
+
+
+
+
 export const ModelHubEvalTemplatesGroundTruthConfigUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "ground_truth": zod.object({
+  "enabled": zod.boolean().optional(),
+  "ground_truth_id": zod.string().uuid().optional(),
+  "mode": zod.string().min(1).optional(),
+  "max_examples": zod.number().optional(),
+  "similarity_threshold": zod.number().optional(),
+  "injection_format": zod.string().min(1).optional()
+})
+})
 })
 
 
@@ -19063,23 +19061,36 @@ export const ModelHubEvalTemplatesGroundTruthListParams = zod.object({
   "template_id": zod.string()
 })
 
+
+
+
+
+
+
 export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "template_id": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "file_name": zod.string().optional(),
+  "columns": zod.array(zod.string().min(1)),
+  "row_count": zod.number(),
+  "variable_mapping": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "role_mapping": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "embedding_status": zod.string().min(1).optional(),
+  "embedded_row_count": zod.number().optional(),
+  "storage_type": zod.string().min(1).optional(),
+  "created_at": zod.string().optional()
+})),
+  "total": zod.number()
+})
 })
 
 
@@ -19115,23 +19126,20 @@ export const ModelHubEvalTemplatesGroundTruthUploadCreateBody = zod.object({
 }).passthrough().optional()
 })
 
+
+
+
+
+
 export const ModelHubEvalTemplatesGroundTruthUploadCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "row_count": zod.number(),
+  "columns": zod.array(zod.string().min(1)),
+  "embedding_status": zod.string().min(1)
+})
 })
 
 
@@ -21168,22 +21176,11 @@ export const ModelHubGroundTruthDeleteParams = zod.object({
 })
 
 export const ModelHubGroundTruthDeleteResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "deleted": zod.boolean(),
+  "id": zod.string().uuid()
+})
 })
 
 
@@ -21194,23 +21191,22 @@ export const ModelHubGroundTruthDataListParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+
+
+
 export const ModelHubGroundTruthDataListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "id": zod.string().uuid(),
+  "page": zod.number(),
+  "page_size": zod.number(),
+  "total_rows": zod.number(),
+  "total_pages": zod.number(),
+  "columns": zod.array(zod.string().min(1)),
+  "rows": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough())
+})
 })
 
 
@@ -21225,23 +21221,17 @@ export const ModelHubGroundTruthEmbedCreateBody = zod.object({
 
 }).passthrough()
 
+
+
+
+
 export const ModelHubGroundTruthEmbedCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "embedding_status": zod.string().min(1),
+  "message": zod.string().min(1)
+})
 })
 
 
@@ -21259,22 +21249,13 @@ export const ModelHubGroundTruthMappingUpdateBody = zod.object({
 })
 
 export const ModelHubGroundTruthMappingUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
+  "id": zod.string().uuid(),
+  "variable_mapping": zod.object({
 
 }).passthrough().optional()
+})
 })
 
 
@@ -21291,23 +21272,18 @@ export const ModelHubGroundTruthRoleMappingUpdateBody = zod.object({
 }).passthrough()
 })
 
+
+
+
 export const ModelHubGroundTruthRoleMappingUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "id": zod.string().uuid(),
+  "role_mapping": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "embedding_status": zod.string().min(1)
+})
 })
 
 
@@ -21328,23 +21304,18 @@ export const ModelHubGroundTruthSearchCreateBody = zod.object({
   "max_results": zod.number().min(1).max(modelHubGroundTruthSearchCreateBodyMaxResultsMax).optional()
 })
 
+
+
+
 export const ModelHubGroundTruthSearchCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "query": zod.string().min(1),
+  "results": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough()),
+  "total": zod.number()
+})
 })
 
 
@@ -21355,23 +21326,18 @@ export const ModelHubGroundTruthStatusListParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+
+
+
 export const ModelHubGroundTruthStatusListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "embedding_status": zod.string().min(1),
+  "embedded_row_count": zod.number(),
+  "total_rows": zod.number(),
+  "progress_percent": zod.number()
+})
 })
 
 

@@ -399,10 +399,20 @@ import type {
   GraphListApi,
   GraphUpdateApi,
   GroundTruthConfigRequestApi,
+  GroundTruthConfigResponseApi,
+  GroundTruthDataResponseApi,
+  GroundTruthDeleteResponseApi,
+  GroundTruthEmbedResponseApi,
+  GroundTruthListResponseApi,
   GroundTruthMappingRequestApi,
+  GroundTruthMappingResponseApi,
   GroundTruthRoleMappingRequestApi,
+  GroundTruthRoleMappingResponseApi,
   GroundTruthSearchRequestApi,
+  GroundTruthSearchResponseApi,
+  GroundTruthStatusResponseApi,
   GroundTruthUploadRequestApi,
+  GroundTruthUploadResponseApi,
   HealthCheckResponseApi,
   HuggingFaceAddRowsRequestApi,
   HuggingFaceDatasetConfigRequestApi,
@@ -30357,7 +30367,7 @@ export const modelHubEvalTemplatesFeedbackListList = async (templateId: string, 
 
 
 export type modelHubEvalTemplatesGroundTruthConfigListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthConfigResponseApi
   status: 200
 }
 
@@ -30421,7 +30431,7 @@ export const modelHubEvalTemplatesGroundTruthConfigList = async (templateId: str
 
 
 export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthConfigResponseApi
   status: 200
 }
 
@@ -30487,7 +30497,7 @@ export const modelHubEvalTemplatesGroundTruthConfigUpdate = async (templateId: s
 
 
 export type modelHubEvalTemplatesGroundTruthListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthListResponseApi
   status: 200
 }
 
@@ -30550,7 +30560,7 @@ export const modelHubEvalTemplatesGroundTruthList = async (templateId: string, o
 
 
 export type modelHubEvalTemplatesGroundTruthUploadCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthUploadResponseApi
   status: 200
 }
 
@@ -34423,7 +34433,7 @@ export const modelHubGetEvalTemplatesCreate = async (legacyEvalTemplatesRequestA
 
 
 export type modelHubGroundTruthDeleteResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthDeleteResponseApi
   status: 200
 }
 
@@ -34486,7 +34496,7 @@ export const modelHubGroundTruthDelete = async (groundTruthId: string, options?:
 
 
 export type modelHubGroundTruthDataListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthDataResponseApi
   status: 200
 }
 
@@ -34549,7 +34559,7 @@ export const modelHubGroundTruthDataList = async (groundTruthId: string, options
 
 
 export type modelHubGroundTruthEmbedCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthEmbedResponseApi
   status: 200
 }
 
@@ -34614,7 +34624,7 @@ export const modelHubGroundTruthEmbedCreate = async (groundTruthId: string,
 
 
 export type modelHubGroundTruthMappingUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthMappingResponseApi
   status: 200
 }
 
@@ -34679,7 +34689,7 @@ export const modelHubGroundTruthMappingUpdate = async (groundTruthId: string,
 
 
 export type modelHubGroundTruthRoleMappingUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthRoleMappingResponseApi
   status: 200
 }
 
@@ -34744,7 +34754,7 @@ export const modelHubGroundTruthRoleMappingUpdate = async (groundTruthId: string
 
 
 export type modelHubGroundTruthSearchCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthSearchResponseApi
   status: 200
 }
 
@@ -34809,7 +34819,7 @@ export const modelHubGroundTruthSearchCreate = async (groundTruthId: string,
 
 
 export type modelHubGroundTruthStatusListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: GroundTruthStatusResponseApi
   status: 200
 }
 

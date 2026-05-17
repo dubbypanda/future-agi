@@ -13892,7 +13892,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthConfigResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13919,7 +13919,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthConfigResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13946,7 +13946,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthListResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13975,7 +13975,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthUploadResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -15954,7 +15954,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthDeleteResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -15981,7 +15981,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthDataResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16010,7 +16010,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthEmbedResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16039,7 +16039,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthMappingResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16068,7 +16068,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthRoleMappingResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16097,7 +16097,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthSearchResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16124,7 +16124,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/GroundTruthStatusResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -44723,6 +44723,86 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GroundTruthConfigResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthConfigResponseResult"
+        }
+      }
+    },
+    "GroundTruthDataResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthDataResponseResult"
+        }
+      }
+    },
+    "GroundTruthDeleteResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthDeleteResponseResult"
+        }
+      }
+    },
+    "GroundTruthEmbedResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthEmbedResponseResult"
+        }
+      }
+    },
+    "GroundTruthListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthListResponseResult"
+        }
+      }
+    },
     "GroundTruthMappingRequest": {
       "required": [
         "variable_mapping"
@@ -44735,6 +44815,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GroundTruthMappingResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthMappingResponseResult"
+        }
+      }
+    },
     "GroundTruthRoleMappingRequest": {
       "required": [
         "role_mapping"
@@ -44744,6 +44840,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "role_mapping": {
           "title": "Role mapping",
           "type": "object"
+        }
+      }
+    },
+    "GroundTruthRoleMappingResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthRoleMappingResponseResult"
         }
       }
     },
@@ -44763,6 +44875,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "integer",
           "maximum": 20,
           "minimum": 1
+        }
+      }
+    },
+    "GroundTruthSearchResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthSearchResponseResult"
+        }
+      }
+    },
+    "GroundTruthStatusResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthStatusResponseResult"
         }
       }
     },
@@ -44812,6 +44956,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Role mapping",
           "type": "object",
           "x-nullable": true
+        }
+      }
+    },
+    "GroundTruthUploadResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthUploadResponseResult"
         }
       }
     },
@@ -61403,6 +61563,272 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GroundTruthConfigResponseResult": {
+      "required": [
+        "ground_truth"
+      ],
+      "type": "object",
+      "properties": {
+        "ground_truth": {
+          "$ref": "#/definitions/GroundTruthConfig"
+        }
+      }
+    },
+    "GroundTruthDataResponseResult": {
+      "required": [
+        "id",
+        "page",
+        "page_size",
+        "total_rows",
+        "total_pages",
+        "columns",
+        "rows"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page size",
+          "type": "integer"
+        },
+        "total_rows": {
+          "title": "Total rows",
+          "type": "integer"
+        },
+        "total_pages": {
+          "title": "Total pages",
+          "type": "integer"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "GroundTruthDeleteResponseResult": {
+      "required": [
+        "deleted",
+        "id"
+      ],
+      "type": "object",
+      "properties": {
+        "deleted": {
+          "title": "Deleted",
+          "type": "boolean"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "GroundTruthEmbedResponseResult": {
+      "required": [
+        "id",
+        "embedding_status",
+        "message"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GroundTruthListResponseResult": {
+      "required": [
+        "template_id",
+        "items",
+        "total"
+      ],
+      "type": "object",
+      "properties": {
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GroundTruthItem"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      }
+    },
+    "GroundTruthMappingResponseResult": {
+      "required": [
+        "id"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "variable_mapping": {
+          "title": "Variable mapping",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "GroundTruthRoleMappingResponseResult": {
+      "required": [
+        "id",
+        "embedding_status"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "role_mapping": {
+          "title": "Role mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GroundTruthSearchResponseResult": {
+      "required": [
+        "query",
+        "results",
+        "total"
+      ],
+      "type": "object",
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string",
+          "minLength": 1
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      }
+    },
+    "GroundTruthStatusResponseResult": {
+      "required": [
+        "id",
+        "embedding_status",
+        "embedded_row_count",
+        "total_rows",
+        "progress_percent"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        },
+        "embedded_row_count": {
+          "title": "Embedded row count",
+          "type": "integer"
+        },
+        "total_rows": {
+          "title": "Total rows",
+          "type": "integer"
+        },
+        "progress_percent": {
+          "title": "Progress percent",
+          "type": "number"
+        }
+      }
+    },
+    "GroundTruthUploadResponseResult": {
+      "required": [
+        "id",
+        "name",
+        "row_count",
+        "columns",
+        "embedding_status"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "row_count": {
+          "title": "Row count",
+          "type": "integer"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "HuggingFaceDatasetDetailResponseResult": {
       "required": [
         "message",
@@ -67455,6 +67881,107 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "GroundTruthConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "ground_truth_id": {
+          "title": "Ground truth id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string",
+          "minLength": 1
+        },
+        "max_examples": {
+          "title": "Max examples",
+          "type": "integer"
+        },
+        "similarity_threshold": {
+          "title": "Similarity threshold",
+          "type": "number"
+        },
+        "injection_format": {
+          "title": "Injection format",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GroundTruthItem": {
+      "required": [
+        "id",
+        "name",
+        "columns",
+        "row_count"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "file_name": {
+          "title": "File name",
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "row_count": {
+          "title": "Row count",
+          "type": "integer"
+        },
+        "variable_mapping": {
+          "title": "Variable mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "role_mapping": {
+          "title": "Role mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        },
+        "embedded_row_count": {
+          "title": "Embedded row count",
+          "type": "integer"
+        },
+        "storage_type": {
+          "title": "Storage type",
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string"
         }
       }
     },

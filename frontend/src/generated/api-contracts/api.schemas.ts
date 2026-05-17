@@ -6667,6 +6667,26 @@ export interface CompositeEvalExecuteRequestApi {
   row_context?: CompositeEvalExecuteRequestApiRowContext;
 }
 
+export interface GroundTruthConfigApi {
+  enabled?: boolean;
+  ground_truth_id?: string;
+  /** @minLength 1 */
+  mode?: string;
+  max_examples?: number;
+  similarity_threshold?: number;
+  /** @minLength 1 */
+  injection_format?: string;
+}
+
+export interface GroundTruthConfigResponseResultApi {
+  ground_truth: GroundTruthConfigApi;
+}
+
+export interface GroundTruthConfigResponseApi {
+  status: boolean;
+  result: GroundTruthConfigResponseResultApi;
+}
+
 export type GroundTruthConfigRequestApiMode = typeof GroundTruthConfigRequestApiMode[keyof typeof GroundTruthConfigRequestApiMode];
 
 
@@ -6702,6 +6722,39 @@ export interface GroundTruthConfigRequestApi {
   injection_format?: GroundTruthConfigRequestApiInjectionFormat;
 }
 
+export type GroundTruthItemApiVariableMapping = { [key: string]: unknown };
+
+export type GroundTruthItemApiRoleMapping = { [key: string]: unknown };
+
+export interface GroundTruthItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  file_name?: string;
+  columns: string[];
+  row_count: number;
+  variable_mapping?: GroundTruthItemApiVariableMapping;
+  role_mapping?: GroundTruthItemApiRoleMapping;
+  /** @minLength 1 */
+  embedding_status?: string;
+  embedded_row_count?: number;
+  /** @minLength 1 */
+  storage_type?: string;
+  created_at?: string;
+}
+
+export interface GroundTruthListResponseResultApi {
+  template_id: string;
+  items: GroundTruthItemApi[];
+  total: number;
+}
+
+export interface GroundTruthListResponseApi {
+  status: boolean;
+  result: GroundTruthListResponseResultApi;
+}
+
 export type GroundTruthUploadRequestApiDataItem = { [key: string]: unknown };
 
 export type GroundTruthUploadRequestApiVariableMapping = { [key: string]: unknown };
@@ -6720,6 +6773,21 @@ export interface GroundTruthUploadRequestApi {
   data: GroundTruthUploadRequestApiDataItem[];
   variable_mapping?: GroundTruthUploadRequestApiVariableMapping;
   role_mapping?: GroundTruthUploadRequestApiRoleMapping;
+}
+
+export interface GroundTruthUploadResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  row_count: number;
+  columns: string[];
+  /** @minLength 1 */
+  embedding_status: string;
+}
+
+export interface GroundTruthUploadResponseApi {
+  status: boolean;
+  result: GroundTruthUploadResponseResultApi;
 }
 
 export type EvalTemplateUpdateV2RequestApiEvalType = typeof EvalTemplateUpdateV2RequestApiEvalType[keyof typeof EvalTemplateUpdateV2RequestApiEvalType];
@@ -7161,16 +7229,82 @@ export interface LegacyEvalTemplatesRequestApi {
   sort?: LegacyEvalTemplatesRequestApiSortItem[];
 }
 
+export interface GroundTruthDeleteResponseResultApi {
+  deleted: boolean;
+  id: string;
+}
+
+export interface GroundTruthDeleteResponseApi {
+  status: boolean;
+  result: GroundTruthDeleteResponseResultApi;
+}
+
+export type GroundTruthDataResponseResultApiRowsItem = { [key: string]: unknown };
+
+export interface GroundTruthDataResponseResultApi {
+  id: string;
+  page: number;
+  page_size: number;
+  total_rows: number;
+  total_pages: number;
+  columns: string[];
+  rows: GroundTruthDataResponseResultApiRowsItem[];
+}
+
+export interface GroundTruthDataResponseApi {
+  status: boolean;
+  result: GroundTruthDataResponseResultApi;
+}
+
+export interface GroundTruthEmbedResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  embedding_status: string;
+  /** @minLength 1 */
+  message: string;
+}
+
+export interface GroundTruthEmbedResponseApi {
+  status: boolean;
+  result: GroundTruthEmbedResponseResultApi;
+}
+
 export type GroundTruthMappingRequestApiVariableMapping = { [key: string]: unknown };
 
 export interface GroundTruthMappingRequestApi {
   variable_mapping: GroundTruthMappingRequestApiVariableMapping;
 }
 
+export type GroundTruthMappingResponseResultApiVariableMapping = { [key: string]: unknown };
+
+export interface GroundTruthMappingResponseResultApi {
+  id: string;
+  variable_mapping?: GroundTruthMappingResponseResultApiVariableMapping;
+}
+
+export interface GroundTruthMappingResponseApi {
+  status: boolean;
+  result: GroundTruthMappingResponseResultApi;
+}
+
 export type GroundTruthRoleMappingRequestApiRoleMapping = { [key: string]: unknown };
 
 export interface GroundTruthRoleMappingRequestApi {
   role_mapping: GroundTruthRoleMappingRequestApiRoleMapping;
+}
+
+export type GroundTruthRoleMappingResponseResultApiRoleMapping = { [key: string]: unknown };
+
+export interface GroundTruthRoleMappingResponseResultApi {
+  id: string;
+  role_mapping?: GroundTruthRoleMappingResponseResultApiRoleMapping;
+  /** @minLength 1 */
+  embedding_status: string;
+}
+
+export interface GroundTruthRoleMappingResponseApi {
+  status: boolean;
+  result: GroundTruthRoleMappingResponseResultApi;
 }
 
 export interface GroundTruthSearchRequestApi {
@@ -7181,6 +7315,34 @@ export interface GroundTruthSearchRequestApi {
      * @maximum 20
      */
   max_results?: number;
+}
+
+export type GroundTruthSearchResponseResultApiResultsItem = { [key: string]: unknown };
+
+export interface GroundTruthSearchResponseResultApi {
+  /** @minLength 1 */
+  query: string;
+  results: GroundTruthSearchResponseResultApiResultsItem[];
+  total: number;
+}
+
+export interface GroundTruthSearchResponseApi {
+  status: boolean;
+  result: GroundTruthSearchResponseResultApi;
+}
+
+export interface GroundTruthStatusResponseResultApi {
+  id: string;
+  /** @minLength 1 */
+  embedding_status: string;
+  embedded_row_count: number;
+  total_rows: number;
+  progress_percent: number;
+}
+
+export interface GroundTruthStatusResponseApi {
+  status: boolean;
+  result: GroundTruthStatusResponseResultApi;
 }
 
 export type KnowledgeBaseCreateApiEmbeddingModel = typeof KnowledgeBaseCreateApiEmbeddingModel[keyof typeof KnowledgeBaseCreateApiEmbeddingModel];
