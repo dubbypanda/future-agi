@@ -116,15 +116,24 @@ class TestVoiceCallAnnotationNumberFilters:
         )
         assert result != Q()
 
-    def test_not_equal_to_alias_requires_existing_score(self):
+    def test_not_equals_requires_existing_score(self):
         uid = str(uuid.uuid4())
-        filters = [_make_annotation_filter(uid, "number", "not_equal_to", 4.0)]
+        filters = [_make_annotation_filter(uid, "number", "not_equals", 4.0)]
         result, _ = FilterEngine.get_filter_conditions_for_voice_call_annotations(
             filters
         )
 
         assert result != Q()
         assert f"('annotation_{uid}__score__isnull', False)" in repr(result)
+
+    def test_legacy_not_equal_to_alias_is_rejected(self):
+        uid = str(uuid.uuid4())
+        filters = [_make_annotation_filter(uid, "number", "not_equal_to", 4.0)]
+        result, _ = FilterEngine.get_filter_conditions_for_voice_call_annotations(
+            filters
+        )
+
+        assert result == Q()
 
     def test_greater_than_or_equal(self):
         uid = str(uuid.uuid4())
@@ -158,7 +167,7 @@ class TestVoiceCallAnnotationNumberFilters:
         )
         assert result != Q()
 
-    def test_not_between_alias_requires_existing_score(self):
+    def test_not_between_requires_existing_score(self):
         uid = str(uuid.uuid4())
         filters = [_make_annotation_filter(uid, "number", "not_between", [2.0, 8.0])]
         result, _ = FilterEngine.get_filter_conditions_for_voice_call_annotations(
