@@ -1957,11 +1957,6 @@ export const endpoints = {
     create: apiPath("/accounts/organizations/new/"),
     update: apiPath("/accounts/organizations/update/"),
   },
-  feed: {
-    getFeed: legacyApiPath("/tracer/trace-error-analysis/clusters/feed/"),
-    getFeedDetails: (id) =>
-      legacyApiPath("/tracer/trace-error-analysis/clusters/{id}/", { id }),
-  },
   errorFeed: {
     list: apiPath("/tracer/feed/issues/"),
     stats: apiPath("/tracer/feed/issues/stats/"),

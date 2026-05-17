@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import { Suspense } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 
 import { AuthGuard } from "src/auth/guard";
 import DashboardLayout from "src/layouts/dashboard";
@@ -107,9 +107,6 @@ const EvalsUsage = lazyWithRetry(
 );
 const EvalCreate = lazyWithRetry(
   () => import("src/pages/dashboard/evals/EvalCreate"),
-);
-const EvalDetailView = lazyWithRetry(
-  () => import("src/sections/evals/EvalDetails/EvalDetailView"),
 );
 const EvalDetail = lazyWithRetry(
   () => import("src/pages/dashboard/evals/EvalDetail"),
@@ -373,10 +370,6 @@ const WorkspaceGeneral = lazyWithRetry(
 const FalconAIPage = lazyWithRetry(
   () => import("src/pages/dashboard/falcon-ai/FalconAI"),
 );
-const Feed = lazyWithRetry(() => import("src/pages/dashboard/feed/Feed"));
-const FeedDetail = lazyWithRetry(
-  () => import("src/pages/dashboard/feed/FeedDetail"),
-);
 const ErrorFeed = lazyWithRetry(
   () => import("src/pages/dashboard/error-feed/ErrorFeed"),
 );
@@ -389,6 +382,11 @@ const AnnotationLabelsPage = lazyWithRetry(
 const AnnotationQueuesPage = lazyWithRetry(
   () => import("src/pages/dashboard/annotations/queues"),
 );
+
+function LegacyFeedDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/dashboard/error-feed/${id}`} replace />;
+}
 const QueueDetailPage = lazyWithRetry(
   () => import("src/pages/dashboard/annotations/queue-detail"),
 );
@@ -1254,11 +1252,11 @@ export const dashboardRoutes = (
       children: [
         {
           index: true,
-          element: <Feed />,
+          element: <Navigate to="/dashboard/error-feed" replace />,
         },
         {
           path: ":id",
-          element: <FeedDetail />,
+          element: <LegacyFeedDetailRedirect />,
         },
       ],
     },

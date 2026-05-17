@@ -47,7 +47,7 @@ const PAGE_CONTEXT_MAP = [
   { prefix: "/dashboard/keys", page: "admin" },
   { prefix: "/dashboard/settings", page: "settings" },
   { prefix: "/dashboard/gateway", page: "gateway" },
-  { prefix: "/dashboard/feed", page: "tracing" },
+  { prefix: "/dashboard/error-feed", page: "tracing" },
   { prefix: "/dashboard/tasks", page: "tracing" },
 ];
 

@@ -237,19 +237,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
       "Replay-session prefetch action is still used by replay UI but is not exposed in Swagger.",
     next: "Add serializers/OpenAPI coverage for replay prefetch, then move this path to apiPath(...).",
   },
-  "/tracer/trace-error-analysis/clusters/{id}/": {
-    group: "tracer",
-    status: LEGACY_API_STATUSES.DEPRECATED_DEAD_REFERENCE,
-    reason:
-      "Trace error cluster detail route is commented out in backend URLs.",
-    next: "Remove the old feed call site or restore the route with serializers and OpenAPI coverage.",
-  },
-  "/tracer/trace-error-analysis/clusters/feed/": {
-    group: "tracer",
-    status: LEGACY_API_STATUSES.DEPRECATED_DEAD_REFERENCE,
-    reason: "Trace error cluster feed route is commented out in backend URLs.",
-    next: "Remove the old feed call site or restore the route with serializers and OpenAPI coverage.",
-  },
   "/tracer/user-alerts/{id}/fetch_logs/": {
     group: "tracer",
     status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
