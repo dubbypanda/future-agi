@@ -18368,23 +18368,20 @@ export const ModelHubEvalSdkCodeListResponse = zod.object({
 })
 
 
+
+
+
+
 export const ModelHubEvalSummaryTemplatesListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "templates": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "criteria": zod.string().min(1)
+}))
+})
 })
 
 
@@ -18394,23 +18391,18 @@ export const ModelHubEvalSummaryTemplatesCreateBody = zod.object({
   "criteria": zod.string().optional()
 })
 
+
+
+
+
 export const ModelHubEvalSummaryTemplatesCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "criteria": zod.string().min(1)
+})
 })
 
 
@@ -18424,28 +18416,30 @@ export const ModelHubEvalSummaryTemplatesUpdateBody = zod.object({
   "criteria": zod.string().optional()
 })
 
+
+
+
+
 export const ModelHubEvalSummaryTemplatesUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "criteria": zod.string().min(1)
+})
 })
 
 
 export const ModelHubEvalSummaryTemplatesDeleteParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalSummaryTemplatesDeleteResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "deleted": zod.boolean()
+})
 })
 
 

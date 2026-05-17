@@ -133,6 +133,36 @@ class HuggingFaceDatasetDetailResponseSerializer(serializers.Serializer):
     result = HuggingFaceDatasetDetailResponseResultSerializer()
 
 
+class EvalSummaryTemplateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+    criteria = serializers.CharField()
+
+
+class EvalSummaryTemplateListResponseResultSerializer(serializers.Serializer):
+    templates = EvalSummaryTemplateSerializer(many=True)
+
+
+class EvalSummaryTemplateListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalSummaryTemplateListResponseResultSerializer()
+
+
+class EvalSummaryTemplateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalSummaryTemplateSerializer()
+
+
+class EvalSummaryTemplateDeleteResponseResultSerializer(serializers.Serializer):
+    deleted = serializers.BooleanField()
+
+
+class EvalSummaryTemplateDeleteResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalSummaryTemplateDeleteResponseResultSerializer()
+
+
 class AIEvalWriterRequestSerializer(serializers.Serializer):
     description = serializers.CharField()
     output_format = serializers.ChoiceField(

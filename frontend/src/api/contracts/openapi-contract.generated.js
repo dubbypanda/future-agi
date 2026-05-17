@@ -13444,7 +13444,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalSummaryTemplateListResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13471,7 +13471,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalSummaryTemplateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13500,7 +13500,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/EvalSummaryTemplateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13523,7 +13523,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-summary-templates_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/EvalSummaryTemplateDeleteResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-template/create/": {
@@ -42206,6 +42225,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalSummaryTemplateDeleteResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalSummaryTemplateDeleteResponseResult"
+        }
+      }
+    },
+    "EvalSummaryTemplateListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalSummaryTemplateListResponseResult"
+        }
+      }
+    },
     "EvalSummaryTemplateMutationRequest": {
       "type": "object",
       "properties": {
@@ -42220,6 +42271,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "criteria": {
           "title": "Criteria",
           "type": "string"
+        }
+      }
+    },
+    "EvalSummaryTemplateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/EvalSummaryTemplate"
         }
       }
     },
@@ -60679,6 +60746,62 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "output": {
           "title": "Output",
           "type": "object"
+        }
+      }
+    },
+    "EvalSummaryTemplateDeleteResponseResult": {
+      "required": [
+        "deleted"
+      ],
+      "type": "object",
+      "properties": {
+        "deleted": {
+          "title": "Deleted",
+          "type": "boolean"
+        }
+      }
+    },
+    "EvalSummaryTemplateListResponseResult": {
+      "required": [
+        "templates"
+      ],
+      "type": "object",
+      "properties": {
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalSummaryTemplate"
+          }
+        }
+      }
+    },
+    "EvalSummaryTemplate": {
+      "required": [
+        "id",
+        "name",
+        "description",
+        "criteria"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "criteria": {
+          "title": "Criteria",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

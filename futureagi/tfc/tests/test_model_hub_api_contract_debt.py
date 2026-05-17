@@ -766,10 +766,17 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/eval-playground/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/eval-playground/feedback/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/eval-sdk-code/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/eval-summary-templates/"): (
+            "EvalSummaryTemplateListResponse"
+        ),
+        ("POST", "/model-hub/eval-summary-templates/"): (
+            "EvalSummaryTemplateResponse"
+        ),
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
-            "ModelHubJSONResponse"
+            "EvalSummaryTemplateResponse"
+        ),
+        ("DELETE", "/model-hub/eval-summary-templates/{template_id}/"): (
+            "EvalSummaryTemplateDeleteResponse"
         ),
         ("POST", "/model-hub/eval-templates/bulk-delete/"): (
             "ModelHubJSONResponse"

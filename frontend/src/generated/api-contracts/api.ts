@@ -326,7 +326,10 @@ import type {
   EvalPlayGroundFeedbackApi,
   EvalSummaryComparisonResponseApi,
   EvalSummaryResponseApi,
+  EvalSummaryTemplateDeleteResponseApi,
+  EvalSummaryTemplateListResponseApi,
   EvalSummaryTemplateMutationRequestApi,
+  EvalSummaryTemplateResponseApi,
   EvalTaskApi,
   EvalTemplateApi,
   EvalTemplateBulkDeleteRequestApi,
@@ -29320,7 +29323,7 @@ export const modelHubEvalSdkCodeList = async ( options?: RequestInit): Promise<m
 
 
 export type modelHubEvalSummaryTemplatesListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalSummaryTemplateListResponseApi
   status: 200
 }
 
@@ -29380,7 +29383,7 @@ export const modelHubEvalSummaryTemplatesList = async ( options?: RequestInit): 
 
 
 export type modelHubEvalSummaryTemplatesCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalSummaryTemplateResponseApi
   status: 200
 }
 
@@ -29441,7 +29444,7 @@ export const modelHubEvalSummaryTemplatesCreate = async (evalSummaryTemplateMuta
 
 
 export type modelHubEvalSummaryTemplatesUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalSummaryTemplateResponseApi
   status: 200
 }
 
@@ -29502,17 +29505,44 @@ export const modelHubEvalSummaryTemplatesUpdate = async (templateId: string,
 
 
 
-export type modelHubEvalSummaryTemplatesDeleteResponse204 = {
-  data: void
-  status: 204
+export type modelHubEvalSummaryTemplatesDeleteResponse200 = {
+  data: EvalSummaryTemplateDeleteResponseApi
+  status: 200
 }
 
-export type modelHubEvalSummaryTemplatesDeleteResponseSuccess = (modelHubEvalSummaryTemplatesDeleteResponse204) & {
+export type modelHubEvalSummaryTemplatesDeleteResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalSummaryTemplatesDeleteResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalSummaryTemplatesDeleteResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalSummaryTemplatesDeleteResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalSummaryTemplatesDeleteResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalSummaryTemplatesDeleteResponseSuccess = (modelHubEvalSummaryTemplatesDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalSummaryTemplatesDeleteResponseError = (modelHubEvalSummaryTemplatesDeleteResponse400 | modelHubEvalSummaryTemplatesDeleteResponse403 | modelHubEvalSummaryTemplatesDeleteResponse404 | modelHubEvalSummaryTemplatesDeleteResponse409 | modelHubEvalSummaryTemplatesDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalSummaryTemplatesDeleteResponse = (modelHubEvalSummaryTemplatesDeleteResponseSuccess)
+export type modelHubEvalSummaryTemplatesDeleteResponse = (modelHubEvalSummaryTemplatesDeleteResponseSuccess | modelHubEvalSummaryTemplatesDeleteResponseError)
 
 export const getModelHubEvalSummaryTemplatesDeleteUrl = (templateId: string,) => {
 

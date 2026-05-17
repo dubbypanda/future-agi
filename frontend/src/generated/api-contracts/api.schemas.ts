@@ -6274,10 +6274,42 @@ export interface EvalPlayGroundFeedbackApi {
   explanation?: string;
 }
 
+export interface EvalSummaryTemplateApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  description: string;
+  /** @minLength 1 */
+  criteria: string;
+}
+
+export interface EvalSummaryTemplateListResponseResultApi {
+  templates: EvalSummaryTemplateApi[];
+}
+
+export interface EvalSummaryTemplateListResponseApi {
+  status: boolean;
+  result: EvalSummaryTemplateListResponseResultApi;
+}
+
 export interface EvalSummaryTemplateMutationRequestApi {
   name?: string;
   description?: string;
   criteria?: string;
+}
+
+export interface EvalSummaryTemplateResponseApi {
+  status: boolean;
+  result: EvalSummaryTemplateApi;
+}
+
+export interface EvalSummaryTemplateDeleteResponseResultApi {
+  deleted: boolean;
+}
+
+export interface EvalSummaryTemplateDeleteResponseApi {
+  status: boolean;
+  result: EvalSummaryTemplateDeleteResponseResultApi;
 }
 
 export type EvalTemplateApiConfig = { [key: string]: unknown };

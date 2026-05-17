@@ -25866,7 +25866,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/EvalSummaryTemplateListResponse"
                         }
                     },
                     "400": {
@@ -25921,7 +25921,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/EvalSummaryTemplateResponse"
                         }
                     },
                     "400": {
@@ -25979,7 +25979,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/EvalSummaryTemplateResponse"
                         }
                     },
                     "400": {
@@ -26022,8 +26022,41 @@
                 "description": "",
                 "parameters": [],
                 "responses": {
-                    "204": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalSummaryTemplateDeleteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -76468,6 +76501,66 @@
                 }
             }
         },
+        "EvalSummaryTemplate": {
+            "required": [
+                "id",
+                "name",
+                "description",
+                "criteria"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "criteria": {
+                    "title": "Criteria",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "EvalSummaryTemplateListResponseResult": {
+            "required": [
+                "templates"
+            ],
+            "type": "object",
+            "properties": {
+                "templates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/EvalSummaryTemplate"
+                    }
+                }
+            }
+        },
+        "EvalSummaryTemplateListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/EvalSummaryTemplateListResponseResult"
+                }
+            }
+        },
         "EvalSummaryTemplateMutationRequest": {
             "type": "object",
             "properties": {
@@ -76482,6 +76575,50 @@
                 "criteria": {
                     "title": "Criteria",
                     "type": "string"
+                }
+            }
+        },
+        "EvalSummaryTemplateResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/EvalSummaryTemplate"
+                }
+            }
+        },
+        "EvalSummaryTemplateDeleteResponseResult": {
+            "required": [
+                "deleted"
+            ],
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "title": "Deleted",
+                    "type": "boolean"
+                }
+            }
+        },
+        "EvalSummaryTemplateDeleteResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/EvalSummaryTemplateDeleteResponseResult"
                 }
             }
         },

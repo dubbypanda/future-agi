@@ -21,9 +21,11 @@ from rest_framework.views import APIView
 
 from accounts.models import Organization
 from model_hub.serializers.contracts import (
+    EvalSummaryTemplateDeleteResponseSerializer,
+    EvalSummaryTemplateListResponseSerializer,
     EvalSummaryTemplateMutationRequestSerializer,
+    EvalSummaryTemplateResponseSerializer,
     MODEL_HUB_ERROR_RESPONSES,
-    ModelHubJSONResponseSerializer,
 )
 from tfc.utils.general_methods import GeneralMethods
 
@@ -60,7 +62,10 @@ class EvalSummaryTemplateListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: EvalSummaryTemplateListResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request):
         org = getattr(request, "organization", None) or request.user.organization
@@ -78,7 +83,10 @@ class EvalSummaryTemplateListView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalSummaryTemplateMutationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalSummaryTemplateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request):
         try:
@@ -119,7 +127,10 @@ class EvalSummaryTemplateDetailView(APIView):
 
     @swagger_auto_schema(
         request_body=EvalSummaryTemplateMutationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: EvalSummaryTemplateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def put(self, request, template_id):
         try:
@@ -157,6 +168,12 @@ class EvalSummaryTemplateDetailView(APIView):
             )
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: EvalSummaryTemplateDeleteResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
+    )
     def delete(self, request, template_id):
         try:
             org = getattr(request, "organization", None) or request.user.organization
