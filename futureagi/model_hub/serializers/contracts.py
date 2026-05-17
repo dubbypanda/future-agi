@@ -386,3 +386,9 @@ class DerivedVariableExtractRequestSerializer(serializers.Serializer):
 class DerivedVariablePreviewRequestSerializer(serializers.Serializer):
     content = serializers.JSONField()
     column_name = serializers.CharField(required=False, default="output")
+
+
+class EvalSummaryTemplateMutationRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+    criteria = serializers.CharField(required=False, allow_blank=True)

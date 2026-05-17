@@ -15817,8 +15817,79 @@ export const ModelHubEvalGroupsDeleteParams = zod.object({
 })
 
 
+export const ModelHubEvalSummaryTemplatesListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const ModelHubEvalSummaryTemplatesCreateBody = zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().optional(),
+  "criteria": zod.string().optional()
+})
+
+export const ModelHubEvalSummaryTemplatesCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubEvalSummaryTemplatesUpdateParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalSummaryTemplatesUpdateBody = zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().optional(),
+  "criteria": zod.string().optional()
+})
+
+export const ModelHubEvalSummaryTemplatesUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 

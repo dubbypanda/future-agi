@@ -270,6 +270,7 @@ import type {
   EvalGroupApi,
   EvalSummaryComparisonResponseApi,
   EvalSummaryResponseApi,
+  EvalSummaryTemplateMutationRequestApi,
   EvalTaskApi,
   ExecutePromptSimulationRequestApi,
   ExecutePromptSimulationResponseApi,
@@ -26759,16 +26760,43 @@ export const modelHubEvalSdkCodeList = async ( options?: RequestInit): Promise<m
 
 
 export type modelHubEvalSummaryTemplatesListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalSummaryTemplatesListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalSummaryTemplatesListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalSummaryTemplatesListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalSummaryTemplatesListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalSummaryTemplatesListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalSummaryTemplatesListResponseSuccess = (modelHubEvalSummaryTemplatesListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalSummaryTemplatesListResponseError = (modelHubEvalSummaryTemplatesListResponse400 | modelHubEvalSummaryTemplatesListResponse403 | modelHubEvalSummaryTemplatesListResponse404 | modelHubEvalSummaryTemplatesListResponse409 | modelHubEvalSummaryTemplatesListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalSummaryTemplatesListResponse = (modelHubEvalSummaryTemplatesListResponseSuccess)
+export type modelHubEvalSummaryTemplatesListResponse = (modelHubEvalSummaryTemplatesListResponseSuccess | modelHubEvalSummaryTemplatesListResponseError)
 
 export const getModelHubEvalSummaryTemplatesListUrl = () => {
 
@@ -26791,17 +26819,44 @@ export const modelHubEvalSummaryTemplatesList = async ( options?: RequestInit): 
 
 
 
-export type modelHubEvalSummaryTemplatesCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalSummaryTemplatesCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalSummaryTemplatesCreateResponseSuccess = (modelHubEvalSummaryTemplatesCreateResponse201) & {
+export type modelHubEvalSummaryTemplatesCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalSummaryTemplatesCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalSummaryTemplatesCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalSummaryTemplatesCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalSummaryTemplatesCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalSummaryTemplatesCreateResponseSuccess = (modelHubEvalSummaryTemplatesCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalSummaryTemplatesCreateResponseError = (modelHubEvalSummaryTemplatesCreateResponse400 | modelHubEvalSummaryTemplatesCreateResponse403 | modelHubEvalSummaryTemplatesCreateResponse404 | modelHubEvalSummaryTemplatesCreateResponse409 | modelHubEvalSummaryTemplatesCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalSummaryTemplatesCreateResponse = (modelHubEvalSummaryTemplatesCreateResponseSuccess)
+export type modelHubEvalSummaryTemplatesCreateResponse = (modelHubEvalSummaryTemplatesCreateResponseSuccess | modelHubEvalSummaryTemplatesCreateResponseError)
 
 export const getModelHubEvalSummaryTemplatesCreateUrl = () => {
 
@@ -26811,30 +26866,58 @@ export const getModelHubEvalSummaryTemplatesCreateUrl = () => {
   return `/model-hub/eval-summary-templates/`
 }
 
-export const modelHubEvalSummaryTemplatesCreate = async ( options?: RequestInit): Promise<modelHubEvalSummaryTemplatesCreateResponse> => {
+export const modelHubEvalSummaryTemplatesCreate = async (evalSummaryTemplateMutationRequestApi: EvalSummaryTemplateMutationRequestApi, options?: RequestInit): Promise<modelHubEvalSummaryTemplatesCreateResponse> => {
 
   return apiMutator<modelHubEvalSummaryTemplatesCreateResponse>(getModelHubEvalSummaryTemplatesCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalSummaryTemplateMutationRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalSummaryTemplatesUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalSummaryTemplatesUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalSummaryTemplatesUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalSummaryTemplatesUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalSummaryTemplatesUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalSummaryTemplatesUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalSummaryTemplatesUpdateResponseSuccess = (modelHubEvalSummaryTemplatesUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalSummaryTemplatesUpdateResponseError = (modelHubEvalSummaryTemplatesUpdateResponse400 | modelHubEvalSummaryTemplatesUpdateResponse403 | modelHubEvalSummaryTemplatesUpdateResponse404 | modelHubEvalSummaryTemplatesUpdateResponse409 | modelHubEvalSummaryTemplatesUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalSummaryTemplatesUpdateResponse = (modelHubEvalSummaryTemplatesUpdateResponseSuccess)
+export type modelHubEvalSummaryTemplatesUpdateResponse = (modelHubEvalSummaryTemplatesUpdateResponseSuccess | modelHubEvalSummaryTemplatesUpdateResponseError)
 
 export const getModelHubEvalSummaryTemplatesUpdateUrl = (templateId: string,) => {
 
@@ -26844,14 +26927,16 @@ export const getModelHubEvalSummaryTemplatesUpdateUrl = (templateId: string,) =>
   return `/model-hub/eval-summary-templates/${templateId}/`
 }
 
-export const modelHubEvalSummaryTemplatesUpdate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalSummaryTemplatesUpdateResponse> => {
+export const modelHubEvalSummaryTemplatesUpdate = async (templateId: string,
+    evalSummaryTemplateMutationRequestApi: EvalSummaryTemplateMutationRequestApi, options?: RequestInit): Promise<modelHubEvalSummaryTemplatesUpdateResponse> => {
 
   return apiMutator<modelHubEvalSummaryTemplatesUpdateResponse>(getModelHubEvalSummaryTemplatesUpdateUrl(templateId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalSummaryTemplateMutationRequestApi,)
   }
 );}
 

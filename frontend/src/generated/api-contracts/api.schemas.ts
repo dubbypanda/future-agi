@@ -4877,6 +4877,12 @@ export interface EvalGroupApi {
   is_sample?: boolean;
 }
 
+export interface EvalSummaryTemplateMutationRequestApi {
+  name?: string;
+  description?: string;
+  criteria?: string;
+}
+
 export interface ExperimentsTableGetApi {
   readonly id?: string;
   /**

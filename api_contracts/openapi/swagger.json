@@ -22523,7 +22523,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -22533,10 +22566,52 @@
             "post": {
                 "operationId": "model-hub_eval-summary-templates_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -22549,10 +22624,52 @@
             "put": {
                 "operationId": "model-hub_eval-summary-templates_update",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -65146,6 +65263,23 @@
                 "is_sample": {
                     "title": "Is sample",
                     "type": "boolean"
+                }
+            }
+        },
+        "EvalSummaryTemplateMutationRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string"
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "criteria": {
+                    "title": "Criteria",
+                    "type": "string"
                 }
             }
         },

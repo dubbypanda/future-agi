@@ -11705,21 +11705,82 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-summary-templates_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "model-hub_eval-summary-templates_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-summary-templates/{template_id}/": {
       "put": {
         "operationId": "model-hub_eval-summary-templates_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "model-hub_eval-summary-templates_delete",
@@ -36818,6 +36879,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/EvalTemplateSummary"
           }
+        }
+      }
+    },
+    "EvalSummaryTemplateMutationRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "criteria": {
+          "title": "Criteria",
+          "type": "string"
         }
       }
     },

@@ -15,10 +15,16 @@ import uuid
 
 import structlog
 from django.db import models
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from accounts.models import Organization
+from model_hub.serializers.contracts import (
+    EvalSummaryTemplateMutationRequestSerializer,
+    MODEL_HUB_ERROR_RESPONSES,
+    ModelHubJSONResponseSerializer,
+)
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -53,6 +59,9 @@ class EvalSummaryTemplateListView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request):
         org = getattr(request, "organization", None) or request.user.organization
         templates = EvalSummaryTemplate.objects.filter(organization=org)
@@ -67,6 +76,10 @@ class EvalSummaryTemplateListView(APIView):
         ]
         return self._gm.success_response({"templates": items})
 
+    @swagger_auto_schema(
+        request_body=EvalSummaryTemplateMutationRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             org = getattr(request, "organization", None) or request.user.organization
@@ -104,6 +117,10 @@ class EvalSummaryTemplateDetailView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=EvalSummaryTemplateMutationRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def put(self, request, template_id):
         try:
             org = getattr(request, "organization", None) or request.user.organization

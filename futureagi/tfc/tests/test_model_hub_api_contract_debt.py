@@ -84,6 +84,8 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/datasets/{dataset_id}/preview/{operation_type}/",
         "/model-hub/dataset/{dataset_id}/run-prompt-stats/",
         "/model-hub/develops/{dataset_id}/extract-json-column/",
+        "/model-hub/eval-summary-templates/",
+        "/model-hub/eval-summary-templates/{template_id}/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/get-feedback-details/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/",
@@ -186,6 +188,12 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
             "ExtractJsonColumnRequest"
         ),
         ("POST", "/model-hub/experiments/v2/{experiment_id}/feedback/"): "Feedback",
+        ("POST", "/model-hub/eval-summary-templates/"): (
+            "EvalSummaryTemplateMutationRequest"
+        ),
+        ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
+            "EvalSummaryTemplateMutationRequest"
+        ),
         (
             "POST",
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
@@ -318,6 +326,11 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "ModelHubJSONResponse"
         ),
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-summary-templates/"): "ModelHubJSONResponse",
+        ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "ModelHubJSONResponse"
         ),
         ("GET", "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/"): (
