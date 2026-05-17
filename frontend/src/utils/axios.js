@@ -577,11 +577,6 @@ export const endpoints = {
     create: legacyApiPath("/model-hub/data-points/create/"),
     metrics: legacyApiPath("/model-hub/data-points/metrics/"),
   },
-  event: {
-    names: legacyApiPath("/model-hub/event-names/"),
-    list: legacyApiPath("/model-hub/events/"),
-    uniqueProperties: legacyApiPath("/model-hub/unique-properties/"),
-  },
   annotation: {
     list: apiPath("/model-hub/annotation-tasks/"),
     annotationLabelText: apiPath("/model-hub/annotations-labels/"),

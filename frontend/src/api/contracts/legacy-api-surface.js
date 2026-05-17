@@ -133,20 +133,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
       "Legacy model dataset summary endpoint is still used by old model dataset screens.",
     next: "Contract the old model dataset API or retire the legacy model dataset screens.",
   },
-  "/model-hub/event-names/": {
-    group: "model-management",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Legacy model event metadata endpoint is still referenced by old model screens.",
-    next: "Contract the old event metadata API or migrate the old model screens.",
-  },
-  "/model-hub/events/": {
-    group: "model-management",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Legacy model events endpoint is still referenced by old model screens.",
-    next: "Contract the old event metadata API or migrate the old model screens.",
-  },
   "/model-hub/get-eval-feedback": {
     group: "evals",
     status: LEGACY_API_STATUSES.DEPRECATED_DEAD_REFERENCE,
@@ -159,13 +145,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
     reason:
       "Old model detail endpoint is still referenced by the legacy Models UI.",
     next: "Contract the old model-management API or retire the legacy Models UI.",
-  },
-  "/model-hub/unique-properties/": {
-    group: "model-management",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Legacy model unique-property endpoint is still referenced by old model screens.",
-    next: "Contract the old event metadata API or migrate the old model screens.",
   },
   "/usage/available-months/": {
     group: "usage",

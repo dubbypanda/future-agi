@@ -28,8 +28,8 @@ const endpointRegistryPath = path.join(
 );
 const MAX_UNMARKED_UNCONTRACTED_REGISTRY_PATHS = 0;
 const MAX_RAW_REGISTRY_PATHS = 0;
-const MAX_LEGACY_REGISTRY_PATHS = 39;
-const MAX_LEGACY_SURFACE_PATHS = 35;
+const MAX_LEGACY_REGISTRY_PATHS = 36;
+const MAX_LEGACY_SURFACE_PATHS = 32;
 const MANAGEMENT_API_GROUPS = Object.keys(API_SURFACE_CONTRACT.groups)
   .filter((groupName) => groupName !== "root")
   .sort();
