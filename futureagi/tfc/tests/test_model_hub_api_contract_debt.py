@@ -616,10 +616,10 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("GET", "/model-hub/api/model_voices/"): "LiteLLMModelVoicesResponse",
         ("GET", "/model-hub/api/models_list/"): "ModelHubPaginatedResponse",
         ("GET", "/model-hub/columns/{column_id}/operation-config/"): (
-            "ModelHubJSONResponse"
+            "OperationConfigResponse"
         ),
         ("POST", "/model-hub/columns/{column_id}/rerun-operation/"): (
-            "ModelHubJSONResponse"
+            "RerunOperationResponse"
         ),
         ("GET", "/model-hub/cells/{cell_id}/run-error-localizer/"): (
             "ModelHubJSONResponse"

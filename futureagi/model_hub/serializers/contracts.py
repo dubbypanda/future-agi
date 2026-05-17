@@ -504,6 +504,27 @@ class RerunOperationRequestSerializer(serializers.Serializer):
     config = serializers.JSONField(required=False)
 
 
+class OperationConfigResultSerializer(serializers.Serializer):
+    column_id = serializers.UUIDField()
+    metadata = serializers.JSONField()
+
+
+class OperationConfigResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = OperationConfigResultSerializer()
+
+
+class RerunOperationResultSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    column_id = serializers.UUIDField()
+    status = serializers.CharField()
+
+
+class RerunOperationResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = RerunOperationResultSerializer()
+
+
 class PreviewDatasetOperationRequestSerializer(serializers.Serializer):
     column_id = serializers.UUIDField(required=False)
     json_key = serializers.CharField(required=False, allow_blank=True)

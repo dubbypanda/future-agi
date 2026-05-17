@@ -14477,22 +14477,13 @@ export const ModelHubColumnsOperationConfigListParams = zod.object({
 })
 
 export const ModelHubColumnsOperationConfigListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "column_id": zod.string().uuid(),
+  "metadata": zod.object({
 
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough()
+})
 })
 
 
@@ -14513,23 +14504,17 @@ export const ModelHubColumnsRerunOperationCreateBody = zod.object({
 }).passthrough().optional()
 })
 
+
+
+
+
 export const ModelHubColumnsRerunOperationCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "message": zod.string().min(1),
+  "column_id": zod.string().uuid(),
+  "status": zod.string().min(1)
+})
 })
 
 

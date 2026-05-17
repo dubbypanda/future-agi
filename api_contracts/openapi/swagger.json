@@ -18703,7 +18703,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/OperationConfigResponse"
                         }
                     },
                     "400": {
@@ -18768,7 +18768,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/RerunOperationResponse"
                         }
                     },
                     "400": {
@@ -72588,6 +72588,40 @@
             "type": "object",
             "properties": {}
         },
+        "OperationConfigResult": {
+            "required": [
+                "column_id",
+                "metadata"
+            ],
+            "type": "object",
+            "properties": {
+                "column_id": {
+                    "title": "Column id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "metadata": {
+                    "title": "Metadata",
+                    "type": "object"
+                }
+            }
+        },
+        "OperationConfigResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/OperationConfigResult"
+                }
+            }
+        },
         "RerunOperationRequest": {
             "required": [
                 "operation_type"
@@ -72602,6 +72636,47 @@
                 "config": {
                     "title": "Config",
                     "type": "object"
+                }
+            }
+        },
+        "RerunOperationResult": {
+            "required": [
+                "message",
+                "column_id",
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "column_id": {
+                    "title": "Column id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "RerunOperationResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/RerunOperationResult"
                 }
             }
         },

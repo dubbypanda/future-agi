@@ -4842,12 +4842,37 @@ export interface ModelHubJSONResponseApi {
 
 export interface ModelHubEmptyRequestApi { [key: string]: unknown }
 
+export type OperationConfigResultApiMetadata = { [key: string]: unknown };
+
+export interface OperationConfigResultApi {
+  column_id: string;
+  metadata: OperationConfigResultApiMetadata;
+}
+
+export interface OperationConfigResponseApi {
+  status: boolean;
+  result: OperationConfigResultApi;
+}
+
 export type RerunOperationRequestApiConfig = { [key: string]: unknown };
 
 export interface RerunOperationRequestApi {
   /** @minLength 1 */
   operation_type: string;
   config?: RerunOperationRequestApiConfig;
+}
+
+export interface RerunOperationResultApi {
+  /** @minLength 1 */
+  message: string;
+  column_id: string;
+  /** @minLength 1 */
+  status: string;
+}
+
+export interface RerunOperationResponseApi {
+  status: boolean;
+  result: RerunOperationResultApi;
 }
 
 export type CustomEvalTemplateCreateApiTemplateType = typeof CustomEvalTemplateCreateApiTemplateType[keyof typeof CustomEvalTemplateCreateApiTemplateType];

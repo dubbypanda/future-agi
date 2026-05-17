@@ -10035,7 +10035,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/OperationConfigResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -10064,7 +10064,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/RerunOperationResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -47311,6 +47311,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "OperationConfigResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/OperationConfigResult"
+        }
+      }
+    },
     "OptimizationDataset": {
       "required": [
         "name",
@@ -51080,6 +51096,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "config": {
           "title": "Config",
           "type": "object"
+        }
+      }
+    },
+    "RerunOperationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/RerunOperationResult"
         }
       }
     },
@@ -61834,6 +61866,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "OperationConfigResult": {
+      "required": [
+        "column_id",
+        "metadata"
+      ],
+      "type": "object",
+      "properties": {
+        "column_id": {
+          "title": "Column id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        }
+      }
+    },
     "BillingInfo": {
       "type": "object",
       "properties": {
@@ -63221,6 +63271,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "error": {
           "title": "Error",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RerunOperationResult": {
+      "required": [
+        "message",
+        "column_id",
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        },
+        "column_id": {
+          "title": "Column id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "title": "Status",
           "type": "string",
           "minLength": 1
         }

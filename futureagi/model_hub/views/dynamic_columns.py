@@ -20,8 +20,6 @@ from weaviate import AuthApiKey
 from agentic_eval.core.embeddings.embedding_manager import (
     model_manager,
 )
-
-logger = structlog.get_logger(__name__)
 from agentic_eval.core_evals.fi_evals import *  # noqa: F403
 from agentic_eval.core_evals.run_prompt.litellm_response import RunPrompt
 from model_hub.models.api_key import ApiKey, SecretModel
@@ -38,16 +36,18 @@ from model_hub.models.develop_dataset import (
     Row,
 )
 from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
     AddApiColumnRequestSerializer,
     ClassifyColumnRequestSerializer,
     ConditionalColumnRequestSerializer,
     ExtractEntitiesRequestSerializer,
     ExtractJsonColumnRequestSerializer,
-    MODEL_HUB_ERROR_RESPONSES,
     ModelHubJSONResponseSerializer,
+    OperationConfigResponseSerializer,
     PreviewDatasetOperationRequestSerializer,
     PythonCodeColumnRequestSerializer,
     RerunOperationRequestSerializer,
+    RerunOperationResponseSerializer,
     VectorDBColumnRequestSerializer,
 )
 from model_hub.utils.json_path_resolver import parse_json_safely, resolve_json_path
@@ -63,6 +63,8 @@ from tfc.telemetry import wrap_for_thread
 from tfc.temporal import temporal_activity
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
+
+logger = structlog.get_logger(__name__)
 
 # =============================================================================
 # Constants for batch processing
@@ -501,7 +503,9 @@ class ExtractJsonColumnView(APIView):
             try:
                 python_obj = ast.literal_eval(cell.value)
             except (ValueError, SyntaxError) as e:
-                raise ValueError(f"Invalid data format - cannot parse as JSON: {e}")
+                raise ValueError(
+                    f"Invalid data format - cannot parse as JSON: {e}"
+                ) from e
 
             # Convert Python object to JSON
             json_data = json.dumps(python_obj)
@@ -1182,7 +1186,7 @@ class ExecutePythonCodeView(APIView):
             for pattern in dangerous_patterns:
                 if re.search(pattern, code):
                     return f"Dangerous pattern '{pattern}' detected in code.", {
-                        "reason": f"Code contains potentially dangerous pattern for security reasons."
+                        "reason": "Code contains potentially dangerous pattern for security reasons."
                     }
 
             # Fetch cells for the row with column names
@@ -1216,7 +1220,7 @@ class ExecutePythonCodeView(APIView):
                 "tuple": tuple,
                 "zip": zip,
             }
-            global_namespace = {"__builtins__": safe_builtins}
+            _global_namespace = {"__builtins__": safe_builtins}
             local_namespace = {}
 
             # Execute the provided code with restricted globals
@@ -1638,7 +1642,7 @@ class GetOperationConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: OperationConfigResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, column_id, *args, **kwargs):
         """Get the configuration for all operations in a dataset"""
@@ -1675,7 +1679,7 @@ class RerunOperationView(APIView):
 
     @swagger_auto_schema(
         request_body=RerunOperationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={200: RerunOperationResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, column_id, *args, **kwargs):
         """Rerun a specific operation with its stored configuration"""

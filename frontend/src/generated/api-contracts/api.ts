@@ -562,6 +562,7 @@ import type {
   OTLPTraceResponseApi,
   ObservabilityProviderApi,
   ObservationSpanApi,
+  OperationConfigResponseApi,
   OptimizationDatasetApi,
   OptimizationDatasetGetApi,
   OptimizationDetailApi,
@@ -668,6 +669,7 @@ import type {
   ReplaySessionListApi,
   RerunCallsResponseApi,
   RerunOperationRequestApi,
+  RerunOperationResponseApi,
   ResendInviteApi,
   ResourceLimitDetailResponseApi,
   ResourceLimitListResponseApi,
@@ -21679,7 +21681,7 @@ export const modelHubColumnConfigRead = async (columnId: string, options?: Reque
 
 
 export type modelHubColumnsOperationConfigListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: OperationConfigResponseApi
   status: 200
 }
 
@@ -21742,7 +21744,7 @@ export const modelHubColumnsOperationConfigList = async (columnId: string, optio
 
 
 export type modelHubColumnsRerunOperationCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: RerunOperationResponseApi
   status: 200
 }
 
