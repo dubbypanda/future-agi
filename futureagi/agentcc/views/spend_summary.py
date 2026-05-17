@@ -1,14 +1,19 @@
-from datetime import datetime, timedelta
-from datetime import timezone as dt_tz
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from agentcc.models import AgentccRequestLog
 from agentcc.permissions import IsAdminToken
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    SpendSummaryQuerySerializer,
+    SpendSummaryResponseSerializer,
+)
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -16,7 +21,7 @@ logger = structlog.get_logger(__name__)
 
 def _period_start(period):
     """Calculate the start of the current budget period (UTC)."""
-    now = datetime.now(dt_tz.utc)
+    now = datetime.now(UTC)
     if period == "daily":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "weekly":
@@ -26,7 +31,7 @@ def _period_start(period):
     elif period == "monthly":
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     elif period == "total":
-        return datetime.min.replace(tzinfo=dt_tz.utc)
+        return datetime.min.replace(tzinfo=UTC)
     # default monthly
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -61,6 +66,13 @@ class SpendSummaryView(APIView):
     renderer_classes = [JSONRenderer]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        query_serializer=SpendSummaryQuerySerializer,
+        responses={
+            200: SpendSummaryResponseSerializer,
+            500: AgentccErrorResponseSerializer,
+        },
+    )
     def get(self, request):
         try:
             period = request.query_params.get("period", "monthly")

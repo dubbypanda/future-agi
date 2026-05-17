@@ -654,6 +654,37 @@ export interface AgentccAPIKeyApi {
   readonly updated_at?: string;
 }
 
+export type APIKeyBulkItemApiMetadata = {[key: string]: string};
+
+export interface APIKeyBulkItemApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  owner: string;
+  /** @minLength 1 */
+  key_hash: string;
+  models: string[];
+  providers: string[];
+  metadata: APIKeyBulkItemApiMetadata;
+}
+
+export interface APIKeyBulkResponseApi {
+  status: boolean;
+  result: APIKeyBulkItemApi[];
+}
+
+export type AgentccErrorResponseApiResult = { [key: string]: unknown };
+
+export type AgentccErrorResponseApiMessage = { [key: string]: unknown };
+
+export interface AgentccErrorResponseApi {
+  status: boolean;
+  result?: AgentccErrorResponseApiResult;
+  error?: string;
+  message?: AgentccErrorResponseApiMessage;
+}
+
 export type AgentccBlocklistApiWords = { [key: string]: unknown };
 
 export interface AgentccBlocklistApi {
@@ -740,6 +771,247 @@ export interface AgentccEmailAlertApi {
   readonly last_triggered_at?: string;
   readonly created_at?: string;
   readonly updated_at?: string;
+}
+
+export type GatewayListResponseApiResultItem = { [key: string]: unknown };
+
+export interface GatewayListResponseApi {
+  status: boolean;
+  result: GatewayListResponseApiResultItem[];
+}
+
+export type AgentccListResultResponseApiResultItem = { [key: string]: unknown };
+
+export interface AgentccListResultResponseApi {
+  status: boolean;
+  result: AgentccListResultResponseApiResultItem[];
+}
+
+export type GatewayDetailResponseApiResult = { [key: string]: unknown };
+
+export interface GatewayDetailResponseApi {
+  status: boolean;
+  result: GatewayDetailResponseApiResult;
+}
+
+export interface GatewayBatchRequestApi {
+  /** @minLength 1 */
+  batch_id: string;
+}
+
+export type AgentccJSONResultResponseApiResult = { [key: string]: unknown };
+
+export interface AgentccJSONResultResponseApi {
+  status: boolean;
+  result: AgentccJSONResultResponseApiResult;
+}
+
+export type GatewayConfigResponseApiResult = { [key: string]: unknown };
+
+export interface GatewayConfigResponseApi {
+  status: boolean;
+  result: GatewayConfigResponseApiResult;
+}
+
+export interface AgentccEmptyRequestApi { [key: string]: unknown }
+
+export type GatewayHealthResponseApiResult = { [key: string]: unknown };
+
+export interface GatewayHealthResponseApi {
+  status: boolean;
+  result: GatewayHealthResponseApiResult;
+}
+
+export interface GatewayMutationResultApi {
+  status?: boolean;
+  version?: number;
+  gateway_synced?: boolean;
+  gateway_warning?: string;
+  action?: string;
+  provider?: string;
+  guardrail?: string;
+  budget?: string;
+  server?: string;
+  enabled?: boolean;
+}
+
+export interface GatewayMutationResponseApi {
+  status: boolean;
+  result: GatewayMutationResultApi;
+}
+
+export interface GatewayBudgetRemoveRequestApi {
+  /** @minLength 1 */
+  level: string;
+}
+
+export interface GatewayMCPServerRemoveRequestApi {
+  /** @minLength 1 */
+  server_id: string;
+}
+
+export interface GatewayNameRequestApi {
+  /** @minLength 1 */
+  name: string;
+}
+
+export type GatewayBudgetSetRequestApiConfig = {[key: string]: string};
+
+export interface GatewayBudgetSetRequestApi {
+  /** @minLength 1 */
+  level: string;
+  config: GatewayBudgetSetRequestApiConfig;
+}
+
+export type GatewayBatchSubmitRequestApiRequestsItem = {[key: string]: string};
+
+export interface GatewayBatchSubmitRequestApi {
+  requests: GatewayBatchSubmitRequestApiRequestsItem[];
+  /** @minimum 1 */
+  max_concurrency?: number;
+}
+
+export type GatewayMCPToolTestRequestApiArguments = {[key: string]: string};
+
+export interface GatewayMCPToolTestRequestApi {
+  /** @minLength 1 */
+  name: string;
+  arguments?: GatewayMCPToolTestRequestApiArguments;
+}
+
+export interface GatewayPlaygroundTestRequestApi {
+  /** @minLength 1 */
+  prompt: string;
+  model?: string;
+  system_prompt?: string;
+}
+
+export interface GatewayToggleGuardrailRequestApi {
+  /** @minLength 1 */
+  name: string;
+  enabled: boolean;
+}
+
+export type GatewayConfigPatchRequestApiGuardrails = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiRouting = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiCache = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiRateLimiting = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiBudgets = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiCostTracking = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiIpAcl = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiAlerting = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiPrivacy = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiToolPolicy = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiMcp = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiA2a = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiAudit = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiModelDatabase = {[key: string]: string};
+
+export type GatewayConfigPatchRequestApiModelMap = {[key: string]: string};
+
+export interface GatewayConfigPatchRequestApi {
+  guardrails?: GatewayConfigPatchRequestApiGuardrails;
+  routing?: GatewayConfigPatchRequestApiRouting;
+  cache?: GatewayConfigPatchRequestApiCache;
+  rate_limiting?: GatewayConfigPatchRequestApiRateLimiting;
+  budgets?: GatewayConfigPatchRequestApiBudgets;
+  cost_tracking?: GatewayConfigPatchRequestApiCostTracking;
+  ip_acl?: GatewayConfigPatchRequestApiIpAcl;
+  alerting?: GatewayConfigPatchRequestApiAlerting;
+  privacy?: GatewayConfigPatchRequestApiPrivacy;
+  tool_policy?: GatewayConfigPatchRequestApiToolPolicy;
+  mcp?: GatewayConfigPatchRequestApiMcp;
+  a2a?: GatewayConfigPatchRequestApiA2a;
+  audit?: GatewayConfigPatchRequestApiAudit;
+  model_database?: GatewayConfigPatchRequestApiModelDatabase;
+  model_map?: GatewayConfigPatchRequestApiModelMap;
+}
+
+export type GatewayNamedConfigRequestApiConfig = {[key: string]: string};
+
+export interface GatewayNamedConfigRequestApi {
+  /** @minLength 1 */
+  name: string;
+  config: GatewayNamedConfigRequestApiConfig;
+}
+
+export type GatewayMCPGuardrailsUpdateRequestApiConfig = {[key: string]: string};
+
+export interface GatewayMCPGuardrailsUpdateRequestApi {
+  config: GatewayMCPGuardrailsUpdateRequestApiConfig;
+}
+
+export type GatewayMCPServerUpdateRequestApiConfig = {[key: string]: string};
+
+export interface GatewayMCPServerUpdateRequestApi {
+  /** @minLength 1 */
+  server_id: string;
+  config: GatewayMCPServerUpdateRequestApiConfig;
+}
+
+export type GatewayProviderUpdateRequestApiConfig = {[key: string]: string};
+
+export interface GatewayProviderUpdateRequestApi {
+  /** @minLength 1 */
+  name: string;
+  config: GatewayProviderUpdateRequestApiConfig;
+}
+
+export interface PIIEntityApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  label: string;
+  /** @minLength 1 */
+  category: string;
+}
+
+export interface PIIEntitiesResponseApi {
+  status: boolean;
+  result: PIIEntityApi[];
+}
+
+export interface TopicCategoryApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  label: string;
+  subcategories: string[];
+}
+
+export interface TopicCategoriesResponseApi {
+  status: boolean;
+  result: TopicCategoryApi[];
+}
+
+export interface ValidateCELRequestApi {
+  /** @minLength 1 */
+  expression: string;
+}
+
+export interface ValidateCELResultApi {
+  /** @minLength 1 */
+  expression: string;
+  valid: boolean;
+  error?: string;
+}
+
+export interface ValidateCELResponseApi {
+  status: boolean;
+  result: ValidateCELResultApi;
 }
 
 export type AgentccGuardrailFeedbackApiFeedback = typeof AgentccGuardrailFeedbackApiFeedback[keyof typeof AgentccGuardrailFeedbackApiFeedback];
@@ -869,6 +1141,13 @@ export interface AgentccOrgConfigApi {
   change_description?: string;
   readonly created_at?: string;
   readonly updated_at?: string;
+}
+
+export type OrgConfigBulkResponseApiResult = {[key: string]: string};
+
+export interface OrgConfigBulkResponseApi {
+  status: boolean;
+  result: OrgConfigBulkResponseApiResult;
 }
 
 export type AgentccProviderCredentialApiModelsList = { [key: string]: unknown };
@@ -1094,6 +1373,13 @@ export interface AgentccShadowResultApi {
   readonly created_at?: string;
 }
 
+export type SpendSummaryResponseApiResult = {[key: string]: string};
+
+export interface SpendSummaryResponseApi {
+  status: boolean;
+  result: SpendSummaryResponseApiResult;
+}
+
 export type AgentccWebhookEventApiPayload = { [key: string]: unknown };
 
 export type AgentccWebhookEventApiStatus = typeof AgentccWebhookEventApiStatus[keyof typeof AgentccWebhookEventApiStatus];
@@ -1124,6 +1410,27 @@ export interface AgentccWebhookEventApi {
   readonly last_error?: string;
   readonly next_retry_at?: string;
   readonly created_at?: string;
+}
+
+export type WebhookLogsRequestApiLogsItem = {[key: string]: string};
+
+export interface WebhookLogsRequestApi {
+  logs?: WebhookLogsRequestApiLogsItem[];
+}
+
+export interface WebhookIngestResultApi {
+  ingested: number;
+}
+
+export interface WebhookIngestResponseApi {
+  status: boolean;
+  result: WebhookIngestResultApi;
+}
+
+export type ShadowResultsWebhookRequestApiResultsItem = {[key: string]: string};
+
+export interface ShadowResultsWebhookRequestApi {
+  results?: ShadowResultsWebhookRequestApiResultsItem[];
 }
 
 export type AgentccWebhookApiEvents = { [key: string]: unknown };
@@ -10742,6 +11049,20 @@ export type AgentccShadowResultsList200 = {
   previous?: string;
   results: AgentccShadowResultApi[];
 };
+
+export type AgentccSpendSummaryListParams = {
+period?: AgentccSpendSummaryListPeriod;
+};
+
+export type AgentccSpendSummaryListPeriod = typeof AgentccSpendSummaryListPeriod[keyof typeof AgentccSpendSummaryListPeriod];
+
+
+export const AgentccSpendSummaryListPeriod = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  total: 'total',
+} as const;
 
 export type AgentccWebhookEventsListParams = {
 /**

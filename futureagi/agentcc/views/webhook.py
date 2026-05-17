@@ -2,10 +2,15 @@ import hmac
 import os
 
 import structlog
-from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    WebhookIngestResponseSerializer,
+    WebhookLogsRequestSerializer,
+)
 from agentcc.services.log_ingestion import ingest_request_logs
 from tfc.utils.general_methods import GeneralMethods
 
@@ -19,6 +24,13 @@ class GatewayWebhookView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=WebhookLogsRequestSerializer,
+        responses={
+            200: WebhookIngestResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         expected_secret = AGENTCC_WEBHOOK_SECRET
         if not expected_secret:

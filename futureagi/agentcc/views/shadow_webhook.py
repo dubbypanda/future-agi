@@ -2,13 +2,18 @@ import hmac
 import os
 
 import structlog
-from django.conf import settings
 from django.db.models import F
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from agentcc.models.shadow_experiment import AgentccShadowExperiment
 from agentcc.models.shadow_result import AgentccShadowResult
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    ShadowResultsWebhookRequestSerializer,
+    WebhookIngestResponseSerializer,
+)
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -26,6 +31,13 @@ class ShadowResultWebhookView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=ShadowResultsWebhookRequestSerializer,
+        responses={
+            200: WebhookIngestResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         expected_secret = AGENTCC_WEBHOOK_SECRET
         if not expected_secret:

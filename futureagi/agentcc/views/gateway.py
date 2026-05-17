@@ -5,8 +5,9 @@ import uuid
 import structlog
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ViewSet
@@ -18,9 +19,33 @@ from agentcc.org_config_defaults import (
     default_cost_tracking_config,
     normalize_cost_tracking_config,
 )
+from agentcc.serializers.contracts import (
+    AgentccEmptyRequestSerializer,
+    AgentccErrorResponseSerializer,
+    AgentccJSONResultResponseSerializer,
+    AgentccListResultResponseSerializer,
+    GatewayBatchRequestSerializer,
+    GatewayBatchSubmitRequestSerializer,
+    GatewayBudgetRemoveRequestSerializer,
+    GatewayBudgetSetRequestSerializer,
+    GatewayConfigPatchRequestSerializer,
+    GatewayConfigResponseSerializer,
+    GatewayDetailResponseSerializer,
+    GatewayHealthResponseSerializer,
+    GatewayListResponseSerializer,
+    GatewayMCPGuardrailsUpdateRequestSerializer,
+    GatewayMCPServerRemoveRequestSerializer,
+    GatewayMCPServerUpdateRequestSerializer,
+    GatewayMCPToolTestRequestSerializer,
+    GatewayMutationResponseSerializer,
+    GatewayNamedConfigRequestSerializer,
+    GatewayNameRequestSerializer,
+    GatewayPlaygroundTestRequestSerializer,
+    GatewayProviderUpdateRequestSerializer,
+    GatewayToggleGuardrailRequestSerializer,
+)
 from agentcc.services.config_push import push_all_org_configs, push_org_config
 from agentcc.services.gateway_client import (
-    AGENTCC_ADMIN_TOKEN,
     AGENTCC_GATEWAY_URL,
     GatewayClientError,
     get_gateway_client,
@@ -114,6 +139,12 @@ class AgentccGatewayViewSet(ViewSet):
     # list / retrieve — virtual gateway with live health
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        responses={
+            200: GatewayListResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     def list(self, request, *args, **kwargs):
         try:
             status = "healthy"
@@ -134,6 +165,12 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("gateway_list_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: GatewayDetailResponseSerializer,
+            404: AgentccErrorResponseSerializer,
+        }
+    )
     def retrieve(self, request, *args, **kwargs):
         """Accept any pk and ignore it — there is only one gateway."""
         try:
@@ -176,6 +213,13 @@ class AgentccGatewayViewSet(ViewSet):
     # health_check
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        request_body=AgentccEmptyRequestSerializer,
+        responses={
+            200: GatewayHealthResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"])
     def health_check(self, request, pk=None):
         try:
@@ -240,6 +284,12 @@ class AgentccGatewayViewSet(ViewSet):
     # config / reload / update-config
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        responses={
+            200: GatewayConfigResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"])
     def config(self, request, pk=None):
         try:
@@ -304,6 +354,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("config_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=AgentccEmptyRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"])
     def reload(self, request, pk=None):
         """Re-push this org's config to the gateway."""
@@ -318,6 +375,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("reload_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayConfigPatchRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="update-config")
     def update_config(self, request, pk=None):
         """Patch one or more JSON fields on the org's active config and push."""
@@ -388,6 +452,13 @@ class AgentccGatewayViewSet(ViewSet):
     # update-provider / remove-provider
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        request_body=GatewayProviderUpdateRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="update-provider")
     def update_provider(self, request, pk=None):
         """Add or update a provider credential for the org, then push config."""
@@ -456,11 +527,11 @@ class AgentccGatewayViewSet(ViewSet):
                 "display_name": provider_config.get("display_name", "")
                 or provider_name,
             }
-            lookup = dict(
-                organization=org,
-                provider_name=provider_name,
-                deleted=False,
-            )
+            lookup = {
+                "organization": org,
+                "provider_name": provider_name,
+                "deleted": False,
+            }
             with transaction.atomic():
                 try:
                     cred = AgentccProviderCredential.no_workspace_objects.select_for_update().get(
@@ -500,6 +571,14 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("update_provider_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayNameRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+            404: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="remove-provider")
     def remove_provider(self, request, pk=None):
         """Soft-delete a provider credential and push config."""
@@ -536,6 +615,13 @@ class AgentccGatewayViewSet(ViewSet):
     # guardrails
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        request_body=GatewayToggleGuardrailRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="toggle-guardrail")
     def toggle_guardrail(self, request, pk=None):
         try:
@@ -599,6 +685,12 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("toggle_guardrail_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccListResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     @action(detail=False, methods=["get"], url_path="protect-templates")
     def protect_templates(self, request):
         """Return eval templates compatible with the FI protect guardrail."""
@@ -637,6 +729,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("protect_templates_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayNamedConfigRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="update-guardrail")
     def update_guardrail(self, request, pk=None):
         try:
@@ -683,6 +782,13 @@ class AgentccGatewayViewSet(ViewSet):
     # test-playground
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        request_body=GatewayPlaygroundTestRequestSerializer,
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="test-playground")
     def test_playground(self, request, pk=None):
         """Send a real chat completion through the gateway to test guardrails."""
@@ -819,6 +925,13 @@ class AgentccGatewayViewSet(ViewSet):
     # budgets
     # ------------------------------------------------------------------
 
+    @swagger_auto_schema(
+        request_body=GatewayBudgetSetRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="set-budget")
     def set_budget(self, request, pk=None):
         try:
@@ -854,6 +967,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("set_budget_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayBudgetRemoveRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="remove-budget")
     def remove_budget(self, request, pk=None):
         try:
@@ -886,6 +1006,13 @@ class AgentccGatewayViewSet(ViewSet):
 
     # --- Batch API proxy ---
 
+    @swagger_auto_schema(
+        request_body=GatewayBatchSubmitRequestSerializer,
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="submit-batch")
     def submit_batch(self, request, pk=None):
         try:
@@ -906,6 +1033,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("submit_batch_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+            404: AgentccErrorResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"], url_path="get-batch")
     def get_batch(self, request, pk=None):
         try:
@@ -924,6 +1058,14 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("get_batch_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayBatchRequestSerializer,
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+            404: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="cancel-batch")
     def cancel_batch(self, request, pk=None):
         try:
@@ -942,6 +1084,12 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("cancel_batch_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"])
     def providers(self, request, pk=None):
         try:
@@ -1046,6 +1194,12 @@ class AgentccGatewayViewSet(ViewSet):
 
     # --- MCP ---
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"], url_path="mcp-status")
     def mcp_status(self, request, pk=None):
         try:
@@ -1095,6 +1249,11 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("mcp_status_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccListResultResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"], url_path="mcp-tools")
     def mcp_tools(self, request, pk=None):
         try:
@@ -1122,6 +1281,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.debug("mcp_tools unavailable: %s", e)
             return self._gm.success_response([])
 
+    @swagger_auto_schema(
+        request_body=GatewayMCPServerUpdateRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="update-mcp-server")
     def update_mcp_server(self, request, pk=None):
         try:
@@ -1157,6 +1323,14 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("update_mcp_server_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayMCPServerRemoveRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+            404: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="remove-mcp-server")
     def remove_mcp_server(self, request, pk=None):
         try:
@@ -1196,6 +1370,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("remove_mcp_server_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayMCPGuardrailsUpdateRequestSerializer,
+        responses={
+            200: GatewayMutationResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="update-mcp-guardrails")
     def update_mcp_guardrails(self, request, pk=None):
         try:
@@ -1227,6 +1408,13 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("update_mcp_guardrails_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=GatewayMCPToolTestRequestSerializer,
+        responses={
+            200: AgentccJSONResultResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=True, methods=["post"], url_path="test-mcp-tool")
     def test_mcp_tool(self, request, pk=None):
         try:
@@ -1251,6 +1439,11 @@ class AgentccGatewayViewSet(ViewSet):
             logger.exception("test_mcp_tool_error", error=str(e))
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccListResultResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"], url_path="mcp-resources")
     def mcp_resources(self, request, pk=None):
         try:
@@ -1278,6 +1471,11 @@ class AgentccGatewayViewSet(ViewSet):
             logger.debug("mcp_resources unavailable: %s", e)
             return self._gm.success_response([])
 
+    @swagger_auto_schema(
+        responses={
+            200: AgentccListResultResponseSerializer,
+        }
+    )
     @action(detail=True, methods=["get"], url_path="mcp-prompts")
     def mcp_prompts(self, request, pk=None):
         try:

@@ -1,10 +1,18 @@
 import re
 
 import structlog
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    PIIEntitiesResponseSerializer,
+    TopicCategoriesResponseSerializer,
+    ValidateCELRequestSerializer,
+    ValidateCELResponseSerializer,
+)
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.general_methods import GeneralMethods
 
@@ -105,16 +113,25 @@ class AgentccGuardrailConfigViewSet(BaseModelViewSetMixinWithUserOrg, GenericVie
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(responses={200: PIIEntitiesResponseSerializer})
     @action(detail=False, methods=["get"], url_path="pii-entities")
     def pii_entities(self, request):
         """List all available PII entity types."""
         return self._gm.success_response(PII_ENTITY_TYPES)
 
+    @swagger_auto_schema(responses={200: TopicCategoriesResponseSerializer})
     @action(detail=False, methods=["get"])
     def topics(self, request):
         """List topic restriction categories."""
         return self._gm.success_response(TOPIC_CATEGORIES)
 
+    @swagger_auto_schema(
+        request_body=ValidateCELRequestSerializer,
+        responses={
+            200: ValidateCELResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        },
+    )
     @action(detail=False, methods=["post"], url_path="validate-cel")
     def validate_cel(self, request):
         """Validate a CEL expression syntax."""

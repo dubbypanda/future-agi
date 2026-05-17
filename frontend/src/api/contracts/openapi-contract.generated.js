@@ -1933,7 +1933,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_api-keys_bulk_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/APIKeyBulkResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/api-keys/sync/": {
@@ -2379,7 +2386,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/protect-templates/": {
@@ -2387,7 +2401,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_protect_templates",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccListResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/": {
@@ -2395,15 +2416,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayDetailResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/cancel-batch/": {
       "post": {
         "operationId": "agentcc_gateways_cancel_batch",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayBatchRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/config/": {
@@ -2411,7 +2451,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_config",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayConfigResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/get-batch/": {
@@ -2419,15 +2466,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_get_batch",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/health_check/": {
       "post": {
         "operationId": "agentcc_gateways_health_check",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AgentccEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayHealthResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/mcp-prompts/": {
@@ -2435,7 +2501,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_mcp_prompts",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccListResultResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/mcp-resources/": {
@@ -2443,7 +2513,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_mcp_resources",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccListResultResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/mcp-status/": {
@@ -2451,7 +2525,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_mcp_status",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/mcp-tools/": {
@@ -2459,7 +2540,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_mcp_tools",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccListResultResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/providers/": {
@@ -2467,119 +2552,258 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_gateways_providers",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/reload/": {
       "post": {
         "operationId": "agentcc_gateways_reload",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AgentccEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/remove-budget/": {
       "post": {
         "operationId": "agentcc_gateways_remove_budget",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayBudgetRemoveRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/remove-mcp-server/": {
       "post": {
         "operationId": "agentcc_gateways_remove_mcp_server",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayMCPServerRemoveRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/remove-provider/": {
       "post": {
         "operationId": "agentcc_gateways_remove_provider",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayNameRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/set-budget/": {
       "post": {
         "operationId": "agentcc_gateways_set_budget",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayBudgetSetRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/submit-batch/": {
       "post": {
         "operationId": "agentcc_gateways_submit_batch",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayBatchSubmitRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/test-mcp-tool/": {
       "post": {
         "operationId": "agentcc_gateways_test_mcp_tool",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayMCPToolTestRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/test-playground/": {
       "post": {
         "operationId": "agentcc_gateways_test_playground",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayPlaygroundTestRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentccJSONResultResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/toggle-guardrail/": {
       "post": {
         "operationId": "agentcc_gateways_toggle_guardrail",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayToggleGuardrailRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/update-config/": {
       "post": {
         "operationId": "agentcc_gateways_update_config",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayConfigPatchRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/update-guardrail/": {
       "post": {
         "operationId": "agentcc_gateways_update_guardrail",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayNamedConfigRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/update-mcp-guardrails/": {
       "post": {
         "operationId": "agentcc_gateways_update_mcp_guardrails",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayMCPGuardrailsUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/update-mcp-server/": {
       "post": {
         "operationId": "agentcc_gateways_update_mcp_server",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayMCPServerUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/gateways/{id}/update-provider/": {
       "post": {
         "operationId": "agentcc_gateways_update_provider",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GatewayProviderUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/GatewayMutationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/guardrail-configs/pii-entities/": {
@@ -2600,7 +2824,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PIIEntitiesResponse"
+          }
+        }
       }
     },
     "/agentcc/guardrail-configs/topics/": {
@@ -2621,15 +2849,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TopicCategoriesResponse"
+          }
+        }
       }
     },
     "/agentcc/guardrail-configs/validate-cel/": {
       "post": {
         "operationId": "agentcc_guardrail-configs_validate_cel",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ValidateCELRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ValidateCELResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/guardrail-feedback/": {
@@ -3035,7 +3276,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agentcc_org-configs_bulk_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/OrgConfigBulkResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/org-configs/{id}/": {
@@ -3986,8 +4234,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "agentcc_spend-summary_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "period": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly",
+                "total"
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SpendSummaryResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/webhook-events/": {
@@ -4069,17 +4337,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook/logs/": {
       "post": {
         "operationId": "agentcc_webhook_logs_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/WebhookLogsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/WebhookIngestResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/webhook/shadow-results/": {
       "post": {
         "operationId": "agentcc_webhook_shadow-results_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ShadowResultsWebhookRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/WebhookIngestResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentccErrorResponse"
+          }
+        }
       }
     },
     "/agentcc/webhooks/": {
@@ -22207,6 +22493,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "APIKeyBulkResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/APIKeyBulkItem"
+          }
+        }
+      }
+    },
     "AddEvalConfigsRequest": {
       "required": [
         "evaluations_config"
@@ -24072,6 +24377,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AgentccEmptyRequest": {
+      "type": "object",
+      "properties": {}
+    },
+    "AgentccErrorResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
     "AgentccGuardrailFeedback": {
       "required": [
         "request_log",
@@ -24216,6 +24551,42 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "AgentccJSONResultResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
+    "AgentccListResultResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },
@@ -29678,6 +30049,458 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GatewayBatchRequest": {
+      "required": [
+        "batch_id"
+      ],
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "title": "Batch id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GatewayBatchSubmitRequest": {
+      "required": [
+        "requests"
+      ],
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "max_concurrency": {
+          "title": "Max concurrency",
+          "type": "integer",
+          "default": 5,
+          "minimum": 1
+        }
+      }
+    },
+    "GatewayBudgetRemoveRequest": {
+      "required": [
+        "level"
+      ],
+      "type": "object",
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GatewayBudgetSetRequest": {
+      "required": [
+        "level",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayConfigPatchRequest": {
+      "type": "object",
+      "properties": {
+        "guardrails": {
+          "title": "Guardrails",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "routing": {
+          "title": "Routing",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "cache": {
+          "title": "Cache",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "rate_limiting": {
+          "title": "Rate limiting",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "budgets": {
+          "title": "Budgets",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "cost_tracking": {
+          "title": "Cost tracking",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "ip_acl": {
+          "title": "Ip acl",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "alerting": {
+          "title": "Alerting",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "privacy": {
+          "title": "Privacy",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "tool_policy": {
+          "title": "Tool policy",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "mcp": {
+          "title": "Mcp",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "a2a": {
+          "title": "A2a",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "audit": {
+          "title": "Audit",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "model_database": {
+          "title": "Model database",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        },
+        "model_map": {
+          "title": "Model map",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayConfigResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
+    "GatewayDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
+    "GatewayHealthResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        }
+      }
+    },
+    "GatewayListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "GatewayMCPGuardrailsUpdateRequest": {
+      "required": [
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayMCPServerRemoveRequest": {
+      "required": [
+        "server_id"
+      ],
+      "type": "object",
+      "properties": {
+        "server_id": {
+          "title": "Server id",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GatewayMCPServerUpdateRequest": {
+      "required": [
+        "server_id",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "server_id": {
+          "title": "Server id",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayMCPToolTestRequest": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "title": "Arguments",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "default": {}
+        }
+      }
+    },
+    "GatewayMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GatewayMutationResult"
+        }
+      }
+    },
+    "GatewayNameRequest": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "GatewayNamedConfigRequest": {
+      "required": [
+        "name",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayPlaygroundTestRequest": {
+      "required": [
+        "prompt"
+      ],
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "title": "Prompt",
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "system_prompt": {
+          "title": "System prompt",
+          "type": "string"
+        }
+      }
+    },
+    "GatewayProviderUpdateRequest": {
+      "required": [
+        "name",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
+    "GatewayToggleGuardrailRequest": {
+      "required": [
+        "name",
+        "enabled"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      }
+    },
     "GenerateScenario": {
       "required": [
         "agent_name",
@@ -32238,6 +33061,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "OrgConfigBulkResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          }
+        }
+      }
+    },
     "OverviewApiResponse": {
       "required": [
         "result"
@@ -32251,6 +33095,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/OverviewResponse"
+        }
+      }
+    },
+    "PIIEntitiesResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PIIEntity"
+          }
         }
       }
     },
@@ -36544,6 +37407,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ShadowResultsWebhookRequest": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        }
+      }
+    },
     "SharedLinkDetail": {
       "type": "object",
       "properties": {
@@ -37155,6 +38033,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "array",
           "items": {
             "$ref": "#/definitions/SpanAttributeValue"
+          }
+        }
+      }
+    },
+    "SpendSummaryResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
           }
         }
       }
@@ -38030,6 +38929,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TopicCategoriesResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TopicCategory"
+          }
+        }
+      }
+    },
     "Trace": {
       "required": [
         "project"
@@ -38740,6 +39658,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ValidateCELRequest": {
+      "required": [
+        "expression"
+      ],
+      "type": "object",
+      "properties": {
+        "expression": {
+          "title": "Expression",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ValidateCELResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/ValidateCELResult"
+        }
+      }
+    },
     "ValidateLiveKitCredentialsRequest": {
       "required": [
         "livekit_url",
@@ -38787,6 +39734,37 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/ValidateLiveKitCredentialsResult"
+        }
+      }
+    },
+    "WebhookIngestResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/WebhookIngestResult"
+        }
+      }
+    },
+    "WebhookLogsRequest": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          }
         }
       }
     },
@@ -38883,6 +39861,61 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "string",
             "minLength": 1
+          }
+        }
+      }
+    },
+    "APIKeyBulkItem": {
+      "required": [
+        "id",
+        "name",
+        "owner",
+        "key_hash",
+        "models",
+        "providers",
+        "metadata"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "key_hash": {
+          "title": "Key hash",
+          "type": "string",
+          "minLength": 1
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
           }
         }
       }
@@ -40718,6 +41751,51 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GatewayMutationResult": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "gateway_synced": {
+          "title": "Gateway synced",
+          "type": "boolean"
+        },
+        "gateway_warning": {
+          "title": "Gateway warning",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "guardrail": {
+          "title": "Guardrail",
+          "type": "string"
+        },
+        "budget": {
+          "title": "Budget",
+          "type": "string"
+        },
+        "server": {
+          "title": "Server",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        }
+      }
+    },
     "AnnotationLabelResponse": {
       "required": [
         "id",
@@ -41815,6 +42893,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/RepresentativeTrace"
           }
+        }
+      }
+    },
+    "PIIEntity": {
+      "required": [
+        "id",
+        "label",
+        "category"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "title": "Label",
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "title": "Category",
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -43504,6 +44607,33 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TopicCategory": {
+      "required": [
+        "id",
+        "label",
+        "subcategories"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "title": "Label",
+          "type": "string",
+          "minLength": 1
+        },
+        "subcategories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "TraceErrorAnalysisResult": {
       "required": [
         "analysis_exists",
@@ -43811,6 +44941,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ValidateCELResult": {
+      "required": [
+        "expression",
+        "valid"
+      ],
+      "type": "object",
+      "properties": {
+        "expression": {
+          "title": "Expression",
+          "type": "string",
+          "minLength": 1
+        },
+        "valid": {
+          "title": "Valid",
+          "type": "boolean"
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
     "ValidateLiveKitCredentialsResult": {
       "required": [
         "valid"
@@ -43824,6 +44977,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "error": {
           "title": "Error",
           "type": "string"
+        }
+      }
+    },
+    "WebhookIngestResult": {
+      "required": [
+        "ingested"
+      ],
+      "type": "object",
+      "properties": {
+        "ingested": {
+          "title": "Ingested",
+          "type": "integer"
         }
       }
     },

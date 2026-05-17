@@ -3626,7 +3626,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/APIKeyBulkResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4462,7 +4471,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4478,7 +4496,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccListResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4494,7 +4521,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayDetailResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4514,10 +4550,34 @@
             "post": {
                 "operationId": "agentcc_gateways_cancel_batch",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayBatchRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4540,7 +4600,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayConfigResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4563,7 +4632,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4583,10 +4667,28 @@
             "post": {
                 "operationId": "agentcc_gateways_health_check",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AgentccEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayHealthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4609,7 +4711,10 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccListResultResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4632,7 +4737,10 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccListResultResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4655,7 +4763,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4678,7 +4795,10 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccListResultResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4701,7 +4821,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4721,10 +4850,28 @@
             "post": {
                 "operationId": "agentcc_gateways_reload",
                 "description": "Re-push this org's config to the gateway.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AgentccEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4744,10 +4891,28 @@
             "post": {
                 "operationId": "agentcc_gateways_remove_budget",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayBudgetRemoveRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4767,10 +4932,34 @@
             "post": {
                 "operationId": "agentcc_gateways_remove_mcp_server",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMCPServerRemoveRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4790,10 +4979,34 @@
             "post": {
                 "operationId": "agentcc_gateways_remove_provider",
                 "description": "Soft-delete a provider credential and push config.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayNameRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4813,10 +5026,28 @@
             "post": {
                 "operationId": "agentcc_gateways_set_budget",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayBudgetSetRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4836,10 +5067,28 @@
             "post": {
                 "operationId": "agentcc_gateways_submit_batch",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayBatchSubmitRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4859,10 +5108,28 @@
             "post": {
                 "operationId": "agentcc_gateways_test_mcp_tool",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMCPToolTestRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4882,10 +5149,28 @@
             "post": {
                 "operationId": "agentcc_gateways_test_playground",
                 "description": "Send a real chat completion through the gateway to test guardrails.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayPlaygroundTestRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccJSONResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4905,10 +5190,28 @@
             "post": {
                 "operationId": "agentcc_gateways_toggle_guardrail",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayToggleGuardrailRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4928,10 +5231,28 @@
             "post": {
                 "operationId": "agentcc_gateways_update_config",
                 "description": "Patch one or more JSON fields on the org's active config and push.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayConfigPatchRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4951,10 +5272,28 @@
             "post": {
                 "operationId": "agentcc_gateways_update_guardrail",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayNamedConfigRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4974,10 +5313,28 @@
             "post": {
                 "operationId": "agentcc_gateways_update_mcp_guardrails",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMCPGuardrailsUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4997,10 +5354,28 @@
             "post": {
                 "operationId": "agentcc_gateways_update_mcp_server",
                 "description": "Stateless proxy to the Go gateway (configured via env vars).\nNo DB model — returns a virtual singleton gateway with live health.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMCPServerUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5020,10 +5395,28 @@
             "post": {
                 "operationId": "agentcc_gateways_update_provider",
                 "description": "Add or update a provider credential for the org, then push config.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GatewayProviderUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/GatewayMutationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5061,7 +5454,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PIIEntitiesResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5092,7 +5488,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/TopicCategoriesResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5105,10 +5504,28 @@
             "post": {
                 "operationId": "agentcc_guardrail-configs_validate_cel",
                 "description": "Validate a CEL expression syntax.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ValidateCELRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ValidateCELResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5741,7 +6158,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/OrgConfigBulkResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -7362,10 +7788,32 @@
             "get": {
                 "operationId": "agentcc_spend-summary_list",
                 "description": "Returns aggregated spend data so the gateway can seed budget counters\non startup.  Authenticated by admin token (not user JWT).\n\nGET /agentcc/spend-summary/?period=monthly",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "total"
+                        ]
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SpendSummaryResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -7502,10 +7950,28 @@
             "post": {
                 "operationId": "agentcc_webhook_logs_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WebhookLogsRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookIngestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -7518,10 +7984,28 @@
             "post": {
                 "operationId": "agentcc_webhook_shadow-results_create",
                 "description": "Receives shadow result batches from the Agentcc Go gateway flusher.\nAuth via X-Webhook-Secret header.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ShadowResultsWebhookRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookIngestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentccErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -42302,6 +42786,106 @@
                 }
             }
         },
+        "APIKeyBulkItem": {
+            "required": [
+                "id",
+                "name",
+                "owner",
+                "key_hash",
+                "models",
+                "providers",
+                "metadata"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "owner": {
+                    "title": "Owner",
+                    "type": "string"
+                },
+                "key_hash": {
+                    "title": "Key hash",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "metadata": {
+                    "title": "Metadata",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "APIKeyBulkResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/APIKeyBulkItem"
+                    }
+                }
+            }
+        },
+        "AgentccErrorResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string"
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
         "AgentccBlocklist": {
             "required": [
                 "name"
@@ -42501,6 +43085,685 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "GatewayListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            }
+        },
+        "AgentccListResultResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            }
+        },
+        "GatewayDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                }
+            }
+        },
+        "GatewayBatchRequest": {
+            "required": [
+                "batch_id"
+            ],
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "title": "Batch id",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "AgentccJSONResultResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                }
+            }
+        },
+        "GatewayConfigResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                }
+            }
+        },
+        "AgentccEmptyRequest": {
+            "type": "object",
+            "properties": {}
+        },
+        "GatewayHealthResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                }
+            }
+        },
+        "GatewayMutationResult": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "integer"
+                },
+                "gateway_synced": {
+                    "title": "Gateway synced",
+                    "type": "boolean"
+                },
+                "gateway_warning": {
+                    "title": "Gateway warning",
+                    "type": "string"
+                },
+                "action": {
+                    "title": "Action",
+                    "type": "string"
+                },
+                "provider": {
+                    "title": "Provider",
+                    "type": "string"
+                },
+                "guardrail": {
+                    "title": "Guardrail",
+                    "type": "string"
+                },
+                "budget": {
+                    "title": "Budget",
+                    "type": "string"
+                },
+                "server": {
+                    "title": "Server",
+                    "type": "string"
+                },
+                "enabled": {
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            }
+        },
+        "GatewayMutationResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/GatewayMutationResult"
+                }
+            }
+        },
+        "GatewayBudgetRemoveRequest": {
+            "required": [
+                "level"
+            ],
+            "type": "object",
+            "properties": {
+                "level": {
+                    "title": "Level",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "GatewayMCPServerRemoveRequest": {
+            "required": [
+                "server_id"
+            ],
+            "type": "object",
+            "properties": {
+                "server_id": {
+                    "title": "Server id",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "GatewayNameRequest": {
+            "required": [
+                "name"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "GatewayBudgetSetRequest": {
+            "required": [
+                "level",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "level": {
+                    "title": "Level",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "GatewayBatchSubmitRequest": {
+            "required": [
+                "requests"
+            ],
+            "type": "object",
+            "properties": {
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "x-nullable": true
+                        }
+                    }
+                },
+                "max_concurrency": {
+                    "title": "Max concurrency",
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 1
+                }
+            }
+        },
+        "GatewayMCPToolTestRequest": {
+            "required": [
+                "name"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "arguments": {
+                    "title": "Arguments",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "default": {}
+                }
+            }
+        },
+        "GatewayPlaygroundTestRequest": {
+            "required": [
+                "prompt"
+            ],
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "title": "Prompt",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "title": "System prompt",
+                    "type": "string"
+                }
+            }
+        },
+        "GatewayToggleGuardrailRequest": {
+            "required": [
+                "name",
+                "enabled"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "enabled": {
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            }
+        },
+        "GatewayConfigPatchRequest": {
+            "type": "object",
+            "properties": {
+                "guardrails": {
+                    "title": "Guardrails",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "routing": {
+                    "title": "Routing",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "cache": {
+                    "title": "Cache",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "rate_limiting": {
+                    "title": "Rate limiting",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "budgets": {
+                    "title": "Budgets",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "cost_tracking": {
+                    "title": "Cost tracking",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "ip_acl": {
+                    "title": "Ip acl",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "alerting": {
+                    "title": "Alerting",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "privacy": {
+                    "title": "Privacy",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "tool_policy": {
+                    "title": "Tool policy",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "mcp": {
+                    "title": "Mcp",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "a2a": {
+                    "title": "A2a",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "audit": {
+                    "title": "Audit",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "model_database": {
+                    "title": "Model database",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "model_map": {
+                    "title": "Model map",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "GatewayNamedConfigRequest": {
+            "required": [
+                "name",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "GatewayMCPGuardrailsUpdateRequest": {
+            "required": [
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "GatewayMCPServerUpdateRequest": {
+            "required": [
+                "server_id",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "server_id": {
+                    "title": "Server id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "GatewayProviderUpdateRequest": {
+            "required": [
+                "name",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "PIIEntity": {
+            "required": [
+                "id",
+                "label",
+                "category"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "label": {
+                    "title": "Label",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "category": {
+                    "title": "Category",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "PIIEntitiesResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PIIEntity"
+                    }
+                }
+            }
+        },
+        "TopicCategory": {
+            "required": [
+                "id",
+                "label",
+                "subcategories"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "label": {
+                    "title": "Label",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "subcategories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                }
+            }
+        },
+        "TopicCategoriesResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TopicCategory"
+                    }
+                }
+            }
+        },
+        "ValidateCELRequest": {
+            "required": [
+                "expression"
+            ],
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "title": "Expression",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "ValidateCELResult": {
+            "required": [
+                "expression",
+                "valid"
+            ],
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "title": "Expression",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "valid": {
+                    "title": "Valid",
+                    "type": "boolean"
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "ValidateCELResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/ValidateCELResult"
                 }
             }
         },
@@ -42758,6 +44021,27 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "OrgConfigBulkResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
                 }
             }
         },
@@ -43351,6 +44635,27 @@
                 }
             }
         },
+        "SpendSummaryResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
         "AgentccWebhookEvent": {
             "type": "object",
             "properties": {
@@ -43441,6 +44746,64 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "WebhookLogsRequest": {
+            "type": "object",
+            "properties": {
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "x-nullable": true
+                        }
+                    }
+                }
+            }
+        },
+        "WebhookIngestResult": {
+            "required": [
+                "ingested"
+            ],
+            "type": "object",
+            "properties": {
+                "ingested": {
+                    "title": "Ingested",
+                    "type": "integer"
+                }
+            }
+        },
+        "WebhookIngestResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/WebhookIngestResult"
+                }
+            }
+        },
+        "ShadowResultsWebhookRequest": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "x-nullable": true
+                        }
+                    }
                 }
             }
         },

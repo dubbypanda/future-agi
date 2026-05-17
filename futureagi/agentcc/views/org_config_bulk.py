@@ -1,9 +1,14 @@
 import structlog
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from agentcc.models import AgentccOrgConfig
 from agentcc.permissions import IsAdminToken
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    OrgConfigBulkResponseSerializer,
+)
 from agentcc.services.config_push import _build_payload
 from tfc.utils.general_methods import GeneralMethods
 
@@ -22,6 +27,12 @@ class OrgConfigBulkView(APIView):
     renderer_classes = [JSONRenderer]  # bypass camelCase — Go expects snake_case
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: OrgConfigBulkResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     def get(self, request):
         try:
             configs = AgentccOrgConfig.no_workspace_objects.filter(

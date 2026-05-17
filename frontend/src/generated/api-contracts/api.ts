@@ -9,6 +9,7 @@
 import type {
   AIFilterRequestApi,
   AIFilterResponseApi,
+  APIKeyBulkResponseApi,
   AddEvalConfigsRequestApi,
   AddEvalConfigsResponseApi,
   AddItemsApi,
@@ -70,6 +71,8 @@ import type {
   AgentccEmailAlertApi,
   AgentccEmailAlertsList200,
   AgentccEmailAlertsListParams,
+  AgentccEmptyRequestApi,
+  AgentccErrorResponseApi,
   AgentccGuardrailConfigsPiiEntitiesParams,
   AgentccGuardrailConfigsTopicsParams,
   AgentccGuardrailFeedbackApi,
@@ -80,6 +83,8 @@ import type {
   AgentccGuardrailPoliciesList200,
   AgentccGuardrailPoliciesListParams,
   AgentccGuardrailPolicyApi,
+  AgentccJSONResultResponseApi,
+  AgentccListResultResponseApi,
   AgentccOrgConfigApi,
   AgentccOrgConfigsActive200,
   AgentccOrgConfigsActiveParams,
@@ -111,6 +116,7 @@ import type {
   AgentccShadowResultApi,
   AgentccShadowResultsList200,
   AgentccShadowResultsListParams,
+  AgentccSpendSummaryListParams,
   AgentccWebhookApi,
   AgentccWebhookEventApi,
   AgentccWebhookEventsList200,
@@ -225,6 +231,25 @@ import type {
   FetchAssistantResponseApi,
   FetchGraphApi,
   FileUploadResponseApi,
+  GatewayBatchRequestApi,
+  GatewayBatchSubmitRequestApi,
+  GatewayBudgetRemoveRequestApi,
+  GatewayBudgetSetRequestApi,
+  GatewayConfigPatchRequestApi,
+  GatewayConfigResponseApi,
+  GatewayDetailResponseApi,
+  GatewayHealthResponseApi,
+  GatewayListResponseApi,
+  GatewayMCPGuardrailsUpdateRequestApi,
+  GatewayMCPServerRemoveRequestApi,
+  GatewayMCPServerUpdateRequestApi,
+  GatewayMCPToolTestRequestApi,
+  GatewayMutationResponseApi,
+  GatewayNameRequestApi,
+  GatewayNamedConfigRequestApi,
+  GatewayPlaygroundTestRequestApi,
+  GatewayProviderUpdateRequestApi,
+  GatewayToggleGuardrailRequestApi,
   GenerateScenarioApi,
   GetAnnotationLabelsResponseApi,
   GetTraceAnnotationApi,
@@ -375,7 +400,9 @@ import type {
   ObservationSpanApi,
   OptimizationDatasetGetApi,
   OptimizationDetailApi,
+  OrgConfigBulkResponseApi,
   OverviewApiResponseApi,
+  PIIEntitiesResponseApi,
   PerformanceSummaryApi,
   PersonaApi,
   PersonaCreateApi,
@@ -501,6 +528,7 @@ import type {
   SecretApi,
   SendChatRequestApi,
   SessionComparisonResponseApi,
+  ShadowResultsWebhookRequestApi,
   SharedLinkDetailApi,
   SharedLinkListApi,
   SharedLinkResolveErrorApi,
@@ -543,6 +571,7 @@ import type {
   SpanAttributeDetailResponseApi,
   SpanAttributeKeysResponseApi,
   SpanAttributeValuesResponseApi,
+  SpendSummaryResponseApi,
   StreamStatusResponseApi,
   SubmitAnnotationsApi,
   SyncLogApi,
@@ -562,6 +591,7 @@ import type {
   TokenObtainPairApi,
   ToolDiscoveryResponseApi,
   ToolsApi,
+  TopicCategoriesResponseApi,
   TraceApi,
   TraceErrorAnalysisResponseApi,
   TraceErrorTaskResponseApi,
@@ -717,8 +747,12 @@ import type {
   UserCodeExampleResponseApi,
   UserResponseSchemaApi,
   UsersResponseApi,
+  ValidateCELRequestApi,
+  ValidateCELResponseApi,
   ValidateLiveKitCredentialsRequestApi,
   ValidateLiveKitCredentialsResponseApi,
+  WebhookIngestResponseApi,
+  WebhookLogsRequestApi,
   WebhookRequestApi,
   WebhookResponseApi
 } from './api.schemas';
@@ -5951,16 +5985,23 @@ export const agentccApiKeysCreate = async (agentccAPIKeyApi: NonReadonly<Agentcc
 
 
 export type agentccApiKeysBulkListResponse200 = {
-  data: void
+  data: APIKeyBulkResponseApi
   status: 200
+}
+
+export type agentccApiKeysBulkListResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccApiKeysBulkListResponseSuccess = (agentccApiKeysBulkListResponse200) & {
   headers: Headers;
 };
-;
+export type agentccApiKeysBulkListResponseError = (agentccApiKeysBulkListResponse400) & {
+  headers: Headers;
+};
 
-export type agentccApiKeysBulkListResponse = (agentccApiKeysBulkListResponseSuccess)
+export type agentccApiKeysBulkListResponse = (agentccApiKeysBulkListResponseSuccess | agentccApiKeysBulkListResponseError)
 
 export const getAgentccApiKeysBulkListUrl = () => {
 
@@ -7031,16 +7072,23 @@ export const agentccEmailAlertsTest = async (id: string,
 
 
 export type agentccGatewaysListResponse200 = {
-  data: void
+  data: GatewayListResponseApi
   status: 200
+}
+
+export type agentccGatewaysListResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccGatewaysListResponseSuccess = (agentccGatewaysListResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysListResponseError = (agentccGatewaysListResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysListResponse = (agentccGatewaysListResponseSuccess)
+export type agentccGatewaysListResponse = (agentccGatewaysListResponseSuccess | agentccGatewaysListResponseError)
 
 export const getAgentccGatewaysListUrl = () => {
 
@@ -7068,16 +7116,23 @@ export const agentccGatewaysList = async ( options?: RequestInit): Promise<agent
 
 
 export type agentccGatewaysProtectTemplatesResponse200 = {
-  data: void
+  data: AgentccListResultResponseApi
   status: 200
+}
+
+export type agentccGatewaysProtectTemplatesResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccGatewaysProtectTemplatesResponseSuccess = (agentccGatewaysProtectTemplatesResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysProtectTemplatesResponseError = (agentccGatewaysProtectTemplatesResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysProtectTemplatesResponse = (agentccGatewaysProtectTemplatesResponseSuccess)
+export type agentccGatewaysProtectTemplatesResponse = (agentccGatewaysProtectTemplatesResponseSuccess | agentccGatewaysProtectTemplatesResponseError)
 
 export const getAgentccGatewaysProtectTemplatesUrl = () => {
 
@@ -7104,16 +7159,23 @@ export const agentccGatewaysProtectTemplates = async ( options?: RequestInit): P
 
 
 export type agentccGatewaysReadResponse200 = {
-  data: void
+  data: GatewayDetailResponseApi
   status: 200
+}
+
+export type agentccGatewaysReadResponse404 = {
+  data: AgentccErrorResponseApi
+  status: 404
 }
 
 export type agentccGatewaysReadResponseSuccess = (agentccGatewaysReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysReadResponseError = (agentccGatewaysReadResponse404) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysReadResponse = (agentccGatewaysReadResponseSuccess)
+export type agentccGatewaysReadResponse = (agentccGatewaysReadResponseSuccess | agentccGatewaysReadResponseError)
 
 export const getAgentccGatewaysReadUrl = (id: string,) => {
 
@@ -7139,17 +7201,29 @@ export const agentccGatewaysRead = async (id: string, options?: RequestInit): Pr
 
 
 
-export type agentccGatewaysCancelBatchResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysCancelBatchResponse200 = {
+  data: AgentccJSONResultResponseApi
+  status: 200
 }
 
-export type agentccGatewaysCancelBatchResponseSuccess = (agentccGatewaysCancelBatchResponse201) & {
+export type agentccGatewaysCancelBatchResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysCancelBatchResponse404 = {
+  data: AgentccErrorResponseApi
+  status: 404
+}
+
+export type agentccGatewaysCancelBatchResponseSuccess = (agentccGatewaysCancelBatchResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysCancelBatchResponseError = (agentccGatewaysCancelBatchResponse400 | agentccGatewaysCancelBatchResponse404) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysCancelBatchResponse = (agentccGatewaysCancelBatchResponseSuccess)
+export type agentccGatewaysCancelBatchResponse = (agentccGatewaysCancelBatchResponseSuccess | agentccGatewaysCancelBatchResponseError)
 
 export const getAgentccGatewaysCancelBatchUrl = (id: string,) => {
 
@@ -7163,30 +7237,39 @@ export const getAgentccGatewaysCancelBatchUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysCancelBatch = async (id: string, options?: RequestInit): Promise<agentccGatewaysCancelBatchResponse> => {
+export const agentccGatewaysCancelBatch = async (id: string,
+    gatewayBatchRequestApi: GatewayBatchRequestApi, options?: RequestInit): Promise<agentccGatewaysCancelBatchResponse> => {
 
   return apiMutator<agentccGatewaysCancelBatchResponse>(getAgentccGatewaysCancelBatchUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayBatchRequestApi,)
   }
 );}
 
 
 
 export type agentccGatewaysConfigResponse200 = {
-  data: void
+  data: GatewayConfigResponseApi
   status: 200
+}
+
+export type agentccGatewaysConfigResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccGatewaysConfigResponseSuccess = (agentccGatewaysConfigResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysConfigResponseError = (agentccGatewaysConfigResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysConfigResponse = (agentccGatewaysConfigResponseSuccess)
+export type agentccGatewaysConfigResponse = (agentccGatewaysConfigResponseSuccess | agentccGatewaysConfigResponseError)
 
 export const getAgentccGatewaysConfigUrl = (id: string,) => {
 
@@ -7214,16 +7297,28 @@ export const agentccGatewaysConfig = async (id: string, options?: RequestInit): 
 
 
 export type agentccGatewaysGetBatchResponse200 = {
-  data: void
+  data: AgentccJSONResultResponseApi
   status: 200
+}
+
+export type agentccGatewaysGetBatchResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysGetBatchResponse404 = {
+  data: AgentccErrorResponseApi
+  status: 404
 }
 
 export type agentccGatewaysGetBatchResponseSuccess = (agentccGatewaysGetBatchResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysGetBatchResponseError = (agentccGatewaysGetBatchResponse400 | agentccGatewaysGetBatchResponse404) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysGetBatchResponse = (agentccGatewaysGetBatchResponseSuccess)
+export type agentccGatewaysGetBatchResponse = (agentccGatewaysGetBatchResponseSuccess | agentccGatewaysGetBatchResponseError)
 
 export const getAgentccGatewaysGetBatchUrl = (id: string,) => {
 
@@ -7250,17 +7345,24 @@ export const agentccGatewaysGetBatch = async (id: string, options?: RequestInit)
 
 
 
-export type agentccGatewaysHealthCheckResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysHealthCheckResponse200 = {
+  data: GatewayHealthResponseApi
+  status: 200
 }
 
-export type agentccGatewaysHealthCheckResponseSuccess = (agentccGatewaysHealthCheckResponse201) & {
+export type agentccGatewaysHealthCheckResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysHealthCheckResponseSuccess = (agentccGatewaysHealthCheckResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysHealthCheckResponseError = (agentccGatewaysHealthCheckResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysHealthCheckResponse = (agentccGatewaysHealthCheckResponseSuccess)
+export type agentccGatewaysHealthCheckResponse = (agentccGatewaysHealthCheckResponseSuccess | agentccGatewaysHealthCheckResponseError)
 
 export const getAgentccGatewaysHealthCheckUrl = (id: string,) => {
 
@@ -7274,21 +7376,23 @@ export const getAgentccGatewaysHealthCheckUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysHealthCheck = async (id: string, options?: RequestInit): Promise<agentccGatewaysHealthCheckResponse> => {
+export const agentccGatewaysHealthCheck = async (id: string,
+    agentccEmptyRequestApi: AgentccEmptyRequestApi, options?: RequestInit): Promise<agentccGatewaysHealthCheckResponse> => {
 
   return apiMutator<agentccGatewaysHealthCheckResponse>(getAgentccGatewaysHealthCheckUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      agentccEmptyRequestApi,)
   }
 );}
 
 
 
 export type agentccGatewaysMcpPromptsResponse200 = {
-  data: void
+  data: AgentccListResultResponseApi
   status: 200
 }
 
@@ -7325,7 +7429,7 @@ export const agentccGatewaysMcpPrompts = async (id: string, options?: RequestIni
 
 
 export type agentccGatewaysMcpResourcesResponse200 = {
-  data: void
+  data: AgentccListResultResponseApi
   status: 200
 }
 
@@ -7362,16 +7466,23 @@ export const agentccGatewaysMcpResources = async (id: string, options?: RequestI
 
 
 export type agentccGatewaysMcpStatusResponse200 = {
-  data: void
+  data: AgentccJSONResultResponseApi
   status: 200
+}
+
+export type agentccGatewaysMcpStatusResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccGatewaysMcpStatusResponseSuccess = (agentccGatewaysMcpStatusResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysMcpStatusResponseError = (agentccGatewaysMcpStatusResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysMcpStatusResponse = (agentccGatewaysMcpStatusResponseSuccess)
+export type agentccGatewaysMcpStatusResponse = (agentccGatewaysMcpStatusResponseSuccess | agentccGatewaysMcpStatusResponseError)
 
 export const getAgentccGatewaysMcpStatusUrl = (id: string,) => {
 
@@ -7399,7 +7510,7 @@ export const agentccGatewaysMcpStatus = async (id: string, options?: RequestInit
 
 
 export type agentccGatewaysMcpToolsResponse200 = {
-  data: void
+  data: AgentccListResultResponseApi
   status: 200
 }
 
@@ -7436,16 +7547,23 @@ export const agentccGatewaysMcpTools = async (id: string, options?: RequestInit)
 
 
 export type agentccGatewaysProvidersResponse200 = {
-  data: void
+  data: AgentccJSONResultResponseApi
   status: 200
+}
+
+export type agentccGatewaysProvidersResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccGatewaysProvidersResponseSuccess = (agentccGatewaysProvidersResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysProvidersResponseError = (agentccGatewaysProvidersResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysProvidersResponse = (agentccGatewaysProvidersResponseSuccess)
+export type agentccGatewaysProvidersResponse = (agentccGatewaysProvidersResponseSuccess | agentccGatewaysProvidersResponseError)
 
 export const getAgentccGatewaysProvidersUrl = (id: string,) => {
 
@@ -7472,17 +7590,24 @@ export const agentccGatewaysProviders = async (id: string, options?: RequestInit
 
 
 
-export type agentccGatewaysReloadResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysReloadResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysReloadResponseSuccess = (agentccGatewaysReloadResponse201) & {
+export type agentccGatewaysReloadResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysReloadResponseSuccess = (agentccGatewaysReloadResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysReloadResponseError = (agentccGatewaysReloadResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysReloadResponse = (agentccGatewaysReloadResponseSuccess)
+export type agentccGatewaysReloadResponse = (agentccGatewaysReloadResponseSuccess | agentccGatewaysReloadResponseError)
 
 export const getAgentccGatewaysReloadUrl = (id: string,) => {
 
@@ -7495,30 +7620,39 @@ export const getAgentccGatewaysReloadUrl = (id: string,) => {
 /**
  * Re-push this org's config to the gateway.
  */
-export const agentccGatewaysReload = async (id: string, options?: RequestInit): Promise<agentccGatewaysReloadResponse> => {
+export const agentccGatewaysReload = async (id: string,
+    agentccEmptyRequestApi: AgentccEmptyRequestApi, options?: RequestInit): Promise<agentccGatewaysReloadResponse> => {
 
   return apiMutator<agentccGatewaysReloadResponse>(getAgentccGatewaysReloadUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      agentccEmptyRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysRemoveBudgetResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysRemoveBudgetResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysRemoveBudgetResponseSuccess = (agentccGatewaysRemoveBudgetResponse201) & {
+export type agentccGatewaysRemoveBudgetResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysRemoveBudgetResponseSuccess = (agentccGatewaysRemoveBudgetResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysRemoveBudgetResponseError = (agentccGatewaysRemoveBudgetResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysRemoveBudgetResponse = (agentccGatewaysRemoveBudgetResponseSuccess)
+export type agentccGatewaysRemoveBudgetResponse = (agentccGatewaysRemoveBudgetResponseSuccess | agentccGatewaysRemoveBudgetResponseError)
 
 export const getAgentccGatewaysRemoveBudgetUrl = (id: string,) => {
 
@@ -7532,30 +7666,44 @@ export const getAgentccGatewaysRemoveBudgetUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysRemoveBudget = async (id: string, options?: RequestInit): Promise<agentccGatewaysRemoveBudgetResponse> => {
+export const agentccGatewaysRemoveBudget = async (id: string,
+    gatewayBudgetRemoveRequestApi: GatewayBudgetRemoveRequestApi, options?: RequestInit): Promise<agentccGatewaysRemoveBudgetResponse> => {
 
   return apiMutator<agentccGatewaysRemoveBudgetResponse>(getAgentccGatewaysRemoveBudgetUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayBudgetRemoveRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysRemoveMcpServerResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysRemoveMcpServerResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysRemoveMcpServerResponseSuccess = (agentccGatewaysRemoveMcpServerResponse201) & {
+export type agentccGatewaysRemoveMcpServerResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysRemoveMcpServerResponse404 = {
+  data: AgentccErrorResponseApi
+  status: 404
+}
+
+export type agentccGatewaysRemoveMcpServerResponseSuccess = (agentccGatewaysRemoveMcpServerResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysRemoveMcpServerResponseError = (agentccGatewaysRemoveMcpServerResponse400 | agentccGatewaysRemoveMcpServerResponse404) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysRemoveMcpServerResponse = (agentccGatewaysRemoveMcpServerResponseSuccess)
+export type agentccGatewaysRemoveMcpServerResponse = (agentccGatewaysRemoveMcpServerResponseSuccess | agentccGatewaysRemoveMcpServerResponseError)
 
 export const getAgentccGatewaysRemoveMcpServerUrl = (id: string,) => {
 
@@ -7569,30 +7717,44 @@ export const getAgentccGatewaysRemoveMcpServerUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysRemoveMcpServer = async (id: string, options?: RequestInit): Promise<agentccGatewaysRemoveMcpServerResponse> => {
+export const agentccGatewaysRemoveMcpServer = async (id: string,
+    gatewayMCPServerRemoveRequestApi: GatewayMCPServerRemoveRequestApi, options?: RequestInit): Promise<agentccGatewaysRemoveMcpServerResponse> => {
 
   return apiMutator<agentccGatewaysRemoveMcpServerResponse>(getAgentccGatewaysRemoveMcpServerUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayMCPServerRemoveRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysRemoveProviderResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysRemoveProviderResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysRemoveProviderResponseSuccess = (agentccGatewaysRemoveProviderResponse201) & {
+export type agentccGatewaysRemoveProviderResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysRemoveProviderResponse404 = {
+  data: AgentccErrorResponseApi
+  status: 404
+}
+
+export type agentccGatewaysRemoveProviderResponseSuccess = (agentccGatewaysRemoveProviderResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysRemoveProviderResponseError = (agentccGatewaysRemoveProviderResponse400 | agentccGatewaysRemoveProviderResponse404) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysRemoveProviderResponse = (agentccGatewaysRemoveProviderResponseSuccess)
+export type agentccGatewaysRemoveProviderResponse = (agentccGatewaysRemoveProviderResponseSuccess | agentccGatewaysRemoveProviderResponseError)
 
 export const getAgentccGatewaysRemoveProviderUrl = (id: string,) => {
 
@@ -7605,30 +7767,39 @@ export const getAgentccGatewaysRemoveProviderUrl = (id: string,) => {
 /**
  * Soft-delete a provider credential and push config.
  */
-export const agentccGatewaysRemoveProvider = async (id: string, options?: RequestInit): Promise<agentccGatewaysRemoveProviderResponse> => {
+export const agentccGatewaysRemoveProvider = async (id: string,
+    gatewayNameRequestApi: GatewayNameRequestApi, options?: RequestInit): Promise<agentccGatewaysRemoveProviderResponse> => {
 
   return apiMutator<agentccGatewaysRemoveProviderResponse>(getAgentccGatewaysRemoveProviderUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayNameRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysSetBudgetResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysSetBudgetResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysSetBudgetResponseSuccess = (agentccGatewaysSetBudgetResponse201) & {
+export type agentccGatewaysSetBudgetResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysSetBudgetResponseSuccess = (agentccGatewaysSetBudgetResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysSetBudgetResponseError = (agentccGatewaysSetBudgetResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysSetBudgetResponse = (agentccGatewaysSetBudgetResponseSuccess)
+export type agentccGatewaysSetBudgetResponse = (agentccGatewaysSetBudgetResponseSuccess | agentccGatewaysSetBudgetResponseError)
 
 export const getAgentccGatewaysSetBudgetUrl = (id: string,) => {
 
@@ -7642,30 +7813,39 @@ export const getAgentccGatewaysSetBudgetUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysSetBudget = async (id: string, options?: RequestInit): Promise<agentccGatewaysSetBudgetResponse> => {
+export const agentccGatewaysSetBudget = async (id: string,
+    gatewayBudgetSetRequestApi: GatewayBudgetSetRequestApi, options?: RequestInit): Promise<agentccGatewaysSetBudgetResponse> => {
 
   return apiMutator<agentccGatewaysSetBudgetResponse>(getAgentccGatewaysSetBudgetUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayBudgetSetRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysSubmitBatchResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysSubmitBatchResponse200 = {
+  data: AgentccJSONResultResponseApi
+  status: 200
 }
 
-export type agentccGatewaysSubmitBatchResponseSuccess = (agentccGatewaysSubmitBatchResponse201) & {
+export type agentccGatewaysSubmitBatchResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysSubmitBatchResponseSuccess = (agentccGatewaysSubmitBatchResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysSubmitBatchResponseError = (agentccGatewaysSubmitBatchResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysSubmitBatchResponse = (agentccGatewaysSubmitBatchResponseSuccess)
+export type agentccGatewaysSubmitBatchResponse = (agentccGatewaysSubmitBatchResponseSuccess | agentccGatewaysSubmitBatchResponseError)
 
 export const getAgentccGatewaysSubmitBatchUrl = (id: string,) => {
 
@@ -7679,30 +7859,39 @@ export const getAgentccGatewaysSubmitBatchUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysSubmitBatch = async (id: string, options?: RequestInit): Promise<agentccGatewaysSubmitBatchResponse> => {
+export const agentccGatewaysSubmitBatch = async (id: string,
+    gatewayBatchSubmitRequestApi: GatewayBatchSubmitRequestApi, options?: RequestInit): Promise<agentccGatewaysSubmitBatchResponse> => {
 
   return apiMutator<agentccGatewaysSubmitBatchResponse>(getAgentccGatewaysSubmitBatchUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayBatchSubmitRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysTestMcpToolResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysTestMcpToolResponse200 = {
+  data: AgentccJSONResultResponseApi
+  status: 200
 }
 
-export type agentccGatewaysTestMcpToolResponseSuccess = (agentccGatewaysTestMcpToolResponse201) & {
+export type agentccGatewaysTestMcpToolResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysTestMcpToolResponseSuccess = (agentccGatewaysTestMcpToolResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysTestMcpToolResponseError = (agentccGatewaysTestMcpToolResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysTestMcpToolResponse = (agentccGatewaysTestMcpToolResponseSuccess)
+export type agentccGatewaysTestMcpToolResponse = (agentccGatewaysTestMcpToolResponseSuccess | agentccGatewaysTestMcpToolResponseError)
 
 export const getAgentccGatewaysTestMcpToolUrl = (id: string,) => {
 
@@ -7716,30 +7905,39 @@ export const getAgentccGatewaysTestMcpToolUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysTestMcpTool = async (id: string, options?: RequestInit): Promise<agentccGatewaysTestMcpToolResponse> => {
+export const agentccGatewaysTestMcpTool = async (id: string,
+    gatewayMCPToolTestRequestApi: GatewayMCPToolTestRequestApi, options?: RequestInit): Promise<agentccGatewaysTestMcpToolResponse> => {
 
   return apiMutator<agentccGatewaysTestMcpToolResponse>(getAgentccGatewaysTestMcpToolUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayMCPToolTestRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysTestPlaygroundResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysTestPlaygroundResponse200 = {
+  data: AgentccJSONResultResponseApi
+  status: 200
 }
 
-export type agentccGatewaysTestPlaygroundResponseSuccess = (agentccGatewaysTestPlaygroundResponse201) & {
+export type agentccGatewaysTestPlaygroundResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysTestPlaygroundResponseSuccess = (agentccGatewaysTestPlaygroundResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysTestPlaygroundResponseError = (agentccGatewaysTestPlaygroundResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysTestPlaygroundResponse = (agentccGatewaysTestPlaygroundResponseSuccess)
+export type agentccGatewaysTestPlaygroundResponse = (agentccGatewaysTestPlaygroundResponseSuccess | agentccGatewaysTestPlaygroundResponseError)
 
 export const getAgentccGatewaysTestPlaygroundUrl = (id: string,) => {
 
@@ -7752,30 +7950,39 @@ export const getAgentccGatewaysTestPlaygroundUrl = (id: string,) => {
 /**
  * Send a real chat completion through the gateway to test guardrails.
  */
-export const agentccGatewaysTestPlayground = async (id: string, options?: RequestInit): Promise<agentccGatewaysTestPlaygroundResponse> => {
+export const agentccGatewaysTestPlayground = async (id: string,
+    gatewayPlaygroundTestRequestApi: GatewayPlaygroundTestRequestApi, options?: RequestInit): Promise<agentccGatewaysTestPlaygroundResponse> => {
 
   return apiMutator<agentccGatewaysTestPlaygroundResponse>(getAgentccGatewaysTestPlaygroundUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayPlaygroundTestRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysToggleGuardrailResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysToggleGuardrailResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysToggleGuardrailResponseSuccess = (agentccGatewaysToggleGuardrailResponse201) & {
+export type agentccGatewaysToggleGuardrailResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysToggleGuardrailResponseSuccess = (agentccGatewaysToggleGuardrailResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysToggleGuardrailResponseError = (agentccGatewaysToggleGuardrailResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysToggleGuardrailResponse = (agentccGatewaysToggleGuardrailResponseSuccess)
+export type agentccGatewaysToggleGuardrailResponse = (agentccGatewaysToggleGuardrailResponseSuccess | agentccGatewaysToggleGuardrailResponseError)
 
 export const getAgentccGatewaysToggleGuardrailUrl = (id: string,) => {
 
@@ -7789,30 +7996,39 @@ export const getAgentccGatewaysToggleGuardrailUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysToggleGuardrail = async (id: string, options?: RequestInit): Promise<agentccGatewaysToggleGuardrailResponse> => {
+export const agentccGatewaysToggleGuardrail = async (id: string,
+    gatewayToggleGuardrailRequestApi: GatewayToggleGuardrailRequestApi, options?: RequestInit): Promise<agentccGatewaysToggleGuardrailResponse> => {
 
   return apiMutator<agentccGatewaysToggleGuardrailResponse>(getAgentccGatewaysToggleGuardrailUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayToggleGuardrailRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysUpdateConfigResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysUpdateConfigResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysUpdateConfigResponseSuccess = (agentccGatewaysUpdateConfigResponse201) & {
+export type agentccGatewaysUpdateConfigResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysUpdateConfigResponseSuccess = (agentccGatewaysUpdateConfigResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysUpdateConfigResponseError = (agentccGatewaysUpdateConfigResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysUpdateConfigResponse = (agentccGatewaysUpdateConfigResponseSuccess)
+export type agentccGatewaysUpdateConfigResponse = (agentccGatewaysUpdateConfigResponseSuccess | agentccGatewaysUpdateConfigResponseError)
 
 export const getAgentccGatewaysUpdateConfigUrl = (id: string,) => {
 
@@ -7825,30 +8041,39 @@ export const getAgentccGatewaysUpdateConfigUrl = (id: string,) => {
 /**
  * Patch one or more JSON fields on the org's active config and push.
  */
-export const agentccGatewaysUpdateConfig = async (id: string, options?: RequestInit): Promise<agentccGatewaysUpdateConfigResponse> => {
+export const agentccGatewaysUpdateConfig = async (id: string,
+    gatewayConfigPatchRequestApi: GatewayConfigPatchRequestApi, options?: RequestInit): Promise<agentccGatewaysUpdateConfigResponse> => {
 
   return apiMutator<agentccGatewaysUpdateConfigResponse>(getAgentccGatewaysUpdateConfigUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayConfigPatchRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysUpdateGuardrailResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysUpdateGuardrailResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysUpdateGuardrailResponseSuccess = (agentccGatewaysUpdateGuardrailResponse201) & {
+export type agentccGatewaysUpdateGuardrailResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysUpdateGuardrailResponseSuccess = (agentccGatewaysUpdateGuardrailResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysUpdateGuardrailResponseError = (agentccGatewaysUpdateGuardrailResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysUpdateGuardrailResponse = (agentccGatewaysUpdateGuardrailResponseSuccess)
+export type agentccGatewaysUpdateGuardrailResponse = (agentccGatewaysUpdateGuardrailResponseSuccess | agentccGatewaysUpdateGuardrailResponseError)
 
 export const getAgentccGatewaysUpdateGuardrailUrl = (id: string,) => {
 
@@ -7862,30 +8087,39 @@ export const getAgentccGatewaysUpdateGuardrailUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysUpdateGuardrail = async (id: string, options?: RequestInit): Promise<agentccGatewaysUpdateGuardrailResponse> => {
+export const agentccGatewaysUpdateGuardrail = async (id: string,
+    gatewayNamedConfigRequestApi: GatewayNamedConfigRequestApi, options?: RequestInit): Promise<agentccGatewaysUpdateGuardrailResponse> => {
 
   return apiMutator<agentccGatewaysUpdateGuardrailResponse>(getAgentccGatewaysUpdateGuardrailUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayNamedConfigRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysUpdateMcpGuardrailsResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysUpdateMcpGuardrailsResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysUpdateMcpGuardrailsResponseSuccess = (agentccGatewaysUpdateMcpGuardrailsResponse201) & {
+export type agentccGatewaysUpdateMcpGuardrailsResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysUpdateMcpGuardrailsResponseSuccess = (agentccGatewaysUpdateMcpGuardrailsResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysUpdateMcpGuardrailsResponseError = (agentccGatewaysUpdateMcpGuardrailsResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysUpdateMcpGuardrailsResponse = (agentccGatewaysUpdateMcpGuardrailsResponseSuccess)
+export type agentccGatewaysUpdateMcpGuardrailsResponse = (agentccGatewaysUpdateMcpGuardrailsResponseSuccess | agentccGatewaysUpdateMcpGuardrailsResponseError)
 
 export const getAgentccGatewaysUpdateMcpGuardrailsUrl = (id: string,) => {
 
@@ -7899,30 +8133,39 @@ export const getAgentccGatewaysUpdateMcpGuardrailsUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysUpdateMcpGuardrails = async (id: string, options?: RequestInit): Promise<agentccGatewaysUpdateMcpGuardrailsResponse> => {
+export const agentccGatewaysUpdateMcpGuardrails = async (id: string,
+    gatewayMCPGuardrailsUpdateRequestApi: GatewayMCPGuardrailsUpdateRequestApi, options?: RequestInit): Promise<agentccGatewaysUpdateMcpGuardrailsResponse> => {
 
   return apiMutator<agentccGatewaysUpdateMcpGuardrailsResponse>(getAgentccGatewaysUpdateMcpGuardrailsUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayMCPGuardrailsUpdateRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysUpdateMcpServerResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysUpdateMcpServerResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysUpdateMcpServerResponseSuccess = (agentccGatewaysUpdateMcpServerResponse201) & {
+export type agentccGatewaysUpdateMcpServerResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysUpdateMcpServerResponseSuccess = (agentccGatewaysUpdateMcpServerResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysUpdateMcpServerResponseError = (agentccGatewaysUpdateMcpServerResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysUpdateMcpServerResponse = (agentccGatewaysUpdateMcpServerResponseSuccess)
+export type agentccGatewaysUpdateMcpServerResponse = (agentccGatewaysUpdateMcpServerResponseSuccess | agentccGatewaysUpdateMcpServerResponseError)
 
 export const getAgentccGatewaysUpdateMcpServerUrl = (id: string,) => {
 
@@ -7936,30 +8179,39 @@ export const getAgentccGatewaysUpdateMcpServerUrl = (id: string,) => {
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
-export const agentccGatewaysUpdateMcpServer = async (id: string, options?: RequestInit): Promise<agentccGatewaysUpdateMcpServerResponse> => {
+export const agentccGatewaysUpdateMcpServer = async (id: string,
+    gatewayMCPServerUpdateRequestApi: GatewayMCPServerUpdateRequestApi, options?: RequestInit): Promise<agentccGatewaysUpdateMcpServerResponse> => {
 
   return apiMutator<agentccGatewaysUpdateMcpServerResponse>(getAgentccGatewaysUpdateMcpServerUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayMCPServerUpdateRequestApi,)
   }
 );}
 
 
 
-export type agentccGatewaysUpdateProviderResponse201 = {
-  data: void
-  status: 201
+export type agentccGatewaysUpdateProviderResponse200 = {
+  data: GatewayMutationResponseApi
+  status: 200
 }
 
-export type agentccGatewaysUpdateProviderResponseSuccess = (agentccGatewaysUpdateProviderResponse201) & {
+export type agentccGatewaysUpdateProviderResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGatewaysUpdateProviderResponseSuccess = (agentccGatewaysUpdateProviderResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGatewaysUpdateProviderResponseError = (agentccGatewaysUpdateProviderResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGatewaysUpdateProviderResponse = (agentccGatewaysUpdateProviderResponseSuccess)
+export type agentccGatewaysUpdateProviderResponse = (agentccGatewaysUpdateProviderResponseSuccess | agentccGatewaysUpdateProviderResponseError)
 
 export const getAgentccGatewaysUpdateProviderUrl = (id: string,) => {
 
@@ -7972,21 +8224,23 @@ export const getAgentccGatewaysUpdateProviderUrl = (id: string,) => {
 /**
  * Add or update a provider credential for the org, then push config.
  */
-export const agentccGatewaysUpdateProvider = async (id: string, options?: RequestInit): Promise<agentccGatewaysUpdateProviderResponse> => {
+export const agentccGatewaysUpdateProvider = async (id: string,
+    gatewayProviderUpdateRequestApi: GatewayProviderUpdateRequestApi, options?: RequestInit): Promise<agentccGatewaysUpdateProviderResponse> => {
 
   return apiMutator<agentccGatewaysUpdateProviderResponse>(getAgentccGatewaysUpdateProviderUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      gatewayProviderUpdateRequestApi,)
   }
 );}
 
 
 
 export type agentccGuardrailConfigsPiiEntitiesResponse200 = {
-  data: void
+  data: PIIEntitiesResponseApi
   status: 200
 }
 
@@ -8029,7 +8283,7 @@ export const agentccGuardrailConfigsPiiEntities = async (params?: AgentccGuardra
 
 
 export type agentccGuardrailConfigsTopicsResponse200 = {
-  data: void
+  data: TopicCategoriesResponseApi
   status: 200
 }
 
@@ -8071,17 +8325,24 @@ export const agentccGuardrailConfigsTopics = async (params?: AgentccGuardrailCon
 
 
 
-export type agentccGuardrailConfigsValidateCelResponse201 = {
-  data: void
-  status: 201
+export type agentccGuardrailConfigsValidateCelResponse200 = {
+  data: ValidateCELResponseApi
+  status: 200
 }
 
-export type agentccGuardrailConfigsValidateCelResponseSuccess = (agentccGuardrailConfigsValidateCelResponse201) & {
+export type agentccGuardrailConfigsValidateCelResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccGuardrailConfigsValidateCelResponseSuccess = (agentccGuardrailConfigsValidateCelResponse200) & {
   headers: Headers;
 };
-;
+export type agentccGuardrailConfigsValidateCelResponseError = (agentccGuardrailConfigsValidateCelResponse400) & {
+  headers: Headers;
+};
 
-export type agentccGuardrailConfigsValidateCelResponse = (agentccGuardrailConfigsValidateCelResponseSuccess)
+export type agentccGuardrailConfigsValidateCelResponse = (agentccGuardrailConfigsValidateCelResponseSuccess | agentccGuardrailConfigsValidateCelResponseError)
 
 export const getAgentccGuardrailConfigsValidateCelUrl = () => {
 
@@ -8094,14 +8355,15 @@ export const getAgentccGuardrailConfigsValidateCelUrl = () => {
 /**
  * Validate a CEL expression syntax.
  */
-export const agentccGuardrailConfigsValidateCel = async ( options?: RequestInit): Promise<agentccGuardrailConfigsValidateCelResponse> => {
+export const agentccGuardrailConfigsValidateCel = async (validateCELRequestApi: ValidateCELRequestApi, options?: RequestInit): Promise<agentccGuardrailConfigsValidateCelResponse> => {
 
   return apiMutator<agentccGuardrailConfigsValidateCelResponse>(getAgentccGuardrailConfigsValidateCelUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      validateCELRequestApi,)
   }
 );}
 
@@ -8805,16 +9067,23 @@ export const agentccOrgConfigsActive = async (params?: AgentccOrgConfigsActivePa
 
 
 export type agentccOrgConfigsBulkListResponse200 = {
-  data: void
+  data: OrgConfigBulkResponseApi
   status: 200
+}
+
+export type agentccOrgConfigsBulkListResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
 }
 
 export type agentccOrgConfigsBulkListResponseSuccess = (agentccOrgConfigsBulkListResponse200) & {
   headers: Headers;
 };
-;
+export type agentccOrgConfigsBulkListResponseError = (agentccOrgConfigsBulkListResponse400) & {
+  headers: Headers;
+};
 
-export type agentccOrgConfigsBulkListResponse = (agentccOrgConfigsBulkListResponseSuccess)
+export type agentccOrgConfigsBulkListResponse = (agentccOrgConfigsBulkListResponseSuccess | agentccOrgConfigsBulkListResponseError)
 
 export const getAgentccOrgConfigsBulkListUrl = () => {
 
@@ -10662,23 +10931,37 @@ export const agentccShadowResultsRead = async (id: string, options?: RequestInit
 
 
 export type agentccSpendSummaryListResponse200 = {
-  data: void
+  data: SpendSummaryResponseApi
   status: 200
+}
+
+export type agentccSpendSummaryListResponse500 = {
+  data: AgentccErrorResponseApi
+  status: 500
 }
 
 export type agentccSpendSummaryListResponseSuccess = (agentccSpendSummaryListResponse200) & {
   headers: Headers;
 };
-;
+export type agentccSpendSummaryListResponseError = (agentccSpendSummaryListResponse500) & {
+  headers: Headers;
+};
 
-export type agentccSpendSummaryListResponse = (agentccSpendSummaryListResponseSuccess)
+export type agentccSpendSummaryListResponse = (agentccSpendSummaryListResponseSuccess | agentccSpendSummaryListResponseError)
 
-export const getAgentccSpendSummaryListUrl = () => {
+export const getAgentccSpendSummaryListUrl = (params?: AgentccSpendSummaryListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/agentcc/spend-summary/`
+  return stringifiedParams.length > 0 ? `/agentcc/spend-summary/?${stringifiedParams}` : `/agentcc/spend-summary/`
 }
 
 /**
@@ -10687,9 +10970,9 @@ on startup.  Authenticated by admin token (not user JWT).
 
 GET /agentcc/spend-summary/?period=monthly
  */
-export const agentccSpendSummaryList = async ( options?: RequestInit): Promise<agentccSpendSummaryListResponse> => {
+export const agentccSpendSummaryList = async (params?: AgentccSpendSummaryListParams, options?: RequestInit): Promise<agentccSpendSummaryListResponse> => {
 
-  return apiMutator<agentccSpendSummaryListResponse>(getAgentccSpendSummaryListUrl(),
+  return apiMutator<agentccSpendSummaryListResponse>(getAgentccSpendSummaryListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -10817,17 +11100,24 @@ export const agentccWebhookEventsRetry = async (id: string,
 
 
 
-export type agentccWebhookLogsCreateResponse201 = {
-  data: void
-  status: 201
+export type agentccWebhookLogsCreateResponse200 = {
+  data: WebhookIngestResponseApi
+  status: 200
 }
 
-export type agentccWebhookLogsCreateResponseSuccess = (agentccWebhookLogsCreateResponse201) & {
+export type agentccWebhookLogsCreateResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccWebhookLogsCreateResponseSuccess = (agentccWebhookLogsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type agentccWebhookLogsCreateResponseError = (agentccWebhookLogsCreateResponse400) & {
+  headers: Headers;
+};
 
-export type agentccWebhookLogsCreateResponse = (agentccWebhookLogsCreateResponseSuccess)
+export type agentccWebhookLogsCreateResponse = (agentccWebhookLogsCreateResponseSuccess | agentccWebhookLogsCreateResponseError)
 
 export const getAgentccWebhookLogsCreateUrl = () => {
 
@@ -10837,30 +11127,38 @@ export const getAgentccWebhookLogsCreateUrl = () => {
   return `/agentcc/webhook/logs/`
 }
 
-export const agentccWebhookLogsCreate = async ( options?: RequestInit): Promise<agentccWebhookLogsCreateResponse> => {
+export const agentccWebhookLogsCreate = async (webhookLogsRequestApi: WebhookLogsRequestApi, options?: RequestInit): Promise<agentccWebhookLogsCreateResponse> => {
 
   return apiMutator<agentccWebhookLogsCreateResponse>(getAgentccWebhookLogsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      webhookLogsRequestApi,)
   }
 );}
 
 
 
-export type agentccWebhookShadowResultsCreateResponse201 = {
-  data: void
-  status: 201
+export type agentccWebhookShadowResultsCreateResponse200 = {
+  data: WebhookIngestResponseApi
+  status: 200
 }
 
-export type agentccWebhookShadowResultsCreateResponseSuccess = (agentccWebhookShadowResultsCreateResponse201) & {
+export type agentccWebhookShadowResultsCreateResponse400 = {
+  data: AgentccErrorResponseApi
+  status: 400
+}
+
+export type agentccWebhookShadowResultsCreateResponseSuccess = (agentccWebhookShadowResultsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type agentccWebhookShadowResultsCreateResponseError = (agentccWebhookShadowResultsCreateResponse400) & {
+  headers: Headers;
+};
 
-export type agentccWebhookShadowResultsCreateResponse = (agentccWebhookShadowResultsCreateResponseSuccess)
+export type agentccWebhookShadowResultsCreateResponse = (agentccWebhookShadowResultsCreateResponseSuccess | agentccWebhookShadowResultsCreateResponseError)
 
 export const getAgentccWebhookShadowResultsCreateUrl = () => {
 
@@ -10874,14 +11172,15 @@ export const getAgentccWebhookShadowResultsCreateUrl = () => {
  * Receives shadow result batches from the Agentcc Go gateway flusher.
 Auth via X-Webhook-Secret header.
  */
-export const agentccWebhookShadowResultsCreate = async ( options?: RequestInit): Promise<agentccWebhookShadowResultsCreateResponse> => {
+export const agentccWebhookShadowResultsCreate = async (shadowResultsWebhookRequestApi: ShadowResultsWebhookRequestApi, options?: RequestInit): Promise<agentccWebhookShadowResultsCreateResponse> => {
 
   return apiMutator<agentccWebhookShadowResultsCreateResponse>(getAgentccWebhookShadowResultsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      shadowResultsWebhookRequestApi,)
   }
 );}
 

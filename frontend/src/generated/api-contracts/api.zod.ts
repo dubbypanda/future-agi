@@ -1890,6 +1890,34 @@ export const AgentccApiKeysCreateBody = zod.object({
 })
 
 
+/**
+ * Bulk endpoint for gateway startup key sync.
+Returns all active keys with their hashes so the gateway can restore
+its in-memory KeyStore on restart.
+
+Authenticated by admin token (not user JWT).
+ */
+
+
+
+
+
+
+
+export const AgentccApiKeysBulkListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "owner": zod.string(),
+  "key_hash": zod.string().min(1),
+  "models": zod.array(zod.string().min(1)),
+  "providers": zod.array(zod.string().min(1)),
+  "metadata": zod.record(zod.string(), zod.string())
+}))
+})
+
+
 export const agentccApiKeysSyncBodyNameMax = 255;
 
 export const agentccApiKeysSyncBodyOwnerMax = 255;
@@ -2794,10 +2822,40 @@ export const AgentccEmailAlertsTestBody = zod.object({
 
 
 /**
+ * Stateless proxy to the Go gateway (configured via env vars).
+No DB model — returns a virtual singleton gateway with live health.
+ */
+export const AgentccGatewaysListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+/**
+ * Return eval templates compatible with the FI protect guardrail.
+ */
+export const AgentccGatewaysProtectTemplatesResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+/**
  * Accept any pk and ignore it — there is only one gateway.
  */
 export const AgentccGatewaysReadParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
 })
 
 
@@ -2810,12 +2868,33 @@ export const AgentccGatewaysCancelBatchParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysCancelBatchBody = zod.object({
+  "batch_id": zod.string().min(1)
+})
+
+export const AgentccGatewaysCancelBatchResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
+})
+
+
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysConfigParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysConfigResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
 })
 
 
@@ -2827,6 +2906,13 @@ export const AgentccGatewaysGetBatchParams = zod.object({
   "id": zod.string()
 })
 
+export const AgentccGatewaysGetBatchResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
+})
+
 
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
@@ -2834,6 +2920,17 @@ No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysHealthCheckParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysHealthCheckBody = zod.object({
+
+}).passthrough()
+
+export const AgentccGatewaysHealthCheckResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
 })
 
 
@@ -2845,6 +2942,13 @@ export const AgentccGatewaysMcpPromptsParams = zod.object({
   "id": zod.string()
 })
 
+export const AgentccGatewaysMcpPromptsResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+
+}).passthrough())
+})
+
 
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
@@ -2852,6 +2956,13 @@ No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysMcpResourcesParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysMcpResourcesResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+
+}).passthrough())
 })
 
 
@@ -2863,6 +2974,13 @@ export const AgentccGatewaysMcpStatusParams = zod.object({
   "id": zod.string()
 })
 
+export const AgentccGatewaysMcpStatusResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
+})
+
 
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
@@ -2870,6 +2988,13 @@ No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysMcpToolsParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysMcpToolsResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+
+}).passthrough())
 })
 
 
@@ -2881,12 +3006,39 @@ export const AgentccGatewaysProvidersParams = zod.object({
   "id": zod.string()
 })
 
+export const AgentccGatewaysProvidersResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
+})
+
 
 /**
  * Re-push this org's config to the gateway.
  */
 export const AgentccGatewaysReloadParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysReloadBody = zod.object({
+
+}).passthrough()
+
+export const AgentccGatewaysReloadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 })
 
 
@@ -2899,6 +3051,29 @@ export const AgentccGatewaysRemoveBudgetParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysRemoveBudgetBody = zod.object({
+  "level": zod.string().min(1)
+})
+
+export const AgentccGatewaysRemoveBudgetResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
@@ -2908,11 +3083,57 @@ export const AgentccGatewaysRemoveMcpServerParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysRemoveMcpServerBody = zod.object({
+  "server_id": zod.string().min(1)
+})
+
+export const AgentccGatewaysRemoveMcpServerResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Soft-delete a provider credential and push config.
  */
 export const AgentccGatewaysRemoveProviderParams = zod.object({
   "id": zod.string()
+})
+
+
+
+
+export const AgentccGatewaysRemoveProviderBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const AgentccGatewaysRemoveProviderResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 })
 
 
@@ -2925,12 +3146,52 @@ export const AgentccGatewaysSetBudgetParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysSetBudgetBody = zod.object({
+  "level": zod.string().min(1),
+  "config": zod.record(zod.string(), zod.string())
+})
+
+export const AgentccGatewaysSetBudgetResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysSubmitBatchParams = zod.object({
   "id": zod.string()
+})
+
+export const agentccGatewaysSubmitBatchBodyMaxConcurrencyDefault = 5;
+
+
+
+export const AgentccGatewaysSubmitBatchBody = zod.object({
+  "requests": zod.array(zod.record(zod.string(), zod.string())),
+  "max_concurrency": zod.number().min(1).default(agentccGatewaysSubmitBatchBodyMaxConcurrencyDefault)
+})
+
+export const AgentccGatewaysSubmitBatchResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
 })
 
 
@@ -2943,11 +3204,42 @@ export const AgentccGatewaysTestMcpToolParams = zod.object({
 })
 
 
+export const agentccGatewaysTestMcpToolBodyArgumentsDefault = {  };
+
+export const AgentccGatewaysTestMcpToolBody = zod.object({
+  "name": zod.string().min(1),
+  "arguments": zod.record(zod.string(), zod.string()).default(agentccGatewaysTestMcpToolBodyArgumentsDefault)
+})
+
+export const AgentccGatewaysTestMcpToolResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
+})
+
+
 /**
  * Send a real chat completion through the gateway to test guardrails.
  */
 export const AgentccGatewaysTestPlaygroundParams = zod.object({
   "id": zod.string()
+})
+
+
+
+
+export const AgentccGatewaysTestPlaygroundBody = zod.object({
+  "prompt": zod.string().min(1),
+  "model": zod.string().optional(),
+  "system_prompt": zod.string().optional()
+})
+
+export const AgentccGatewaysTestPlaygroundResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough()
 })
 
 
@@ -2960,11 +3252,69 @@ export const AgentccGatewaysToggleGuardrailParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysToggleGuardrailBody = zod.object({
+  "name": zod.string().min(1),
+  "enabled": zod.boolean()
+})
+
+export const AgentccGatewaysToggleGuardrailResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Patch one or more JSON fields on the org's active config and push.
  */
 export const AgentccGatewaysUpdateConfigParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysUpdateConfigBody = zod.object({
+  "guardrails": zod.record(zod.string(), zod.string()).optional(),
+  "routing": zod.record(zod.string(), zod.string()).optional(),
+  "cache": zod.record(zod.string(), zod.string()).optional(),
+  "rate_limiting": zod.record(zod.string(), zod.string()).optional(),
+  "budgets": zod.record(zod.string(), zod.string()).optional(),
+  "cost_tracking": zod.record(zod.string(), zod.string()).optional(),
+  "ip_acl": zod.record(zod.string(), zod.string()).optional(),
+  "alerting": zod.record(zod.string(), zod.string()).optional(),
+  "privacy": zod.record(zod.string(), zod.string()).optional(),
+  "tool_policy": zod.record(zod.string(), zod.string()).optional(),
+  "mcp": zod.record(zod.string(), zod.string()).optional(),
+  "a2a": zod.record(zod.string(), zod.string()).optional(),
+  "audit": zod.record(zod.string(), zod.string()).optional(),
+  "model_database": zod.record(zod.string(), zod.string()).optional(),
+  "model_map": zod.record(zod.string(), zod.string()).optional()
+})
+
+export const AgentccGatewaysUpdateConfigResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 })
 
 
@@ -2977,12 +3327,56 @@ export const AgentccGatewaysUpdateGuardrailParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysUpdateGuardrailBody = zod.object({
+  "name": zod.string().min(1),
+  "config": zod.record(zod.string(), zod.string())
+})
+
+export const AgentccGatewaysUpdateGuardrailResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Stateless proxy to the Go gateway (configured via env vars).
 No DB model — returns a virtual singleton gateway with live health.
  */
 export const AgentccGatewaysUpdateMcpGuardrailsParams = zod.object({
   "id": zod.string()
+})
+
+export const AgentccGatewaysUpdateMcpGuardrailsBody = zod.object({
+  "config": zod.record(zod.string(), zod.string())
+})
+
+export const AgentccGatewaysUpdateMcpGuardrailsResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 })
 
 
@@ -2995,11 +3389,59 @@ export const AgentccGatewaysUpdateMcpServerParams = zod.object({
 })
 
 
+
+
+export const AgentccGatewaysUpdateMcpServerBody = zod.object({
+  "server_id": zod.string().min(1),
+  "config": zod.record(zod.string(), zod.string())
+})
+
+export const AgentccGatewaysUpdateMcpServerResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+})
+
+
 /**
  * Add or update a provider credential for the org, then push config.
  */
 export const AgentccGatewaysUpdateProviderParams = zod.object({
   "id": zod.string()
+})
+
+
+
+
+export const AgentccGatewaysUpdateProviderBody = zod.object({
+  "name": zod.string().min(1),
+  "config": zod.record(zod.string(), zod.string())
+})
+
+export const AgentccGatewaysUpdateProviderResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "status": zod.boolean().optional(),
+  "version": zod.number().optional(),
+  "gateway_synced": zod.boolean().optional(),
+  "gateway_warning": zod.string().optional(),
+  "action": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "guardrail": zod.string().optional(),
+  "budget": zod.string().optional(),
+  "server": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 })
 
 
@@ -3012,12 +3454,63 @@ export const AgentccGuardrailConfigsPiiEntitiesQueryParams = zod.object({
 })
 
 
+
+
+
+
+export const AgentccGuardrailConfigsPiiEntitiesResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "label": zod.string().min(1),
+  "category": zod.string().min(1)
+}))
+})
+
+
 /**
  * List topic restriction categories.
  */
 export const AgentccGuardrailConfigsTopicsQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
+})
+
+
+
+
+
+
+export const AgentccGuardrailConfigsTopicsResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "label": zod.string().min(1),
+  "subcategories": zod.array(zod.string().min(1))
+}))
+})
+
+
+/**
+ * Validate a CEL expression syntax.
+ */
+
+
+
+export const AgentccGuardrailConfigsValidateCelBody = zod.object({
+  "expression": zod.string().min(1)
+})
+
+
+
+
+export const AgentccGuardrailConfigsValidateCelResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "expression": zod.string().min(1),
+  "valid": zod.boolean(),
+  "error": zod.string().optional()
+})
 })
 
 
@@ -3691,6 +4184,17 @@ export const AgentccOrgConfigsActiveResponse = zod.object({
   "created_at": zod.string().datetime({"offset":true}).optional(),
   "updated_at": zod.string().datetime({"offset":true}).optional()
 }))
+})
+
+
+/**
+ * Bulk endpoint for gateway startup sync.
+Returns all active org configs keyed by org ID.
+Authenticated by admin token (not user JWT).
+ */
+export const AgentccOrgConfigsBulkListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.record(zod.string(), zod.string())
 })
 
 
@@ -5807,6 +6311,22 @@ export const AgentccShadowResultsReadResponse = zod.object({
 
 
 /**
+ * Returns aggregated spend data so the gateway can seed budget counters
+on startup.  Authenticated by admin token (not user JWT).
+
+GET /agentcc/spend-summary/?period=monthly
+ */
+export const AgentccSpendSummaryListQueryParams = zod.object({
+  "period": zod.enum(['daily', 'weekly', 'monthly', 'total']).optional()
+})
+
+export const AgentccSpendSummaryListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.record(zod.string(), zod.string())
+})
+
+
+/**
  * Read-only view of webhook event delivery records.
  */
 export const AgentccWebhookEventsListQueryParams = zod.object({
@@ -5886,6 +6406,34 @@ export const AgentccWebhookEventsRetryParams = zod.object({
 export const AgentccWebhookEventsRetryBody = zod.object({
 
 }).passthrough()
+
+
+export const AgentccWebhookLogsCreateBody = zod.object({
+  "logs": zod.array(zod.record(zod.string(), zod.string())).optional()
+})
+
+export const AgentccWebhookLogsCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "ingested": zod.number()
+})
+})
+
+
+/**
+ * Receives shadow result batches from the Agentcc Go gateway flusher.
+Auth via X-Webhook-Secret header.
+ */
+export const AgentccWebhookShadowResultsCreateBody = zod.object({
+  "results": zod.array(zod.record(zod.string(), zod.string())).optional()
+})
+
+export const AgentccWebhookShadowResultsCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "ingested": zod.number()
+})
+})
 
 
 /**
