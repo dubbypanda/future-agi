@@ -392,3 +392,8 @@ class EvalSummaryTemplateMutationRequestSerializer(serializers.Serializer):
     name = serializers.CharField(required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
     criteria = serializers.CharField(required=False, allow_blank=True)
+
+
+class ColumnValuesRequestSerializer(serializers.Serializer):
+    dataset_id = serializers.UUIDField()
+    column_placeholders = serializers.JSONField()

@@ -15637,8 +15637,47 @@ export const ModelHubDevelopsGetExperimentDatasetTableListParams = zod.object({
 })
 
 
+export const ModelHubEmbeddingsListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 export const ModelHubEmbeddingsReadParams = zod.object({
   "type": zod.string()
+})
+
+export const ModelHubEmbeddingsReadResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16762,6 +16801,33 @@ export const ModelHubFeedbackDeleteParams = zod.object({
 })
 
 
+export const ModelHubGetColumnValuesCreateBody = zod.object({
+  "dataset_id": zod.string().uuid(),
+  "column_placeholders": zod.object({
+
+}).passthrough()
+})
+
+export const ModelHubGetColumnValuesCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 /**
  * DELETE /model-hub/ground-truth/<id>/
  */
@@ -17137,6 +17203,26 @@ export const ModelHubKnowledgeBaseGetListResponse = zod.object({
 
 
 export const ModelHubKnowledgeBaseListListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const ModelHubMetricsByColumnListResponse = zod.object({
   "status": zod.object({
 
 }).passthrough().optional(),
@@ -18075,6 +18161,26 @@ export const ModelHubOrganizationsUsersPartialUpdateResponse = zod.object({
 export const ModelHubOrganizationsUsersDeleteParams = zod.object({
   "organization_id": zod.string(),
   "id": zod.string()
+})
+
+
+export const ModelHubOverviewListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -21257,6 +21363,35 @@ export const ModelHubTtsVoicesPartialUpdateResponse = zod.object({
 
 export const ModelHubTtsVoicesDeleteParams = zod.object({
   "id": zod.string()
+})
+
+
+
+
+
+export const ModelHubUploadFileCreateBody = zod.object({
+  "files": zod.array(zod.string().url()).optional(),
+  "links": zod.array(zod.string().url().min(1)).optional(),
+  "type": zod.enum(['image', 'audio', 'pdf', 'text'])
+})
+
+export const ModelHubUploadFileCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 

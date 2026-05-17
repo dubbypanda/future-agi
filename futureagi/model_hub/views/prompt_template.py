@@ -32,6 +32,7 @@ from django.forms.models import model_to_dict
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -83,6 +84,11 @@ from model_hub.models.run_prompt import (
     PromptEvalConfig,
     PromptTemplate,
     PromptVersion,
+)
+from model_hub.serializers.contracts import (
+    ColumnValuesRequestSerializer,
+    MODEL_HUB_ERROR_RESPONSES,
+    ModelHubJSONResponseSerializer,
 )
 from model_hub.serializers.prompt_folder import PromptFolderSerializer
 from model_hub.serializers.prompt_template import (
@@ -534,6 +540,10 @@ class UploadFileView(APIView):
             logger.exception(f"Unexpected error in base64 conversion: {str(e)}")
             raise ValueError(f"Failed to process file: {str(e)}")  # noqa: B904
 
+    @swagger_auto_schema(
+        request_body=UploadFileSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request):
         try:
             serializer = UploadFileSerializer(data=request.data)
@@ -3699,6 +3709,10 @@ class ColumnValuesAPIView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=ColumnValuesRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             dataset_id = request.data.get("dataset_id")

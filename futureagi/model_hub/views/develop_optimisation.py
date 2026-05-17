@@ -188,6 +188,10 @@ class OptimizationDatasetDetailView(generics.RetrieveAPIView):
         return Response(serializer.data)
 
 
+@swagger_auto_schema(
+    method="get",
+    responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_metrics_by_column(request):

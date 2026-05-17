@@ -11533,7 +11533,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_embeddings_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/embeddings/{type}/": {
@@ -11541,7 +11560,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_embeddings_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-groups/": {
@@ -12852,9 +12890,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-column-values/": {
       "post": {
         "operationId": "model-hub_get-column-values_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ColumnValuesRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/get-eval-config": {
@@ -13413,7 +13472,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_metrics_by-column_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/optimisation/": {
@@ -14171,7 +14249,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_overview_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/performance/detail/{id}/": {
@@ -16662,9 +16759,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/upload-file/": {
       "post": {
         "operationId": "model-hub_upload-file_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/UploadFile"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/acs/": {
@@ -34716,6 +34834,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ColumnValuesRequest": {
+      "required": [
+        "dataset_id",
+        "column_placeholders"
+      ],
+      "type": "object",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "column_placeholders": {
+          "title": "Column placeholders",
+          "type": "object"
+        }
+      }
+    },
     "ConditionalColumnRequest": {
       "required": [
         "config",
@@ -49020,6 +49156,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/UpgradeToPaygPostResult"
+        }
+      }
+    },
+    "UploadFile": {
+      "required": [
+        "type"
+      ],
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "readOnly": true,
+            "format": "uri"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "minLength": 1
+          }
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "image",
+            "audio",
+            "pdf",
+            "text"
+          ]
         }
       }
     },

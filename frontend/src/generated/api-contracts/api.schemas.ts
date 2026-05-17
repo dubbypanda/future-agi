@@ -5035,6 +5035,13 @@ export interface ExperimentFeedbackSubmitRequestApi {
   explanation?: string;
 }
 
+export type ColumnValuesRequestApiColumnPlaceholders = { [key: string]: unknown };
+
+export interface ColumnValuesRequestApi {
+  dataset_id: string;
+  column_placeholders: ColumnValuesRequestApiColumnPlaceholders;
+}
+
 export type KnowledgeBaseCreateApiEmbeddingModel = typeof KnowledgeBaseCreateApiEmbeddingModel[keyof typeof KnowledgeBaseCreateApiEmbeddingModel];
 
 
@@ -5931,6 +5938,22 @@ export interface TTSVoiceApi {
   readonly voice_type?: TTSVoiceApiVoiceType;
   readonly created_at?: string;
   readonly updated_at?: string;
+}
+
+export type UploadFileApiType = typeof UploadFileApiType[keyof typeof UploadFileApiType];
+
+
+export const UploadFileApiType = {
+  image: 'image',
+  audio: 'audio',
+  pdf: 'pdf',
+  text: 'text',
+} as const;
+
+export interface UploadFileApi {
+  files?: string[];
+  links?: string[];
+  type: UploadFileApiType;
 }
 
 export type SAMLErrorResponseApiResult = { [key: string]: unknown };

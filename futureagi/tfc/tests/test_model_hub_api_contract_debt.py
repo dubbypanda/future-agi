@@ -86,10 +86,13 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/develops/{dataset_id}/extract-json-column/",
         "/model-hub/eval-summary-templates/",
         "/model-hub/eval-summary-templates/{template_id}/",
+        "/model-hub/embeddings/",
+        "/model-hub/embeddings/{type}/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/get-feedback-details/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
+        "/model-hub/get-column-values/",
         "/model-hub/kb/",
         "/model-hub/kb/supported-embedding-models",
         "/model-hub/kb/supported_embedding_models/",
@@ -98,6 +101,7 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/knowledge-base/files/",
         "/model-hub/knowledge-base/get/",
         "/model-hub/knowledge-base/list/",
+        "/model-hub/metrics/by-column/",
         "/model-hub/optimize-dataset/kb/{optim_id}/",
         "/model-hub/optimize-dataset/knowledge-base/",
         "/model-hub/optimize-dataset/{model_id}/",
@@ -117,6 +121,7 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/performance/report/{model_id}/{report_id}/",
         "/model-hub/performance/tag-distribution/{model_id}/",
         "/model-hub/performance/{id}/",
+        "/model-hub/overview/",
         "/model-hub/prompt/metrics/",
         "/model-hub/prompt/metrics/empty-screen",
         "/model-hub/prompt/span-metrics/",
@@ -126,6 +131,7 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/prompt-templates/{prompt_id}/derived-variables/{column_name}/schema/",
         "/model-hub/run-prompt-for-rows/",
         "/model-hub/run-prompt/",
+        "/model-hub/upload-file/",
     }
 
     body_gaps = {
@@ -194,6 +200,7 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "EvalSummaryTemplateMutationRequest"
         ),
+        ("POST", "/model-hub/get-column-values/"): "ColumnValuesRequest",
         (
             "POST",
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
@@ -264,6 +271,7 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ): "DerivedVariableExtractRequest",
         ("POST", "/model-hub/run-prompt-for-rows/"): "RunPromptForRowsRequest",
         ("POST", "/model-hub/run-prompt/"): "Litellm",
+        ("POST", "/model-hub/upload-file/"): "UploadFile",
     }
 
     for (method, path), definition_name in expected.items():
@@ -333,6 +341,8 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "ModelHubJSONResponse"
         ),
+        ("GET", "/model-hub/embeddings/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/embeddings/{type}/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/"): (
             "ModelHubJSONResponse"
         ),
@@ -347,6 +357,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "POST",
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
         ): "ModelHubJSONResponse",
+        ("POST", "/model-hub/get-column-values/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/kb/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/kb/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/kb/supported-embedding-models"): (
@@ -363,6 +374,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/knowledge-base/files/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/knowledge-base/get/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/knowledge-base/list/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/metrics/by-column/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/optimize-dataset/kb/{optim_id}/"): (
             "ModelHubJSONResponse"
         ),
@@ -431,6 +443,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/performance/tag-distribution/{model_id}/"): (
             "ModelHubJSONResponse"
         ),
+        ("GET", "/model-hub/overview/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/prompt/metrics/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/prompt/metrics/empty-screen"): "ModelHubJSONResponse",
         ("GET", "/model-hub/prompt/span-metrics/"): "ModelHubJSONResponse",
@@ -450,6 +463,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt-for-rows/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/upload-file/"): "ModelHubJSONResponse",
     }
 
     for (method, path), definition_name in expected.items():
