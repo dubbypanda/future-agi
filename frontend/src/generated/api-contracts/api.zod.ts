@@ -6397,10 +6397,114 @@ export const CallWebsocketCreateResponse = zod.object({
 
 
 /**
+ * List and create conversations.
+ */
+export const falconAiConversationsListResponseResultsItemTitleMax = 255;
+
+export const falconAiConversationsListResponseResultsItemContextPageMax = 500;
+
+
+
+export const FalconAiConversationsListResponse = zod.object({
+  "status": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().min(1).max(falconAiConversationsListResponseResultsItemTitleMax).optional(),
+  "context_page": zod.string().max(falconAiConversationsListResponseResultsItemContextPageMax).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "message_count": zod.number().optional(),
+  "last_message_at": zod.string().datetime({"offset":true}).optional()
+})),
+  "total": zod.number(),
+  "limit": zod.number(),
+  "offset": zod.number(),
+  "has_more": zod.boolean()
+})
+
+
+/**
+ * List and create conversations.
+ */
+export const falconAiConversationsCreateBodyTitleMax = 255;
+
+export const falconAiConversationsCreateBodyContextPageMax = 500;
+
+
+
+export const FalconAiConversationsCreateBody = zod.object({
+  "title": zod.string().max(falconAiConversationsCreateBodyTitleMax).optional(),
+  "context_page": zod.string().max(falconAiConversationsCreateBodyContextPageMax).optional()
+})
+
+
+/**
  * Get, update, or delete a conversation.
  */
 export const FalconAiConversationsReadParams = zod.object({
   "conversation_id": zod.string()
+})
+
+export const falconAiConversationsReadResponseResultTitleMax = 255;
+
+export const falconAiConversationsReadResponseResultContextPageMax = 500;
+
+
+export const falconAiConversationsReadResponseResultMessagesItemFeedbackMax = 20;
+
+export const falconAiConversationsReadResponseResultMessagesItemInputTokensMin = 0;
+export const falconAiConversationsReadResponseResultMessagesItemInputTokensMax = 2147483647;
+
+export const falconAiConversationsReadResponseResultMessagesItemOutputTokensMin = 0;
+export const falconAiConversationsReadResponseResultMessagesItemOutputTokensMax = 2147483647;
+
+export const falconAiConversationsReadResponseResultMessagesItemModelUsedMax = 100;
+
+export const falconAiConversationsReadResponseResultMessagesItemLatencyMsMin = 0;
+export const falconAiConversationsReadResponseResultMessagesItemLatencyMsMax = 2147483647;
+
+
+
+export const FalconAiConversationsReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "user": zod.string().uuid().optional(),
+  "organization": zod.string().uuid().optional(),
+  "workspace": zod.string().uuid().optional(),
+  "title": zod.string().min(1).max(falconAiConversationsReadResponseResultTitleMax).optional(),
+  "context_page": zod.string().max(falconAiConversationsReadResponseResultContextPageMax).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional(),
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "conversation": zod.string().uuid(),
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string().min(1).optional(),
+  "thoughts": zod.object({
+
+}).passthrough().optional(),
+  "tool_calls": zod.object({
+
+}).passthrough().optional(),
+  "completion_card": zod.object({
+
+}).passthrough().optional(),
+  "files": zod.object({
+
+}).passthrough().optional(),
+  "feedback": zod.string().max(falconAiConversationsReadResponseResultMessagesItemFeedbackMax).optional(),
+  "input_tokens": zod.number().min(falconAiConversationsReadResponseResultMessagesItemInputTokensMin).max(falconAiConversationsReadResponseResultMessagesItemInputTokensMax).optional(),
+  "output_tokens": zod.number().min(falconAiConversationsReadResponseResultMessagesItemOutputTokensMin).max(falconAiConversationsReadResponseResultMessagesItemOutputTokensMax).optional(),
+  "model_used": zod.string().max(falconAiConversationsReadResponseResultMessagesItemModelUsedMax).optional(),
+  "latency_ms": zod.number().min(falconAiConversationsReadResponseResultMessagesItemLatencyMsMin).max(falconAiConversationsReadResponseResultMessagesItemLatencyMsMax).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -6409,6 +6513,76 @@ export const FalconAiConversationsReadParams = zod.object({
  */
 export const FalconAiConversationsPartialUpdateParams = zod.object({
   "conversation_id": zod.string()
+})
+
+export const falconAiConversationsPartialUpdateBodyTitleMax = 255;
+
+
+
+export const FalconAiConversationsPartialUpdateBody = zod.object({
+  "title": zod.string().max(falconAiConversationsPartialUpdateBodyTitleMax).optional()
+})
+
+export const falconAiConversationsPartialUpdateResponseResultTitleMax = 255;
+
+export const falconAiConversationsPartialUpdateResponseResultContextPageMax = 500;
+
+
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemFeedbackMax = 20;
+
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemInputTokensMin = 0;
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemInputTokensMax = 2147483647;
+
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemOutputTokensMin = 0;
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemOutputTokensMax = 2147483647;
+
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemModelUsedMax = 100;
+
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemLatencyMsMin = 0;
+export const falconAiConversationsPartialUpdateResponseResultMessagesItemLatencyMsMax = 2147483647;
+
+
+
+export const FalconAiConversationsPartialUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "user": zod.string().uuid().optional(),
+  "organization": zod.string().uuid().optional(),
+  "workspace": zod.string().uuid().optional(),
+  "title": zod.string().min(1).max(falconAiConversationsPartialUpdateResponseResultTitleMax).optional(),
+  "context_page": zod.string().max(falconAiConversationsPartialUpdateResponseResultContextPageMax).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional(),
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "conversation": zod.string().uuid(),
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string().min(1).optional(),
+  "thoughts": zod.object({
+
+}).passthrough().optional(),
+  "tool_calls": zod.object({
+
+}).passthrough().optional(),
+  "completion_card": zod.object({
+
+}).passthrough().optional(),
+  "files": zod.object({
+
+}).passthrough().optional(),
+  "feedback": zod.string().max(falconAiConversationsPartialUpdateResponseResultMessagesItemFeedbackMax).optional(),
+  "input_tokens": zod.number().min(falconAiConversationsPartialUpdateResponseResultMessagesItemInputTokensMin).max(falconAiConversationsPartialUpdateResponseResultMessagesItemInputTokensMax).optional(),
+  "output_tokens": zod.number().min(falconAiConversationsPartialUpdateResponseResultMessagesItemOutputTokensMin).max(falconAiConversationsPartialUpdateResponseResultMessagesItemOutputTokensMax).optional(),
+  "model_used": zod.string().max(falconAiConversationsPartialUpdateResponseResultMessagesItemModelUsedMax).optional(),
+  "latency_ms": zod.number().min(falconAiConversationsPartialUpdateResponseResultMessagesItemLatencyMsMin).max(falconAiConversationsPartialUpdateResponseResultMessagesItemLatencyMsMax).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -6428,11 +6602,111 @@ export const FalconAiConversationsStreamStatusListParams = zod.object({
 })
 
 
+
+
+export const FalconAiConversationsStreamStatusListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "stream_status": zod.string().min(1)
+})
+})
+
+
+/**
+ * Upload a file for use in Falcon AI conversations.
+ */
+export const FalconAiFilesUploadCreateBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+
+/**
+ * List and create MCP connectors.
+ */
+export const falconAiMcpConnectorsListResponseResultsItemNameMax = 100;
+
+export const falconAiMcpConnectorsListResponseResultsItemServerUrlMax = 200;
+
+
+
+export const FalconAiMcpConnectorsListResponse = zod.object({
+  "status": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsListResponseResultsItemNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsListResponseResultsItemServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "tool_count": zod.string().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+}))
+})
+
+
+/**
+ * List and create MCP connectors.
+ */
+export const falconAiMcpConnectorsCreateBodyNameMax = 100;
+
+
+export const falconAiMcpConnectorsCreateBodyTransportDefault = `streamable_http`;
+export const falconAiMcpConnectorsCreateBodyAuthTypeDefault = `none`;
+export const falconAiMcpConnectorsCreateBodyAuthHeaderNameDefault = `Authorization`;
+export const falconAiMcpConnectorsCreateBodyAuthHeaderNameMax = 100;
+
+export const falconAiMcpConnectorsCreateBodyAuthHeaderValueDefault = ``;
+
+export const FalconAiMcpConnectorsCreateBody = zod.object({
+  "name": zod.string().min(1).max(falconAiMcpConnectorsCreateBodyNameMax),
+  "server_url": zod.string().url().min(1),
+  "transport": zod.enum(['sse', 'streamable_http']).default(falconAiMcpConnectorsCreateBodyTransportDefault),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).default(falconAiMcpConnectorsCreateBodyAuthTypeDefault),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsCreateBodyAuthHeaderNameMax).default(falconAiMcpConnectorsCreateBodyAuthHeaderNameDefault),
+  "auth_header_value": zod.string().default(falconAiMcpConnectorsCreateBodyAuthHeaderValueDefault)
+})
+
+
 /**
  * Get, update, or delete an MCP connector.
  */
 export const FalconAiMcpConnectorsReadParams = zod.object({
   "connector_id": zod.string()
+})
+
+export const falconAiMcpConnectorsReadResponseResultNameMax = 100;
+
+export const falconAiMcpConnectorsReadResponseResultServerUrlMax = 200;
+
+export const falconAiMcpConnectorsReadResponseResultAuthHeaderNameMax = 100;
+
+
+
+export const FalconAiMcpConnectorsReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsReadResponseResultNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsReadResponseResultServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsReadResponseResultAuthHeaderNameMax).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "discovered_tools": zod.object({
+
+}).passthrough().optional(),
+  "enabled_tool_names": zod.object({
+
+}).passthrough().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -6441,6 +6715,55 @@ export const FalconAiMcpConnectorsReadParams = zod.object({
  */
 export const FalconAiMcpConnectorsPartialUpdateParams = zod.object({
   "connector_id": zod.string()
+})
+
+export const falconAiMcpConnectorsPartialUpdateBodyNameMax = 100;
+
+
+export const falconAiMcpConnectorsPartialUpdateBodyAuthHeaderNameMax = 100;
+
+
+
+export const FalconAiMcpConnectorsPartialUpdateBody = zod.object({
+  "name": zod.string().max(falconAiMcpConnectorsPartialUpdateBodyNameMax).optional(),
+  "server_url": zod.string().url().min(1).optional(),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsPartialUpdateBodyAuthHeaderNameMax).optional(),
+  "auth_header_value": zod.string().optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const falconAiMcpConnectorsPartialUpdateResponseResultNameMax = 100;
+
+export const falconAiMcpConnectorsPartialUpdateResponseResultServerUrlMax = 200;
+
+export const falconAiMcpConnectorsPartialUpdateResponseResultAuthHeaderNameMax = 100;
+
+
+
+export const FalconAiMcpConnectorsPartialUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsPartialUpdateResponseResultNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsPartialUpdateResponseResultServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsPartialUpdateResponseResultAuthHeaderNameMax).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "discovered_tools": zod.object({
+
+}).passthrough().optional(),
+  "enabled_tool_names": zod.object({
+
+}).passthrough().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -6461,12 +6784,89 @@ export const FalconAiMcpConnectorsAuthenticateCreateParams = zod.object({
   "connector_id": zod.string()
 })
 
+export const FalconAiMcpConnectorsAuthenticateCreateBody = zod.object({
+
+}).passthrough()
+
+export const falconAiMcpConnectorsAuthenticateCreateResponseResultNameMax = 100;
+
+export const falconAiMcpConnectorsAuthenticateCreateResponseResultServerUrlMax = 200;
+
+export const falconAiMcpConnectorsAuthenticateCreateResponseResultAuthHeaderNameMax = 100;
+
+
+
+
+export const FalconAiMcpConnectorsAuthenticateCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsAuthenticateCreateResponseResultNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsAuthenticateCreateResponseResultServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsAuthenticateCreateResponseResultAuthHeaderNameMax).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "discovered_tools": zod.object({
+
+}).passthrough().optional(),
+  "enabled_tool_names": zod.object({
+
+}).passthrough().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+}).optional(),
+  "auth_type": zod.string().optional(),
+  "authorization_url": zod.string().url().min(1).optional(),
+  "message": zod.string().optional()
+})
+
 
 /**
  * Discover tools from an external MCP server.
  */
 export const FalconAiMcpConnectorsDiscoverCreateParams = zod.object({
   "connector_id": zod.string()
+})
+
+export const FalconAiMcpConnectorsDiscoverCreateBody = zod.object({
+
+}).passthrough()
+
+export const falconAiMcpConnectorsDiscoverCreateResponseResultNameMax = 100;
+
+export const falconAiMcpConnectorsDiscoverCreateResponseResultServerUrlMax = 200;
+
+export const falconAiMcpConnectorsDiscoverCreateResponseResultAuthHeaderNameMax = 100;
+
+
+
+export const FalconAiMcpConnectorsDiscoverCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsDiscoverCreateResponseResultNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsDiscoverCreateResponseResultServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsDiscoverCreateResponseResultAuthHeaderNameMax).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "discovered_tools": zod.object({
+
+}).passthrough().optional(),
+  "enabled_tool_names": zod.object({
+
+}).passthrough().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+}),
+  "discovered_count": zod.number()
 })
 
 
@@ -6483,6 +6883,15 @@ export const FalconAiMcpConnectorsOauthCallbackListParams = zod.object({
   "connector_id": zod.string()
 })
 
+export const FalconAiMcpConnectorsOauthCallbackListQueryParams = zod.object({
+  "code": zod.string().optional(),
+  "state": zod.string().optional(),
+  "error": zod.string().optional(),
+  "error_description": zod.string().optional()
+})
+
+export const FalconAiMcpConnectorsOauthCallbackListResponse = zod.string()
+
 
 /**
  * Test connection to an external MCP server.
@@ -6491,12 +6900,113 @@ export const FalconAiMcpConnectorsTestCreateParams = zod.object({
   "connector_id": zod.string()
 })
 
+export const FalconAiMcpConnectorsTestCreateBody = zod.object({
+
+}).passthrough()
+
+export const FalconAiMcpConnectorsTestCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.string().optional()
+})
+
 
 /**
  * Enable or disable specific tools on a connector.
  */
 export const FalconAiMcpConnectorsToolsPartialUpdateParams = zod.object({
   "connector_id": zod.string()
+})
+
+
+
+
+export const FalconAiMcpConnectorsToolsPartialUpdateBody = zod.object({
+  "enabled_tool_names": zod.array(zod.string().min(1))
+})
+
+export const falconAiMcpConnectorsToolsPartialUpdateResponseResultNameMax = 100;
+
+export const falconAiMcpConnectorsToolsPartialUpdateResponseResultServerUrlMax = 200;
+
+export const falconAiMcpConnectorsToolsPartialUpdateResponseResultAuthHeaderNameMax = 100;
+
+
+
+export const FalconAiMcpConnectorsToolsPartialUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiMcpConnectorsToolsPartialUpdateResponseResultNameMax),
+  "server_url": zod.string().url().min(1).max(falconAiMcpConnectorsToolsPartialUpdateResponseResultServerUrlMax),
+  "transport": zod.enum(['sse', 'streamable_http']).optional(),
+  "auth_type": zod.enum(['none', 'api_key', 'bearer', 'oauth']).optional(),
+  "auth_header_name": zod.string().max(falconAiMcpConnectorsToolsPartialUpdateResponseResultAuthHeaderNameMax).optional(),
+  "is_active": zod.boolean().optional(),
+  "is_verified": zod.boolean().optional(),
+  "discovered_tools": zod.object({
+
+}).passthrough().optional(),
+  "enabled_tool_names": zod.object({
+
+}).passthrough().optional(),
+  "last_discovery_at": zod.string().datetime({"offset":true}).optional(),
+  "last_error": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
+})
+
+
+/**
+ * List and create workspace memories.
+ */
+export const falconAiMemoryListResponseResultsItemKeyMax = 200;
+
+
+
+
+export const FalconAiMemoryListResponse = zod.object({
+  "status": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "key": zod.string().min(1).max(falconAiMemoryListResponseResultsItemKeyMax),
+  "value": zod.string().min(1),
+  "source": zod.enum(['user', 'agent', 'init']).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+}))
+})
+
+
+/**
+ * List and create workspace memories.
+ */
+export const falconAiMemoryCreateBodyKeyMax = 200;
+
+
+
+
+export const FalconAiMemoryCreateBody = zod.object({
+  "key": zod.string().min(1).max(falconAiMemoryCreateBodyKeyMax),
+  "value": zod.string().min(1)
+})
+
+export const falconAiMemoryCreateResponseResultKeyMax = 200;
+
+
+
+
+export const FalconAiMemoryCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "key": zod.string().min(1).max(falconAiMemoryCreateResponseResultKeyMax),
+  "value": zod.string().min(1),
+  "source": zod.enum(['user', 'agent', 'init']).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -6515,6 +7025,95 @@ export const FalconAiMessagesFeedbackCreateParams = zod.object({
   "message_id": zod.string()
 })
 
+export const FalconAiMessagesFeedbackCreateBody = zod.object({
+  "feedback": zod.enum(['thumbs_up', 'thumbs_down', ''])
+})
+
+export const FalconAiMessagesFeedbackCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "feedback": zod.string()
+})
+})
+
+
+export const falconAiQuickAnalysisCreateBodyPromptMax = 8000;
+
+
+
+export const FalconAiQuickAnalysisCreateBody = zod.object({
+  "prompt": zod.string().min(1).max(falconAiQuickAnalysisCreateBodyPromptMax)
+})
+
+
+
+
+export const FalconAiQuickAnalysisCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
+})
+
+
+/**
+ * List and create skills.
+ */
+export const falconAiSkillsListResponseResultsItemNameMax = 100;
+
+export const falconAiSkillsListResponseResultsItemSlugMax = 100;
+
+
+export const falconAiSkillsListResponseResultsItemSlugRegExp = new RegExp('^[-a-zA-Z0-9_]+$');
+
+export const falconAiSkillsListResponseResultsItemIconMax = 50;
+
+
+
+export const FalconAiSkillsListResponse = zod.object({
+  "status": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiSkillsListResponseResultsItemNameMax),
+  "slug": zod.string().min(1).max(falconAiSkillsListResponseResultsItemSlugMax).regex(falconAiSkillsListResponseResultsItemSlugRegExp),
+  "description": zod.string().min(1).optional(),
+  "icon": zod.string().min(1).max(falconAiSkillsListResponseResultsItemIconMax).optional(),
+  "is_builtin": zod.boolean().optional(),
+  "is_active": zod.boolean().optional(),
+  "tool_names": zod.object({
+
+}).passthrough().optional(),
+  "trigger_phrases": zod.object({
+
+}).passthrough().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "created_by_display": zod.string().optional()
+}))
+})
+
+
+/**
+ * List and create skills.
+ */
+export const falconAiSkillsCreateBodyNameMax = 100;
+
+export const falconAiSkillsCreateBodyDescriptionDefault = ``;
+export const falconAiSkillsCreateBodyIconDefault = `mdi:star`;
+export const falconAiSkillsCreateBodyIconMax = 50;
+
+
+
+export const falconAiSkillsCreateBodyToolNamesDefault = [];
+
+
+
+export const FalconAiSkillsCreateBody = zod.object({
+  "name": zod.string().min(1).max(falconAiSkillsCreateBodyNameMax),
+  "description": zod.string().default(falconAiSkillsCreateBodyDescriptionDefault),
+  "icon": zod.string().min(1).max(falconAiSkillsCreateBodyIconMax).default(falconAiSkillsCreateBodyIconDefault),
+  "instructions": zod.string().min(1),
+  "tool_names": zod.array(zod.string().min(1)).default(falconAiSkillsCreateBodyToolNamesDefault),
+  "trigger_phrases": zod.array(zod.string().min(1)).min(1)
+})
+
 
 /**
  * Get, update, or delete a skill.
@@ -6523,12 +7122,107 @@ export const FalconAiSkillsReadParams = zod.object({
   "skill_id": zod.string()
 })
 
+export const falconAiSkillsReadResponseResultNameMax = 100;
+
+export const falconAiSkillsReadResponseResultSlugMax = 100;
+
+
+export const falconAiSkillsReadResponseResultSlugRegExp = new RegExp('^[-a-zA-Z0-9_]+$');
+
+export const falconAiSkillsReadResponseResultIconMax = 50;
+
+
+
+
+export const FalconAiSkillsReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiSkillsReadResponseResultNameMax),
+  "slug": zod.string().min(1).max(falconAiSkillsReadResponseResultSlugMax).regex(falconAiSkillsReadResponseResultSlugRegExp),
+  "description": zod.string().min(1).optional(),
+  "icon": zod.string().min(1).max(falconAiSkillsReadResponseResultIconMax).optional(),
+  "is_builtin": zod.boolean().optional(),
+  "is_active": zod.boolean().optional(),
+  "instructions": zod.string().min(1).optional(),
+  "tool_names": zod.object({
+
+}).passthrough().optional(),
+  "example_trajectories": zod.object({
+
+}).passthrough().optional(),
+  "trigger_phrases": zod.object({
+
+}).passthrough().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "created_by_display": zod.string().optional()
+})
+})
+
 
 /**
  * Get, update, or delete a skill.
  */
 export const FalconAiSkillsPartialUpdateParams = zod.object({
   "skill_id": zod.string()
+})
+
+export const falconAiSkillsPartialUpdateBodyNameMax = 100;
+
+export const falconAiSkillsPartialUpdateBodyIconMax = 50;
+
+
+
+
+
+
+export const FalconAiSkillsPartialUpdateBody = zod.object({
+  "name": zod.string().min(1).max(falconAiSkillsPartialUpdateBodyNameMax).optional(),
+  "description": zod.string().optional(),
+  "icon": zod.string().min(1).max(falconAiSkillsPartialUpdateBodyIconMax).optional(),
+  "instructions": zod.string().min(1).optional(),
+  "tool_names": zod.array(zod.string().min(1)).optional(),
+  "trigger_phrases": zod.array(zod.string().min(1)).optional(),
+  "is_active": zod.boolean().optional()
+})
+
+export const falconAiSkillsPartialUpdateResponseResultNameMax = 100;
+
+export const falconAiSkillsPartialUpdateResponseResultSlugMax = 100;
+
+
+export const falconAiSkillsPartialUpdateResponseResultSlugRegExp = new RegExp('^[-a-zA-Z0-9_]+$');
+
+export const falconAiSkillsPartialUpdateResponseResultIconMax = 50;
+
+
+
+
+export const FalconAiSkillsPartialUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(falconAiSkillsPartialUpdateResponseResultNameMax),
+  "slug": zod.string().min(1).max(falconAiSkillsPartialUpdateResponseResultSlugMax).regex(falconAiSkillsPartialUpdateResponseResultSlugRegExp),
+  "description": zod.string().min(1).optional(),
+  "icon": zod.string().min(1).max(falconAiSkillsPartialUpdateResponseResultIconMax).optional(),
+  "is_builtin": zod.boolean().optional(),
+  "is_active": zod.boolean().optional(),
+  "instructions": zod.string().min(1).optional(),
+  "tool_names": zod.object({
+
+}).passthrough().optional(),
+  "example_trajectories": zod.object({
+
+}).passthrough().optional(),
+  "trigger_phrases": zod.object({
+
+}).passthrough().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "created_by_display": zod.string().optional()
+})
 })
 
 

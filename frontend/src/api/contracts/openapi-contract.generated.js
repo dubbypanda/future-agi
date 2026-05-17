@@ -4444,13 +4444,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_conversations_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ConversationListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "falcon-ai_conversations_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ConversationCreateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/ConversationDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/conversations/{conversation_id}/": {
@@ -4458,13 +4474,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_conversations_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ConversationDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "falcon-ai_conversations_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ConversationUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ConversationDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "falcon-ai_conversations_delete",
@@ -4478,7 +4516,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_conversations_stream-status_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/StreamStatusResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/files/upload/": {
@@ -4486,7 +4534,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_files_upload_create",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/FileUploadResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/": {
@@ -4494,13 +4552,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_mcp-connectors_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "falcon-ai_mcp-connectors_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPConnectorCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/MCPConnectorDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/": {
@@ -4508,13 +4585,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_mcp-connectors_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "falcon-ai_mcp-connectors_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPConnectorUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "falcon-ai_mcp-connectors_delete",
@@ -4526,41 +4625,130 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/authenticate/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_authenticate_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/FalconEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorAuthenticateResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "502": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/discover/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_discover_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/FalconEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorDiscoverResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "502": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/oauth/callback/": {
       "get": {
         "operationId": "falcon-ai_mcp-connectors_oauth_callback_list",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "code": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "error_description": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "type": "string"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/test/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_test_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/FalconEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorTestResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "502": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/tools/": {
       "patch": {
         "operationId": "falcon-ai_mcp-connectors_tools_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MCPConnectorTools"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MCPConnectorDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/memory/": {
@@ -4568,13 +4756,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_memory_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/FalconMemoryListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "falcon-ai_memory_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/FalconMemoryCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/FalconMemoryDetailResponse"
+          },
+          "201": {
+            "$ref": "#/definitions/FalconMemoryDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/memory/{memory_id}/": {
@@ -4588,17 +4795,44 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/messages/{message_id}/feedback/": {
       "post": {
         "operationId": "falcon-ai_messages_feedback_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/MessageFeedback"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/MessageFeedbackResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/quick-analysis/": {
       "post": {
         "operationId": "falcon-ai_quick-analysis_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/QuickAnalysis"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/QuickAnalysisResponse"
+          },
+          "429": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "502": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "504": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/skills/": {
@@ -4606,13 +4840,32 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_skills_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SkillListResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "falcon-ai_skills_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SkillCreate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/SkillDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/skills/{skill_id}/": {
@@ -4620,13 +4873,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_skills_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SkillDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "falcon-ai_skills_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SkillUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SkillDetailResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "falcon-ai_skills_delete",
@@ -26875,6 +27150,86 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ConversationCreateRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 255
+        },
+        "context_page": {
+          "title": "Context page",
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "ConversationDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/FalconConversationDetail"
+        }
+      }
+    },
+    "ConversationListResponse": {
+      "required": [
+        "status",
+        "results",
+        "total",
+        "limit",
+        "offset",
+        "has_more"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FalconConversationList"
+          }
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "limit": {
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "title": "Offset",
+          "type": "integer"
+        },
+        "has_more": {
+          "title": "Has more",
+          "type": "boolean"
+        }
+      }
+    },
+    "ConversationUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 255
+        }
+      }
+    },
     "CreateLinearIssue": {
       "required": [
         "team_id"
@@ -28900,6 +29255,86 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "FalconEmptyRequest": {
+      "type": "object",
+      "properties": {}
+    },
+    "FalconErrorResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "error": {
+          "title": "Error",
+          "type": "string"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "FalconMemoryCreate": {
+      "required": [
+        "key",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "FalconMemoryDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/FalconMemory"
+        }
+      }
+    },
+    "FalconMemoryListResponse": {
+      "required": [
+        "status",
+        "results"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FalconMemory"
+          }
+        }
+      }
+    },
     "FeedDetailApiResponse": {
       "required": [
         "result"
@@ -29224,6 +29659,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Project id",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "FileUploadResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/FileUploadResult"
         }
       }
     },
@@ -30278,6 +30729,225 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "MCPConnectorAuthenticateResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/MCPConnectorDetail"
+        },
+        "auth_type": {
+          "title": "Auth type",
+          "type": "string"
+        },
+        "authorization_url": {
+          "title": "Authorization url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      }
+    },
+    "MCPConnectorCreate": {
+      "required": [
+        "name",
+        "server_url"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "server_url": {
+          "title": "Server url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string",
+          "enum": [
+            "sse",
+            "streamable_http"
+          ],
+          "default": "streamable_http"
+        },
+        "auth_type": {
+          "title": "Auth type",
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "bearer",
+            "oauth"
+          ],
+          "default": "none"
+        },
+        "auth_header_name": {
+          "title": "Auth header name",
+          "type": "string",
+          "default": "Authorization",
+          "maxLength": 100
+        },
+        "auth_header_value": {
+          "title": "Auth header value",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "MCPConnectorDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/MCPConnectorDetail"
+        }
+      }
+    },
+    "MCPConnectorDiscoverResponse": {
+      "required": [
+        "status",
+        "result",
+        "discovered_count"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/MCPConnectorDetail"
+        },
+        "discovered_count": {
+          "title": "Discovered count",
+          "type": "integer"
+        }
+      }
+    },
+    "MCPConnectorListResponse": {
+      "required": [
+        "status",
+        "results"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MCPConnectorList"
+          }
+        }
+      }
+    },
+    "MCPConnectorTestResponse": {
+      "required": [
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        },
+        "error": {
+          "title": "Error",
+          "type": "string"
+        }
+      }
+    },
+    "MCPConnectorTools": {
+      "required": [
+        "enabled_tool_names"
+      ],
+      "type": "object",
+      "properties": {
+        "enabled_tool_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "MCPConnectorUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100
+        },
+        "server_url": {
+          "title": "Server url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string",
+          "enum": [
+            "sse",
+            "streamable_http"
+          ]
+        },
+        "auth_type": {
+          "title": "Auth type",
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "bearer",
+            "oauth"
+          ]
+        },
+        "auth_header_name": {
+          "title": "Auth header name",
+          "type": "string",
+          "maxLength": 100
+        },
+        "auth_header_value": {
+          "title": "Auth header value",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        }
+      }
+    },
     "MCPErrorResponse": {
       "required": [
         "error"
@@ -30640,6 +31310,39 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/MCPToolListResult"
+        }
+      }
+    },
+    "MessageFeedback": {
+      "required": [
+        "feedback"
+      ],
+      "type": "object",
+      "properties": {
+        "feedback": {
+          "title": "Feedback",
+          "type": "string",
+          "enum": [
+            "thumbs_up",
+            "thumbs_down",
+            ""
+          ]
+        }
+      }
+    },
+    "MessageFeedbackResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/MessageFeedbackResult"
         }
       }
     },
@@ -33722,6 +34425,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "QuickAnalysis": {
+      "required": [
+        "prompt"
+      ],
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "title": "Prompt",
+          "type": "string",
+          "maxLength": 8000,
+          "minLength": 1
+        }
+      }
+    },
+    "QuickAnalysisResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "ReplaySession": {
       "required": [
         "project",
@@ -36205,6 +36940,134 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SkillCreate": {
+      "required": [
+        "name",
+        "instructions",
+        "trigger_phrases"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "default": ""
+        },
+        "icon": {
+          "title": "Icon",
+          "type": "string",
+          "default": "mdi:star",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "trigger_phrases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "SkillDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/SkillDetail"
+        }
+      }
+    },
+    "SkillListResponse": {
+      "required": [
+        "status",
+        "results"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SkillList"
+          }
+        }
+      }
+    },
+    "SkillUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "icon": {
+          "title": "Icon",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "trigger_phrases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        }
+      }
+    },
     "SpanAttributeDetailResponse": {
       "required": [
         "key",
@@ -36293,6 +37156,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/SpanAttributeValue"
           }
+        }
+      }
+    },
+    "StreamStatusResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/StreamStatusResult"
         }
       }
     },
@@ -38964,6 +39843,115 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "FalconConversationDetail": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "user": {
+          "title": "User",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "context_page": {
+          "title": "Context page",
+          "type": "string",
+          "maxLength": 500
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FalconMessage"
+          },
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "FalconConversationList": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "context_page": {
+          "title": "Context page",
+          "type": "string",
+          "maxLength": 500
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "message_count": {
+          "title": "Message count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "last_message_at": {
+          "title": "Last message at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
     "CreateLinearIssueResult": {
       "type": "object",
       "properties": {
@@ -39531,6 +40519,47 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "FalconMemory": {
+      "required": [
+        "key",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "enum": [
+            "user",
+            "agent",
+            "init"
+          ]
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
     "FeedDetailCore": {
       "required": [
         "row",
@@ -39649,6 +40678,43 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "affected_users": {
           "title": "Affected users",
           "type": "integer"
+        }
+      }
+    },
+    "FileUploadResult": {
+      "required": [
+        "id",
+        "name",
+        "size",
+        "content_type",
+        "url"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "size": {
+          "title": "Size",
+          "type": "integer"
+        },
+        "content_type": {
+          "title": "Content type",
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "title": "Url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
         }
       }
     },
@@ -40138,6 +41204,170 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "MCPConnectorDetail": {
+      "required": [
+        "name",
+        "server_url"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "server_url": {
+          "title": "Server url",
+          "type": "string",
+          "format": "uri",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string",
+          "enum": [
+            "sse",
+            "streamable_http"
+          ]
+        },
+        "auth_type": {
+          "title": "Auth type",
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "bearer",
+            "oauth"
+          ]
+        },
+        "auth_header_name": {
+          "title": "Auth header name",
+          "type": "string",
+          "maxLength": 100
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        },
+        "is_verified": {
+          "title": "Is verified",
+          "type": "boolean"
+        },
+        "discovered_tools": {
+          "title": "Discovered tools",
+          "type": "object"
+        },
+        "enabled_tool_names": {
+          "title": "Enabled tool names",
+          "type": "object"
+        },
+        "last_discovery_at": {
+          "title": "Last discovery at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "last_error": {
+          "title": "Last error",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "MCPConnectorList": {
+      "required": [
+        "name",
+        "server_url"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "server_url": {
+          "title": "Server url",
+          "type": "string",
+          "format": "uri",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string",
+          "enum": [
+            "sse",
+            "streamable_http"
+          ]
+        },
+        "auth_type": {
+          "title": "Auth type",
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "bearer",
+            "oauth"
+          ]
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        },
+        "is_verified": {
+          "title": "Is verified",
+          "type": "boolean"
+        },
+        "tool_count": {
+          "title": "Tool count",
+          "type": "string",
+          "readOnly": true
+        },
+        "last_discovery_at": {
+          "title": "Last discovery at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "last_error": {
+          "title": "Last error",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
     "MCPHealthResult": {
       "required": [
         "healthy",
@@ -40397,6 +41627,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "uuid",
           "x-nullable": true
+        }
+      }
+    },
+    "MessageFeedbackResult": {
+      "required": [
+        "feedback"
+      ],
+      "type": "object",
+      "properties": {
+        "feedback": {
+          "title": "Feedback",
+          "type": "string"
         }
       }
     },
@@ -41862,6 +43104,155 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SkillDetail": {
+      "required": [
+        "name",
+        "slug"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string",
+          "format": "slug",
+          "pattern": "^[-a-zA-Z0-9_]+$",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "title": "Icon",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "is_builtin": {
+          "title": "Is builtin",
+          "type": "boolean"
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_names": {
+          "title": "Tool names",
+          "type": "object"
+        },
+        "example_trajectories": {
+          "title": "Example trajectories",
+          "type": "object"
+        },
+        "trigger_phrases": {
+          "title": "Trigger phrases",
+          "type": "object"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "created_by_display": {
+          "title": "Created by display",
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
+    "SkillList": {
+      "required": [
+        "name",
+        "slug"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string",
+          "format": "slug",
+          "pattern": "^[-a-zA-Z0-9_]+$",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "title": "Icon",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "is_builtin": {
+          "title": "Is builtin",
+          "type": "boolean"
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean"
+        },
+        "tool_names": {
+          "title": "Tool names",
+          "type": "object"
+        },
+        "trigger_phrases": {
+          "title": "Trigger phrases",
+          "type": "object"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "created_by_display": {
+          "title": "Created by display",
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
     "SpanAttributeTopValue": {
       "required": [
         "value",
@@ -41926,6 +43317,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "count": {
           "title": "Count",
           "type": "integer"
+        }
+      }
+    },
+    "StreamStatusResult": {
+      "required": [
+        "stream_status"
+      ],
+      "type": "object",
+      "properties": {
+        "stream_status": {
+          "title": "Stream status",
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -42650,6 +44054,97 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Text",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "FalconMessage": {
+      "required": [
+        "conversation",
+        "role"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "conversation": {
+          "title": "Conversation",
+          "type": "string",
+          "format": "uuid"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string",
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ]
+        },
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "minLength": 1
+        },
+        "thoughts": {
+          "title": "Thoughts",
+          "type": "object"
+        },
+        "tool_calls": {
+          "title": "Tool calls",
+          "type": "object"
+        },
+        "completion_card": {
+          "title": "Completion card",
+          "type": "object",
+          "x-nullable": true
+        },
+        "files": {
+          "title": "Files",
+          "type": "object"
+        },
+        "feedback": {
+          "title": "Feedback",
+          "type": "string",
+          "maxLength": 20
+        },
+        "input_tokens": {
+          "title": "Input tokens",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "output_tokens": {
+          "title": "Output tokens",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "model_used": {
+          "title": "Model used",
+          "type": "string",
+          "maxLength": 100
+        },
+        "latency_ms": {
+          "title": "Latency ms",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
         }
       }
     },

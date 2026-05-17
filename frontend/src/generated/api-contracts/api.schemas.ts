@@ -1371,6 +1371,538 @@ export interface CallWebsocketResponseApi {
   result: string;
 }
 
+export interface FalconConversationListApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  title?: string;
+  /** @maxLength 500 */
+  context_page?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+  readonly message_count?: number;
+  readonly last_message_at?: string;
+}
+
+export interface ConversationListResponseApi {
+  status: boolean;
+  results: FalconConversationListApi[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export type FalconErrorResponseApiResult = { [key: string]: unknown };
+
+export interface FalconErrorResponseApi {
+  status: boolean;
+  error?: string;
+  result?: FalconErrorResponseApiResult;
+}
+
+export interface ConversationCreateRequestApi {
+  /** @maxLength 255 */
+  title?: string;
+  /** @maxLength 500 */
+  context_page?: string;
+}
+
+export type FalconMessageApiRole = typeof FalconMessageApiRole[keyof typeof FalconMessageApiRole];
+
+
+export const FalconMessageApiRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+} as const;
+
+export type FalconMessageApiThoughts = { [key: string]: unknown };
+
+export type FalconMessageApiToolCalls = { [key: string]: unknown };
+
+export type FalconMessageApiCompletionCard = { [key: string]: unknown };
+
+export type FalconMessageApiFiles = { [key: string]: unknown };
+
+export interface FalconMessageApi {
+  readonly id?: string;
+  conversation: string;
+  role: FalconMessageApiRole;
+  /** @minLength 1 */
+  content?: string;
+  thoughts?: FalconMessageApiThoughts;
+  tool_calls?: FalconMessageApiToolCalls;
+  completion_card?: FalconMessageApiCompletionCard;
+  files?: FalconMessageApiFiles;
+  /** @maxLength 20 */
+  feedback?: string;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  input_tokens?: number;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  output_tokens?: number;
+  /** @maxLength 100 */
+  model_used?: string;
+  /**
+     * @minimum 0
+     * @maximum 2147483647
+     */
+  latency_ms?: number;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+}
+
+export type FalconConversationDetailApiMetadata = { [key: string]: unknown };
+
+export interface FalconConversationDetailApi {
+  readonly id?: string;
+  readonly user?: string;
+  readonly organization?: string;
+  readonly workspace?: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  title?: string;
+  /** @maxLength 500 */
+  context_page?: string;
+  metadata?: FalconConversationDetailApiMetadata;
+  readonly messages?: readonly FalconMessageApi[];
+  readonly created_at?: string;
+  readonly updated_at?: string;
+}
+
+export interface ConversationDetailResponseApi {
+  status: boolean;
+  result: FalconConversationDetailApi;
+}
+
+export interface ConversationUpdateRequestApi {
+  /** @maxLength 255 */
+  title?: string;
+}
+
+export interface StreamStatusResultApi {
+  /** @minLength 1 */
+  stream_status: string;
+}
+
+export interface StreamStatusResponseApi {
+  status: boolean;
+  result: StreamStatusResultApi;
+}
+
+export interface FileUploadResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  size: number;
+  /** @minLength 1 */
+  content_type: string;
+  /** @minLength 1 */
+  url: string;
+}
+
+export interface FileUploadResponseApi {
+  status: boolean;
+  result: FileUploadResultApi;
+}
+
+export type MCPConnectorListApiTransport = typeof MCPConnectorListApiTransport[keyof typeof MCPConnectorListApiTransport];
+
+
+export const MCPConnectorListApiTransport = {
+  sse: 'sse',
+  streamable_http: 'streamable_http',
+} as const;
+
+export type MCPConnectorListApiAuthType = typeof MCPConnectorListApiAuthType[keyof typeof MCPConnectorListApiAuthType];
+
+
+export const MCPConnectorListApiAuthType = {
+  none: 'none',
+  api_key: 'api_key',
+  bearer: 'bearer',
+  oauth: 'oauth',
+} as const;
+
+export interface MCPConnectorListApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  server_url: string;
+  transport?: MCPConnectorListApiTransport;
+  auth_type?: MCPConnectorListApiAuthType;
+  is_active?: boolean;
+  is_verified?: boolean;
+  readonly tool_count?: string;
+  last_discovery_at?: string;
+  last_error?: string;
+  readonly created_at?: string;
+}
+
+export interface MCPConnectorListResponseApi {
+  status: boolean;
+  results: MCPConnectorListApi[];
+}
+
+export type MCPConnectorCreateApiTransport = typeof MCPConnectorCreateApiTransport[keyof typeof MCPConnectorCreateApiTransport];
+
+
+export const MCPConnectorCreateApiTransport = {
+  sse: 'sse',
+  streamable_http: 'streamable_http',
+} as const;
+
+export type MCPConnectorCreateApiAuthType = typeof MCPConnectorCreateApiAuthType[keyof typeof MCPConnectorCreateApiAuthType];
+
+
+export const MCPConnectorCreateApiAuthType = {
+  none: 'none',
+  api_key: 'api_key',
+  bearer: 'bearer',
+  oauth: 'oauth',
+} as const;
+
+export interface MCPConnectorCreateApi {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /** @minLength 1 */
+  server_url: string;
+  transport?: MCPConnectorCreateApiTransport;
+  auth_type?: MCPConnectorCreateApiAuthType;
+  /** @maxLength 100 */
+  auth_header_name?: string;
+  auth_header_value?: string;
+}
+
+export type MCPConnectorDetailApiTransport = typeof MCPConnectorDetailApiTransport[keyof typeof MCPConnectorDetailApiTransport];
+
+
+export const MCPConnectorDetailApiTransport = {
+  sse: 'sse',
+  streamable_http: 'streamable_http',
+} as const;
+
+export type MCPConnectorDetailApiAuthType = typeof MCPConnectorDetailApiAuthType[keyof typeof MCPConnectorDetailApiAuthType];
+
+
+export const MCPConnectorDetailApiAuthType = {
+  none: 'none',
+  api_key: 'api_key',
+  bearer: 'bearer',
+  oauth: 'oauth',
+} as const;
+
+export type MCPConnectorDetailApiDiscoveredTools = { [key: string]: unknown };
+
+export type MCPConnectorDetailApiEnabledToolNames = { [key: string]: unknown };
+
+export interface MCPConnectorDetailApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  server_url: string;
+  transport?: MCPConnectorDetailApiTransport;
+  auth_type?: MCPConnectorDetailApiAuthType;
+  /** @maxLength 100 */
+  auth_header_name?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
+  discovered_tools?: MCPConnectorDetailApiDiscoveredTools;
+  enabled_tool_names?: MCPConnectorDetailApiEnabledToolNames;
+  last_discovery_at?: string;
+  last_error?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+}
+
+export interface MCPConnectorDetailResponseApi {
+  status: boolean;
+  result: MCPConnectorDetailApi;
+}
+
+export type MCPConnectorUpdateRequestApiTransport = typeof MCPConnectorUpdateRequestApiTransport[keyof typeof MCPConnectorUpdateRequestApiTransport];
+
+
+export const MCPConnectorUpdateRequestApiTransport = {
+  sse: 'sse',
+  streamable_http: 'streamable_http',
+} as const;
+
+export type MCPConnectorUpdateRequestApiAuthType = typeof MCPConnectorUpdateRequestApiAuthType[keyof typeof MCPConnectorUpdateRequestApiAuthType];
+
+
+export const MCPConnectorUpdateRequestApiAuthType = {
+  none: 'none',
+  api_key: 'api_key',
+  bearer: 'bearer',
+  oauth: 'oauth',
+} as const;
+
+export interface MCPConnectorUpdateRequestApi {
+  /** @maxLength 100 */
+  name?: string;
+  /** @minLength 1 */
+  server_url?: string;
+  transport?: MCPConnectorUpdateRequestApiTransport;
+  auth_type?: MCPConnectorUpdateRequestApiAuthType;
+  /** @maxLength 100 */
+  auth_header_name?: string;
+  auth_header_value?: string;
+  is_active?: boolean;
+}
+
+export interface FalconEmptyRequestApi { [key: string]: unknown }
+
+export interface MCPConnectorAuthenticateResponseApi {
+  status: boolean;
+  result?: MCPConnectorDetailApi;
+  auth_type?: string;
+  /** @minLength 1 */
+  authorization_url?: string;
+  message?: string;
+}
+
+export interface MCPConnectorDiscoverResponseApi {
+  status: boolean;
+  result: MCPConnectorDetailApi;
+  discovered_count: number;
+}
+
+export type MCPConnectorTestResponseApiResult = { [key: string]: unknown };
+
+export interface MCPConnectorTestResponseApi {
+  status: boolean;
+  result?: MCPConnectorTestResponseApiResult;
+  error?: string;
+}
+
+export interface MCPConnectorToolsApi {
+  enabled_tool_names: string[];
+}
+
+export type FalconMemoryApiSource = typeof FalconMemoryApiSource[keyof typeof FalconMemoryApiSource];
+
+
+export const FalconMemoryApiSource = {
+  user: 'user',
+  agent: 'agent',
+  init: 'init',
+} as const;
+
+export interface FalconMemoryApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  key: string;
+  /** @minLength 1 */
+  value: string;
+  source?: FalconMemoryApiSource;
+  readonly created_at?: string;
+}
+
+export interface FalconMemoryListResponseApi {
+  status: boolean;
+  results: FalconMemoryApi[];
+}
+
+export interface FalconMemoryCreateApi {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  key: string;
+  /** @minLength 1 */
+  value: string;
+}
+
+export interface FalconMemoryDetailResponseApi {
+  status: boolean;
+  result: FalconMemoryApi;
+}
+
+export type MessageFeedbackApiFeedback = typeof MessageFeedbackApiFeedback[keyof typeof MessageFeedbackApiFeedback];
+
+
+export const MessageFeedbackApiFeedback = {
+  thumbs_up: 'thumbs_up',
+  thumbs_down: 'thumbs_down',
+  '': '',
+} as const;
+
+export interface MessageFeedbackApi {
+  feedback: MessageFeedbackApiFeedback;
+}
+
+export interface MessageFeedbackResultApi {
+  feedback: string;
+}
+
+export interface MessageFeedbackResponseApi {
+  status: boolean;
+  result: MessageFeedbackResultApi;
+}
+
+export interface QuickAnalysisApi {
+  /**
+     * @minLength 1
+     * @maxLength 8000
+     */
+  prompt: string;
+}
+
+export interface QuickAnalysisResponseApi {
+  status: boolean;
+  /** @minLength 1 */
+  result: string;
+}
+
+export type SkillListApiToolNames = { [key: string]: unknown };
+
+export type SkillListApiTriggerPhrases = { [key: string]: unknown };
+
+export interface SkillListApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     * @pattern ^[-a-zA-Z0-9_]+$
+     */
+  slug: string;
+  /** @minLength 1 */
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  icon?: string;
+  is_builtin?: boolean;
+  is_active?: boolean;
+  tool_names?: SkillListApiToolNames;
+  trigger_phrases?: SkillListApiTriggerPhrases;
+  readonly created_at?: string;
+  readonly created_by_display?: string;
+}
+
+export interface SkillListResponseApi {
+  status: boolean;
+  results: SkillListApi[];
+}
+
+export interface SkillCreateApi {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  icon?: string;
+  /** @minLength 1 */
+  instructions: string;
+  tool_names?: string[];
+  /** @minItems 1 */
+  trigger_phrases: string[];
+}
+
+export type SkillDetailApiToolNames = { [key: string]: unknown };
+
+export type SkillDetailApiExampleTrajectories = { [key: string]: unknown };
+
+export type SkillDetailApiTriggerPhrases = { [key: string]: unknown };
+
+export interface SkillDetailApi {
+  readonly id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     * @pattern ^[-a-zA-Z0-9_]+$
+     */
+  slug: string;
+  /** @minLength 1 */
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  icon?: string;
+  is_builtin?: boolean;
+  is_active?: boolean;
+  /** @minLength 1 */
+  instructions?: string;
+  tool_names?: SkillDetailApiToolNames;
+  example_trajectories?: SkillDetailApiExampleTrajectories;
+  trigger_phrases?: SkillDetailApiTriggerPhrases;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+  readonly created_by_display?: string;
+}
+
+export interface SkillDetailResponseApi {
+  status: boolean;
+  result: SkillDetailApi;
+}
+
+export interface SkillUpdateRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name?: string;
+  description?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  icon?: string;
+  /** @minLength 1 */
+  instructions?: string;
+  tool_names?: string[];
+  trigger_phrases?: string[];
+  is_active?: boolean;
+}
+
 export interface HealthCheckResponseApi {
   status?: boolean;
   /** @minLength 1 */
@@ -10281,6 +10813,18 @@ q?: string;
  * @maximum 500
  */
 limit?: number;
+};
+
+export type FalconAiFilesUploadCreateBody = {
+  /** File to upload into the Falcon conversation context. */
+  file: Blob;
+};
+
+export type FalconAiMcpConnectorsOauthCallbackListParams = {
+code?: string;
+state?: string;
+error?: string;
+error_description?: string;
 };
 
 export type IntegrationsConnectionsListParams = {

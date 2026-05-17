@@ -160,6 +160,10 @@ import type {
   ChatSDKCodeResponseApi,
   ChatSendMessageResponseApi,
   ClickHouseHealthResponseApi,
+  ConversationCreateRequestApi,
+  ConversationDetailResponseApi,
+  ConversationListResponseApi,
+  ConversationUpdateRequestApi,
   CreateLinearIssueApi,
   CreateLinearIssueResponseApi,
   CreateNodeApi,
@@ -204,6 +208,13 @@ import type {
   ExecutePromptSimulationRequestApi,
   ExecutePromptSimulationResponseApi,
   ExecuteRequestApi,
+  FalconAiFilesUploadCreateBody,
+  FalconAiMcpConnectorsOauthCallbackListParams,
+  FalconEmptyRequestApi,
+  FalconErrorResponseApi,
+  FalconMemoryCreateApi,
+  FalconMemoryDetailResponseApi,
+  FalconMemoryListResponseApi,
   FeedDetailApiResponseApi,
   FeedListApiResponseApi,
   FeedSidebarApiResponseApi,
@@ -213,6 +224,7 @@ import type {
   FetchAssistantRequestApi,
   FetchAssistantResponseApi,
   FetchGraphApi,
+  FileUploadResponseApi,
   GenerateScenarioApi,
   GetAnnotationLabelsResponseApi,
   GetTraceAnnotationApi,
@@ -249,6 +261,14 @@ import type {
   MCPAnalyticsToolsResponseApi,
   MCPConnectionResponseApi,
   MCPConnectionUpdateApi,
+  MCPConnectorAuthenticateResponseApi,
+  MCPConnectorCreateApi,
+  MCPConnectorDetailResponseApi,
+  MCPConnectorDiscoverResponseApi,
+  MCPConnectorListResponseApi,
+  MCPConnectorTestResponseApi,
+  MCPConnectorToolsApi,
+  MCPConnectorUpdateRequestApi,
   MCPErrorResponseApi,
   MCPHealthResponseApi,
   MCPOAuthApproveInfoResponseApi,
@@ -265,6 +285,8 @@ import type {
   MCPToolGroupConfigUpdateApi,
   MCPToolGroupsResponseApi,
   MCPToolListResponseApi,
+  MessageFeedbackApi,
+  MessageFeedbackResponseApi,
   ModelHubAnnotationQueuesAutomationRulesList200,
   ModelHubAnnotationQueuesAutomationRulesListParams,
   ModelHubAnnotationQueuesExportAnnotationsParams,
@@ -399,6 +421,8 @@ import type {
   QueueStatusRequestApi,
   QueueStatusResponseApi,
   QueueSubmitAnnotationsResponseApi,
+  QuickAnalysisApi,
+  QuickAnalysisResponseApi,
   ReplaySessionApi,
   ReplaySessionListApi,
   RerunCallsResponseApi,
@@ -512,9 +536,14 @@ import type {
   SimulatorAgentApi,
   SimulatorAgentListResponseApi,
   SimulatorAgentValidationErrorResponseApi,
+  SkillCreateApi,
+  SkillDetailResponseApi,
+  SkillListResponseApi,
+  SkillUpdateRequestApi,
   SpanAttributeDetailResponseApi,
   SpanAttributeKeysResponseApi,
   SpanAttributeValuesResponseApi,
+  StreamStatusResponseApi,
   SubmitAnnotationsApi,
   SyncLogApi,
   TTSVoiceApi,
@@ -11679,16 +11708,23 @@ export const callWebsocketCreate = async (callWebsocketRequestApi: CallWebsocket
 
 
 export type falconAiConversationsListResponse200 = {
-  data: void
+  data: ConversationListResponseApi
   status: 200
+}
+
+export type falconAiConversationsListResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiConversationsListResponseSuccess = (falconAiConversationsListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsListResponseError = (falconAiConversationsListResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsListResponse = (falconAiConversationsListResponseSuccess)
+export type falconAiConversationsListResponse = (falconAiConversationsListResponseSuccess | falconAiConversationsListResponseError)
 
 export const getFalconAiConversationsListUrl = () => {
 
@@ -11715,16 +11751,23 @@ export const falconAiConversationsList = async ( options?: RequestInit): Promise
 
 
 export type falconAiConversationsCreateResponse201 = {
-  data: void
+  data: ConversationDetailResponseApi
   status: 201
+}
+
+export type falconAiConversationsCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiConversationsCreateResponseSuccess = (falconAiConversationsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsCreateResponseError = (falconAiConversationsCreateResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsCreateResponse = (falconAiConversationsCreateResponseSuccess)
+export type falconAiConversationsCreateResponse = (falconAiConversationsCreateResponseSuccess | falconAiConversationsCreateResponseError)
 
 export const getFalconAiConversationsCreateUrl = () => {
 
@@ -11737,30 +11780,43 @@ export const getFalconAiConversationsCreateUrl = () => {
 /**
  * List and create conversations.
  */
-export const falconAiConversationsCreate = async ( options?: RequestInit): Promise<falconAiConversationsCreateResponse> => {
+export const falconAiConversationsCreate = async (conversationCreateRequestApi: ConversationCreateRequestApi, options?: RequestInit): Promise<falconAiConversationsCreateResponse> => {
 
   return apiMutator<falconAiConversationsCreateResponse>(getFalconAiConversationsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      conversationCreateRequestApi,)
   }
 );}
 
 
 
 export type falconAiConversationsReadResponse200 = {
-  data: void
+  data: ConversationDetailResponseApi
   status: 200
+}
+
+export type falconAiConversationsReadResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiConversationsReadResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiConversationsReadResponseSuccess = (falconAiConversationsReadResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsReadResponseError = (falconAiConversationsReadResponse403 | falconAiConversationsReadResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsReadResponse = (falconAiConversationsReadResponseSuccess)
+export type falconAiConversationsReadResponse = (falconAiConversationsReadResponseSuccess | falconAiConversationsReadResponseError)
 
 export const getFalconAiConversationsReadUrl = (conversationId: string,) => {
 
@@ -11787,16 +11843,28 @@ export const falconAiConversationsRead = async (conversationId: string, options?
 
 
 export type falconAiConversationsPartialUpdateResponse200 = {
-  data: void
+  data: ConversationDetailResponseApi
   status: 200
+}
+
+export type falconAiConversationsPartialUpdateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiConversationsPartialUpdateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiConversationsPartialUpdateResponseSuccess = (falconAiConversationsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsPartialUpdateResponseError = (falconAiConversationsPartialUpdateResponse403 | falconAiConversationsPartialUpdateResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsPartialUpdateResponse = (falconAiConversationsPartialUpdateResponseSuccess)
+export type falconAiConversationsPartialUpdateResponse = (falconAiConversationsPartialUpdateResponseSuccess | falconAiConversationsPartialUpdateResponseError)
 
 export const getFalconAiConversationsPartialUpdateUrl = (conversationId: string,) => {
 
@@ -11809,14 +11877,16 @@ export const getFalconAiConversationsPartialUpdateUrl = (conversationId: string,
 /**
  * Get, update, or delete a conversation.
  */
-export const falconAiConversationsPartialUpdate = async (conversationId: string, options?: RequestInit): Promise<falconAiConversationsPartialUpdateResponse> => {
+export const falconAiConversationsPartialUpdate = async (conversationId: string,
+    conversationUpdateRequestApi: ConversationUpdateRequestApi, options?: RequestInit): Promise<falconAiConversationsPartialUpdateResponse> => {
 
   return apiMutator<falconAiConversationsPartialUpdateResponse>(getFalconAiConversationsPartialUpdateUrl(conversationId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      conversationUpdateRequestApi,)
   }
 );}
 
@@ -11859,16 +11929,28 @@ export const falconAiConversationsDelete = async (conversationId: string, option
 
 
 export type falconAiConversationsStreamStatusListResponse200 = {
-  data: void
+  data: StreamStatusResponseApi
   status: 200
+}
+
+export type falconAiConversationsStreamStatusListResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiConversationsStreamStatusListResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiConversationsStreamStatusListResponseSuccess = (falconAiConversationsStreamStatusListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsStreamStatusListResponseError = (falconAiConversationsStreamStatusListResponse403 | falconAiConversationsStreamStatusListResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsStreamStatusListResponse = (falconAiConversationsStreamStatusListResponseSuccess)
+export type falconAiConversationsStreamStatusListResponse = (falconAiConversationsStreamStatusListResponseSuccess | falconAiConversationsStreamStatusListResponseError)
 
 export const getFalconAiConversationsStreamStatusListUrl = (conversationId: string,) => {
 
@@ -11895,16 +11977,28 @@ export const falconAiConversationsStreamStatusList = async (conversationId: stri
 
 
 export type falconAiFilesUploadCreateResponse201 = {
-  data: void
+  data: FileUploadResponseApi
   status: 201
+}
+
+export type falconAiFilesUploadCreateResponse400 = {
+  data: FalconErrorResponseApi
+  status: 400
+}
+
+export type falconAiFilesUploadCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiFilesUploadCreateResponseSuccess = (falconAiFilesUploadCreateResponse201) & {
   headers: Headers;
 };
-;
+export type falconAiFilesUploadCreateResponseError = (falconAiFilesUploadCreateResponse400 | falconAiFilesUploadCreateResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiFilesUploadCreateResponse = (falconAiFilesUploadCreateResponseSuccess)
+export type falconAiFilesUploadCreateResponse = (falconAiFilesUploadCreateResponseSuccess | falconAiFilesUploadCreateResponseError)
 
 export const getFalconAiFilesUploadCreateUrl = () => {
 
@@ -11917,30 +12011,42 @@ export const getFalconAiFilesUploadCreateUrl = () => {
 /**
  * Upload a file for use in Falcon AI conversations.
  */
-export const falconAiFilesUploadCreate = async ( options?: RequestInit): Promise<falconAiFilesUploadCreateResponse> => {
+export const falconAiFilesUploadCreate = async (falconAiFilesUploadCreateBody?: FalconAiFilesUploadCreateBody, options?: RequestInit): Promise<falconAiFilesUploadCreateResponse> => {
+    const formData = new FormData();
+if(falconAiFilesUploadCreateBody?.file !== undefined) {
+ formData.append(`file`, falconAiFilesUploadCreateBody.file);
+ }
 
   return apiMutator<falconAiFilesUploadCreateResponse>(getFalconAiFilesUploadCreateUrl(),
   {
     ...options,
     method: 'POST'
-
-
+    ,
+    body:
+      formData,
   }
 );}
 
 
 
 export type falconAiMcpConnectorsListResponse200 = {
-  data: void
+  data: MCPConnectorListResponseApi
   status: 200
+}
+
+export type falconAiMcpConnectorsListResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiMcpConnectorsListResponseSuccess = (falconAiMcpConnectorsListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsListResponseError = (falconAiMcpConnectorsListResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsListResponse = (falconAiMcpConnectorsListResponseSuccess)
+export type falconAiMcpConnectorsListResponse = (falconAiMcpConnectorsListResponseSuccess | falconAiMcpConnectorsListResponseError)
 
 export const getFalconAiMcpConnectorsListUrl = () => {
 
@@ -11967,16 +12073,28 @@ export const falconAiMcpConnectorsList = async ( options?: RequestInit): Promise
 
 
 export type falconAiMcpConnectorsCreateResponse201 = {
-  data: void
+  data: MCPConnectorDetailResponseApi
   status: 201
+}
+
+export type falconAiMcpConnectorsCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsCreateResponse409 = {
+  data: FalconErrorResponseApi
+  status: 409
 }
 
 export type falconAiMcpConnectorsCreateResponseSuccess = (falconAiMcpConnectorsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsCreateResponseError = (falconAiMcpConnectorsCreateResponse403 | falconAiMcpConnectorsCreateResponse409) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsCreateResponse = (falconAiMcpConnectorsCreateResponseSuccess)
+export type falconAiMcpConnectorsCreateResponse = (falconAiMcpConnectorsCreateResponseSuccess | falconAiMcpConnectorsCreateResponseError)
 
 export const getFalconAiMcpConnectorsCreateUrl = () => {
 
@@ -11989,30 +12107,43 @@ export const getFalconAiMcpConnectorsCreateUrl = () => {
 /**
  * List and create MCP connectors.
  */
-export const falconAiMcpConnectorsCreate = async ( options?: RequestInit): Promise<falconAiMcpConnectorsCreateResponse> => {
+export const falconAiMcpConnectorsCreate = async (mCPConnectorCreateApi: MCPConnectorCreateApi, options?: RequestInit): Promise<falconAiMcpConnectorsCreateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsCreateResponse>(getFalconAiMcpConnectorsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPConnectorCreateApi,)
   }
 );}
 
 
 
 export type falconAiMcpConnectorsReadResponse200 = {
-  data: void
+  data: MCPConnectorDetailResponseApi
   status: 200
+}
+
+export type falconAiMcpConnectorsReadResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsReadResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiMcpConnectorsReadResponseSuccess = (falconAiMcpConnectorsReadResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsReadResponseError = (falconAiMcpConnectorsReadResponse403 | falconAiMcpConnectorsReadResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsReadResponse = (falconAiMcpConnectorsReadResponseSuccess)
+export type falconAiMcpConnectorsReadResponse = (falconAiMcpConnectorsReadResponseSuccess | falconAiMcpConnectorsReadResponseError)
 
 export const getFalconAiMcpConnectorsReadUrl = (connectorId: string,) => {
 
@@ -12039,16 +12170,28 @@ export const falconAiMcpConnectorsRead = async (connectorId: string, options?: R
 
 
 export type falconAiMcpConnectorsPartialUpdateResponse200 = {
-  data: void
+  data: MCPConnectorDetailResponseApi
   status: 200
+}
+
+export type falconAiMcpConnectorsPartialUpdateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsPartialUpdateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiMcpConnectorsPartialUpdateResponseSuccess = (falconAiMcpConnectorsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsPartialUpdateResponseError = (falconAiMcpConnectorsPartialUpdateResponse403 | falconAiMcpConnectorsPartialUpdateResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsPartialUpdateResponse = (falconAiMcpConnectorsPartialUpdateResponseSuccess)
+export type falconAiMcpConnectorsPartialUpdateResponse = (falconAiMcpConnectorsPartialUpdateResponseSuccess | falconAiMcpConnectorsPartialUpdateResponseError)
 
 export const getFalconAiMcpConnectorsPartialUpdateUrl = (connectorId: string,) => {
 
@@ -12061,14 +12204,16 @@ export const getFalconAiMcpConnectorsPartialUpdateUrl = (connectorId: string,) =
 /**
  * Get, update, or delete an MCP connector.
  */
-export const falconAiMcpConnectorsPartialUpdate = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsPartialUpdateResponse> => {
+export const falconAiMcpConnectorsPartialUpdate = async (connectorId: string,
+    mCPConnectorUpdateRequestApi: MCPConnectorUpdateRequestApi, options?: RequestInit): Promise<falconAiMcpConnectorsPartialUpdateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsPartialUpdateResponse>(getFalconAiMcpConnectorsPartialUpdateUrl(connectorId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPConnectorUpdateRequestApi,)
   }
 );}
 
@@ -12110,17 +12255,34 @@ export const falconAiMcpConnectorsDelete = async (connectorId: string, options?:
 
 
 
-export type falconAiMcpConnectorsAuthenticateCreateResponse201 = {
-  data: void
-  status: 201
+export type falconAiMcpConnectorsAuthenticateCreateResponse200 = {
+  data: MCPConnectorAuthenticateResponseApi
+  status: 200
 }
 
-export type falconAiMcpConnectorsAuthenticateCreateResponseSuccess = (falconAiMcpConnectorsAuthenticateCreateResponse201) & {
+export type falconAiMcpConnectorsAuthenticateCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsAuthenticateCreateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
+export type falconAiMcpConnectorsAuthenticateCreateResponse502 = {
+  data: FalconErrorResponseApi
+  status: 502
+}
+
+export type falconAiMcpConnectorsAuthenticateCreateResponseSuccess = (falconAiMcpConnectorsAuthenticateCreateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsAuthenticateCreateResponseError = (falconAiMcpConnectorsAuthenticateCreateResponse403 | falconAiMcpConnectorsAuthenticateCreateResponse404 | falconAiMcpConnectorsAuthenticateCreateResponse502) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsAuthenticateCreateResponse = (falconAiMcpConnectorsAuthenticateCreateResponseSuccess)
+export type falconAiMcpConnectorsAuthenticateCreateResponse = (falconAiMcpConnectorsAuthenticateCreateResponseSuccess | falconAiMcpConnectorsAuthenticateCreateResponseError)
 
 export const getFalconAiMcpConnectorsAuthenticateCreateUrl = (connectorId: string,) => {
 
@@ -12135,30 +12297,49 @@ export const getFalconAiMcpConnectorsAuthenticateCreateUrl = (connectorId: strin
 For API key connectors, tests the connection and returns status.
  * @summary Initiate or re-initiate authentication for a connector.
  */
-export const falconAiMcpConnectorsAuthenticateCreate = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsAuthenticateCreateResponse> => {
+export const falconAiMcpConnectorsAuthenticateCreate = async (connectorId: string,
+    falconEmptyRequestApi: FalconEmptyRequestApi, options?: RequestInit): Promise<falconAiMcpConnectorsAuthenticateCreateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsAuthenticateCreateResponse>(getFalconAiMcpConnectorsAuthenticateCreateUrl(connectorId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      falconEmptyRequestApi,)
   }
 );}
 
 
 
-export type falconAiMcpConnectorsDiscoverCreateResponse201 = {
-  data: void
-  status: 201
+export type falconAiMcpConnectorsDiscoverCreateResponse200 = {
+  data: MCPConnectorDiscoverResponseApi
+  status: 200
 }
 
-export type falconAiMcpConnectorsDiscoverCreateResponseSuccess = (falconAiMcpConnectorsDiscoverCreateResponse201) & {
+export type falconAiMcpConnectorsDiscoverCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsDiscoverCreateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
+export type falconAiMcpConnectorsDiscoverCreateResponse502 = {
+  data: FalconErrorResponseApi
+  status: 502
+}
+
+export type falconAiMcpConnectorsDiscoverCreateResponseSuccess = (falconAiMcpConnectorsDiscoverCreateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsDiscoverCreateResponseError = (falconAiMcpConnectorsDiscoverCreateResponse403 | falconAiMcpConnectorsDiscoverCreateResponse404 | falconAiMcpConnectorsDiscoverCreateResponse502) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsDiscoverCreateResponse = (falconAiMcpConnectorsDiscoverCreateResponseSuccess)
+export type falconAiMcpConnectorsDiscoverCreateResponse = (falconAiMcpConnectorsDiscoverCreateResponseSuccess | falconAiMcpConnectorsDiscoverCreateResponseError)
 
 export const getFalconAiMcpConnectorsDiscoverCreateUrl = (connectorId: string,) => {
 
@@ -12171,21 +12352,23 @@ export const getFalconAiMcpConnectorsDiscoverCreateUrl = (connectorId: string,) 
 /**
  * Discover tools from an external MCP server.
  */
-export const falconAiMcpConnectorsDiscoverCreate = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsDiscoverCreateResponse> => {
+export const falconAiMcpConnectorsDiscoverCreate = async (connectorId: string,
+    falconEmptyRequestApi: FalconEmptyRequestApi, options?: RequestInit): Promise<falconAiMcpConnectorsDiscoverCreateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsDiscoverCreateResponse>(getFalconAiMcpConnectorsDiscoverCreateUrl(connectorId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      falconEmptyRequestApi,)
   }
 );}
 
 
 
 export type falconAiMcpConnectorsOauthCallbackListResponse200 = {
-  data: void
+  data: string
   status: 200
 }
 
@@ -12196,12 +12379,20 @@ export type falconAiMcpConnectorsOauthCallbackListResponseSuccess = (falconAiMcp
 
 export type falconAiMcpConnectorsOauthCallbackListResponse = (falconAiMcpConnectorsOauthCallbackListResponseSuccess)
 
-export const getFalconAiMcpConnectorsOauthCallbackListUrl = (connectorId: string,) => {
+export const getFalconAiMcpConnectorsOauthCallbackListUrl = (connectorId: string,
+    params?: FalconAiMcpConnectorsOauthCallbackListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/falcon-ai/mcp-connectors/${connectorId}/oauth/callback/`
+  return stringifiedParams.length > 0 ? `/falcon-ai/mcp-connectors/${connectorId}/oauth/callback/?${stringifiedParams}` : `/falcon-ai/mcp-connectors/${connectorId}/oauth/callback/`
 }
 
 /**
@@ -12213,9 +12404,10 @@ window and closes itself.
 Uses AllowAny because this is a browser redirect with state validation.
  * @summary Handle the OAuth 2.1 redirect callback from an authorization server.
  */
-export const falconAiMcpConnectorsOauthCallbackList = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsOauthCallbackListResponse> => {
+export const falconAiMcpConnectorsOauthCallbackList = async (connectorId: string,
+    params?: FalconAiMcpConnectorsOauthCallbackListParams, options?: RequestInit): Promise<falconAiMcpConnectorsOauthCallbackListResponse> => {
 
-  return apiMutator<falconAiMcpConnectorsOauthCallbackListResponse>(getFalconAiMcpConnectorsOauthCallbackListUrl(connectorId),
+  return apiMutator<falconAiMcpConnectorsOauthCallbackListResponse>(getFalconAiMcpConnectorsOauthCallbackListUrl(connectorId,params),
   {
     ...options,
     method: 'GET'
@@ -12226,17 +12418,34 @@ export const falconAiMcpConnectorsOauthCallbackList = async (connectorId: string
 
 
 
-export type falconAiMcpConnectorsTestCreateResponse201 = {
-  data: void
-  status: 201
+export type falconAiMcpConnectorsTestCreateResponse200 = {
+  data: MCPConnectorTestResponseApi
+  status: 200
 }
 
-export type falconAiMcpConnectorsTestCreateResponseSuccess = (falconAiMcpConnectorsTestCreateResponse201) & {
+export type falconAiMcpConnectorsTestCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsTestCreateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
+export type falconAiMcpConnectorsTestCreateResponse502 = {
+  data: FalconErrorResponseApi
+  status: 502
+}
+
+export type falconAiMcpConnectorsTestCreateResponseSuccess = (falconAiMcpConnectorsTestCreateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsTestCreateResponseError = (falconAiMcpConnectorsTestCreateResponse403 | falconAiMcpConnectorsTestCreateResponse404 | falconAiMcpConnectorsTestCreateResponse502) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsTestCreateResponse = (falconAiMcpConnectorsTestCreateResponseSuccess)
+export type falconAiMcpConnectorsTestCreateResponse = (falconAiMcpConnectorsTestCreateResponseSuccess | falconAiMcpConnectorsTestCreateResponseError)
 
 export const getFalconAiMcpConnectorsTestCreateUrl = (connectorId: string,) => {
 
@@ -12249,30 +12458,49 @@ export const getFalconAiMcpConnectorsTestCreateUrl = (connectorId: string,) => {
 /**
  * Test connection to an external MCP server.
  */
-export const falconAiMcpConnectorsTestCreate = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsTestCreateResponse> => {
+export const falconAiMcpConnectorsTestCreate = async (connectorId: string,
+    falconEmptyRequestApi: FalconEmptyRequestApi, options?: RequestInit): Promise<falconAiMcpConnectorsTestCreateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsTestCreateResponse>(getFalconAiMcpConnectorsTestCreateUrl(connectorId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      falconEmptyRequestApi,)
   }
 );}
 
 
 
 export type falconAiMcpConnectorsToolsPartialUpdateResponse200 = {
-  data: void
+  data: MCPConnectorDetailResponseApi
   status: 200
+}
+
+export type falconAiMcpConnectorsToolsPartialUpdateResponse400 = {
+  data: FalconErrorResponseApi
+  status: 400
+}
+
+export type falconAiMcpConnectorsToolsPartialUpdateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsToolsPartialUpdateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiMcpConnectorsToolsPartialUpdateResponseSuccess = (falconAiMcpConnectorsToolsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsToolsPartialUpdateResponseError = (falconAiMcpConnectorsToolsPartialUpdateResponse400 | falconAiMcpConnectorsToolsPartialUpdateResponse403 | falconAiMcpConnectorsToolsPartialUpdateResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsToolsPartialUpdateResponse = (falconAiMcpConnectorsToolsPartialUpdateResponseSuccess)
+export type falconAiMcpConnectorsToolsPartialUpdateResponse = (falconAiMcpConnectorsToolsPartialUpdateResponseSuccess | falconAiMcpConnectorsToolsPartialUpdateResponseError)
 
 export const getFalconAiMcpConnectorsToolsPartialUpdateUrl = (connectorId: string,) => {
 
@@ -12285,30 +12513,39 @@ export const getFalconAiMcpConnectorsToolsPartialUpdateUrl = (connectorId: strin
 /**
  * Enable or disable specific tools on a connector.
  */
-export const falconAiMcpConnectorsToolsPartialUpdate = async (connectorId: string, options?: RequestInit): Promise<falconAiMcpConnectorsToolsPartialUpdateResponse> => {
+export const falconAiMcpConnectorsToolsPartialUpdate = async (connectorId: string,
+    mCPConnectorToolsApi: MCPConnectorToolsApi, options?: RequestInit): Promise<falconAiMcpConnectorsToolsPartialUpdateResponse> => {
 
   return apiMutator<falconAiMcpConnectorsToolsPartialUpdateResponse>(getFalconAiMcpConnectorsToolsPartialUpdateUrl(connectorId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      mCPConnectorToolsApi,)
   }
 );}
 
 
 
 export type falconAiMemoryListResponse200 = {
-  data: void
+  data: FalconMemoryListResponseApi
   status: 200
+}
+
+export type falconAiMemoryListResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiMemoryListResponseSuccess = (falconAiMemoryListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMemoryListResponseError = (falconAiMemoryListResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiMemoryListResponse = (falconAiMemoryListResponseSuccess)
+export type falconAiMemoryListResponse = (falconAiMemoryListResponseSuccess | falconAiMemoryListResponseError)
 
 export const getFalconAiMemoryListUrl = () => {
 
@@ -12334,17 +12571,29 @@ export const falconAiMemoryList = async ( options?: RequestInit): Promise<falcon
 
 
 
+export type falconAiMemoryCreateResponse200 = {
+  data: FalconMemoryDetailResponseApi
+  status: 200
+}
+
 export type falconAiMemoryCreateResponse201 = {
-  data: void
+  data: FalconMemoryDetailResponseApi
   status: 201
 }
 
-export type falconAiMemoryCreateResponseSuccess = (falconAiMemoryCreateResponse201) & {
+export type falconAiMemoryCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMemoryCreateResponseSuccess = (falconAiMemoryCreateResponse200 | falconAiMemoryCreateResponse201) & {
   headers: Headers;
 };
-;
+export type falconAiMemoryCreateResponseError = (falconAiMemoryCreateResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiMemoryCreateResponse = (falconAiMemoryCreateResponseSuccess)
+export type falconAiMemoryCreateResponse = (falconAiMemoryCreateResponseSuccess | falconAiMemoryCreateResponseError)
 
 export const getFalconAiMemoryCreateUrl = () => {
 
@@ -12357,14 +12606,15 @@ export const getFalconAiMemoryCreateUrl = () => {
 /**
  * List and create workspace memories.
  */
-export const falconAiMemoryCreate = async ( options?: RequestInit): Promise<falconAiMemoryCreateResponse> => {
+export const falconAiMemoryCreate = async (falconMemoryCreateApi: FalconMemoryCreateApi, options?: RequestInit): Promise<falconAiMemoryCreateResponse> => {
 
   return apiMutator<falconAiMemoryCreateResponse>(getFalconAiMemoryCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      falconMemoryCreateApi,)
   }
 );}
 
@@ -12406,17 +12656,29 @@ export const falconAiMemoryDelete = async (memoryId: string, options?: RequestIn
 
 
 
-export type falconAiMessagesFeedbackCreateResponse201 = {
-  data: void
-  status: 201
+export type falconAiMessagesFeedbackCreateResponse200 = {
+  data: MessageFeedbackResponseApi
+  status: 200
 }
 
-export type falconAiMessagesFeedbackCreateResponseSuccess = (falconAiMessagesFeedbackCreateResponse201) & {
+export type falconAiMessagesFeedbackCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMessagesFeedbackCreateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
+export type falconAiMessagesFeedbackCreateResponseSuccess = (falconAiMessagesFeedbackCreateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMessagesFeedbackCreateResponseError = (falconAiMessagesFeedbackCreateResponse403 | falconAiMessagesFeedbackCreateResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMessagesFeedbackCreateResponse = (falconAiMessagesFeedbackCreateResponseSuccess)
+export type falconAiMessagesFeedbackCreateResponse = (falconAiMessagesFeedbackCreateResponseSuccess | falconAiMessagesFeedbackCreateResponseError)
 
 export const getFalconAiMessagesFeedbackCreateUrl = (messageId: string,) => {
 
@@ -12429,30 +12691,49 @@ export const getFalconAiMessagesFeedbackCreateUrl = (messageId: string,) => {
 /**
  * Update feedback on a message.
  */
-export const falconAiMessagesFeedbackCreate = async (messageId: string, options?: RequestInit): Promise<falconAiMessagesFeedbackCreateResponse> => {
+export const falconAiMessagesFeedbackCreate = async (messageId: string,
+    messageFeedbackApi: MessageFeedbackApi, options?: RequestInit): Promise<falconAiMessagesFeedbackCreateResponse> => {
 
   return apiMutator<falconAiMessagesFeedbackCreateResponse>(getFalconAiMessagesFeedbackCreateUrl(messageId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      messageFeedbackApi,)
   }
 );}
 
 
 
-export type falconAiQuickAnalysisCreateResponse201 = {
-  data: void
-  status: 201
+export type falconAiQuickAnalysisCreateResponse200 = {
+  data: QuickAnalysisResponseApi
+  status: 200
 }
 
-export type falconAiQuickAnalysisCreateResponseSuccess = (falconAiQuickAnalysisCreateResponse201) & {
+export type falconAiQuickAnalysisCreateResponse429 = {
+  data: FalconErrorResponseApi
+  status: 429
+}
+
+export type falconAiQuickAnalysisCreateResponse502 = {
+  data: FalconErrorResponseApi
+  status: 502
+}
+
+export type falconAiQuickAnalysisCreateResponse504 = {
+  data: FalconErrorResponseApi
+  status: 504
+}
+
+export type falconAiQuickAnalysisCreateResponseSuccess = (falconAiQuickAnalysisCreateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiQuickAnalysisCreateResponseError = (falconAiQuickAnalysisCreateResponse429 | falconAiQuickAnalysisCreateResponse502 | falconAiQuickAnalysisCreateResponse504) & {
+  headers: Headers;
+};
 
-export type falconAiQuickAnalysisCreateResponse = (falconAiQuickAnalysisCreateResponseSuccess)
+export type falconAiQuickAnalysisCreateResponse = (falconAiQuickAnalysisCreateResponseSuccess | falconAiQuickAnalysisCreateResponseError)
 
 export const getFalconAiQuickAnalysisCreateUrl = () => {
 
@@ -12462,30 +12743,38 @@ export const getFalconAiQuickAnalysisCreateUrl = () => {
   return `/falcon-ai/quick-analysis/`
 }
 
-export const falconAiQuickAnalysisCreate = async ( options?: RequestInit): Promise<falconAiQuickAnalysisCreateResponse> => {
+export const falconAiQuickAnalysisCreate = async (quickAnalysisApi: QuickAnalysisApi, options?: RequestInit): Promise<falconAiQuickAnalysisCreateResponse> => {
 
   return apiMutator<falconAiQuickAnalysisCreateResponse>(getFalconAiQuickAnalysisCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      quickAnalysisApi,)
   }
 );}
 
 
 
 export type falconAiSkillsListResponse200 = {
-  data: void
+  data: SkillListResponseApi
   status: 200
+}
+
+export type falconAiSkillsListResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
 }
 
 export type falconAiSkillsListResponseSuccess = (falconAiSkillsListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiSkillsListResponseError = (falconAiSkillsListResponse403) & {
+  headers: Headers;
+};
 
-export type falconAiSkillsListResponse = (falconAiSkillsListResponseSuccess)
+export type falconAiSkillsListResponse = (falconAiSkillsListResponseSuccess | falconAiSkillsListResponseError)
 
 export const getFalconAiSkillsListUrl = () => {
 
@@ -12512,16 +12801,28 @@ export const falconAiSkillsList = async ( options?: RequestInit): Promise<falcon
 
 
 export type falconAiSkillsCreateResponse201 = {
-  data: void
+  data: SkillDetailResponseApi
   status: 201
+}
+
+export type falconAiSkillsCreateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiSkillsCreateResponse409 = {
+  data: FalconErrorResponseApi
+  status: 409
 }
 
 export type falconAiSkillsCreateResponseSuccess = (falconAiSkillsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type falconAiSkillsCreateResponseError = (falconAiSkillsCreateResponse403 | falconAiSkillsCreateResponse409) & {
+  headers: Headers;
+};
 
-export type falconAiSkillsCreateResponse = (falconAiSkillsCreateResponseSuccess)
+export type falconAiSkillsCreateResponse = (falconAiSkillsCreateResponseSuccess | falconAiSkillsCreateResponseError)
 
 export const getFalconAiSkillsCreateUrl = () => {
 
@@ -12534,30 +12835,43 @@ export const getFalconAiSkillsCreateUrl = () => {
 /**
  * List and create skills.
  */
-export const falconAiSkillsCreate = async ( options?: RequestInit): Promise<falconAiSkillsCreateResponse> => {
+export const falconAiSkillsCreate = async (skillCreateApi: SkillCreateApi, options?: RequestInit): Promise<falconAiSkillsCreateResponse> => {
 
   return apiMutator<falconAiSkillsCreateResponse>(getFalconAiSkillsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      skillCreateApi,)
   }
 );}
 
 
 
 export type falconAiSkillsReadResponse200 = {
-  data: void
+  data: SkillDetailResponseApi
   status: 200
+}
+
+export type falconAiSkillsReadResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiSkillsReadResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiSkillsReadResponseSuccess = (falconAiSkillsReadResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiSkillsReadResponseError = (falconAiSkillsReadResponse403 | falconAiSkillsReadResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiSkillsReadResponse = (falconAiSkillsReadResponseSuccess)
+export type falconAiSkillsReadResponse = (falconAiSkillsReadResponseSuccess | falconAiSkillsReadResponseError)
 
 export const getFalconAiSkillsReadUrl = (skillId: string,) => {
 
@@ -12584,16 +12898,28 @@ export const falconAiSkillsRead = async (skillId: string, options?: RequestInit)
 
 
 export type falconAiSkillsPartialUpdateResponse200 = {
-  data: void
+  data: SkillDetailResponseApi
   status: 200
+}
+
+export type falconAiSkillsPartialUpdateResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiSkillsPartialUpdateResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
 }
 
 export type falconAiSkillsPartialUpdateResponseSuccess = (falconAiSkillsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiSkillsPartialUpdateResponseError = (falconAiSkillsPartialUpdateResponse403 | falconAiSkillsPartialUpdateResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiSkillsPartialUpdateResponse = (falconAiSkillsPartialUpdateResponseSuccess)
+export type falconAiSkillsPartialUpdateResponse = (falconAiSkillsPartialUpdateResponseSuccess | falconAiSkillsPartialUpdateResponseError)
 
 export const getFalconAiSkillsPartialUpdateUrl = (skillId: string,) => {
 
@@ -12606,14 +12932,16 @@ export const getFalconAiSkillsPartialUpdateUrl = (skillId: string,) => {
 /**
  * Get, update, or delete a skill.
  */
-export const falconAiSkillsPartialUpdate = async (skillId: string, options?: RequestInit): Promise<falconAiSkillsPartialUpdateResponse> => {
+export const falconAiSkillsPartialUpdate = async (skillId: string,
+    skillUpdateRequestApi: SkillUpdateRequestApi, options?: RequestInit): Promise<falconAiSkillsPartialUpdateResponse> => {
 
   return apiMutator<falconAiSkillsPartialUpdateResponse>(getFalconAiSkillsPartialUpdateUrl(skillId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      skillUpdateRequestApi,)
   }
 );}
 

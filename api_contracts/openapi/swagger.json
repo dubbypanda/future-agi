@@ -8149,7 +8149,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ConversationListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8159,10 +8168,28 @@
             "post": {
                 "operationId": "falcon-ai_conversations_create",
                 "description": "List and create conversations.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ConversationCreateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ConversationDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8178,7 +8205,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ConversationDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8188,10 +8230,34 @@
             "patch": {
                 "operationId": "falcon-ai_conversations_partial_update",
                 "description": "Get, update, or delete a conversation.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ConversationUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ConversationDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8227,7 +8293,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/StreamStatusResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8247,10 +8328,33 @@
             "post": {
                 "operationId": "falcon-ai_files_upload_create",
                 "description": "Upload a file for use in Falcon AI conversations.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "file",
+                        "in": "formData",
+                        "description": "File to upload into the Falcon conversation context.",
+                        "required": true,
+                        "type": "file"
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FileUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "consumes": [
@@ -8269,7 +8373,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8279,10 +8392,34 @@
             "post": {
                 "operationId": "falcon-ai_mcp-connectors_create",
                 "description": "List and create MCP connectors.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorCreate"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8298,7 +8435,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8308,10 +8460,34 @@
             "patch": {
                 "operationId": "falcon-ai_mcp-connectors_partial_update",
                 "description": "Get, update, or delete an MCP connector.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8345,10 +8521,40 @@
                 "operationId": "falcon-ai_mcp-connectors_authenticate_create",
                 "summary": "Initiate or re-initiate authentication for a connector.",
                 "description": "For OAuth connectors, returns the authorization URL to open in a browser.\nFor API key connectors, tests the connection and returns status.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FalconEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorAuthenticateResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8368,10 +8574,40 @@
             "post": {
                 "operationId": "falcon-ai_mcp-connectors_discover_create",
                 "description": "Discover tools from an external MCP server.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FalconEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorDiscoverResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8392,10 +8628,38 @@
                 "operationId": "falcon-ai_mcp-connectors_oauth_callback_list",
                 "summary": "Handle the OAuth 2.1 redirect callback from an authorization server.",
                 "description": "This is a GET endpoint that the browser is redirected to after the user\napproves the OAuth consent. It exchanges the authorization code for\ntokens, then returns an HTML page that posts a message to the opener\nwindow and closes itself.\n\nUses AllowAny because this is a browser redirect with state validation.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "state",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "error",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "error_description",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "HTML page that posts OAuth result to opener.",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 },
                 "tags": [
@@ -8415,10 +8679,40 @@
             "post": {
                 "operationId": "falcon-ai_mcp-connectors_test_create",
                 "description": "Test connection to an external MCP server.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FalconEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorTestResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8438,10 +8732,40 @@
             "patch": {
                 "operationId": "falcon-ai_mcp-connectors_tools_partial_update",
                 "description": "Enable or disable specific tools on a connector.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorTools"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MCPConnectorDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8464,7 +8788,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconMemoryListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8474,10 +8807,34 @@
             "post": {
                 "operationId": "falcon-ai_memory_create",
                 "description": "List and create workspace memories.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FalconMemoryCreate"
+                        }
+                    }
+                ],
                 "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconMemoryDetailResponse"
+                        }
+                    },
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconMemoryDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8513,10 +8870,34 @@
             "post": {
                 "operationId": "falcon-ai_messages_feedback_create",
                 "description": "Update feedback on a message.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MessageFeedback"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/MessageFeedbackResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8536,10 +8917,40 @@
             "post": {
                 "operationId": "falcon-ai_quick-analysis_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/QuickAnalysis"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/QuickAnalysisResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8555,7 +8966,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SkillListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8565,10 +8985,34 @@
             "post": {
                 "operationId": "falcon-ai_skills_create",
                 "description": "List and create skills.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SkillCreate"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SkillDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8584,7 +9028,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SkillDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -8594,10 +9053,34 @@
             "patch": {
                 "operationId": "falcon-ai_skills_partial_update",
                 "description": "Get, update, or delete a skill.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SkillUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SkillDetailResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -43595,6 +44078,1226 @@
                     "title": "Result",
                     "type": "string",
                     "minLength": 1
+                }
+            }
+        },
+        "FalconConversationList": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "title": {
+                    "title": "Title",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "context_page": {
+                    "title": "Context page",
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "message_count": {
+                    "title": "Message count",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "last_message_at": {
+                    "title": "Last message at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "ConversationListResponse": {
+            "required": [
+                "status",
+                "results",
+                "total",
+                "limit",
+                "offset",
+                "has_more"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FalconConversationList"
+                    }
+                },
+                "total": {
+                    "title": "Total",
+                    "type": "integer"
+                },
+                "limit": {
+                    "title": "Limit",
+                    "type": "integer"
+                },
+                "offset": {
+                    "title": "Offset",
+                    "type": "integer"
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "type": "boolean"
+                }
+            }
+        },
+        "FalconErrorResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "ConversationCreateRequest": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "title": "Title",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "context_page": {
+                    "title": "Context page",
+                    "type": "string",
+                    "maxLength": 500
+                }
+            }
+        },
+        "FalconMessage": {
+            "required": [
+                "conversation",
+                "role"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "conversation": {
+                    "title": "Conversation",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "role": {
+                    "title": "Role",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "assistant",
+                        "system"
+                    ]
+                },
+                "content": {
+                    "title": "Content",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "thoughts": {
+                    "title": "Thoughts",
+                    "type": "object"
+                },
+                "tool_calls": {
+                    "title": "Tool calls",
+                    "type": "object"
+                },
+                "completion_card": {
+                    "title": "Completion card",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "files": {
+                    "title": "Files",
+                    "type": "object"
+                },
+                "feedback": {
+                    "title": "Feedback",
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "input_tokens": {
+                    "title": "Input tokens",
+                    "type": "integer",
+                    "maximum": 2147483647,
+                    "minimum": 0
+                },
+                "output_tokens": {
+                    "title": "Output tokens",
+                    "type": "integer",
+                    "maximum": 2147483647,
+                    "minimum": 0
+                },
+                "model_used": {
+                    "title": "Model used",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "latency_ms": {
+                    "title": "Latency ms",
+                    "type": "integer",
+                    "maximum": 2147483647,
+                    "minimum": 0
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "FalconConversationDetail": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "user": {
+                    "title": "User",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "organization": {
+                    "title": "Organization",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "workspace": {
+                    "title": "Workspace",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "title": {
+                    "title": "Title",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "context_page": {
+                    "title": "Context page",
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "metadata": {
+                    "title": "Metadata",
+                    "type": "object"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FalconMessage"
+                    },
+                    "readOnly": true
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "ConversationDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/FalconConversationDetail"
+                }
+            }
+        },
+        "ConversationUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "title": "Title",
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "StreamStatusResult": {
+            "required": [
+                "stream_status"
+            ],
+            "type": "object",
+            "properties": {
+                "stream_status": {
+                    "title": "Stream status",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "StreamStatusResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/StreamStatusResult"
+                }
+            }
+        },
+        "FileUploadResult": {
+            "required": [
+                "id",
+                "name",
+                "size",
+                "content_type",
+                "url"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "size": {
+                    "title": "Size",
+                    "type": "integer"
+                },
+                "content_type": {
+                    "title": "Content type",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "url": {
+                    "title": "Url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                }
+            }
+        },
+        "FileUploadResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/FileUploadResult"
+                }
+            }
+        },
+        "MCPConnectorList": {
+            "required": [
+                "name",
+                "server_url"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "server_url": {
+                    "title": "Server url",
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "transport": {
+                    "title": "Transport",
+                    "type": "string",
+                    "enum": [
+                        "sse",
+                        "streamable_http"
+                    ]
+                },
+                "auth_type": {
+                    "title": "Auth type",
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "api_key",
+                        "bearer",
+                        "oauth"
+                    ]
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
+                },
+                "is_verified": {
+                    "title": "Is verified",
+                    "type": "boolean"
+                },
+                "tool_count": {
+                    "title": "Tool count",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "last_discovery_at": {
+                    "title": "Last discovery at",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "last_error": {
+                    "title": "Last error",
+                    "type": "string"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "MCPConnectorListResponse": {
+            "required": [
+                "status",
+                "results"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MCPConnectorList"
+                    }
+                }
+            }
+        },
+        "MCPConnectorCreate": {
+            "required": [
+                "name",
+                "server_url"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "server_url": {
+                    "title": "Server url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
+                "transport": {
+                    "title": "Transport",
+                    "type": "string",
+                    "enum": [
+                        "sse",
+                        "streamable_http"
+                    ],
+                    "default": "streamable_http"
+                },
+                "auth_type": {
+                    "title": "Auth type",
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "api_key",
+                        "bearer",
+                        "oauth"
+                    ],
+                    "default": "none"
+                },
+                "auth_header_name": {
+                    "title": "Auth header name",
+                    "type": "string",
+                    "default": "Authorization",
+                    "maxLength": 100
+                },
+                "auth_header_value": {
+                    "title": "Auth header value",
+                    "type": "string",
+                    "default": ""
+                }
+            }
+        },
+        "MCPConnectorDetail": {
+            "required": [
+                "name",
+                "server_url"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "server_url": {
+                    "title": "Server url",
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "transport": {
+                    "title": "Transport",
+                    "type": "string",
+                    "enum": [
+                        "sse",
+                        "streamable_http"
+                    ]
+                },
+                "auth_type": {
+                    "title": "Auth type",
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "api_key",
+                        "bearer",
+                        "oauth"
+                    ]
+                },
+                "auth_header_name": {
+                    "title": "Auth header name",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
+                },
+                "is_verified": {
+                    "title": "Is verified",
+                    "type": "boolean"
+                },
+                "discovered_tools": {
+                    "title": "Discovered tools",
+                    "type": "object"
+                },
+                "enabled_tool_names": {
+                    "title": "Enabled tool names",
+                    "type": "object"
+                },
+                "last_discovery_at": {
+                    "title": "Last discovery at",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "last_error": {
+                    "title": "Last error",
+                    "type": "string"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "MCPConnectorDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/MCPConnectorDetail"
+                }
+            }
+        },
+        "MCPConnectorUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "server_url": {
+                    "title": "Server url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
+                "transport": {
+                    "title": "Transport",
+                    "type": "string",
+                    "enum": [
+                        "sse",
+                        "streamable_http"
+                    ]
+                },
+                "auth_type": {
+                    "title": "Auth type",
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "api_key",
+                        "bearer",
+                        "oauth"
+                    ]
+                },
+                "auth_header_name": {
+                    "title": "Auth header name",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "auth_header_value": {
+                    "title": "Auth header value",
+                    "type": "string"
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
+                }
+            }
+        },
+        "FalconEmptyRequest": {
+            "type": "object",
+            "properties": {}
+        },
+        "MCPConnectorAuthenticateResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/MCPConnectorDetail"
+                },
+                "auth_type": {
+                    "title": "Auth type",
+                    "type": "string"
+                },
+                "authorization_url": {
+                    "title": "Authorization url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "string"
+                }
+            }
+        },
+        "MCPConnectorDiscoverResponse": {
+            "required": [
+                "status",
+                "result",
+                "discovered_count"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/MCPConnectorDetail"
+                },
+                "discovered_count": {
+                    "title": "Discovered count",
+                    "type": "integer"
+                }
+            }
+        },
+        "MCPConnectorTestResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string"
+                }
+            }
+        },
+        "MCPConnectorTools": {
+            "required": [
+                "enabled_tool_names"
+            ],
+            "type": "object",
+            "properties": {
+                "enabled_tool_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                }
+            }
+        },
+        "FalconMemory": {
+            "required": [
+                "key",
+                "value"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "key": {
+                    "title": "Key",
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "value": {
+                    "title": "Value",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "source": {
+                    "title": "Source",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "agent",
+                        "init"
+                    ]
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "FalconMemoryListResponse": {
+            "required": [
+                "status",
+                "results"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FalconMemory"
+                    }
+                }
+            }
+        },
+        "FalconMemoryCreate": {
+            "required": [
+                "key",
+                "value"
+            ],
+            "type": "object",
+            "properties": {
+                "key": {
+                    "title": "Key",
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                },
+                "value": {
+                    "title": "Value",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "FalconMemoryDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/FalconMemory"
+                }
+            }
+        },
+        "MessageFeedback": {
+            "required": [
+                "feedback"
+            ],
+            "type": "object",
+            "properties": {
+                "feedback": {
+                    "title": "Feedback",
+                    "type": "string",
+                    "enum": [
+                        "thumbs_up",
+                        "thumbs_down",
+                        ""
+                    ]
+                }
+            }
+        },
+        "MessageFeedbackResult": {
+            "required": [
+                "feedback"
+            ],
+            "type": "object",
+            "properties": {
+                "feedback": {
+                    "title": "Feedback",
+                    "type": "string"
+                }
+            }
+        },
+        "MessageFeedbackResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/MessageFeedbackResult"
+                }
+            }
+        },
+        "QuickAnalysis": {
+            "required": [
+                "prompt"
+            ],
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "title": "Prompt",
+                    "type": "string",
+                    "maxLength": 8000,
+                    "minLength": 1
+                }
+            }
+        },
+        "QuickAnalysisResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "SkillList": {
+            "required": [
+                "name",
+                "slug"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "slug": {
+                    "title": "Slug",
+                    "type": "string",
+                    "format": "slug",
+                    "pattern": "^[-a-zA-Z0-9_]+$",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "icon": {
+                    "title": "Icon",
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "is_builtin": {
+                    "title": "Is builtin",
+                    "type": "boolean"
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
+                },
+                "tool_names": {
+                    "title": "Tool names",
+                    "type": "object"
+                },
+                "trigger_phrases": {
+                    "title": "Trigger phrases",
+                    "type": "object"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "created_by_display": {
+                    "title": "Created by display",
+                    "type": "string",
+                    "readOnly": true
+                }
+            }
+        },
+        "SkillListResponse": {
+            "required": [
+                "status",
+                "results"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SkillList"
+                    }
+                }
+            }
+        },
+        "SkillCreate": {
+            "required": [
+                "name",
+                "instructions",
+                "trigger_phrases"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "default": ""
+                },
+                "icon": {
+                    "title": "Icon",
+                    "type": "string",
+                    "default": "mdi:star",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "instructions": {
+                    "title": "Instructions",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "tool_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
+                },
+                "trigger_phrases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "minItems": 1
+                }
+            }
+        },
+        "SkillDetail": {
+            "required": [
+                "name",
+                "slug"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "slug": {
+                    "title": "Slug",
+                    "type": "string",
+                    "format": "slug",
+                    "pattern": "^[-a-zA-Z0-9_]+$",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "icon": {
+                    "title": "Icon",
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "is_builtin": {
+                    "title": "Is builtin",
+                    "type": "boolean"
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
+                },
+                "instructions": {
+                    "title": "Instructions",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "tool_names": {
+                    "title": "Tool names",
+                    "type": "object"
+                },
+                "example_trajectories": {
+                    "title": "Example trajectories",
+                    "type": "object"
+                },
+                "trigger_phrases": {
+                    "title": "Trigger phrases",
+                    "type": "object"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                },
+                "created_by_display": {
+                    "title": "Created by display",
+                    "type": "string",
+                    "readOnly": true
+                }
+            }
+        },
+        "SkillDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SkillDetail"
+                }
+            }
+        },
+        "SkillUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "icon": {
+                    "title": "Icon",
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1
+                },
+                "instructions": {
+                    "title": "Instructions",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "tool_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "trigger_phrases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "is_active": {
+                    "title": "Is active",
+                    "type": "boolean"
                 }
             }
         },
