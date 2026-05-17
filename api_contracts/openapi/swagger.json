@@ -23962,10 +23962,34 @@
             "post": {
                 "operationId": "sdk_api_v1_configure-evaluations_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SDKConfigureEvaluationsRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKConfigureEvaluationsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23978,10 +24002,34 @@
             "post": {
                 "operationId": "sdk_api_v1_eval_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SDKStandaloneEvalRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKStandaloneEvalResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23997,7 +24045,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKEvalTemplateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24017,10 +24080,40 @@
             "get": {
                 "operationId": "sdk_api_v1_evaluate-pipeline_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "project_name",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "versions",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKCICDEvaluationRunsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24030,10 +24123,34 @@
             "post": {
                 "operationId": "sdk_api_v1_evaluate-pipeline_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CICDJob"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKCICDEvaluationRunAcceptedResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24049,7 +24166,16 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKGetEvalsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24062,10 +24188,33 @@
             "get": {
                 "operationId": "sdk_api_v1_new-eval_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "eval_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKStandaloneEvalV2Response"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24075,10 +24224,34 @@
             "post": {
                 "operationId": "sdk_api_v1_new-eval_create",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SDKStandaloneEvalV2Request"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKStandaloneEvalResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24092,10 +24265,60 @@
                 "operationId": "sdk_api_v1_simulation_analytics_list",
                 "summary": "GET /simulation/analytics/",
                 "description": "Aggregated analytics view: eval scores (radar chart data), critical issues,\nFMA suggestions. Corresponds to the Analytics tab in the UI.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "run_test_name",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "execution_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "eval_name",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "summary",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKSimulationAnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24109,10 +24332,53 @@
                 "operationId": "sdk_api_v1_simulation_metrics_list",
                 "summary": "GET /simulation/metrics/",
                 "description": "Aggregated system metrics: latency (by subsystem), cost, conversation metrics.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "run_test_name",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "execution_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "call_execution_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKSimulationMetricsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -24126,10 +24392,67 @@
                 "operationId": "sdk_api_v1_simulation_runs_list",
                 "summary": "GET /simulation/runs/",
                 "description": "Run-level records with eval scores, scenario metadata, call details.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "run_test_name",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "execution_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "call_execution_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "eval_name",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "summary",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKSimulationRunsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SDKErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -49260,6 +49583,635 @@
                 "is_enabled": {
                     "title": "Is enabled",
                     "type": "boolean"
+                }
+            }
+        },
+        "ConfigureEvaluations": {
+            "required": [
+                "eval_templates",
+                "inputs"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_templates": {
+                    "title": "Eval templates",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "inputs": {
+                    "title": "Inputs",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "model_name": {
+                    "title": "Model name",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "default": {}
+                }
+            }
+        },
+        "SDKConfigureEvaluationsRequest": {
+            "required": [
+                "eval_config",
+                "platform"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_config": {
+                    "$ref": "#/definitions/ConfigureEvaluations"
+                },
+                "platform": {
+                    "title": "Platform",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "custom_eval_name": {
+                    "title": "Custom eval name",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            },
+            "additionalProperties": {
+                "description": "Provider-specific credential fields accepted at top level.",
+                "type": "object"
+            }
+        },
+        "SDKMessageResult": {
+            "required": [
+                "message"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "SDKConfigureEvaluationsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SDKMessageResult"
+                }
+            }
+        },
+        "SDKErrorResponse": {
+            "required": [
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "SDKStandaloneEvalInput": {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "title": "Input",
+                    "type": "string"
+                },
+                "max_tokens": {
+                    "title": "Max tokens",
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "additionalProperties": {
+                "type": "object"
+            }
+        },
+        "SDKStandaloneEvalRequest": {
+            "required": [
+                "inputs",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SDKStandaloneEvalInput"
+                    }
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "protect_flash": {
+                    "title": "Protect flash",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
+        "SDKStandaloneEvalResultItem": {
+            "required": [
+                "evaluations"
+            ],
+            "type": "object",
+            "properties": {
+                "evaluations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            }
+        },
+        "SDKStandaloneEvalResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SDKStandaloneEvalResultItem"
+                    }
+                }
+            }
+        },
+        "SDKEvalTemplate": {
+            "required": [
+                "id",
+                "name",
+                "description",
+                "organization",
+                "owner",
+                "eval_id"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "organization": {
+                    "title": "Organization",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "owner": {
+                    "title": "Owner",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "eval_tags": {
+                    "title": "Eval tags",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "eval_id": {
+                    "title": "Eval id",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "criteria": {
+                    "title": "Criteria",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "choices": {
+                    "title": "Choices",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "multi_choice": {
+                    "title": "Multi choice",
+                    "type": "boolean",
+                    "x-nullable": true
+                }
+            }
+        },
+        "SDKEvalTemplateResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SDKEvalTemplate"
+                }
+            }
+        },
+        "SDKCICDEvaluationRunSummary": {
+            "required": [
+                "id",
+                "project",
+                "version",
+                "results_summary"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "project": {
+                    "title": "Project",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "results_summary": {
+                    "title": "Results summary",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "SDKCICDEvaluationRunsResult": {
+            "required": [
+                "message",
+                "status"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "enum": [
+                        "processing",
+                        "completed"
+                    ]
+                },
+                "evaluation_runs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SDKCICDEvaluationRunSummary"
+                    }
+                }
+            }
+        },
+        "SDKCICDEvaluationRunsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SDKCICDEvaluationRunsResult"
+                }
+            }
+        },
+        "CICDEvaluationItem": {
+            "required": [
+                "eval_template",
+                "inputs"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_template": {
+                    "title": "Eval template",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "inputs": {
+                    "title": "Inputs",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "model_name": {
+                    "title": "Model name",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "default": {}
+                }
+            }
+        },
+        "CICDJob": {
+            "required": [
+                "project_name",
+                "version",
+                "eval_data"
+            ],
+            "type": "object",
+            "properties": {
+                "project_name": {
+                    "title": "Project name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "eval_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CICDEvaluationItem"
+                    }
+                }
+            }
+        },
+        "SDKCICDEvaluationRunAccepted": {
+            "required": [
+                "message",
+                "project_name",
+                "version",
+                "evaluation_run_id"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "project_name": {
+                    "title": "Project name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "evaluation_run_id": {
+                    "title": "Evaluation run id",
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "SDKCICDEvaluationRunAcceptedResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SDKCICDEvaluationRunAccepted"
+                }
+            }
+        },
+        "SDKGetEvalsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SDKEvalTemplate"
+                    }
+                }
+            }
+        },
+        "SDKStandaloneEvalV2Result": {
+            "required": [
+                "eval_status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_status": {
+                    "title": "Eval status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                }
+            }
+        },
+        "SDKStandaloneEvalV2Response": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SDKStandaloneEvalV2Result"
+                }
+            }
+        },
+        "SDKStandaloneEvalV2Request": {
+            "required": [
+                "eval_name",
+                "inputs"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_name": {
+                    "title": "Eval name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "inputs": {
+                    "title": "Inputs",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "span_id": {
+                    "title": "Span id",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "custom_eval_name": {
+                    "title": "Custom eval name",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "trace_eval": {
+                    "title": "Trace eval",
+                    "type": "boolean",
+                    "default": false
+                },
+                "is_async": {
+                    "title": "Is async",
+                    "type": "boolean",
+                    "default": false
+                },
+                "error_localizer": {
+                    "title": "Error localizer",
+                    "type": "boolean",
+                    "default": false
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
+        "SDKSimulationAnalyticsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "description": "AnalyticsResponse when data exists, or a no-completed-executions result with run_test_name/message/eval_results/eval_averages/system_summary.",
+                    "type": "object"
+                }
+            }
+        },
+        "SDKSimulationMetricsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "description": "CallMetrics, ExecutionMetrics, or paginated ExecutionMetrics depending on call_execution_id/execution_id/run_test_name query parameters.",
+                    "type": "object"
+                }
+            }
+        },
+        "SDKSimulationRunsResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "title": "Result",
+                    "description": "CallRunDetail, ExecutionRuns detail, or paginated ExecutionRuns depending on call_execution_id/execution_id/run_test_name query parameters.",
+                    "type": "object"
                 }
             }
         },

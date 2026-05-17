@@ -141,6 +141,7 @@ import type {
   BulkCreateScoresApi,
   BulkCreateScoresResponseApi,
   BulkRemoveItemsApi,
+  CICDJobApi,
   CallBranchAnalysisResponseApi,
   CallBranchDeviationCreateResponseApi,
   CallExecutionApi,
@@ -413,6 +414,20 @@ import type {
   RunTestNameResponseApi,
   RunTestResponseApi,
   RunTestScenarioItemResponseApi,
+  SDKCICDEvaluationRunAcceptedResponseApi,
+  SDKCICDEvaluationRunsResponseApi,
+  SDKConfigureEvaluationsRequestApi,
+  SDKConfigureEvaluationsResponseApi,
+  SDKErrorResponseApi,
+  SDKEvalTemplateResponseApi,
+  SDKGetEvalsResponseApi,
+  SDKSimulationAnalyticsResponseApi,
+  SDKSimulationMetricsResponseApi,
+  SDKSimulationRunsResponseApi,
+  SDKStandaloneEvalRequestApi,
+  SDKStandaloneEvalResponseApi,
+  SDKStandaloneEvalV2RequestApi,
+  SDKStandaloneEvalV2ResponseApi,
   Saml2AuthIdpUploadsList200,
   Saml2AuthIdpUploadsListParams,
   SamlApi,
@@ -436,6 +451,11 @@ import type {
   ScoreDeleteResponseApi,
   ScoreForSourceResponseApi,
   ScoreResponseApi,
+  SdkApiV1EvaluatePipelineListParams,
+  SdkApiV1NewEvalListParams,
+  SdkApiV1SimulationAnalyticsListParams,
+  SdkApiV1SimulationMetricsListParams,
+  SdkApiV1SimulationRunsListParams,
   SecretApi,
   SendChatRequestApi,
   SessionComparisonResponseApi,
@@ -32347,17 +32367,29 @@ export const saml2AuthMicrosoftRead = async (format: string, options?: RequestIn
 
 
 
-export type sdkApiV1ConfigureEvaluationsCreateResponse201 = {
-  data: void
-  status: 201
+export type sdkApiV1ConfigureEvaluationsCreateResponse200 = {
+  data: SDKConfigureEvaluationsResponseApi
+  status: 200
 }
 
-export type sdkApiV1ConfigureEvaluationsCreateResponseSuccess = (sdkApiV1ConfigureEvaluationsCreateResponse201) & {
+export type sdkApiV1ConfigureEvaluationsCreateResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1ConfigureEvaluationsCreateResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
+}
+
+export type sdkApiV1ConfigureEvaluationsCreateResponseSuccess = (sdkApiV1ConfigureEvaluationsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1ConfigureEvaluationsCreateResponseError = (sdkApiV1ConfigureEvaluationsCreateResponse400 | sdkApiV1ConfigureEvaluationsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1ConfigureEvaluationsCreateResponse = (sdkApiV1ConfigureEvaluationsCreateResponseSuccess)
+export type sdkApiV1ConfigureEvaluationsCreateResponse = (sdkApiV1ConfigureEvaluationsCreateResponseSuccess | sdkApiV1ConfigureEvaluationsCreateResponseError)
 
 export const getSdkApiV1ConfigureEvaluationsCreateUrl = () => {
 
@@ -32367,30 +32399,43 @@ export const getSdkApiV1ConfigureEvaluationsCreateUrl = () => {
   return `/sdk/api/v1/configure-evaluations/`
 }
 
-export const sdkApiV1ConfigureEvaluationsCreate = async ( options?: RequestInit): Promise<sdkApiV1ConfigureEvaluationsCreateResponse> => {
+export const sdkApiV1ConfigureEvaluationsCreate = async (sDKConfigureEvaluationsRequestApi: SDKConfigureEvaluationsRequestApi, options?: RequestInit): Promise<sdkApiV1ConfigureEvaluationsCreateResponse> => {
 
   return apiMutator<sdkApiV1ConfigureEvaluationsCreateResponse>(getSdkApiV1ConfigureEvaluationsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sDKConfigureEvaluationsRequestApi,)
   }
 );}
 
 
 
-export type sdkApiV1EvalCreateResponse201 = {
-  data: void
-  status: 201
+export type sdkApiV1EvalCreateResponse200 = {
+  data: SDKStandaloneEvalResponseApi
+  status: 200
 }
 
-export type sdkApiV1EvalCreateResponseSuccess = (sdkApiV1EvalCreateResponse201) & {
+export type sdkApiV1EvalCreateResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1EvalCreateResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
+}
+
+export type sdkApiV1EvalCreateResponseSuccess = (sdkApiV1EvalCreateResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1EvalCreateResponseError = (sdkApiV1EvalCreateResponse400 | sdkApiV1EvalCreateResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1EvalCreateResponse = (sdkApiV1EvalCreateResponseSuccess)
+export type sdkApiV1EvalCreateResponse = (sdkApiV1EvalCreateResponseSuccess | sdkApiV1EvalCreateResponseError)
 
 export const getSdkApiV1EvalCreateUrl = () => {
 
@@ -32400,30 +32445,43 @@ export const getSdkApiV1EvalCreateUrl = () => {
   return `/sdk/api/v1/eval/`
 }
 
-export const sdkApiV1EvalCreate = async ( options?: RequestInit): Promise<sdkApiV1EvalCreateResponse> => {
+export const sdkApiV1EvalCreate = async (sDKStandaloneEvalRequestApi: SDKStandaloneEvalRequestApi, options?: RequestInit): Promise<sdkApiV1EvalCreateResponse> => {
 
   return apiMutator<sdkApiV1EvalCreateResponse>(getSdkApiV1EvalCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sDKStandaloneEvalRequestApi,)
   }
 );}
 
 
 
 export type sdkApiV1EvalReadResponse200 = {
-  data: void
+  data: SDKEvalTemplateResponseApi
   status: 200
+}
+
+export type sdkApiV1EvalReadResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1EvalReadResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1EvalReadResponseSuccess = (sdkApiV1EvalReadResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1EvalReadResponseError = (sdkApiV1EvalReadResponse400 | sdkApiV1EvalReadResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1EvalReadResponse = (sdkApiV1EvalReadResponseSuccess)
+export type sdkApiV1EvalReadResponse = (sdkApiV1EvalReadResponseSuccess | sdkApiV1EvalReadResponseError)
 
 export const getSdkApiV1EvalReadUrl = (evalId: string,) => {
 
@@ -32447,28 +32505,47 @@ export const sdkApiV1EvalRead = async (evalId: string, options?: RequestInit): P
 
 
 export type sdkApiV1EvaluatePipelineListResponse200 = {
-  data: void
+  data: SDKCICDEvaluationRunsResponseApi
   status: 200
+}
+
+export type sdkApiV1EvaluatePipelineListResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1EvaluatePipelineListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1EvaluatePipelineListResponseSuccess = (sdkApiV1EvaluatePipelineListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1EvaluatePipelineListResponseError = (sdkApiV1EvaluatePipelineListResponse400 | sdkApiV1EvaluatePipelineListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1EvaluatePipelineListResponse = (sdkApiV1EvaluatePipelineListResponseSuccess)
+export type sdkApiV1EvaluatePipelineListResponse = (sdkApiV1EvaluatePipelineListResponseSuccess | sdkApiV1EvaluatePipelineListResponseError)
 
-export const getSdkApiV1EvaluatePipelineListUrl = () => {
+export const getSdkApiV1EvaluatePipelineListUrl = (params: SdkApiV1EvaluatePipelineListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/sdk/api/v1/evaluate-pipeline/`
+  return stringifiedParams.length > 0 ? `/sdk/api/v1/evaluate-pipeline/?${stringifiedParams}` : `/sdk/api/v1/evaluate-pipeline/`
 }
 
-export const sdkApiV1EvaluatePipelineList = async ( options?: RequestInit): Promise<sdkApiV1EvaluatePipelineListResponse> => {
+export const sdkApiV1EvaluatePipelineList = async (params: SdkApiV1EvaluatePipelineListParams, options?: RequestInit): Promise<sdkApiV1EvaluatePipelineListResponse> => {
 
-  return apiMutator<sdkApiV1EvaluatePipelineListResponse>(getSdkApiV1EvaluatePipelineListUrl(),
+  return apiMutator<sdkApiV1EvaluatePipelineListResponse>(getSdkApiV1EvaluatePipelineListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32479,17 +32556,29 @@ export const sdkApiV1EvaluatePipelineList = async ( options?: RequestInit): Prom
 
 
 
-export type sdkApiV1EvaluatePipelineCreateResponse201 = {
-  data: void
-  status: 201
+export type sdkApiV1EvaluatePipelineCreateResponse200 = {
+  data: SDKCICDEvaluationRunAcceptedResponseApi
+  status: 200
 }
 
-export type sdkApiV1EvaluatePipelineCreateResponseSuccess = (sdkApiV1EvaluatePipelineCreateResponse201) & {
+export type sdkApiV1EvaluatePipelineCreateResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1EvaluatePipelineCreateResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
+}
+
+export type sdkApiV1EvaluatePipelineCreateResponseSuccess = (sdkApiV1EvaluatePipelineCreateResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1EvaluatePipelineCreateResponseError = (sdkApiV1EvaluatePipelineCreateResponse400 | sdkApiV1EvaluatePipelineCreateResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1EvaluatePipelineCreateResponse = (sdkApiV1EvaluatePipelineCreateResponseSuccess)
+export type sdkApiV1EvaluatePipelineCreateResponse = (sdkApiV1EvaluatePipelineCreateResponseSuccess | sdkApiV1EvaluatePipelineCreateResponseError)
 
 export const getSdkApiV1EvaluatePipelineCreateUrl = () => {
 
@@ -32499,30 +32588,38 @@ export const getSdkApiV1EvaluatePipelineCreateUrl = () => {
   return `/sdk/api/v1/evaluate-pipeline/`
 }
 
-export const sdkApiV1EvaluatePipelineCreate = async ( options?: RequestInit): Promise<sdkApiV1EvaluatePipelineCreateResponse> => {
+export const sdkApiV1EvaluatePipelineCreate = async (cICDJobApi: CICDJobApi, options?: RequestInit): Promise<sdkApiV1EvaluatePipelineCreateResponse> => {
 
   return apiMutator<sdkApiV1EvaluatePipelineCreateResponse>(getSdkApiV1EvaluatePipelineCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cICDJobApi,)
   }
 );}
 
 
 
 export type sdkApiV1GetEvalsListResponse200 = {
-  data: void
+  data: SDKGetEvalsResponseApi
   status: 200
+}
+
+export type sdkApiV1GetEvalsListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1GetEvalsListResponseSuccess = (sdkApiV1GetEvalsListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1GetEvalsListResponseError = (sdkApiV1GetEvalsListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1GetEvalsListResponse = (sdkApiV1GetEvalsListResponseSuccess)
+export type sdkApiV1GetEvalsListResponse = (sdkApiV1GetEvalsListResponseSuccess | sdkApiV1GetEvalsListResponseError)
 
 export const getSdkApiV1GetEvalsListUrl = () => {
 
@@ -32546,28 +32643,47 @@ export const sdkApiV1GetEvalsList = async ( options?: RequestInit): Promise<sdkA
 
 
 export type sdkApiV1NewEvalListResponse200 = {
-  data: void
+  data: SDKStandaloneEvalV2ResponseApi
   status: 200
+}
+
+export type sdkApiV1NewEvalListResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1NewEvalListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1NewEvalListResponseSuccess = (sdkApiV1NewEvalListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1NewEvalListResponseError = (sdkApiV1NewEvalListResponse400 | sdkApiV1NewEvalListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1NewEvalListResponse = (sdkApiV1NewEvalListResponseSuccess)
+export type sdkApiV1NewEvalListResponse = (sdkApiV1NewEvalListResponseSuccess | sdkApiV1NewEvalListResponseError)
 
-export const getSdkApiV1NewEvalListUrl = () => {
+export const getSdkApiV1NewEvalListUrl = (params: SdkApiV1NewEvalListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/sdk/api/v1/new-eval/`
+  return stringifiedParams.length > 0 ? `/sdk/api/v1/new-eval/?${stringifiedParams}` : `/sdk/api/v1/new-eval/`
 }
 
-export const sdkApiV1NewEvalList = async ( options?: RequestInit): Promise<sdkApiV1NewEvalListResponse> => {
+export const sdkApiV1NewEvalList = async (params: SdkApiV1NewEvalListParams, options?: RequestInit): Promise<sdkApiV1NewEvalListResponse> => {
 
-  return apiMutator<sdkApiV1NewEvalListResponse>(getSdkApiV1NewEvalListUrl(),
+  return apiMutator<sdkApiV1NewEvalListResponse>(getSdkApiV1NewEvalListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32578,17 +32694,29 @@ export const sdkApiV1NewEvalList = async ( options?: RequestInit): Promise<sdkAp
 
 
 
-export type sdkApiV1NewEvalCreateResponse201 = {
-  data: void
-  status: 201
+export type sdkApiV1NewEvalCreateResponse200 = {
+  data: SDKStandaloneEvalResponseApi
+  status: 200
 }
 
-export type sdkApiV1NewEvalCreateResponseSuccess = (sdkApiV1NewEvalCreateResponse201) & {
+export type sdkApiV1NewEvalCreateResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1NewEvalCreateResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
+}
+
+export type sdkApiV1NewEvalCreateResponseSuccess = (sdkApiV1NewEvalCreateResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1NewEvalCreateResponseError = (sdkApiV1NewEvalCreateResponse400 | sdkApiV1NewEvalCreateResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1NewEvalCreateResponse = (sdkApiV1NewEvalCreateResponseSuccess)
+export type sdkApiV1NewEvalCreateResponse = (sdkApiV1NewEvalCreateResponseSuccess | sdkApiV1NewEvalCreateResponseError)
 
 export const getSdkApiV1NewEvalCreateUrl = () => {
 
@@ -32598,37 +32726,62 @@ export const getSdkApiV1NewEvalCreateUrl = () => {
   return `/sdk/api/v1/new-eval/`
 }
 
-export const sdkApiV1NewEvalCreate = async ( options?: RequestInit): Promise<sdkApiV1NewEvalCreateResponse> => {
+export const sdkApiV1NewEvalCreate = async (sDKStandaloneEvalV2RequestApi: SDKStandaloneEvalV2RequestApi, options?: RequestInit): Promise<sdkApiV1NewEvalCreateResponse> => {
 
   return apiMutator<sdkApiV1NewEvalCreateResponse>(getSdkApiV1NewEvalCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sDKStandaloneEvalV2RequestApi,)
   }
 );}
 
 
 
 export type sdkApiV1SimulationAnalyticsListResponse200 = {
-  data: void
+  data: SDKSimulationAnalyticsResponseApi
   status: 200
+}
+
+export type sdkApiV1SimulationAnalyticsListResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1SimulationAnalyticsListResponse404 = {
+  data: SDKErrorResponseApi
+  status: 404
+}
+
+export type sdkApiV1SimulationAnalyticsListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1SimulationAnalyticsListResponseSuccess = (sdkApiV1SimulationAnalyticsListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1SimulationAnalyticsListResponseError = (sdkApiV1SimulationAnalyticsListResponse400 | sdkApiV1SimulationAnalyticsListResponse404 | sdkApiV1SimulationAnalyticsListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1SimulationAnalyticsListResponse = (sdkApiV1SimulationAnalyticsListResponseSuccess)
+export type sdkApiV1SimulationAnalyticsListResponse = (sdkApiV1SimulationAnalyticsListResponseSuccess | sdkApiV1SimulationAnalyticsListResponseError)
 
-export const getSdkApiV1SimulationAnalyticsListUrl = () => {
+export const getSdkApiV1SimulationAnalyticsListUrl = (params?: SdkApiV1SimulationAnalyticsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/sdk/api/v1/simulation/analytics/`
+  return stringifiedParams.length > 0 ? `/sdk/api/v1/simulation/analytics/?${stringifiedParams}` : `/sdk/api/v1/simulation/analytics/`
 }
 
 /**
@@ -32636,9 +32789,9 @@ export const getSdkApiV1SimulationAnalyticsListUrl = () => {
 FMA suggestions. Corresponds to the Analytics tab in the UI.
  * @summary GET /simulation/analytics/
  */
-export const sdkApiV1SimulationAnalyticsList = async ( options?: RequestInit): Promise<sdkApiV1SimulationAnalyticsListResponse> => {
+export const sdkApiV1SimulationAnalyticsList = async (params?: SdkApiV1SimulationAnalyticsListParams, options?: RequestInit): Promise<sdkApiV1SimulationAnalyticsListResponse> => {
 
-  return apiMutator<sdkApiV1SimulationAnalyticsListResponse>(getSdkApiV1SimulationAnalyticsListUrl(),
+  return apiMutator<sdkApiV1SimulationAnalyticsListResponse>(getSdkApiV1SimulationAnalyticsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32650,32 +32803,56 @@ export const sdkApiV1SimulationAnalyticsList = async ( options?: RequestInit): P
 
 
 export type sdkApiV1SimulationMetricsListResponse200 = {
-  data: void
+  data: SDKSimulationMetricsResponseApi
   status: 200
+}
+
+export type sdkApiV1SimulationMetricsListResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1SimulationMetricsListResponse404 = {
+  data: SDKErrorResponseApi
+  status: 404
+}
+
+export type sdkApiV1SimulationMetricsListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1SimulationMetricsListResponseSuccess = (sdkApiV1SimulationMetricsListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1SimulationMetricsListResponseError = (sdkApiV1SimulationMetricsListResponse400 | sdkApiV1SimulationMetricsListResponse404 | sdkApiV1SimulationMetricsListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1SimulationMetricsListResponse = (sdkApiV1SimulationMetricsListResponseSuccess)
+export type sdkApiV1SimulationMetricsListResponse = (sdkApiV1SimulationMetricsListResponseSuccess | sdkApiV1SimulationMetricsListResponseError)
 
-export const getSdkApiV1SimulationMetricsListUrl = () => {
+export const getSdkApiV1SimulationMetricsListUrl = (params?: SdkApiV1SimulationMetricsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/sdk/api/v1/simulation/metrics/`
+  return stringifiedParams.length > 0 ? `/sdk/api/v1/simulation/metrics/?${stringifiedParams}` : `/sdk/api/v1/simulation/metrics/`
 }
 
 /**
  * Aggregated system metrics: latency (by subsystem), cost, conversation metrics.
  * @summary GET /simulation/metrics/
  */
-export const sdkApiV1SimulationMetricsList = async ( options?: RequestInit): Promise<sdkApiV1SimulationMetricsListResponse> => {
+export const sdkApiV1SimulationMetricsList = async (params?: SdkApiV1SimulationMetricsListParams, options?: RequestInit): Promise<sdkApiV1SimulationMetricsListResponse> => {
 
-  return apiMutator<sdkApiV1SimulationMetricsListResponse>(getSdkApiV1SimulationMetricsListUrl(),
+  return apiMutator<sdkApiV1SimulationMetricsListResponse>(getSdkApiV1SimulationMetricsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -32687,32 +32864,56 @@ export const sdkApiV1SimulationMetricsList = async ( options?: RequestInit): Pro
 
 
 export type sdkApiV1SimulationRunsListResponse200 = {
-  data: void
+  data: SDKSimulationRunsResponseApi
   status: 200
+}
+
+export type sdkApiV1SimulationRunsListResponse400 = {
+  data: SDKErrorResponseApi
+  status: 400
+}
+
+export type sdkApiV1SimulationRunsListResponse404 = {
+  data: SDKErrorResponseApi
+  status: 404
+}
+
+export type sdkApiV1SimulationRunsListResponse500 = {
+  data: SDKErrorResponseApi
+  status: 500
 }
 
 export type sdkApiV1SimulationRunsListResponseSuccess = (sdkApiV1SimulationRunsListResponse200) & {
   headers: Headers;
 };
-;
+export type sdkApiV1SimulationRunsListResponseError = (sdkApiV1SimulationRunsListResponse400 | sdkApiV1SimulationRunsListResponse404 | sdkApiV1SimulationRunsListResponse500) & {
+  headers: Headers;
+};
 
-export type sdkApiV1SimulationRunsListResponse = (sdkApiV1SimulationRunsListResponseSuccess)
+export type sdkApiV1SimulationRunsListResponse = (sdkApiV1SimulationRunsListResponseSuccess | sdkApiV1SimulationRunsListResponseError)
 
-export const getSdkApiV1SimulationRunsListUrl = () => {
+export const getSdkApiV1SimulationRunsListUrl = (params?: SdkApiV1SimulationRunsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/sdk/api/v1/simulation/runs/`
+  return stringifiedParams.length > 0 ? `/sdk/api/v1/simulation/runs/?${stringifiedParams}` : `/sdk/api/v1/simulation/runs/`
 }
 
 /**
  * Run-level records with eval scores, scenario metadata, call details.
  * @summary GET /simulation/runs/
  */
-export const sdkApiV1SimulationRunsList = async ( options?: RequestInit): Promise<sdkApiV1SimulationRunsListResponse> => {
+export const sdkApiV1SimulationRunsList = async (params?: SdkApiV1SimulationRunsListParams, options?: RequestInit): Promise<sdkApiV1SimulationRunsListResponse> => {
 
-  return apiMutator<sdkApiV1SimulationRunsListResponse>(getSdkApiV1SimulationRunsListUrl(),
+  return apiMutator<sdkApiV1SimulationRunsListResponse>(getSdkApiV1SimulationRunsListUrl(params),
   {
     ...options,
     method: 'GET'

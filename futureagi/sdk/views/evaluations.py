@@ -3,13 +3,12 @@ import uuid
 import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from accounts.authentication import APIKeyAuthentication
-
-logger = structlog.get_logger(__name__)
 from agentic_eval.core_evals.fi_evals import *  # noqa: F403
 from analytics.utils import (
     MixpanelEvents,
@@ -21,6 +20,18 @@ from analytics.utils import (
 from model_hub.models.error_localizer_model import ErrorLocalizerStatus
 from model_hub.models.evals_metric import EvalTemplate
 from model_hub.models.evaluation import Evaluation
+from sdk.serializers.contracts import (
+    ConfigureEvaluationsRequestSerializer,
+    SDKConfigureEvaluationsResponseSerializer,
+    SDKErrorResponseSerializer,
+    SDKEvalTemplateResponseSerializer,
+    SDKGetEvalsResponseSerializer,
+    SDKStandaloneEvalRequestSerializer,
+    SDKStandaloneEvalResponseSerializer,
+    SDKStandaloneEvalV2QuerySerializer,
+    SDKStandaloneEvalV2RequestSerializer,
+    SDKStandaloneEvalV2ResponseSerializer,
+)
 from sdk.serializers.evaluations import ConfigureEvaluationsSerializer
 from sdk.utils.async_evaluations import _handle_async_eval
 from sdk.utils.evaluations import (
@@ -35,6 +46,8 @@ from tracer.models.external_eval_config import (
     ExternalEvalConfig,
     StatusChoices,
 )
+
+logger = structlog.get_logger(__name__)
 
 
 # Define a Choices class
@@ -100,6 +113,13 @@ class GetEvalStructureEvalIdView(APIView):
         context["json_underscoreize"] = False
         return context
 
+    @swagger_auto_schema(
+        responses={
+            200: SDKEvalTemplateResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        }
+    )
     def get(self, request, eval_id, *args, **kwargs):
         try:
             template = EvalTemplate.no_workspace_objects.get(eval_id=eval_id)
@@ -127,6 +147,14 @@ class StandaloneEvalView(APIView):
     authentication_classes = [APIKeyAuthentication]
     parser_classes = (JSONParser,)
 
+    @swagger_auto_schema(
+        request_body=SDKStandaloneEvalRequestSerializer,
+        responses={
+            200: SDKStandaloneEvalResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         try:
             sdk_uuid = str(uuid.uuid4())
@@ -199,6 +227,14 @@ class StandaloneEvalView_v2(APIView):
     authentication_classes = [APIKeyAuthentication]
     parser_classes = (JSONParser,)
 
+    @swagger_auto_schema(
+        query_serializer=SDKStandaloneEvalV2QuerySerializer,
+        responses={
+            200: SDKStandaloneEvalV2ResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         try:
             eval_id = request.query_params.get("eval_id")
@@ -264,6 +300,14 @@ class StandaloneEvalView_v2(APIView):
                 get_error_message("FAILED_TO_GET_EVAL_RESULTS")
             )
 
+    @swagger_auto_schema(
+        request_body=SDKStandaloneEvalV2RequestSerializer,
+        responses={
+            200: SDKStandaloneEvalResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         try:
             eval_name = request.data.get("eval_name")
@@ -396,6 +440,12 @@ class GetEvalsView(APIView):
     authentication_classes = [APIKeyAuthentication]
     parser_classes = (JSONParser,)
 
+    @swagger_auto_schema(
+        responses={
+            200: SDKGetEvalsResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        }
+    )
     def get(self, request, *args, **kwargs):
         try:
             # Filter to show only system evals and user's organization evals
@@ -447,6 +497,14 @@ class ConfigureEvaluationsView(APIView):
     authentication_classes = [APIKeyAuthentication]
     parser_classes = (JSONParser,)
 
+    @swagger_auto_schema(
+        request_body=ConfigureEvaluationsRequestSerializer,
+        responses={
+            200: SDKConfigureEvaluationsResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         try:
             user_organization = (

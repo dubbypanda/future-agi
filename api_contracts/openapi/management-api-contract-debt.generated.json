@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 300,
-    "operations_without_response_schema": 500
+    "mutation_endpoints_without_body_schema": 296,
+    "operations_without_response_schema": 489
   },
   "by_group": {
     "accounts": {
@@ -82,8 +82,8 @@
     "sdk": {
       "paths": 9,
       "operations": 11,
-      "mutation_endpoints_without_body_schema": 4,
-      "operations_without_response_schema": 11
+      "mutation_endpoints_without_body_schema": 0,
+      "operations_without_response_schema": 0
     },
     "simulate": {
       "paths": 105,
@@ -2269,42 +2269,6 @@
       "operation_id": "saml2_auth_idp-uploads_update",
       "tags": [
         "saml2_auth"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/configure-evaluations/",
-      "operation_id": "sdk_api_v1_configure-evaluations_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/eval/",
-      "operation_id": "sdk_api_v1_eval_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/evaluate-pipeline/",
-      "operation_id": "sdk_api_v1_evaluate-pipeline_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/new-eval/",
-      "operation_id": "sdk_api_v1_new-eval_create",
-      "tags": [
-        "sdk"
       ]
     },
     {
@@ -6411,105 +6375,6 @@
       "operation_id": "saml2_auth_microsoft_read",
       "tags": [
         "saml2_auth"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/configure-evaluations/",
-      "operation_id": "sdk_api_v1_configure-evaluations_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/eval/",
-      "operation_id": "sdk_api_v1_eval_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/eval/{eval_id}/",
-      "operation_id": "sdk_api_v1_eval_read",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/evaluate-pipeline/",
-      "operation_id": "sdk_api_v1_evaluate-pipeline_list",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/evaluate-pipeline/",
-      "operation_id": "sdk_api_v1_evaluate-pipeline_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/get-evals/",
-      "operation_id": "sdk_api_v1_get-evals_list",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/new-eval/",
-      "operation_id": "sdk_api_v1_new-eval_list",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "POST",
-      "path": "/sdk/api/v1/new-eval/",
-      "operation_id": "sdk_api_v1_new-eval_create",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/simulation/analytics/",
-      "operation_id": "sdk_api_v1_simulation_analytics_list",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/simulation/metrics/",
-      "operation_id": "sdk_api_v1_simulation_metrics_list",
-      "tags": [
-        "sdk"
-      ]
-    },
-    {
-      "group": "sdk",
-      "method": "GET",
-      "path": "/sdk/api/v1/simulation/runs/",
-      "operation_id": "sdk_api_v1_simulation_runs_list",
-      "tags": [
-        "sdk"
       ]
     },
     {

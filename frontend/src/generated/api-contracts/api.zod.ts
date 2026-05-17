@@ -15628,8 +15628,290 @@ export const Saml2AuthMicrosoftReadParams = zod.object({
 })
 
 
+
+export const sdkApiV1ConfigureEvaluationsCreateBodyEvalConfigConfigDefault = {  };
+
+
+export const SdkApiV1ConfigureEvaluationsCreateBody = zod.object({
+  "eval_config": zod.object({
+  "eval_templates": zod.string().min(1),
+  "inputs": zod.record(zod.string(), zod.string()),
+  "model_name": zod.string().optional(),
+  "config": zod.record(zod.string(), zod.string()).default(sdkApiV1ConfigureEvaluationsCreateBodyEvalConfigConfigDefault)
+}),
+  "platform": zod.string().min(1),
+  "custom_eval_name": zod.string().optional()
+})
+
+
+
+
+export const SdkApiV1ConfigureEvaluationsCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "message": zod.string().min(1)
+})
+})
+
+
+
+export const sdkApiV1EvalCreateBodyProtectFlashDefault = false;
+
+export const SdkApiV1EvalCreateBody = zod.object({
+  "inputs": zod.array(zod.object({
+  "input": zod.string().optional(),
+  "max_tokens": zod.number().min(1).optional()
+})),
+  "config": zod.record(zod.string(), zod.string()),
+  "protect_flash": zod.boolean().default(sdkApiV1EvalCreateBodyProtectFlashDefault)
+})
+
+export const SdkApiV1EvalCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "evaluations": zod.array(zod.object({
+
+}).passthrough())
+}))
+})
+
+
 export const SdkApiV1EvalReadParams = zod.object({
   "eval_id": zod.string()
+})
+
+
+
+
+
+export const SdkApiV1EvalReadResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "organization": zod.string(),
+  "owner": zod.string(),
+  "eval_tags": zod.object({
+
+}).passthrough().optional(),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "eval_id": zod.string(),
+  "criteria": zod.object({
+
+}).passthrough().optional(),
+  "choices": zod.object({
+
+}).passthrough().optional(),
+  "multi_choice": zod.boolean().optional()
+})
+})
+
+
+
+
+
+
+export const SdkApiV1EvaluatePipelineListQueryParams = zod.object({
+  "project_name": zod.string().min(1),
+  "versions": zod.string().min(1)
+})
+
+
+
+
+
+
+export const SdkApiV1EvaluatePipelineListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "message": zod.string().min(1),
+  "status": zod.enum(['processing', 'completed']),
+  "evaluation_runs": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "project": zod.string().min(1),
+  "version": zod.string().min(1),
+  "results_summary": zod.record(zod.string(), zod.string())
+})).optional()
+})
+})
+
+
+
+
+
+export const sdkApiV1EvaluatePipelineCreateBodyEvalDataItemConfigDefault = {  };
+
+export const SdkApiV1EvaluatePipelineCreateBody = zod.object({
+  "project_name": zod.string().min(1),
+  "version": zod.string().min(1),
+  "eval_data": zod.array(zod.object({
+  "eval_template": zod.string().min(1),
+  "inputs": zod.record(zod.string(), zod.string()),
+  "model_name": zod.string().optional(),
+  "config": zod.record(zod.string(), zod.string()).default(sdkApiV1EvaluatePipelineCreateBodyEvalDataItemConfigDefault)
+}))
+})
+
+
+
+
+
+
+export const SdkApiV1EvaluatePipelineCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "message": zod.string().min(1),
+  "project_name": zod.string().min(1),
+  "version": zod.string().min(1),
+  "evaluation_run_id": zod.string().uuid()
+})
+})
+
+
+
+
+
+
+export const SdkApiV1GetEvalsListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "organization": zod.string(),
+  "owner": zod.string(),
+  "eval_tags": zod.object({
+
+}).passthrough().optional(),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "eval_id": zod.string(),
+  "criteria": zod.object({
+
+}).passthrough().optional(),
+  "choices": zod.object({
+
+}).passthrough().optional(),
+  "multi_choice": zod.boolean().optional()
+}))
+})
+
+
+export const SdkApiV1NewEvalListQueryParams = zod.object({
+  "eval_id": zod.string().uuid()
+})
+
+
+
+
+export const SdkApiV1NewEvalListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "eval_status": zod.string().min(1),
+  "result": zod.object({
+
+}).passthrough()
+})
+})
+
+
+
+export const sdkApiV1NewEvalCreateBodyTraceEvalDefault = false;
+export const sdkApiV1NewEvalCreateBodyIsAsyncDefault = false;
+export const sdkApiV1NewEvalCreateBodyErrorLocalizerDefault = false;
+
+export const SdkApiV1NewEvalCreateBody = zod.object({
+  "eval_name": zod.string().min(1),
+  "inputs": zod.record(zod.string(), zod.string()),
+  "model": zod.string().optional(),
+  "span_id": zod.string().optional(),
+  "custom_eval_name": zod.string().optional(),
+  "trace_eval": zod.boolean().default(sdkApiV1NewEvalCreateBodyTraceEvalDefault),
+  "is_async": zod.boolean().default(sdkApiV1NewEvalCreateBodyIsAsyncDefault),
+  "error_localizer": zod.boolean().default(sdkApiV1NewEvalCreateBodyErrorLocalizerDefault),
+  "config": zod.record(zod.string(), zod.string()).optional()
+})
+
+export const SdkApiV1NewEvalCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "evaluations": zod.array(zod.object({
+
+}).passthrough())
+}))
+})
+
+
+/**
+ * Aggregated analytics view: eval scores (radar chart data), critical issues,
+FMA suggestions. Corresponds to the Analytics tab in the UI.
+ * @summary GET /simulation/analytics/
+ */
+
+
+export const sdkApiV1SimulationAnalyticsListQuerySummaryDefault = true;
+
+export const SdkApiV1SimulationAnalyticsListQueryParams = zod.object({
+  "run_test_name": zod.string().min(1).optional(),
+  "execution_id": zod.string().uuid().optional(),
+  "eval_name": zod.string().min(1).optional(),
+  "summary": zod.boolean().default(sdkApiV1SimulationAnalyticsListQuerySummaryDefault)
+})
+
+export const SdkApiV1SimulationAnalyticsListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough().describe('AnalyticsResponse when data exists, or a no-completed-executions result with run_test_name\/message\/eval_results\/eval_averages\/system_summary.')
+})
+
+
+/**
+ * Aggregated system metrics: latency (by subsystem), cost, conversation metrics.
+ * @summary GET /simulation/metrics/
+ */
+
+
+
+export const SdkApiV1SimulationMetricsListQueryParams = zod.object({
+  "run_test_name": zod.string().min(1).optional(),
+  "execution_id": zod.string().uuid().optional(),
+  "call_execution_id": zod.string().uuid().optional()
+})
+
+export const SdkApiV1SimulationMetricsListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough().describe('CallMetrics, ExecutionMetrics, or paginated ExecutionMetrics depending on call_execution_id\/execution_id\/run_test_name query parameters.')
+})
+
+
+/**
+ * Run-level records with eval scores, scenario metadata, call details.
+ * @summary GET /simulation/runs/
+ */
+
+
+export const sdkApiV1SimulationRunsListQuerySummaryDefault = false;
+
+export const SdkApiV1SimulationRunsListQueryParams = zod.object({
+  "run_test_name": zod.string().min(1).optional(),
+  "execution_id": zod.string().uuid().optional(),
+  "call_execution_id": zod.string().uuid().optional(),
+  "eval_name": zod.string().min(1).optional(),
+  "summary": zod.boolean().default(sdkApiV1SimulationRunsListQuerySummaryDefault)
+})
+
+export const SdkApiV1SimulationRunsListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+
+}).passthrough().describe('CallRunDetail, ExecutionRuns detail, or paginated ExecutionRuns depending on call_execution_id\/execution_id\/run_test_name query parameters.')
 })
 
 

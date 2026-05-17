@@ -3943,6 +3943,235 @@ export interface SamlApi {
   is_enabled?: boolean;
 }
 
+export type ConfigureEvaluationsApiInputs = {[key: string]: string};
+
+export type ConfigureEvaluationsApiConfig = {[key: string]: string};
+
+export interface ConfigureEvaluationsApi {
+  /** @minLength 1 */
+  eval_templates: string;
+  inputs: ConfigureEvaluationsApiInputs;
+  model_name?: string;
+  config?: ConfigureEvaluationsApiConfig;
+}
+
+export interface SDKConfigureEvaluationsRequestApi {
+  eval_config: ConfigureEvaluationsApi;
+  /** @minLength 1 */
+  platform: string;
+  custom_eval_name?: string;
+  [key: string]: { [key: string]: unknown };
+}
+
+export interface SDKMessageResultApi {
+  /** @minLength 1 */
+  message: string;
+}
+
+export interface SDKConfigureEvaluationsResponseApi {
+  status: boolean;
+  result: SDKMessageResultApi;
+}
+
+export type SDKErrorResponseApiResult = { [key: string]: unknown };
+
+export type SDKErrorResponseApiMessage = { [key: string]: unknown };
+
+export interface SDKErrorResponseApi {
+  status: boolean;
+  result?: SDKErrorResponseApiResult;
+  message?: SDKErrorResponseApiMessage;
+}
+
+export type SDKStandaloneEvalRequestApiConfig = {[key: string]: string};
+
+export interface SDKStandaloneEvalInputApi {
+  input?: string;
+  /** @minimum 1 */
+  max_tokens?: number;
+  [key: string]: { [key: string]: unknown };
+}
+
+export interface SDKStandaloneEvalRequestApi {
+  inputs: SDKStandaloneEvalInputApi[];
+  config: SDKStandaloneEvalRequestApiConfig;
+  protect_flash?: boolean;
+}
+
+export type SDKStandaloneEvalResultItemApiEvaluationsItem = { [key: string]: unknown };
+
+export interface SDKStandaloneEvalResultItemApi {
+  evaluations: SDKStandaloneEvalResultItemApiEvaluationsItem[];
+}
+
+export interface SDKStandaloneEvalResponseApi {
+  status: boolean;
+  result: SDKStandaloneEvalResultItemApi[];
+}
+
+export type SDKEvalTemplateApiEvalTags = { [key: string]: unknown };
+
+export type SDKEvalTemplateApiConfig = { [key: string]: unknown };
+
+export type SDKEvalTemplateApiCriteria = { [key: string]: unknown };
+
+export type SDKEvalTemplateApiChoices = { [key: string]: unknown };
+
+export interface SDKEvalTemplateApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  description: string;
+  organization: string;
+  owner: string;
+  eval_tags?: SDKEvalTemplateApiEvalTags;
+  config?: SDKEvalTemplateApiConfig;
+  eval_id: string;
+  criteria?: SDKEvalTemplateApiCriteria;
+  choices?: SDKEvalTemplateApiChoices;
+  multi_choice?: boolean;
+}
+
+export interface SDKEvalTemplateResponseApi {
+  status: boolean;
+  result: SDKEvalTemplateApi;
+}
+
+export type SDKCICDEvaluationRunsResultApiStatus = typeof SDKCICDEvaluationRunsResultApiStatus[keyof typeof SDKCICDEvaluationRunsResultApiStatus];
+
+
+export const SDKCICDEvaluationRunsResultApiStatus = {
+  processing: 'processing',
+  completed: 'completed',
+} as const;
+
+export type SDKCICDEvaluationRunSummaryApiResultsSummary = {[key: string]: string};
+
+export interface SDKCICDEvaluationRunSummaryApi {
+  id: string;
+  /** @minLength 1 */
+  project: string;
+  /** @minLength 1 */
+  version: string;
+  results_summary: SDKCICDEvaluationRunSummaryApiResultsSummary;
+}
+
+export interface SDKCICDEvaluationRunsResultApi {
+  /** @minLength 1 */
+  message: string;
+  status: SDKCICDEvaluationRunsResultApiStatus;
+  evaluation_runs?: SDKCICDEvaluationRunSummaryApi[];
+}
+
+export interface SDKCICDEvaluationRunsResponseApi {
+  status: boolean;
+  result: SDKCICDEvaluationRunsResultApi;
+}
+
+export type CICDEvaluationItemApiInputs = {[key: string]: string};
+
+export type CICDEvaluationItemApiConfig = {[key: string]: string};
+
+export interface CICDEvaluationItemApi {
+  /** @minLength 1 */
+  eval_template: string;
+  inputs: CICDEvaluationItemApiInputs;
+  model_name?: string;
+  config?: CICDEvaluationItemApiConfig;
+}
+
+export interface CICDJobApi {
+  /** @minLength 1 */
+  project_name: string;
+  /** @minLength 1 */
+  version: string;
+  eval_data: CICDEvaluationItemApi[];
+}
+
+export interface SDKCICDEvaluationRunAcceptedApi {
+  /** @minLength 1 */
+  message: string;
+  /** @minLength 1 */
+  project_name: string;
+  /** @minLength 1 */
+  version: string;
+  evaluation_run_id: string;
+}
+
+export interface SDKCICDEvaluationRunAcceptedResponseApi {
+  status: boolean;
+  result: SDKCICDEvaluationRunAcceptedApi;
+}
+
+export interface SDKGetEvalsResponseApi {
+  status: boolean;
+  result: SDKEvalTemplateApi[];
+}
+
+export type SDKStandaloneEvalV2ResultApiResult = { [key: string]: unknown };
+
+export interface SDKStandaloneEvalV2ResultApi {
+  /** @minLength 1 */
+  eval_status: string;
+  result: SDKStandaloneEvalV2ResultApiResult;
+}
+
+export interface SDKStandaloneEvalV2ResponseApi {
+  status: boolean;
+  result: SDKStandaloneEvalV2ResultApi;
+}
+
+export type SDKStandaloneEvalV2RequestApiInputs = {[key: string]: string};
+
+export type SDKStandaloneEvalV2RequestApiConfig = {[key: string]: string};
+
+export interface SDKStandaloneEvalV2RequestApi {
+  /** @minLength 1 */
+  eval_name: string;
+  inputs: SDKStandaloneEvalV2RequestApiInputs;
+  model?: string;
+  span_id?: string;
+  custom_eval_name?: string;
+  trace_eval?: boolean;
+  is_async?: boolean;
+  error_localizer?: boolean;
+  config?: SDKStandaloneEvalV2RequestApiConfig;
+}
+
+/**
+ * AnalyticsResponse when data exists, or a no-completed-executions result with run_test_name/message/eval_results/eval_averages/system_summary.
+ */
+export type SDKSimulationAnalyticsResponseApiResult = { [key: string]: unknown };
+
+export interface SDKSimulationAnalyticsResponseApi {
+  status: boolean;
+  /** AnalyticsResponse when data exists, or a no-completed-executions result with run_test_name/message/eval_results/eval_averages/system_summary. */
+  result: SDKSimulationAnalyticsResponseApiResult;
+}
+
+/**
+ * CallMetrics, ExecutionMetrics, or paginated ExecutionMetrics depending on call_execution_id/execution_id/run_test_name query parameters.
+ */
+export type SDKSimulationMetricsResponseApiResult = { [key: string]: unknown };
+
+export interface SDKSimulationMetricsResponseApi {
+  status: boolean;
+  /** CallMetrics, ExecutionMetrics, or paginated ExecutionMetrics depending on call_execution_id/execution_id/run_test_name query parameters. */
+  result: SDKSimulationMetricsResponseApiResult;
+}
+
+/**
+ * CallRunDetail, ExecutionRuns detail, or paginated ExecutionRuns depending on call_execution_id/execution_id/run_test_name query parameters.
+ */
+export type SDKSimulationRunsResponseApiResult = { [key: string]: unknown };
+
+export interface SDKSimulationRunsResponseApi {
+  status: boolean;
+  /** CallRunDetail, ExecutionRuns detail, or paginated ExecutionRuns depending on call_execution_id/execution_id/run_test_name query parameters. */
+  result: SDKSimulationRunsResponseApiResult;
+}
+
 export type AgentDefinitionListResponseApiAgentType = typeof AgentDefinitionListResponseApiAgentType[keyof typeof AgentDefinitionListResponseApiAgentType];
 
 
@@ -10967,6 +11196,57 @@ export type Saml2AuthIdpUploadsList200 = {
   next?: string;
   previous?: string;
   results: SamlApi[];
+};
+
+export type SdkApiV1EvaluatePipelineListParams = {
+/**
+ * @minLength 1
+ */
+project_name: string;
+/**
+ * @minLength 1
+ */
+versions: string;
+};
+
+export type SdkApiV1NewEvalListParams = {
+eval_id: string;
+};
+
+export type SdkApiV1SimulationAnalyticsListParams = {
+/**
+ * @minLength 1
+ */
+run_test_name?: string;
+execution_id?: string;
+/**
+ * @minLength 1
+ */
+eval_name?: string;
+summary?: boolean;
+};
+
+export type SdkApiV1SimulationMetricsListParams = {
+/**
+ * @minLength 1
+ */
+run_test_name?: string;
+execution_id?: string;
+call_execution_id?: string;
+};
+
+export type SdkApiV1SimulationRunsListParams = {
+/**
+ * @minLength 1
+ */
+run_test_name?: string;
+execution_id?: string;
+call_execution_id?: string;
+/**
+ * @minLength 1
+ */
+eval_name?: string;
+summary?: boolean;
 };
 
 export type SimulateAgentDefinitionsListParams = {

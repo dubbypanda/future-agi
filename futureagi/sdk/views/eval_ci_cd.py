@@ -1,11 +1,15 @@
 import structlog
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from accounts.authentication import APIKeyAuthentication
-
-logger = structlog.get_logger(__name__)
+from sdk.serializers.contracts import (
+    SDKCICDEvaluationRunAcceptedResponseSerializer,
+    SDKCICDEvaluationRunsResponseSerializer,
+    SDKErrorResponseSerializer,
+)
 from sdk.serializers.eval_ci_cd import (
     CICDEvaluationRunsQuerySerializer,
     CICDJobSerializer,
@@ -18,6 +22,8 @@ from sdk.utils.cicd_evaluations import (
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
+logger = structlog.get_logger(__name__)
+
 
 class CICDEvaluationsView(APIView):
     _gm = GeneralMethods()
@@ -27,6 +33,14 @@ class CICDEvaluationsView(APIView):
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
+    @swagger_auto_schema(
+        request_body=CICDJobSerializer,
+        responses={
+            200: SDKCICDEvaluationRunAcceptedResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def post(self, request, *args, **kwargs):
         try:
             serializer = CICDJobSerializer(
@@ -53,6 +67,14 @@ class CICDEvaluationsView(APIView):
                 get_error_message("FAILED_TO_CREATE_EVALUATION_RUN")
             )
 
+    @swagger_auto_schema(
+        query_serializer=CICDEvaluationRunsQuerySerializer,
+        responses={
+            200: SDKCICDEvaluationRunsResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         try:
             query_data = {

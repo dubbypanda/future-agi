@@ -1,5 +1,6 @@
 import structlog
 from django.db import connection
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
@@ -15,6 +16,12 @@ from sdk.serializers.analytics import (
     SimulationAnalyticsQuerySerializer,
     SimulationQuerySerializer,
     SimulationRunsQuerySerializer,
+)
+from sdk.serializers.contracts import (
+    SDKErrorResponseSerializer,
+    SDKSimulationAnalyticsResponseSerializer,
+    SDKSimulationMetricsResponseSerializer,
+    SDKSimulationRunsResponseSerializer,
 )
 from simulate.models import CallExecution, TestExecution
 from simulate.models.run_test import RunTest
@@ -74,6 +81,15 @@ class SimulationMetricsView(APIView):
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
+    @swagger_auto_schema(
+        query_serializer=SimulationQuerySerializer,
+        responses={
+            200: SDKSimulationMetricsResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            404: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         try:
             organization = getattr(request, "organization", None) or getattr(
@@ -185,7 +201,7 @@ class SimulationMetricsView(APIView):
         if not row:
             return {}
 
-        m = dict(zip(columns, row))
+        m = dict(zip(columns, row, strict=False))
 
         latency_percentiles = _compute_latency_percentiles_sql(execution_id)
 
@@ -248,6 +264,15 @@ class SimulationRunsView(APIView):
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
+    @swagger_auto_schema(
+        query_serializer=SimulationRunsQuerySerializer,
+        responses={
+            200: SDKSimulationRunsResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            404: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         try:
             organization = getattr(request, "organization", None) or getattr(
@@ -437,6 +462,15 @@ class SimulationAnalyticsView(APIView):
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
+    @swagger_auto_schema(
+        query_serializer=SimulationAnalyticsQuerySerializer,
+        responses={
+            200: SDKSimulationAnalyticsResponseSerializer,
+            400: SDKErrorResponseSerializer,
+            404: SDKErrorResponseSerializer,
+            500: SDKErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         try:
             organization = getattr(request, "organization", None) or getattr(
@@ -548,7 +582,7 @@ class SimulationAnalyticsView(APIView):
 
         system_summary = {}
         if row:
-            m = dict(zip(columns, row))
+            m = dict(zip(columns, row, strict=False))
             system_summary = {
                 "total_calls": int(m.get("total_calls") or 0),
                 "completed_calls": int(m.get("completed_calls") or 0),
@@ -579,7 +613,7 @@ class SimulationAnalyticsView(APIView):
     def _build_eval_averages(self, eval_rows):
         eval_averages = {}
         for (
-            metric_id,
+            _metric_id,
             metric_name,
             output_type,
             avg_value,
