@@ -278,7 +278,9 @@ class TestUsersViewAPI(APITestCase):
 
         data = {
             "project_id": self.test_project_id,
-            "sort_params": json.dumps({"column_id": "total_cost", "direction": "asc"}),
+            "sort_params": json.dumps(
+                [{"column_id": "total_cost", "direction": "asc"}]
+            ),
         }
 
         response = self.client.get(self.url, data)
@@ -299,7 +301,9 @@ class TestUsersViewAPI(APITestCase):
 
         data = {
             "project_id": self.test_project_id,
-            "sort_params": json.dumps({"column_id": "num_traces", "direction": "desc"}),
+            "sort_params": json.dumps(
+                [{"column_id": "num_traces", "direction": "desc"}]
+            ),
         }
 
         response = self.client.get(self.url, data)
@@ -319,8 +323,22 @@ class TestUsersViewAPI(APITestCase):
         mock_get_spans.return_value = mock_results
 
         test_filters = [
-            {"column": "total_cost", "operator": "gt", "value": 10},
-            {"column": "num_traces", "operator": "gte", "value": 5},
+            {
+                "column_id": "total_cost",
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 10,
+                },
+            },
+            {
+                "column_id": "num_traces",
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than_or_equal",
+                    "filter_value": 5,
+                },
+            },
         ]
 
         data = {"project_id": self.test_project_id, "filters": json.dumps(test_filters)}
@@ -343,10 +361,12 @@ class TestUsersViewAPI(APITestCase):
         data = {
             "project_id": self.test_project_id,
             "sort_params": json.dumps(
-                {
-                    "column_id": "avg_trace_latency",  # Should map to avg_latency_trace
-                    "direction": "asc",
-                }
+                [
+                    {
+                        "column_id": "avg_trace_latency",  # Should map to avg_latency_trace
+                        "direction": "asc",
+                    }
+                ]
             ),
         }
 
@@ -504,7 +524,9 @@ class TestUsersViewAPI(APITestCase):
 
         data = {
             "project_id": self.test_project_id,
-            "sort_params": json.dumps({"column_id": "num_traces", "direction": "desc"}),
+            "sort_params": json.dumps(
+                [{"column_id": "num_traces", "direction": "desc"}]
+            ),
         }
 
         response = self.client.get(self.url, data)
@@ -526,7 +548,7 @@ class TestUsersViewAPI(APITestCase):
         data = {
             "project_id": self.test_project_id,
             "sort_params": json.dumps(
-                {"column_id": "invalid_column", "direction": "asc"}
+                [{"column_id": "invalid_column", "direction": "asc"}]
             ),
         }
 

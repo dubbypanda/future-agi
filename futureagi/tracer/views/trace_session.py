@@ -14,7 +14,6 @@ except ImportError:
 
 import pandas as pd
 import structlog
-from drf_yasg.utils import swagger_auto_schema
 
 logger = structlog.get_logger(__name__)
 from django.db import models
@@ -48,6 +47,7 @@ from rest_framework.viewsets import ModelViewSet
 from model_hub.models.choices import AnnotationTypeChoices
 from model_hub.models.develop_annotations import AnnotationsLabels
 from model_hub.models.score import Score
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.custom_eval_config import CustomEvalConfig
@@ -753,7 +753,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             session_logger.exception(f"Error in get_session_filter_values: {e}")
             return self._gm.bad_request(str(e))
 
-    @swagger_auto_schema(request_body=TraceSessionGraphDataRequestSerializer)
+    @validated_request(request_serializer=TraceSessionGraphDataRequestSerializer)
     @action(detail=False, methods=["post"])
     def get_session_graph_data(self, request, *args, **kwargs):
         """
@@ -768,10 +768,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         Response shape matches trace graph: {metric_name, data: [{timestamp, value, primary_traffic}]}
         """
         try:
-            body_serializer = TraceSessionGraphDataRequestSerializer(data=request.data)
-            if not body_serializer.is_valid():
-                return self._gm.bad_request(body_serializer.errors)
-            body = body_serializer.validated_data
+            body = request.validated_data
             project_id = str(body["project_id"])
             project = Project.objects.get(
                 id=project_id,
@@ -891,18 +888,14 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             session_logger.exception(f"Error in get_session_graph_data: {str(e)}")
             return self._gm.bad_request(f"Error fetching session graph data: {str(e)}")
 
-    @swagger_auto_schema(query_serializer=TraceSessionListQuerySerializer)
+    @validated_request(query_serializer=TraceSessionListQuerySerializer)
     @action(detail=False, methods=["get"])
     def list_sessions(self, request, *args, **kwargs):
         """
         List traces filtered by project ID and project version ID with optimized queries.
         """
         try:
-            serializer = TraceSessionListQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            validated_data = serializer.validated_data
+            validated_data = request.validated_query_data
             export = kwargs.get("export", False) if kwargs else False
             project_id = (
                 str(validated_data["project_id"])

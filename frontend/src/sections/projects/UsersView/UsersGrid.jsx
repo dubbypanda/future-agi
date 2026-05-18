@@ -210,10 +210,12 @@ const UsersGrid = React.memo(
                 ...(updatedObserveId ? { project_id: updatedObserveId } : {}),
                 sort_params:
                   request.sortModel && request.sortModel.length > 0
-                    ? JSON.stringify({
-                        column_id: request.sortModel[0].colId,
-                        direction: request.sortModel[0].sort,
-                      })
+                    ? JSON.stringify(
+                        request.sortModel.map(({ colId, sort }) => ({
+                          column_id: colId,
+                          direction: sort,
+                        })),
+                      )
                     : JSON.stringify(request.sortModel),
                 search: debouncedSearchQuery?.length
                   ? debouncedSearchQuery

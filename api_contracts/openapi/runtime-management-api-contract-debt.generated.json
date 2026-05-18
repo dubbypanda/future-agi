@@ -5,9 +5,9 @@
     "futureagi/tracer/views"
   ],
   "summary": {
-    "runtime_backed_validated_request_decorators": 64,
-    "direct_swagger_auto_schema_decorators": 370,
-    "doc_only_input_contract_decorators": 243,
+    "runtime_backed_validated_request_decorators": 76,
+    "direct_swagger_auto_schema_decorators": 358,
+    "doc_only_input_contract_decorators": 231,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [
@@ -1804,30 +1804,6 @@
       ]
     },
     {
-      "path": "futureagi/tracer/views/annotation.py",
-      "line": 221,
-      "function": "get_annotation_values",
-      "serializers": [
-        "GetTraceAnnotationSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/annotation.py",
-      "line": 372,
-      "function": "post",
-      "serializers": [
-        "BulkAnnotationRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/annotation.py",
-      "line": 1197,
-      "function": "get",
-      "serializers": [
-        "GetAnnotationLabelsQuerySerializer"
-      ]
-    },
-    {
       "path": "futureagi/tracer/views/dashboard.py",
       "line": 345,
       "function": "query",
@@ -1881,79 +1857,6 @@
       "function": "post",
       "serializers": [
         "OTLP_TRACE_REQUEST_SCHEMA"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/project.py",
-      "line": 598,
-      "function": "get_graph_data",
-      "serializers": [
-        "ProjectGraphDataQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/project.py",
-      "line": 626,
-      "function": "get_user_metrics",
-      "serializers": [
-        "ProjectUserMetricsRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/project.py",
-      "line": 710,
-      "function": "get_users_aggregate_graph_data",
-      "serializers": [
-        "ProjectUsersAggregateGraphDataRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/project.py",
-      "line": 831,
-      "function": "get_user_graph_data",
-      "serializers": [
-        "ProjectUserGraphDataQuerySerializer",
-        "ProjectUserGraphDataRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/span_attributes.py",
-      "line": 51,
-      "function": "get",
-      "serializers": [
-        "SpanAttributeProjectQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/span_attributes.py",
-      "line": 135,
-      "function": "get",
-      "serializers": [
-        "SpanAttributeValuesQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/span_attributes.py",
-      "line": 232,
-      "function": "get",
-      "serializers": [
-        "SpanAttributeDetailQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/trace_session.py",
-      "line": 756,
-      "function": "get_session_graph_data",
-      "serializers": [
-        "TraceSessionGraphDataRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/trace_session.py",
-      "line": 894,
-      "function": "list_sessions",
-      "serializers": [
-        "TraceSessionListQuerySerializer"
       ]
     }
   ],

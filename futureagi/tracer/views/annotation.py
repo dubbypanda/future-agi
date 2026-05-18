@@ -4,7 +4,6 @@ import structlog
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -19,6 +18,7 @@ from model_hub.views.scores import (
     _auto_complete_queue_items,
     _auto_create_queue_items_for_default_queues,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiErrorResponseSerializer
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.observation_span import ObservationSpan
@@ -218,18 +218,14 @@ class TraceAnnotationView(ModelViewSet):
     # Main endpoint
     # ------------------------------------------------------------------
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=GetTraceAnnotationSerializer,
         responses={200: GetTraceAnnotationValuesResponseSerializer, **ERROR_RESPONSES},
     )
     @action(detail=False, methods=["get"])
     def get_annotation_values(self, request, *args, **kwargs):
         try:
-            serializer = GetTraceAnnotationSerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            query_params = serializer.validated_data
+            query_params = request.validated_query_data
             observation_span_id = query_params.get("observation_span_id")
             trace_id = query_params.get("trace_id")
             annotators_list = [
@@ -369,8 +365,8 @@ class BulkAnnotationView(APIView):
     authentication_classes = [APIKeyAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=BulkAnnotationRequestSerializer,
+    @validated_request(
+        request_serializer=BulkAnnotationRequestSerializer,
         responses={200: BulkAnnotationResponseSerializer, **ERROR_RESPONSES},
     )
     def post(self, request):
@@ -413,11 +409,7 @@ class BulkAnnotationView(APIView):
         """Validate the incoming request data and check global limits."""
         MAX_RECORDS = 1000
 
-        serializer = BulkAnnotationRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return self._gm.bad_request(serializer.errors)
-
-        validated_data = serializer.validated_data
+        validated_data = request.validated_data
         records = validated_data["records"]
 
         # Global validation: Reject if the entire payload is too large
@@ -1194,16 +1186,13 @@ class GetAnnotationLabelsView(APIView):
     authentication_classes = [APIKeyAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=GetAnnotationLabelsQuerySerializer,
         responses={200: GetAnnotationLabelsResponseSerializer, **ERROR_RESPONSES},
     )
     def get(self, request):
         try:
-            serializer = GetAnnotationLabelsQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-            query_params = serializer.validated_data
+            query_params = request.validated_query_data
 
             queryset = AnnotationsLabels.objects.filter(
                 organization=getattr(request, "organization", None)

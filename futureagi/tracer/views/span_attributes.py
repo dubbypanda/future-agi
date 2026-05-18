@@ -8,11 +8,11 @@ Endpoints:
 """
 
 import structlog
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tfc.utils.general_methods import GeneralMethods
 from tracer.serializers.span_attributes import (
@@ -48,7 +48,7 @@ class SpanAttributeKeysView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SpanAttributeProjectQuerySerializer,
         responses={200: SpanAttributeKeysResponseSerializer, **ERROR_RESPONSES},
     )
@@ -56,9 +56,7 @@ class SpanAttributeKeysView(APIView):
         if not is_clickhouse_enabled():
             return self._gm.custom_error_response(503, "ClickHouse is not enabled")
 
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            return self._gm.bad_request("project_id query parameter is required")
+        project_id = str(request.validated_query_data["project_id"])
 
         query = """
             SELECT key, 'string' AS type, count() AS cnt
@@ -132,7 +130,7 @@ class SpanAttributeValuesView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SpanAttributeValuesQuerySerializer,
         responses={200: SpanAttributeValuesResponseSerializer, **ERROR_RESPONSES},
     )
@@ -140,19 +138,11 @@ class SpanAttributeValuesView(APIView):
         if not is_clickhouse_enabled():
             return self._gm.custom_error_response(503, "ClickHouse is not enabled")
 
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            return self._gm.bad_request("project_id query parameter is required")
-
-        key = request.query_params.get("key")
-        if not key:
-            return self._gm.bad_request("key query parameter is required")
-
-        q = request.query_params.get("q")
-        try:
-            limit = int(request.query_params.get("limit", 50))
-        except (TypeError, ValueError):
-            limit = 50
+        query_params = request.validated_query_data
+        project_id = str(query_params["project_id"])
+        key = query_params["key"]
+        q = query_params.get("q")
+        limit = query_params.get("limit", 50)
 
         params = {
             "project_id": project_id,
@@ -229,7 +219,7 @@ class SpanAttributeDetailView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SpanAttributeDetailQuerySerializer,
         responses={200: SpanAttributeDetailResponseSerializer, **ERROR_RESPONSES},
     )
@@ -237,13 +227,9 @@ class SpanAttributeDetailView(APIView):
         if not is_clickhouse_enabled():
             return self._gm.custom_error_response(503, "ClickHouse is not enabled")
 
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            return self._gm.bad_request("project_id query parameter is required")
-
-        key = request.query_params.get("key")
-        if not key:
-            return self._gm.bad_request("key query parameter is required")
+        query_params = request.validated_query_data
+        project_id = str(query_params["project_id"])
+        key = query_params["key"]
 
         params = {"project_id": project_id, "key": key}
 

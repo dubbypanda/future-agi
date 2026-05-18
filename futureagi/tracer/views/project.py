@@ -5,7 +5,6 @@ from django.db import models
 from django.db.models import Count
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
@@ -18,6 +17,7 @@ from analytics.utils import mixpanel_slack_notfy, track_mixpanel_event
 from model_hub.utils.SQL_queries import SQLQueryHandler
 from tfc.middleware.db_health_check import db_connection_required
 from tfc.middleware.query_timeout import monitor_query_performance
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
@@ -595,13 +595,10 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"Error updating project tags: {e}")
             return self._gm.bad_request("Error updating tags")
 
-    @swagger_auto_schema(query_serializer=ProjectGraphDataQuerySerializer)
+    @validated_request(query_serializer=ProjectGraphDataQuerySerializer)
     @action(detail=False, methods=["get"])
     def get_graph_data(self, request, *args, **kwargs):
-        query_serializer = ProjectGraphDataQuerySerializer(data=request.query_params)
-        if not query_serializer.is_valid():
-            return self._gm.bad_request(query_serializer.errors)
-        query_params = query_serializer.validated_data
+        query_params = request.validated_query_data
         project_id = str(query_params["project_id"])
 
         try:
@@ -623,14 +620,11 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"Error in get_graph_data: {str(e)}")
             return self._gm.bad_request("Error fetching graph data")
 
-    @swagger_auto_schema(request_body=ProjectUserMetricsRequestSerializer)
+    @validated_request(request_serializer=ProjectUserMetricsRequestSerializer)
     @action(detail=False, methods=["post"])
     def get_user_metrics(self, request, *args, **kwargs):
         try:
-            body_serializer = ProjectUserMetricsRequestSerializer(data=request.data)
-            if not body_serializer.is_valid():
-                return self._gm.bad_request(body_serializer.errors)
-            body = body_serializer.validated_data
+            body = request.validated_data
             end_user_id = str(body["end_user_id"])
             project_id = str(body["project_id"])
             filters = body["filters"]
@@ -707,7 +701,9 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"ERROR IN RETRIEVING USER METRICS: {e}")
             return self._gm.internal_server_error_response()
 
-    @swagger_auto_schema(request_body=ProjectUsersAggregateGraphDataRequestSerializer)
+    @validated_request(
+        request_serializer=ProjectUsersAggregateGraphDataRequestSerializer
+    )
     @action(detail=False, methods=["post"])
     def get_users_aggregate_graph_data(self, request, *args, **kwargs):
         """
@@ -717,12 +713,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
         All metrics are aggregated at the user level.
         """
         try:
-            body_serializer = ProjectUsersAggregateGraphDataRequestSerializer(
-                data=request.data
-            )
-            if not body_serializer.is_valid():
-                return self._gm.bad_request(body_serializer.errors)
-            body = body_serializer.validated_data
+            body = request.validated_data
             project_id = str(body["project_id"])
             filters = body["filters"]
             interval = body["interval"]
@@ -828,23 +819,15 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"Error in get_users_aggregate_graph_data: {str(e)}")
             return self._gm.bad_request(f"Error fetching user graph data: {str(e)}")
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=ProjectUserGraphDataQuerySerializer,
-        request_body=ProjectUserGraphDataRequestSerializer,
+        request_serializer=ProjectUserGraphDataRequestSerializer,
     )
     @action(detail=False, methods=["post"])
     def get_user_graph_data(self, request, *args, **kwargs):
         try:
-            query_serializer = ProjectUserGraphDataQuerySerializer(
-                data=request.query_params
-            )
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            body_serializer = ProjectUserGraphDataRequestSerializer(data=request.data)
-            if not body_serializer.is_valid():
-                return self._gm.bad_request(body_serializer.errors)
-            query_params = query_serializer.validated_data
-            body = body_serializer.validated_data
+            query_params = request.validated_query_data
+            body = request.validated_data
             project_id = str(query_params["project_id"])
             end_user_id = str(query_params["end_user_id"])
             try:
