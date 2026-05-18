@@ -9423,6 +9423,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "schema": {
               "type": "integer"
             }
+          },
+          "predictive_journey": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "responses": {
@@ -9732,7 +9739,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "model-hub_annotations_annotate_row",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "row_order": {
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/Annotations"
@@ -12807,7 +12822,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "model-hub_develops_get_eval_structure_read",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "eval_type": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "preset",
+                "user",
+                "previously_configured"
+              ]
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/EvalStructureResponse"
@@ -15733,7 +15760,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "model-hub_get-eval-config_list",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "eval_id": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/ModelHubEvalConfigResponse"

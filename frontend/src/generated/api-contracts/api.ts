@@ -625,6 +625,7 @@ import type {
   ModelHubAnnotationQueuesListParams,
   ModelHubAnnotationTasksList200,
   ModelHubAnnotationTasksListParams,
+  ModelHubAnnotationsAnnotateRowParams,
   ModelHubAnnotationsLabelsList200,
   ModelHubAnnotationsLabelsListParams,
   ModelHubAnnotationsList200,
@@ -633,6 +634,7 @@ import type {
   ModelHubApiKeysListParams,
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
+  ModelHubDevelopsGetEvalStructureReadParams,
   ModelHubEmptyRequestApi,
   ModelHubErrorResponseApi,
   ModelHubEvalConfigResponseApi,
@@ -652,6 +654,7 @@ import type {
   ModelHubFeedbackGetTemplateParams,
   ModelHubFeedbackList200,
   ModelHubFeedbackListParams,
+  ModelHubGetEvalConfigListParams,
   ModelHubGetEvalLogsDetailsListParams,
   ModelHubGetEvalMetricsListParams,
   ModelHubKbListParams,
@@ -21199,20 +21202,29 @@ export type modelHubAnnotationsAnnotateRowResponseSuccess = (modelHubAnnotations
 
 export type modelHubAnnotationsAnnotateRowResponse = (modelHubAnnotationsAnnotateRowResponseSuccess)
 
-export const getModelHubAnnotationsAnnotateRowUrl = (id: string,) => {
+export const getModelHubAnnotationsAnnotateRowUrl = (id: string,
+    params: ModelHubAnnotationsAnnotateRowParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/annotations/${id}/annotate_row/`
+  return stringifiedParams.length > 0 ? `/model-hub/annotations/${id}/annotate_row/?${stringifiedParams}` : `/model-hub/annotations/${id}/annotate_row/`
 }
 
 /**
  * Annotate a specific row with the provided values.
  */
-export const modelHubAnnotationsAnnotateRow = async (id: string, options?: RequestInit): Promise<modelHubAnnotationsAnnotateRowResponse> => {
+export const modelHubAnnotationsAnnotateRow = async (id: string,
+    params: ModelHubAnnotationsAnnotateRowParams, options?: RequestInit): Promise<modelHubAnnotationsAnnotateRowResponse> => {
 
-  return apiMutator<modelHubAnnotationsAnnotateRowResponse>(getModelHubAnnotationsAnnotateRowUrl(id),
+  return apiMutator<modelHubAnnotationsAnnotateRowResponse>(getModelHubAnnotationsAnnotateRowUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -28152,18 +28164,27 @@ export type modelHubDevelopsGetEvalStructureReadResponseError = (modelHubDevelop
 export type modelHubDevelopsGetEvalStructureReadResponse = (modelHubDevelopsGetEvalStructureReadResponseSuccess | modelHubDevelopsGetEvalStructureReadResponseError)
 
 export const getModelHubDevelopsGetEvalStructureReadUrl = (datasetId: string,
-    evalId: string,) => {
+    evalId: string,
+    params: ModelHubDevelopsGetEvalStructureReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/develops/${datasetId}/get_eval_structure/${evalId}/`
+  return stringifiedParams.length > 0 ? `/model-hub/develops/${datasetId}/get_eval_structure/${evalId}/?${stringifiedParams}` : `/model-hub/develops/${datasetId}/get_eval_structure/${evalId}/`
 }
 
 export const modelHubDevelopsGetEvalStructureRead = async (datasetId: string,
-    evalId: string, options?: RequestInit): Promise<modelHubDevelopsGetEvalStructureReadResponse> => {
+    evalId: string,
+    params: ModelHubDevelopsGetEvalStructureReadParams, options?: RequestInit): Promise<modelHubDevelopsGetEvalStructureReadResponse> => {
 
-  return apiMutator<modelHubDevelopsGetEvalStructureReadResponse>(getModelHubDevelopsGetEvalStructureReadUrl(datasetId,evalId),
+  return apiMutator<modelHubDevelopsGetEvalStructureReadResponse>(getModelHubDevelopsGetEvalStructureReadUrl(datasetId,evalId,params),
   {
     ...options,
     method: 'GET'
@@ -34154,17 +34175,24 @@ export type modelHubGetEvalConfigListResponseError = (modelHubGetEvalConfigListR
 
 export type modelHubGetEvalConfigListResponse = (modelHubGetEvalConfigListResponseSuccess | modelHubGetEvalConfigListResponseError)
 
-export const getModelHubGetEvalConfigListUrl = () => {
+export const getModelHubGetEvalConfigListUrl = (params: ModelHubGetEvalConfigListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/get-eval-config`
+  return stringifiedParams.length > 0 ? `/model-hub/get-eval-config?${stringifiedParams}` : `/model-hub/get-eval-config`
 }
 
-export const modelHubGetEvalConfigList = async ( options?: RequestInit): Promise<modelHubGetEvalConfigListResponse> => {
+export const modelHubGetEvalConfigList = async (params: ModelHubGetEvalConfigListParams, options?: RequestInit): Promise<modelHubGetEvalConfigListResponse> => {
 
-  return apiMutator<modelHubGetEvalConfigListResponse>(getModelHubGetEvalConfigListUrl(),
+  return apiMutator<modelHubGetEvalConfigListResponse>(getModelHubGetEvalConfigListUrl(params),
   {
     ...options,
     method: 'GET'

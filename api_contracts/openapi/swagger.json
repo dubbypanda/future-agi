@@ -17596,6 +17596,14 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "predictive_journey",
+                        "in": "query",
+                        "description": "Optional AI model id to filter annotation tasks.",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
                     }
                 ],
                 "responses": {
@@ -18122,7 +18130,15 @@
             "get": {
                 "operationId": "model-hub_annotations_annotate_row",
                 "description": "Annotate a specific row with the provided values.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "row_order",
+                        "in": "query",
+                        "required": true,
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -24544,7 +24560,19 @@
             "get": {
                 "operationId": "model-hub_develops_get_eval_structure_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "eval_type",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "enum": [
+                            "preset",
+                            "user",
+                            "previously_configured"
+                        ]
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -30306,7 +30334,15 @@
             "get": {
                 "operationId": "model-hub_get-eval-config_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "eval_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",

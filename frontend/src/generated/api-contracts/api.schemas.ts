@@ -20913,6 +20913,10 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * Optional AI model id to filter annotation tasks.
+ */
+predictive_journey?: string;
 };
 
 export type ModelHubAnnotationTasksList200 = {
@@ -20958,6 +20962,13 @@ export type ModelHubAnnotationsList200 = {
   results: AnnotationsApi[];
 };
 
+export type ModelHubAnnotationsAnnotateRowParams = {
+/**
+ * @minimum 0
+ */
+row_order: number;
+};
+
 export type ModelHubApiKeysListParams = {
 /**
  * A page number within the paginated result set.
@@ -20993,6 +21004,19 @@ export type ModelHubDatasetOptimizationList200 = {
   previous?: string;
   results: DatasetOptimizationListApi[];
 };
+
+export type ModelHubDevelopsGetEvalStructureReadParams = {
+eval_type: ModelHubDevelopsGetEvalStructureReadEvalType;
+};
+
+export type ModelHubDevelopsGetEvalStructureReadEvalType = typeof ModelHubDevelopsGetEvalStructureReadEvalType[keyof typeof ModelHubDevelopsGetEvalStructureReadEvalType];
+
+
+export const ModelHubDevelopsGetEvalStructureReadEvalType = {
+  preset: 'preset',
+  user: 'user',
+  previously_configured: 'previously_configured',
+} as const;
 
 export type ModelHubEvalGroupsListParams = {
 /**
@@ -21162,6 +21186,10 @@ export type ModelHubFeedbackGetTemplate200 = {
   next?: string;
   previous?: string;
   results: FeedbackApi[];
+};
+
+export type ModelHubGetEvalConfigListParams = {
+eval_id: string;
 };
 
 export type ModelHubGetEvalLogsDetailsListParams = {

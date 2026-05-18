@@ -923,6 +923,16 @@ class OptimizeDatasetKnowledgeBaseDetailResponseSerializer(serializers.Serialize
     result = OptimizeDatasetKnowledgeBaseDetailResultSerializer()
 
 
+class EvalConfigQuerySerializer(StrictInputSerializer):
+    eval_id = serializers.UUIDField()
+
+
+class EvalStructureQuerySerializer(StrictInputSerializer):
+    eval_type = serializers.ChoiceField(
+        choices=["preset", "user", "previously_configured"]
+    )
+
+
 PERFORMANCE_FILTER_TYPES = ("property", "performanceMetric", "performanceTag")
 PERFORMANCE_DATA_TYPES = ("string", "number")
 PERFORMANCE_OPERATORS = (

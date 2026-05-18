@@ -5,7 +5,18 @@ from rest_framework import serializers
 from accounts.models import User
 from model_hub.models.develop_annotations import Annotations, AnnotationsLabels
 from model_hub.models.develop_dataset import Cell, Row
+from tracer.serializers.filters import StrictInputSerializer
 from tracer.models.project import Project
+
+
+class AnnotationTaskListQuerySerializer(StrictInputSerializer):
+    page = serializers.IntegerField(required=False, min_value=1)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=500)
+    predictive_journey = serializers.UUIDField(required=False)
+
+
+class AnnotateRowQuerySerializer(StrictInputSerializer):
+    row_order = serializers.IntegerField(min_value=0)
 
 
 class AnnotationsLabelsSerializer(serializers.ModelSerializer):

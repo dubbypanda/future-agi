@@ -530,6 +530,23 @@ class TestGetEvalsListView:
         ]
 
 
+@pytest.mark.django_db
+class TestEvalConfigContracts:
+    def test_get_eval_config_rejects_legacy_eval_id_alias(self, auth_client):
+        response = auth_client.get(f"/model-hub/get-eval-config?evalId={uuid.uuid4()}")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_get_eval_structure_rejects_legacy_eval_type_alias(
+        self, auth_client, dataset
+    ):
+        response = auth_client.get(
+            f"/model-hub/develops/{dataset.id}/get_eval_structure/{uuid.uuid4()}/?evalType=user"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
 # ==================== DeleteEvalsView Tests ====================
 
 

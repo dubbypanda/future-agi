@@ -527,6 +527,14 @@ class TestAnnotationsViewSet:
 class TestAnnotationsViewSetActions:
     """Tests for AnnotationsViewSet custom actions."""
 
+    def test_annotation_tasks_reject_legacy_predictive_journey_alias(self, auth_client):
+        """Annotation task list uses canonical predictive_journey query params."""
+        response = auth_client.get(
+            f"/model-hub/annotation-tasks/?predictiveJourney={uuid.uuid4()}"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_annotate_row(self, auth_client, annotation, row):
         """Test annotating a specific row."""
         response = auth_client.get(
@@ -537,6 +545,14 @@ class TestAnnotationsViewSetActions:
         # Response can be {"data": ...} or {"result": {"data": ...}}
         result = data.get("result", data)
         assert "data" in result or "label" in result.get("data", result)
+
+    def test_annotate_row_rejects_legacy_row_order_alias(self, auth_client, annotation):
+        """annotate_row accepts row_order only, not rowOrder."""
+        response = auth_client.get(
+            f"/model-hub/annotations/{annotation.id}/annotate_row/?rowOrder=0"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_annotate_row_missing_row_order(self, auth_client, annotation):
         """Test annotating without row_order parameter."""

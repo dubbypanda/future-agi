@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import Case, CharField, Q, Value, When
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
@@ -36,6 +37,8 @@ from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.serializers.annotation import AnnotationTaskSerializer
 from model_hub.serializers.develop_annotations import (
     AnnotationLabelRestoreResponseSerializer,
+    AnnotationTaskListQuerySerializer,
+    AnnotateRowQuerySerializer,
     AnnotationsLabelsSerializer,
     AnnotationsSerializer,
     AnnotationSummaryResponseSerializer,
@@ -65,6 +68,26 @@ class AnnotationTaskViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AnnotationTaskSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = ExtendedPageNumberPagination
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                "predictive_journey",
+                openapi.IN_QUERY,
+                description="Optional AI model id to filter annotation tasks.",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_UUID,
+                required=False,
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        query_serializer = AnnotationTaskListQuerySerializer(
+            data=request.query_params
+        )
+        if not query_serializer.is_valid():
+            return GeneralMethods().bad_request(query_serializer.errors)
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = (
@@ -98,7 +121,11 @@ class AnnotationTaskViewSet(viewsets.ReadOnlyModelViewSet):
             else:
                 queryset = queryset.filter(workspace=workspace)
 
-        predictive_journey = self.request.query_params.get("predictiveJourney")
+        query_serializer = AnnotationTaskListQuerySerializer(
+            data=self.request.query_params
+        )
+        query_serializer.is_valid(raise_exception=True)
+        predictive_journey = query_serializer.validated_data.get("predictive_journey")
         if predictive_journey:
             queryset = queryset.filter(ai_model_id=predictive_journey)
 
@@ -1134,30 +1161,30 @@ class AnnotationsViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet
                 get_error_message("FAILED_TO_RESET_ANNOTATION")
             )
 
+    @swagger_auto_schema(query_serializer=AnnotateRowQuerySerializer)
     @action(detail=True, methods=["get"])
     def annotate_row(self, request, pk=None):
         """
         Annotate a specific row with the provided values.
         """
         try:
+            query_serializer = AnnotateRowQuerySerializer(data=request.query_params)
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+
             # Retrieve the annotation object
             annotation = Annotations.objects.get(id=pk, deleted=False)
             Dataset.objects.get(id=annotation.dataset.id, deleted=False)
 
-            # Get the row order from the request data
-            row_order = request.query_params.get(
-                "row_order"
-            ) or request.query_params.get("rowOrder")
-            if row_order is None:
-                return self._gm.bad_request(get_error_message("ROW_ORDER_MISSING"))
+            row_order = query_serializer.validated_data["row_order"]
 
-            row = Row.objects.get(dataset=annotation.dataset, order=int(row_order))
+            row = Row.objects.get(dataset=annotation.dataset, order=row_order)
 
             try:
                 next_row = (
                     Row.objects.filter(
                         dataset=annotation.dataset,
-                        order__gt=int(row_order),
+                        order__gt=row_order,
                         deleted=False,
                     )
                     .order_by("order")
@@ -1177,7 +1204,7 @@ class AnnotationsViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet
                 previous_row = (
                     Row.objects.filter(
                         dataset=annotation.dataset,
-                        order__lt=int(row_order),
+                        order__lt=row_order,
                         deleted=False,
                     )
                     .order_by("-order")

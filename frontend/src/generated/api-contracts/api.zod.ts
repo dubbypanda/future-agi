@@ -13494,7 +13494,8 @@ export const ModelHubAnnotationQueuesItemsSkipItemResponse = zod.object({
 
 export const ModelHubAnnotationTasksListQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
-  "limit": zod.number().optional().describe('Number of results to return per page.')
+  "limit": zod.number().optional().describe('Number of results to return per page.'),
+  "predictive_journey": zod.string().uuid().optional().describe('Optional AI model id to filter annotation tasks.')
 })
 
 export const modelHubAnnotationTasksListResponseResultsItemAssignedUsersItemEmailMax = 254;
@@ -14134,6 +14135,14 @@ export const ModelHubAnnotationsDeleteParams = zod.object({
  */
 export const ModelHubAnnotationsAnnotateRowParams = zod.object({
   "id": zod.string()
+})
+
+export const modelHubAnnotationsAnnotateRowQueryRowOrderMin = 0;
+
+
+
+export const ModelHubAnnotationsAnnotateRowQueryParams = zod.object({
+  "row_order": zod.number().min(modelHubAnnotationsAnnotateRowQueryRowOrderMin)
 })
 
 export const modelHubAnnotationsAnnotateRowResponseNameMax = 255;
@@ -17457,6 +17466,10 @@ export const ModelHubDevelopsGetRowDataCreateResponse = zod.object({
 export const ModelHubDevelopsGetEvalStructureReadParams = zod.object({
   "dataset_id": zod.string(),
   "eval_id": zod.string()
+})
+
+export const ModelHubDevelopsGetEvalStructureReadQueryParams = zod.object({
+  "eval_type": zod.enum(['preset', 'user', 'previously_configured'])
 })
 
 
@@ -20961,6 +20974,10 @@ export const ModelHubGetColumnValuesCreateResponse = zod.object({
 })
 })
 
+
+export const ModelHubGetEvalConfigListQueryParams = zod.object({
+  "eval_id": zod.string().uuid()
+})
 
 
 

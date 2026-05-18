@@ -150,6 +150,8 @@ from model_hub.serializers.contracts import (
     DuplicateDatasetRequestSerializer,
     DuplicateRowsRequestSerializer,
     EmbeddingsResponseSerializer,
+    EvalConfigQuerySerializer,
+    EvalStructureQuerySerializer,
     HuggingFaceDatasetDetailResponseSerializer,
     HuggingFaceDatasetDetailRequestSerializer,
     HuggingFaceDatasetListResponseSerializer,
@@ -6980,6 +6982,7 @@ class GetEvalConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        query_serializer=EvalConfigQuerySerializer,
         responses={
             200: ModelHubEvalConfigResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -6987,12 +6990,10 @@ class GetEvalConfigView(APIView):
     )
     def get(self, request, *args, **kwargs):
         try:
-            eval_id = request.query_params.get(
-                "eval_id", None
-            ) or request.query_params.get("evalId", None)
-
-            if not eval_id:
-                return self._gm.bad_request(get_error_message("MISSSING_EVAL_IDS"))
+            query_serializer = EvalConfigQuerySerializer(data=request.query_params)
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+            eval_id = query_serializer.validated_data["eval_id"]
 
             try:
                 template = EvalTemplate.no_workspace_objects.get(id=eval_id)
@@ -7151,23 +7152,17 @@ class GetEvalStructureView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        query_serializer=EvalStructureQuerySerializer,
         responses={200: EvalStructureResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(
         self, request, eval_id, dataset_id=None, *args, **kwargs
     ):  # Changed from 'post' to 'get'
         try:
-            eval_type = request.query_params.get(
-                "eval_type"
-            ) or request.query_params.get("evalType")  # Changed from request.data.get
-            if not eval_type or eval_type not in [
-                "preset",
-                "user",
-                "previously_configured",
-            ]:
-                return self._gm.bad_request(
-                    get_error_message("INVALID_OR_MISSING_EVAL_TYPE", index=1)
-                )
+            query_serializer = EvalStructureQuerySerializer(data=request.query_params)
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+            eval_type = query_serializer.validated_data["eval_type"]
 
             if eval_type == "preset" or eval_type == "previously_configured":
                 return self._get_preset_structure(
