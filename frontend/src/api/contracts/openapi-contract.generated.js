@@ -625,6 +625,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/PublicConfigResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
           }
         }
       }
@@ -1741,7 +1756,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "accounts_passkeys_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          }
+        }
       }
     },
     "/accounts/password-reset-confirm/{uidb64}/{token}/": {
@@ -1976,7 +2007,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "accounts_team_users_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TeamRemoveResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          }
+        }
       }
     },
     "/accounts/team/users/{member_id}/": {
@@ -2036,19 +2086,53 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "accounts_team_users_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TeamRemoveResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          }
+        }
       }
     },
     "/accounts/token/": {
       "post": {
         "operationId": "accounts_token_create",
         "requestBody": {
-          "$ref": "#/definitions/TokenObtainPair"
+          "$ref": "#/definitions/LoginRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/TokenObtainPair"
+          "200": {
+            "$ref": "#/definitions/AccountsTokenPairResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
           }
         }
       }
@@ -35007,22 +35091,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "title": "Result",
-          "type": "object",
+          "type": "string",
           "x-nullable": true
         },
         "message": {
           "title": "Message",
-          "type": "object",
+          "type": "string",
           "x-nullable": true
         },
         "error": {
           "title": "Error",
-          "type": "object",
+          "type": "string",
           "x-nullable": true
         },
         "detail": {
           "title": "Detail",
-          "type": "object",
+          "type": "string",
           "x-nullable": true
         }
       }
@@ -50644,6 +50728,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "LoginRequest": {
+      "required": [
+        "email",
+        "password"
+      ],
+      "type": "object",
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "minLength": 1
+        },
+        "password": {
+          "title": "Password",
+          "type": "string",
+          "minLength": 1
+        },
+        "remember_me": {
+          "title": "Remember me",
+          "type": "boolean",
+          "default": false
+        },
+        "recaptcha_response": {
+          "title": "Recaptcha response",
+          "type": "string"
+        }
+      }
+    },
     "MCPAnalyticsSummaryResponse": {
       "required": [
         "result"
@@ -60977,6 +61090,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TeamRemoveResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/TeamRemoveResult"
+        }
+      }
+    },
     "TeamUsersResponse": {
       "required": [
         "status",
@@ -61780,25 +61909,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "properties": {
         "timezone": {
           "title": "Timezone",
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
-    "TokenObtainPair": {
-      "required": [
-        "email",
-        "password"
-      ],
-      "type": "object",
-      "properties": {
-        "email": {
-          "title": "Email",
-          "type": "string",
-          "minLength": 1
-        },
-        "password": {
-          "title": "Password",
           "type": "string",
           "minLength": 1
         }
@@ -78484,6 +78594,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/TeamCreateErrorItem"
           }
+        }
+      }
+    },
+    "TeamRemoveResult": {
+      "required": [
+        "message",
+        "removed_from"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        },
+        "removed_from": {
+          "title": "Removed from",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

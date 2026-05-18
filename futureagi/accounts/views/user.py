@@ -32,6 +32,8 @@ from accounts.serializers.contracts import (
     AccountsAccessTokenResponseSerializer,
     AccountsRedisDeleteResponseSerializer,
     AccountsRedisSetResponseSerializer,
+    AccountsTokenPairResponseSerializer,
+    LoginRequestSerializer,
     RedisKeyRequestSerializer,
     TokenRefreshRequestSerializer,
     UserChecksResponseSerializer,
@@ -121,6 +123,10 @@ def manage_redis_key(request):
 class CustomTokenObtainPairView(TokenObtainPairView):
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=LoginRequestSerializer,
+        responses={200: AccountsTokenPairResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             email = request.data.get("email", "").lower()

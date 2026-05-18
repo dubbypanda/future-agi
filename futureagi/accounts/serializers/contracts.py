@@ -3,10 +3,10 @@ from rest_framework import serializers
 
 class AccountsErrorResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(required=False)
-    result = serializers.JSONField(required=False, allow_null=True)
-    message = serializers.JSONField(required=False, allow_null=True)
-    error = serializers.JSONField(required=False, allow_null=True)
-    detail = serializers.JSONField(required=False, allow_null=True)
+    result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class AccountsEmptyRequestSerializer(serializers.Serializer):
@@ -827,6 +827,16 @@ class TeamCreateResultSerializer(serializers.Serializer):
 class TeamCreateResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField()
     result = TeamCreateResultSerializer()
+
+
+class TeamRemoveResultSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    removed_from = serializers.CharField()
+
+
+class TeamRemoveResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = TeamRemoveResultSerializer()
 
 
 class WorkspaceManagementItemSerializer(serializers.Serializer):

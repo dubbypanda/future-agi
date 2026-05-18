@@ -10,20 +10,12 @@ export interface RecoveryCodesRemainingResponseApi {
   remaining: number;
 }
 
-export type AccountsErrorResponseApiResult = { [key: string]: unknown };
-
-export type AccountsErrorResponseApiMessage = { [key: string]: unknown };
-
-export type AccountsErrorResponseApiError = { [key: string]: unknown };
-
-export type AccountsErrorResponseApiDetail = { [key: string]: unknown };
-
 export interface AccountsErrorResponseApi {
   status?: boolean;
-  result?: AccountsErrorResponseApiResult;
-  message?: AccountsErrorResponseApiMessage;
-  error?: AccountsErrorResponseApiError;
-  detail?: AccountsErrorResponseApiDetail;
+  result?: string;
+  message?: string;
+  error?: string;
+  detail?: string;
 }
 
 export interface RecoveryCodesRegenerateApi {
@@ -1042,11 +1034,25 @@ export interface TeamCreateResponseApi {
   result: TeamCreateResultApi;
 }
 
-export interface TokenObtainPairApi {
+export interface TeamRemoveResultApi {
+  /** @minLength 1 */
+  message: string;
+  /** @minLength 1 */
+  removed_from: string;
+}
+
+export interface TeamRemoveResponseApi {
+  status: boolean;
+  result: TeamRemoveResultApi;
+}
+
+export interface LoginRequestApi {
   /** @minLength 1 */
   email: string;
   /** @minLength 1 */
   password: string;
+  remember_me?: boolean;
+  recaptcha_response?: string;
 }
 
 export interface TokenRefreshRequestApi {

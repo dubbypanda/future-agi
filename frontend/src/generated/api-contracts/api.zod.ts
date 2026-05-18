@@ -1654,6 +1654,23 @@ export const AccountsTeamUsersCreateBody = zod.object({
 })
 
 
+export const AccountsTeamUsersDeleteParams = zod.object({
+  "member_id": zod.string()
+})
+
+
+
+
+
+export const AccountsTeamUsersDeleteResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "message": zod.string().min(1),
+  "removed_from": zod.string().min(1)
+})
+})
+
+
 export const AccountsTeamUsersReadParams = zod.object({
   "member_id": zod.string()
 })
@@ -1712,8 +1729,15 @@ export const AccountsTeamUsersReadResponse = zod.object({
 })
 
 
-export const AccountsTeamUsersDeleteParams = zod.object({
-  "member_id": zod.string()
+
+
+export const accountsTokenCreateBodyRememberMeDefault = false;
+
+export const AccountsTokenCreateBody = zod.object({
+  "email": zod.string().email().min(1),
+  "password": zod.string().min(1),
+  "remember_me": zod.boolean().default(accountsTokenCreateBodyRememberMeDefault),
+  "recaptcha_response": zod.string().optional()
 })
 
 
@@ -1721,9 +1745,21 @@ export const AccountsTeamUsersDeleteParams = zod.object({
 
 
 
-export const AccountsTokenCreateBody = zod.object({
-  "email": zod.string().min(1),
-  "password": zod.string().min(1)
+
+
+
+export const AccountsTokenCreateResponse = zod.object({
+  "access": zod.string().min(1).optional(),
+  "refresh": zod.string().min(1).optional(),
+  "requires_two_factor": zod.boolean().optional(),
+  "challenge_token": zod.string().uuid().optional(),
+  "methods": zod.array(zod.string().min(1)).optional(),
+  "requires_org_setup": zod.boolean().optional(),
+  "message": zod.string().min(1).optional(),
+  "new_org": zod.boolean().optional(),
+  "org_name": zod.string().min(1).optional(),
+  "is_first_login": zod.boolean().optional(),
+  "recovery_codes_warning": zod.string().min(1).optional()
 })
 
 

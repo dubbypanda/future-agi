@@ -1310,6 +1310,36 @@
                         "schema": {
                             "$ref": "#/definitions/PublicConfigResponse"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -3429,6 +3459,36 @@
                 "responses": {
                     "204": {
                         "description": "Passkey deleted."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -3912,8 +3972,41 @@
                 "description": "",
                 "parameters": [],
                 "responses": {
-                    "204": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/TeamRemoveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4029,8 +4122,41 @@
                 "description": "",
                 "parameters": [],
                 "responses": {
-                    "204": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/TeamRemoveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -4056,15 +4182,45 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/TokenObtainPair"
+                            "$ref": "#/definitions/LoginRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/TokenObtainPair"
+                            "$ref": "#/definitions/AccountsTokenPairResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AccountsErrorResponse"
                         }
                     }
                 },
@@ -63493,22 +63649,22 @@
                 },
                 "result": {
                     "title": "Result",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 },
                 "message": {
                     "title": "Message",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 },
                 "error": {
                     "title": "Error",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 },
                 "detail": {
                     "title": "Detail",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 }
             }
@@ -66433,7 +66589,42 @@
                 }
             }
         },
-        "TokenObtainPair": {
+        "TeamRemoveResult": {
+            "required": [
+                "message",
+                "removed_from"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "removed_from": {
+                    "title": "Removed from",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "TeamRemoveResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/TeamRemoveResult"
+                }
+            }
+        },
+        "LoginRequest": {
             "required": [
                 "email",
                 "password"
@@ -66443,12 +66634,22 @@
                 "email": {
                     "title": "Email",
                     "type": "string",
+                    "format": "email",
                     "minLength": 1
                 },
                 "password": {
                     "title": "Password",
                     "type": "string",
                     "minLength": 1
+                },
+                "remember_me": {
+                    "title": "Remember me",
+                    "type": "boolean",
+                    "default": false
+                },
+                "recaptcha_response": {
+                    "title": "Recaptcha response",
+                    "type": "string"
                 }
             }
         },

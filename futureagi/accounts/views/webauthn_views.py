@@ -165,7 +165,7 @@ class PasskeyDetailView(APIView):
 
         return Response({"id": str(passkey.id), "name": passkey.name})
 
-    @swagger_auto_schema(responses={204: "Passkey deleted."})
+    @swagger_auto_schema(responses={204: "Passkey deleted.", **ACCOUNTS_ERROR_RESPONSES})
     def delete(self, request, pk):
         try:
             passkey = WebAuthnCredential.objects.get(id=pk, user=request.user)

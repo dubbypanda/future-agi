@@ -582,6 +582,7 @@ import type {
   LiveKitTranscriptCreatedResponseApi,
   LiveKitTranscriptsRequestApi,
   LocalFileDatasetCreateStartedResponseApi,
+  LoginRequestApi,
   MCPAnalyticsSummaryResponseApi,
   MCPAnalyticsTimelineResponseApi,
   MCPAnalyticsToolsResponseApi,
@@ -1037,6 +1038,7 @@ import type {
   TOTPSetupResponseApi,
   TTSVoiceApi,
   TeamCreateResponseApi,
+  TeamRemoveResponseApi,
   TeamUsersResponseApi,
   TestEvalTemplateApi,
   TestExecutionAnalyticsApi,
@@ -1054,7 +1056,6 @@ import type {
   TestExecutionTranscriptsResponseApi,
   TimezoneRequestApi,
   TimezoneResponseApi,
-  TokenObtainPairApi,
   TokenRefreshRequestApi,
   ToolDiscoveryResponseApi,
   ToolsApi,
@@ -2646,12 +2647,39 @@ export type accountsConfigListResponse200 = {
   status: 200
 }
 
+export type accountsConfigListResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsConfigListResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsConfigListResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsConfigListResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsConfigListResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
 export type accountsConfigListResponseSuccess = (accountsConfigListResponse200) & {
   headers: Headers;
 };
-;
+export type accountsConfigListResponseError = (accountsConfigListResponse400 | accountsConfigListResponse401 | accountsConfigListResponse403 | accountsConfigListResponse404 | accountsConfigListResponse500) & {
+  headers: Headers;
+};
 
-export type accountsConfigListResponse = (accountsConfigListResponseSuccess)
+export type accountsConfigListResponse = (accountsConfigListResponseSuccess | accountsConfigListResponseError)
 
 export const getAccountsConfigListUrl = () => {
 
@@ -5048,12 +5076,39 @@ export type accountsPasskeysDeleteResponse204 = {
   status: 204
 }
 
+export type accountsPasskeysDeleteResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsPasskeysDeleteResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsPasskeysDeleteResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsPasskeysDeleteResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsPasskeysDeleteResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
 export type accountsPasskeysDeleteResponseSuccess = (accountsPasskeysDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type accountsPasskeysDeleteResponseError = (accountsPasskeysDeleteResponse400 | accountsPasskeysDeleteResponse401 | accountsPasskeysDeleteResponse403 | accountsPasskeysDeleteResponse404 | accountsPasskeysDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type accountsPasskeysDeleteResponse = (accountsPasskeysDeleteResponseSuccess)
+export type accountsPasskeysDeleteResponse = (accountsPasskeysDeleteResponseSuccess | accountsPasskeysDeleteResponseError)
 
 export const getAccountsPasskeysDeleteUrl = (id: string,) => {
 
@@ -5570,17 +5625,44 @@ export const accountsTeamUsersCreate = async (memberId: string,
 
 
 
-export type accountsTeamUsersDeleteResponse204 = {
-  data: void
-  status: 204
+export type accountsTeamUsersDeleteResponse200 = {
+  data: TeamRemoveResponseApi
+  status: 200
 }
 
-export type accountsTeamUsersDeleteResponseSuccess = (accountsTeamUsersDeleteResponse204) & {
+export type accountsTeamUsersDeleteResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsTeamUsersDeleteResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsTeamUsersDeleteResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsTeamUsersDeleteResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsTeamUsersDeleteResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsTeamUsersDeleteResponseSuccess = (accountsTeamUsersDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type accountsTeamUsersDeleteResponseError = (accountsTeamUsersDeleteResponse400 | accountsTeamUsersDeleteResponse401 | accountsTeamUsersDeleteResponse403 | accountsTeamUsersDeleteResponse404 | accountsTeamUsersDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type accountsTeamUsersDeleteResponse = (accountsTeamUsersDeleteResponseSuccess)
+export type accountsTeamUsersDeleteResponse = (accountsTeamUsersDeleteResponseSuccess | accountsTeamUsersDeleteResponseError)
 
 export const getAccountsTeamUsersDeleteUrl = (memberId: string,) => {
 
@@ -5663,17 +5745,44 @@ export const accountsTeamUsersRead = async (memberId: string, options?: RequestI
 
 
 
-export type accountsTokenCreateResponse201 = {
-  data: TokenObtainPairApi
-  status: 201
+export type accountsTokenCreateResponse200 = {
+  data: AccountsTokenPairResponseApi
+  status: 200
 }
 
-export type accountsTokenCreateResponseSuccess = (accountsTokenCreateResponse201) & {
+export type accountsTokenCreateResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsTokenCreateResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsTokenCreateResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsTokenCreateResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsTokenCreateResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsTokenCreateResponseSuccess = (accountsTokenCreateResponse200) & {
   headers: Headers;
 };
-;
+export type accountsTokenCreateResponseError = (accountsTokenCreateResponse400 | accountsTokenCreateResponse401 | accountsTokenCreateResponse403 | accountsTokenCreateResponse404 | accountsTokenCreateResponse500) & {
+  headers: Headers;
+};
 
-export type accountsTokenCreateResponse = (accountsTokenCreateResponseSuccess)
+export type accountsTokenCreateResponse = (accountsTokenCreateResponseSuccess | accountsTokenCreateResponseError)
 
 export const getAccountsTokenCreateUrl = () => {
 
@@ -5683,7 +5792,7 @@ export const getAccountsTokenCreateUrl = () => {
   return `/accounts/token/`
 }
 
-export const accountsTokenCreate = async (tokenObtainPairApi: TokenObtainPairApi, options?: RequestInit): Promise<accountsTokenCreateResponse> => {
+export const accountsTokenCreate = async (loginRequestApi: LoginRequestApi, options?: RequestInit): Promise<accountsTokenCreateResponse> => {
 
   return apiMutator<accountsTokenCreateResponse>(getAccountsTokenCreateUrl(),
   {
@@ -5691,7 +5800,7 @@ export const accountsTokenCreate = async (tokenObtainPairApi: TokenObtainPairApi
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      tokenObtainPairApi,)
+      loginRequestApi,)
   }
 );}
 

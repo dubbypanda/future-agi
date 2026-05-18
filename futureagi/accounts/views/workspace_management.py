@@ -38,6 +38,7 @@ from accounts.serializers.contracts import (
     ResendInviteResponseSerializer,
     SwitchWorkspaceResponseSerializer,
     TeamCreateResponseSerializer,
+    TeamRemoveResponseSerializer,
     TeamUsersResponseSerializer,
     UserListPaginatedResponseSerializer,
     UserRoleUpdateResponseSerializer,
@@ -2417,7 +2418,10 @@ class ManageTeamView(APIView):
             )
             raise
 
-    def delete(self, request, member_id, *args, **kwargs):
+    @swagger_auto_schema(
+        responses={200: TeamRemoveResponseSerializer, **ACCOUNTS_ERROR_RESPONSES}
+    )
+    def delete(self, request, member_id=None, *args, **kwargs):
         user = request.user
         organization = resolve_org(request)
         org_role = resolve_org_role(user, organization)

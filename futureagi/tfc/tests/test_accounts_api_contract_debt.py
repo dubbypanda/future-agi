@@ -45,9 +45,12 @@ def _response_ref(operation, status_code="200"):
 
 def test_accounts_contract_debt_is_fully_burned_down():
     report = _debt_report()
+    group_report = report["by_group"]["accounts"]
 
-    assert report["by_group"]["accounts"]["mutation_endpoints_without_body_schema"] == 0
-    assert report["by_group"]["accounts"]["operations_without_response_schema"] == 0
+    assert group_report["mutation_endpoints_without_body_schema"] == 0
+    assert group_report["operations_without_response_schema"] == 0
+    assert group_report["operations_without_error_response_schema"] == 0
+    assert group_report["broad_error_response_schemas"] == 0
 
 
 def test_accounts_mutations_have_request_contracts():
