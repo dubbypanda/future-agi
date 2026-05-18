@@ -7,9 +7,7 @@ def _repo_root():
 
 
 def _swagger():
-    with (
-        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
-    ).open() as f:
+    with (_repo_root() / "api_contracts" / "openapi" / "swagger.json").open() as f:
         return json.load(f)
 
 
@@ -53,6 +51,7 @@ def _response_ref(operation, status_code="200"):
 
 def test_falcon_contract_debt_is_fully_burned_down():
     report = _debt_report()
+    falcon_report = report["by_group"]["falcon-ai"]
 
     assert [
         item
@@ -64,6 +63,8 @@ def test_falcon_contract_debt_is_fully_burned_down():
         for item in report["operations_without_response_schema"]
         if item["tags"] == ["falcon-ai"]
     ] == []
+    assert falcon_report["operations_without_error_response_schema"] == 0
+    assert falcon_report["broad_error_response_schemas"] == 0
 
 
 def test_falcon_mutations_have_request_contracts():
@@ -98,9 +99,7 @@ def test_falcon_mutations_have_request_contracts():
     for (method, path), definition_name in expected_body_refs.items():
         assert _body_ref(_operation(path, method)) == definition_name
 
-    assert _form_param_names(_operation("/falcon-ai/files/upload/", "POST")) == {
-        "file"
-    }
+    assert _form_param_names(_operation("/falcon-ai/files/upload/", "POST")) == {"file"}
 
 
 def test_falcon_endpoints_have_response_contracts():
@@ -118,9 +117,7 @@ def test_falcon_endpoints_have_response_contracts():
         ),
         ("POST", "/falcon-ai/files/upload/", "201"): "FileUploadResponse",
         ("GET", "/falcon-ai/mcp-connectors/"): "MCPConnectorListResponse",
-        ("POST", "/falcon-ai/mcp-connectors/", "201"): (
-            "MCPConnectorDetailResponse"
-        ),
+        ("POST", "/falcon-ai/mcp-connectors/", "201"): ("MCPConnectorDetailResponse"),
         ("GET", "/falcon-ai/mcp-connectors/{connector_id}/"): (
             "MCPConnectorDetailResponse"
         ),
@@ -133,9 +130,7 @@ def test_falcon_endpoints_have_response_contracts():
         ("POST", "/falcon-ai/mcp-connectors/{connector_id}/discover/"): (
             "MCPConnectorDiscoverResponse"
         ),
-        ("GET", "/falcon-ai/mcp-connectors/{connector_id}/oauth/callback/"): (
-            "string"
-        ),
+        ("GET", "/falcon-ai/mcp-connectors/{connector_id}/oauth/callback/"): ("string"),
         ("POST", "/falcon-ai/mcp-connectors/{connector_id}/test/"): (
             "MCPConnectorTestResponse"
         ),
@@ -156,6 +151,22 @@ def test_falcon_endpoints_have_response_contracts():
 
     for endpoint, definition_name in expected.items():
         method, path, *status = endpoint
-        assert _response_ref(_operation(path, method), status[0] if status else "200") == (
-            definition_name
-        )
+        assert _response_ref(
+            _operation(path, method), status[0] if status else "200"
+        ) == (definition_name)
+
+
+def test_falcon_endpoints_have_typed_error_contracts():
+    expected = {
+        ("DELETE", "/falcon-ai/conversations/{conversation_id}/", "403"): (
+            "FalconErrorResponse"
+        ),
+        ("GET", "/falcon-ai/mcp-connectors/{connector_id}/oauth/callback/", "400"): (
+            "string"
+        ),
+        ("DELETE", "/falcon-ai/skills/{skill_id}/", "404"): "FalconErrorResponse",
+    }
+
+    for endpoint, definition_name in expected.items():
+        method, path, status_code = endpoint
+        assert _response_ref(_operation(path, method), status_code) == definition_name

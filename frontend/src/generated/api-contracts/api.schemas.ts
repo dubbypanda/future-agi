@@ -3511,12 +3511,10 @@ export interface ConversationListResponseApi {
   has_more: boolean;
 }
 
-export type FalconErrorResponseApiResult = { [key: string]: unknown };
-
 export interface FalconErrorResponseApi {
   status: boolean;
   error?: string;
-  result?: FalconErrorResponseApiResult;
+  result?: string;
 }
 
 export interface ConversationCreateRequestApi {

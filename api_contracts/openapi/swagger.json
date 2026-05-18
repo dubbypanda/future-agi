@@ -13436,7 +13436,19 @@
                 "parameters": [],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "Conversation deleted"
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -13666,7 +13678,19 @@
                 "parameters": [],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "Connector deleted"
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -13823,6 +13847,18 @@
                 "responses": {
                     "200": {
                         "description": "HTML page that posts OAuth result to opener.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "HTML page that posts OAuth failure to opener.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "502": {
+                        "description": "HTML page that posts OAuth token exchange failure to opener.",
                         "schema": {
                             "type": "string"
                         }
@@ -14016,7 +14052,19 @@
                 "parameters": [],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "Memory deleted"
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14259,7 +14307,19 @@
                 "parameters": [],
                 "responses": {
                     "204": {
-                        "description": ""
+                        "description": "Skill deleted"
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/FalconErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -72399,7 +72459,7 @@
                 },
                 "result": {
                     "title": "Result",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 }
             }

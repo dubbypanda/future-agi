@@ -15847,12 +15847,24 @@ export type falconAiConversationsDeleteResponse204 = {
   status: 204
 }
 
+export type falconAiConversationsDeleteResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiConversationsDeleteResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
 export type falconAiConversationsDeleteResponseSuccess = (falconAiConversationsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type falconAiConversationsDeleteResponseError = (falconAiConversationsDeleteResponse403 | falconAiConversationsDeleteResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiConversationsDeleteResponse = (falconAiConversationsDeleteResponseSuccess)
+export type falconAiConversationsDeleteResponse = (falconAiConversationsDeleteResponseSuccess | falconAiConversationsDeleteResponseError)
 
 export const getFalconAiConversationsDeleteUrl = (conversationId: string,) => {
 
@@ -16174,12 +16186,24 @@ export type falconAiMcpConnectorsDeleteResponse204 = {
   status: 204
 }
 
+export type falconAiMcpConnectorsDeleteResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMcpConnectorsDeleteResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
 export type falconAiMcpConnectorsDeleteResponseSuccess = (falconAiMcpConnectorsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsDeleteResponseError = (falconAiMcpConnectorsDeleteResponse403 | falconAiMcpConnectorsDeleteResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsDeleteResponse = (falconAiMcpConnectorsDeleteResponseSuccess)
+export type falconAiMcpConnectorsDeleteResponse = (falconAiMcpConnectorsDeleteResponseSuccess | falconAiMcpConnectorsDeleteResponseError)
 
 export const getFalconAiMcpConnectorsDeleteUrl = (connectorId: string,) => {
 
@@ -16322,12 +16346,24 @@ export type falconAiMcpConnectorsOauthCallbackListResponse200 = {
   status: 200
 }
 
+export type falconAiMcpConnectorsOauthCallbackListResponse400 = {
+  data: string
+  status: 400
+}
+
+export type falconAiMcpConnectorsOauthCallbackListResponse502 = {
+  data: string
+  status: 502
+}
+
 export type falconAiMcpConnectorsOauthCallbackListResponseSuccess = (falconAiMcpConnectorsOauthCallbackListResponse200) & {
   headers: Headers;
 };
-;
+export type falconAiMcpConnectorsOauthCallbackListResponseError = (falconAiMcpConnectorsOauthCallbackListResponse400 | falconAiMcpConnectorsOauthCallbackListResponse502) & {
+  headers: Headers;
+};
 
-export type falconAiMcpConnectorsOauthCallbackListResponse = (falconAiMcpConnectorsOauthCallbackListResponseSuccess)
+export type falconAiMcpConnectorsOauthCallbackListResponse = (falconAiMcpConnectorsOauthCallbackListResponseSuccess | falconAiMcpConnectorsOauthCallbackListResponseError)
 
 export const getFalconAiMcpConnectorsOauthCallbackListUrl = (connectorId: string,
     params?: FalconAiMcpConnectorsOauthCallbackListParams,) => {
@@ -16575,12 +16611,24 @@ export type falconAiMemoryDeleteResponse204 = {
   status: 204
 }
 
+export type falconAiMemoryDeleteResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiMemoryDeleteResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
 export type falconAiMemoryDeleteResponseSuccess = (falconAiMemoryDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type falconAiMemoryDeleteResponseError = (falconAiMemoryDeleteResponse403 | falconAiMemoryDeleteResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiMemoryDeleteResponse = (falconAiMemoryDeleteResponseSuccess)
+export type falconAiMemoryDeleteResponse = (falconAiMemoryDeleteResponseSuccess | falconAiMemoryDeleteResponseError)
 
 export const getFalconAiMemoryDeleteUrl = (memoryId: string,) => {
 
@@ -16902,12 +16950,24 @@ export type falconAiSkillsDeleteResponse204 = {
   status: 204
 }
 
+export type falconAiSkillsDeleteResponse403 = {
+  data: FalconErrorResponseApi
+  status: 403
+}
+
+export type falconAiSkillsDeleteResponse404 = {
+  data: FalconErrorResponseApi
+  status: 404
+}
+
 export type falconAiSkillsDeleteResponseSuccess = (falconAiSkillsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type falconAiSkillsDeleteResponseError = (falconAiSkillsDeleteResponse403 | falconAiSkillsDeleteResponse404) & {
+  headers: Headers;
+};
 
-export type falconAiSkillsDeleteResponse = (falconAiSkillsDeleteResponseSuccess)
+export type falconAiSkillsDeleteResponse = (falconAiSkillsDeleteResponseSuccess | falconAiSkillsDeleteResponseError)
 
 export const getFalconAiSkillsDeleteUrl = (skillId: string,) => {
 

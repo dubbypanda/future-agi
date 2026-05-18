@@ -7326,7 +7326,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_conversations_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/conversations/{conversation_id}/stream-status/": {
@@ -7437,7 +7444,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_mcp-connectors_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/mcp-connectors/{connector_id}/authenticate/": {
@@ -7518,6 +7532,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
+            "type": "string"
+          },
+          "400": {
+            "type": "string"
+          },
+          "502": {
             "type": "string"
           }
         }
@@ -7607,7 +7627,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_memory_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/falcon-ai/messages/{message_id}/feedback/": {
@@ -7725,7 +7752,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "falcon-ai_skills_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "403": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/FalconErrorResponse"
+          }
+        }
       }
     },
     "/health/": {
@@ -47153,7 +47187,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "title": "Result",
-          "type": "object",
+          "type": "string",
           "x-nullable": true
         }
       }
