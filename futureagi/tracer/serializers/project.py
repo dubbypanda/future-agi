@@ -3,6 +3,7 @@ from rest_framework import serializers
 from tracer.models.project import Project
 from tracer.serializers.filters import (
     MetricSortParamListField,
+    ObserveGraphMetricConfigField,
     StrictInputSerializer,
     filter_list_field,
     filter_list_query_param_field,
@@ -65,9 +66,7 @@ class ProjectUsersAggregateGraphDataRequestSerializer(StrictInputSerializer):
     property = serializers.CharField(
         required=False, default="average", allow_blank=False
     )
-    req_data_config = serializers.DictField(
-        child=serializers.JSONField(), required=False, default=dict
-    )
+    req_data_config = ObserveGraphMetricConfigField(required=False, default=dict)
 
 
 class ProjectUserGraphDataQuerySerializer(serializers.Serializer):

@@ -17840,8 +17840,10 @@ export type ObserveGraphDataRequestApiReqDataConfig = {
   output_type?: string;
   eval_output_type?: string;
   choices?: string[];
-  [key: string]: unknown;
- };
+  value?: unknown;
+  filter_op?: string;
+  filter_value?: unknown;
+};
 
 export interface ObserveGraphDataRequestApi {
   project_id: string;
@@ -18023,7 +18025,25 @@ export type ProjectUsersAggregateGraphDataRequestApiFiltersItem = {
   filter_config: ProjectUsersAggregateGraphDataRequestApiFiltersItemFilterConfig;
 };
 
-export type ProjectUsersAggregateGraphDataRequestApiReqDataConfig = {[key: string]: { [key: string]: unknown }};
+export type ProjectUsersAggregateGraphDataRequestApiReqDataConfigType = typeof ProjectUsersAggregateGraphDataRequestApiReqDataConfigType[keyof typeof ProjectUsersAggregateGraphDataRequestApiReqDataConfigType];
+
+
+export const ProjectUsersAggregateGraphDataRequestApiReqDataConfigType = {
+  SYSTEM_METRIC: 'SYSTEM_METRIC',
+  EVAL: 'EVAL',
+  ANNOTATION: 'ANNOTATION',
+} as const;
+
+export type ProjectUsersAggregateGraphDataRequestApiReqDataConfig = {
+  id: string;
+  type: ProjectUsersAggregateGraphDataRequestApiReqDataConfigType;
+  output_type?: string;
+  eval_output_type?: string;
+  choices?: string[];
+  value?: unknown;
+  filter_op?: string;
+  filter_value?: unknown;
+};
 
 export interface ProjectUsersAggregateGraphDataRequestApi {
   project_id: string;
@@ -18693,8 +18713,10 @@ export type TraceSessionGraphDataRequestApiReqDataConfig = {
   output_type?: string;
   eval_output_type?: string;
   choices?: string[];
-  [key: string]: unknown;
- };
+  value?: unknown;
+  filter_op?: string;
+  filter_value?: unknown;
+};
 
 export interface TraceSessionGraphDataRequestApi {
   project_id: string;

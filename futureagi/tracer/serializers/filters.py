@@ -125,6 +125,17 @@ class StrictInputSerializer(serializers.Serializer):
 
 
 class ObserveGraphMetricConfigField(serializers.JSONField):
+    ALLOWED_KEYS = {
+        "id",
+        "type",
+        "output_type",
+        "eval_output_type",
+        "choices",
+        "value",
+        "filter_op",
+        "filter_value",
+    }
+
     class Meta:
         swagger_schema_fields = {
             "type": "object",
@@ -137,15 +148,23 @@ class ObserveGraphMetricConfigField(serializers.JSONField):
                 "output_type": {"type": "string"},
                 "eval_output_type": {"type": "string"},
                 "choices": {"type": "array", "items": {"type": "string"}},
+                "value": {},
+                "filter_op": {"type": "string"},
+                "filter_value": {},
             },
             "required": ["id", "type"],
-            "additionalProperties": True,
+            "additionalProperties": False,
         }
 
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
         if not isinstance(value, dict):
             raise serializers.ValidationError("req_data_config must be an object.")
+        extra_keys = sorted(set(value) - self.ALLOWED_KEYS)
+        if extra_keys:
+            raise serializers.ValidationError(
+                f"Unknown req_data_config keys: {', '.join(extra_keys)}"
+            )
         if "id" not in value:
             raise serializers.ValidationError("req_data_config.id is required.")
         if "type" not in value:

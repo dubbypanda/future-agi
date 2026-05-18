@@ -36879,7 +36879,10 @@ export const TracerObservationSpanGetGraphMethodsBody = zod.object({
   "type": zod.enum(['SYSTEM_METRIC', 'EVAL', 'ANNOTATION']),
   "output_type": zod.string().optional(),
   "eval_output_type": zod.string().optional(),
-  "choices": zod.array(zod.string()).optional()
+  "choices": zod.array(zod.string()).optional(),
+  "value": zod.unknown().optional(),
+  "filter_op": zod.string().optional(),
+  "filter_value": zod.unknown().optional()
 })
 })
 
@@ -38961,9 +38964,16 @@ export const TracerProjectGetUsersAggregateGraphDataBody = zod.object({
 })
 })).default(tracerProjectGetUsersAggregateGraphDataBodyFiltersDefault),
   "property": zod.string().min(1).default(tracerProjectGetUsersAggregateGraphDataBodyPropertyDefault),
-  "req_data_config": zod.record(zod.string(), zod.object({
-
-}).passthrough()).default(tracerProjectGetUsersAggregateGraphDataBodyReqDataConfigDefault)
+  "req_data_config": zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['SYSTEM_METRIC', 'EVAL', 'ANNOTATION']),
+  "output_type": zod.string().optional(),
+  "eval_output_type": zod.string().optional(),
+  "choices": zod.array(zod.string()).optional(),
+  "value": zod.unknown().optional(),
+  "filter_op": zod.string().optional(),
+  "filter_value": zod.unknown().optional()
+}).default(tracerProjectGetUsersAggregateGraphDataBodyReqDataConfigDefault)
 })
 
 
@@ -40461,7 +40471,10 @@ export const TracerTraceSessionGetSessionGraphDataBody = zod.object({
   "type": zod.enum(['SYSTEM_METRIC', 'EVAL', 'ANNOTATION']),
   "output_type": zod.string().optional(),
   "eval_output_type": zod.string().optional(),
-  "choices": zod.array(zod.string()).optional()
+  "choices": zod.array(zod.string()).optional(),
+  "value": zod.unknown().optional(),
+  "filter_op": zod.string().optional(),
+  "filter_value": zod.unknown().optional()
 })
 })
 
@@ -40899,7 +40912,10 @@ export const TracerTraceGetGraphMethodsBody = zod.object({
   "type": zod.enum(['SYSTEM_METRIC', 'EVAL', 'ANNOTATION']),
   "output_type": zod.string().optional(),
   "eval_output_type": zod.string().optional(),
-  "choices": zod.array(zod.string()).optional()
+  "choices": zod.array(zod.string()).optional(),
+  "value": zod.unknown().optional(),
+  "filter_op": zod.string().optional(),
+  "filter_value": zod.unknown().optional()
 })
 })
 

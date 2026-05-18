@@ -51196,13 +51196,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "items": {
                 "type": "string"
               }
-            }
+            },
+            "value": {},
+            "filter_op": {
+              "type": "string"
+            },
+            "filter_value": {}
           },
           "required": [
             "id",
             "type"
           ],
-          "additionalProperties": true
+          "additionalProperties": false
         }
       }
     },
@@ -54250,10 +54255,42 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "req_data_config": {
           "title": "Req data config",
           "type": "object",
-          "additionalProperties": {
-            "type": "object"
+          "default": {},
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "SYSTEM_METRIC",
+                "EVAL",
+                "ANNOTATION"
+              ]
+            },
+            "output_type": {
+              "type": "string"
+            },
+            "eval_output_type": {
+              "type": "string"
+            },
+            "choices": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value": {},
+            "filter_op": {
+              "type": "string"
+            },
+            "filter_value": {}
           },
-          "default": {}
+          "required": [
+            "id",
+            "type"
+          ],
+          "additionalProperties": false
         }
       }
     },
@@ -60833,13 +60870,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "items": {
                 "type": "string"
               }
-            }
+            },
+            "value": {},
+            "filter_op": {
+              "type": "string"
+            },
+            "filter_value": {}
           },
           "required": [
             "id",
             "type"
           ],
-          "additionalProperties": true
+          "additionalProperties": false
         }
       }
     },

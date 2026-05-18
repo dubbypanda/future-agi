@@ -673,6 +673,23 @@ class TestFilterSerializerContracts:
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["req_data_config"]["id"] == "latency"
 
+    def test_project_users_aggregate_graph_request_rejects_bad_metric_config(self):
+        serializer = ProjectUsersAggregateGraphDataRequestSerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "interval": "day",
+                "filters": [_span_attr_filter()],
+                "req_data_config": {
+                    "id": "latency",
+                    "type": "SYSTEM_METRIC",
+                    "metricType": "legacy",
+                },
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "req_data_config" in serializer.errors
+
     def test_fetch_graph_query_rejects_legacy_aliases(self):
         serializer = FetchGraphSerializer(
             data={

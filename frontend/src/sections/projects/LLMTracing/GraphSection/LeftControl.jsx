@@ -533,8 +533,8 @@ const LeftControl = ({
         id: selectedOption.id,
         type: selectedOption.type,
         output_type: selectedOption.output_type,
-        filterOp: operator,
-        filterValue: filterValue,
+        filter_op: operator,
+        filter_value: filterValue,
       };
 
       if (selectedOption.type === "EVAL") {
