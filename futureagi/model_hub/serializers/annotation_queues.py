@@ -25,7 +25,7 @@ from model_hub.utils.annotation_queue_helpers import (
     resolve_source_object,
     resolve_source_preview,
 )
-from tracer.serializers.filters import filter_list_field
+from tracer.serializers.filters import StrictInputSerializer, filter_list_field
 
 
 class QueueLabelNestedSerializer(serializers.ModelSerializer):
@@ -454,7 +454,7 @@ SUPPORTED_SELECTION_SOURCE_TYPES = {
 }  # Phases 2 + 4 + 6 + 8
 
 
-class SelectionSerializer(serializers.Serializer):
+class SelectionSerializer(StrictInputSerializer):
     """Filter-mode bulk-add payload.
 
     When present on an ``add-items`` request, the view runs the server-side
@@ -488,7 +488,7 @@ class SelectionSerializer(serializers.Serializer):
     is_voice_call = serializers.BooleanField(required=False, default=False)
 
 
-class AddItemsSerializer(serializers.Serializer):
+class AddItemsSerializer(StrictInputSerializer):
     """Accepts either the enumerated ``items`` payload or a filter-mode
     ``selection`` payload. Exactly one of the two is required."""
 
@@ -526,35 +526,35 @@ class AddItemsSerializer(serializers.Serializer):
         return attrs
 
 
-class BulkRemoveItemsSerializer(serializers.Serializer):
+class BulkRemoveItemsSerializer(StrictInputSerializer):
     item_ids = serializers.ListField(
         child=serializers.UUIDField(),
         min_length=1,
     )
 
 
-class EmptyRequestSerializer(serializers.Serializer):
+class EmptyRequestSerializer(StrictInputSerializer):
     pass
 
 
-class AnnotationQueueListQuerySerializer(serializers.Serializer):
+class AnnotationQueueListQuerySerializer(StrictInputSerializer):
     status = serializers.CharField(required=False, allow_blank=True)
     search = serializers.CharField(required=False, allow_blank=True)
     include_counts = serializers.BooleanField(required=False)
 
 
-class QueueHardDeleteRequestSerializer(serializers.Serializer):
+class QueueHardDeleteRequestSerializer(StrictInputSerializer):
     force = serializers.BooleanField()
     confirm_name = serializers.CharField()
 
 
-class QueueStatusRequestSerializer(serializers.Serializer):
+class QueueStatusRequestSerializer(StrictInputSerializer):
     status = serializers.ChoiceField(
         choices=[choice.value for choice in AnnotationQueueStatusChoices]
     )
 
 
-class QueueDefaultRequestSerializer(serializers.Serializer):
+class QueueDefaultRequestSerializer(StrictInputSerializer):
     project_id = serializers.UUIDField(required=False)
     dataset_id = serializers.UUIDField(required=False)
     agent_definition_id = serializers.UUIDField(required=False)
@@ -572,19 +572,19 @@ class QueueDefaultRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class QueueLabelRequestSerializer(serializers.Serializer):
+class QueueLabelRequestSerializer(StrictInputSerializer):
     label_id = serializers.UUIDField()
     required = serializers.BooleanField(required=False, default=True)
 
 
-class QueueExportColumnMappingSerializer(serializers.Serializer):
+class QueueExportColumnMappingSerializer(StrictInputSerializer):
     field = serializers.CharField(required=False, allow_blank=True)
     id = serializers.CharField(required=False, allow_blank=True)
     column = serializers.CharField(required=False, allow_blank=True)
     enabled = serializers.BooleanField(required=False, default=True)
 
 
-class QueueExportToDatasetRequestSerializer(serializers.Serializer):
+class QueueExportToDatasetRequestSerializer(StrictInputSerializer):
     dataset_id = serializers.UUIDField(required=False)
     dataset_name = serializers.CharField(required=False, allow_blank=True)
     status_filter = serializers.CharField(
@@ -609,25 +609,21 @@ class QueueExportToDatasetRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class QueueExportQuerySerializer(serializers.Serializer):
+class QueueExportQuerySerializer(StrictInputSerializer):
     export_format = serializers.ChoiceField(
-        choices=["json", "csv"],
-        required=False,
-    )
-    format = serializers.ChoiceField(
         choices=["json", "csv"],
         required=False,
     )
     status = serializers.CharField(required=False, allow_blank=True)
 
 
-class QueueForSourceQuerySerializer(serializers.Serializer):
+class QueueForSourceQuerySerializer(StrictInputSerializer):
     source_type = serializers.CharField(required=False, allow_blank=True)
-    source_id = serializers.UUIDField(required=False)
+    source_id = serializers.CharField(required=False, allow_blank=True)
     sources = serializers.CharField(required=False, allow_blank=True)
 
 
-class QueueItemListQuerySerializer(serializers.Serializer):
+class QueueItemListQuerySerializer(StrictInputSerializer):
     status = serializers.CharField(required=False, allow_blank=True)
     source_type = serializers.CharField(required=False, allow_blank=True)
     assigned_to = serializers.CharField(required=False, allow_blank=True)
@@ -638,26 +634,27 @@ class QueueItemListQuerySerializer(serializers.Serializer):
     )
 
 
-class QueueItemNextQuerySerializer(serializers.Serializer):
+class QueueItemNextQuerySerializer(StrictInputSerializer):
     exclude = serializers.CharField(required=False, allow_blank=True)
     before = serializers.UUIDField(required=False)
     review_status = serializers.CharField(required=False, allow_blank=True)
     exclude_review_status = serializers.CharField(required=False, allow_blank=True)
     include_completed = serializers.BooleanField(required=False)
     view_mode = serializers.CharField(required=False, allow_blank=True)
-
-
-class QueueItemAnnotateDetailQuerySerializer(serializers.Serializer):
-    annotator_id = serializers.UUIDField(required=False)
-    include_completed = serializers.BooleanField(required=False)
-    view_mode = serializers.CharField(required=False, allow_blank=True)
-    mode = serializers.CharField(required=False, allow_blank=True)
-    review_status = serializers.CharField(required=False, allow_blank=True)
-    exclude_review_status = serializers.CharField(required=False, allow_blank=True)
     include_all_annotations = serializers.BooleanField(required=False)
 
 
-class QueueItemNavigationRequestSerializer(serializers.Serializer):
+class QueueItemAnnotateDetailQuerySerializer(StrictInputSerializer):
+    annotator_id = serializers.UUIDField(required=False)
+    include_completed = serializers.BooleanField(required=False)
+    view_mode = serializers.CharField(required=False, allow_blank=True)
+    review_status = serializers.CharField(required=False, allow_blank=True)
+    exclude_review_status = serializers.CharField(required=False, allow_blank=True)
+    include_all_annotations = serializers.BooleanField(required=False)
+    reserve = serializers.BooleanField(required=False)
+
+
+class QueueItemNavigationRequestSerializer(StrictInputSerializer):
     exclude = serializers.ListField(
         child=serializers.CharField(),
         required=False,
@@ -1088,7 +1085,7 @@ class AutomationRuleEvaluateAcceptedResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
-class AssignItemsSerializer(serializers.Serializer):
+class AssignItemsSerializer(StrictInputSerializer):
     item_ids = serializers.ListField(
         child=serializers.UUIDField(),
         min_length=1,
@@ -1122,7 +1119,7 @@ class MentionReferencesField(serializers.Field):
         return value
 
 
-class DiscussionCommentRequestSerializer(serializers.Serializer):
+class DiscussionCommentRequestSerializer(StrictInputSerializer):
     comment = serializers.CharField(required=False, allow_blank=True)
     content = serializers.CharField(required=False, allow_blank=True)
     label_id = serializers.UUIDField(required=False)
@@ -1142,11 +1139,11 @@ class DiscussionCommentRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class DiscussionThreadStatusRequestSerializer(serializers.Serializer):
+class DiscussionThreadStatusRequestSerializer(StrictInputSerializer):
     comment = serializers.CharField(required=False, allow_blank=True)
 
 
-class DiscussionReactionRequestSerializer(serializers.Serializer):
+class DiscussionReactionRequestSerializer(StrictInputSerializer):
     emoji = serializers.CharField(required=False, allow_blank=True, max_length=16)
     reaction = serializers.CharField(required=False, allow_blank=True, max_length=16)
 
@@ -1156,7 +1153,7 @@ class DiscussionReactionRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class ReviewLabelCommentRequestSerializer(serializers.Serializer):
+class ReviewLabelCommentRequestSerializer(StrictInputSerializer):
     label_id = serializers.UUIDField(required=False)
     label = serializers.UUIDField(required=False)
     target_annotator_id = serializers.UUIDField(required=False)
@@ -1165,7 +1162,7 @@ class ReviewLabelCommentRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
-class ReviewItemRequestSerializer(serializers.Serializer):
+class ReviewItemRequestSerializer(StrictInputSerializer):
     action = serializers.ChoiceField(
         choices=["approve", "request_changes", "reject", "comment"]
     )
@@ -1177,14 +1174,14 @@ class ReviewItemRequestSerializer(serializers.Serializer):
     )
 
 
-class ImportAnnotationEntrySerializer(serializers.Serializer):
+class ImportAnnotationEntrySerializer(StrictInputSerializer):
     label_id = serializers.UUIDField()
     value = serializers.JSONField()
     notes = serializers.CharField(required=False, allow_blank=True)
     score_source = serializers.CharField(required=False, allow_blank=True)
 
 
-class ImportAnnotationsSerializer(serializers.Serializer):
+class ImportAnnotationsSerializer(StrictInputSerializer):
     annotations = ImportAnnotationEntrySerializer(many=True)
     annotator_id = serializers.UUIDField(required=False)
 
@@ -1388,7 +1385,7 @@ class QueueItemReviewThreadSerializer(serializers.ModelSerializer):
         return obj.target_annotator.email if obj.target_annotator else None
 
 
-class SubmitAnnotationsSerializer(serializers.Serializer):
+class SubmitAnnotationsSerializer(StrictInputSerializer):
     annotations = serializers.ListField(
         child=serializers.DictField(),
         min_length=1,

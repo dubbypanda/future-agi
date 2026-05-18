@@ -52,6 +52,7 @@ from model_hub.models.choices import (
 from model_hub.models.develop_annotations import AnnotationsLabels
 from model_hub.models.develop_dataset import Dataset, Row
 from model_hub.models.score import SCORE_SOURCE_FK_MAP, Score
+from model_hub.serializers.annotation_queues import QueueExportQuerySerializer
 from tfc.constants.levels import Level
 from tfc.constants.roles import OrganizationRoles
 from tfc.middleware.workspace_context import set_workspace_context
@@ -1359,6 +1360,20 @@ class TestQueueForSource:
         ]
         assert str(queue) in queue_ids_returned
 
+    def test_rejects_legacy_source_aliases(
+        self, auth_client, queue, dataset_with_rows
+    ):
+        _, rows = dataset_with_rows
+
+        resp = auth_client.get(
+            _queues_for_source_url(),
+            {"sourceType": "dataset_row", "sourceId": str(rows[0].id)},
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "sourceType" in str(resp.data)
+        assert "sourceId" in str(resp.data)
+
 
 # ===========================================================================
 # 20. add-items (manual + filter mode)
@@ -1465,6 +1480,12 @@ class TestListQueueItems:
         resp = auth_client.get(_items_url(queue), {"source_type": "dataset_row"})
         assert resp.status_code == 200
         assert resp.data["count"] == 2
+
+    def test_rejects_legacy_query_aliases(self, auth_client, queue):
+        resp = auth_client.get(_items_url(queue), {"sourceType": "dataset_row"})
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "sourceType" in str(resp.data)
 
 
 # ===========================================================================
@@ -1867,6 +1888,12 @@ class TestQueueAnalytics:
         rows = list(csv.reader(io.StringIO(body)))
         # header + at least 3 data rows (one per item)
         assert len(rows) >= 4
+
+    def test_export_query_serializer_rejects_legacy_format_alias(self):
+        serializer = QueueExportQuerySerializer(data={"format": "csv"})
+
+        assert not serializer.is_valid()
+        assert "format" in serializer.errors
 
     def test_export_to_dataset_creates_dataset(
         self, auth_client, queue, dataset_with_rows, categorical_label, organization

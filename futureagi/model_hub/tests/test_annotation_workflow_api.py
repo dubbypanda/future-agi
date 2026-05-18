@@ -3025,6 +3025,16 @@ class TestNextItem:
         assert include_resp.status_code == status.HTTP_200_OK
         assert _result(include_resp)["item"]["id"] == str(item_ids[0])
 
+    def test_next_rejects_legacy_query_aliases(self, auth_client, queue_with_items):
+        queue_id, _item_ids, _ = queue_with_items
+
+        resp = auth_client.get(
+            next_item_url(queue_id), {"includeCompleted": "true"}
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "includeCompleted" in str(resp.data)
+
     def test_previous_navigation_includes_completed_only_when_requested(
         self, auth_client, queue_with_items
     ):
@@ -3474,6 +3484,20 @@ class TestAnnotateDetail:
         assert annotations[0]["value"] == "negative"
         assert str(annotations[0]["annotator"]) == str(second_user.id)
 
+    def test_annotate_detail_rejects_legacy_query_aliases(
+        self, auth_client, queue_with_items, second_user
+    ):
+        queue_id, item_ids, _ = queue_with_items
+
+        resp = auth_client.get(
+            annotate_detail_url(queue_id, item_ids[0]),
+            {"annotatorId": str(second_user.id), "includeCompleted": "true"},
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "annotatorId" in str(resp.data)
+        assert "includeCompleted" in str(resp.data)
+
     def test_reviewer_annotate_detail_uses_own_draft_outside_review_mode(
         self, auth_client, queue_with_items, user, second_user, organization
     ):
@@ -3610,7 +3634,7 @@ class TestAnnotateDetail:
             annotate_detail_url(queue_id, item_ids[0]),
             {"view_mode": "review"},
         )
-        legacy_alias_resp = reviewer_client.get(
+        legacy_view_mode_alias_resp = reviewer_client.get(
             annotate_detail_url(queue_id, item_ids[0]),
             {"mode": "submissions"},
         )
@@ -3621,7 +3645,9 @@ class TestAnnotateDetail:
 
         assert own_resp.status_code == status.HTTP_200_OK
         assert _result(own_resp)["annotations"] == []
-        for resp in (review_resp, legacy_alias_resp, include_all_resp):
+        assert legacy_view_mode_alias_resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "mode" in str(legacy_view_mode_alias_resp.data)
+        for resp in (review_resp, include_all_resp):
             assert resp.status_code == status.HTTP_200_OK
             assert {ann["value"] for ann in _result(resp)["annotations"]} == {
                 "positive",

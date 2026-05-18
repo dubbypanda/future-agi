@@ -2545,19 +2545,22 @@ def _is_truthy(value) -> bool:
     return bool(value)
 
 
-def _is_review_workspace_request(request, *, is_reviewer, review_status=None) -> bool:
+def _is_review_workspace_request(
+    request,
+    *,
+    is_reviewer,
+    review_status=None,
+    query_params=None,
+) -> bool:
     """Whether annotate/next-item should use manager/reviewer comparison scope."""
     if not is_reviewer:
         return False
-    view_mode = (
-        request.query_params.get("view_mode")
-        or request.query_params.get("mode")
-        or ""
-    )
+    query_params = query_params or {}
+    view_mode = query_params.get("view_mode") or ""
     return (
         review_status == "pending_review"
         or str(view_mode).strip().lower() in {"review", "comparison", "submissions"}
-        or _is_truthy(request.query_params.get("include_all_annotations"))
+        or _is_truthy(query_params.get("include_all_annotations"))
     )
 
 
@@ -2654,15 +2657,11 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
         )
 
         is_list_action = getattr(self, "action", None) == "list"
-        status = (
-            self.request.query_params.get("status", None) if is_list_action else None
-        )
-        search = (
-            self.request.query_params.get("search", None) if is_list_action else None
-        )
+        query_params = getattr(self, "_validated_queue_list_query", {})
+        status = query_params.get("status") if is_list_action else None
+        search = query_params.get("search") if is_list_action else None
         include_counts = (
-            is_list_action
-            and self.request.query_params.get("include_counts", "").lower() == "true"
+            bool(query_params.get("include_counts")) if is_list_action else False
         )
 
         if status:
@@ -2713,6 +2712,10 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
 
     @swagger_auto_schema(query_serializer=AnnotationQueueListQuerySerializer)
     def list(self, request, *args, **kwargs):
+        serializer = AnnotationQueueListQuerySerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+        self._validated_queue_list_query = serializer.validated_data
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
@@ -3022,6 +3025,11 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
     @action(detail=True, methods=["get"], url_path="export")
     def export_annotations(self, request, pk=None):
         """Export all items with their annotations."""
+        query_serializer = QueueExportQuerySerializer(data=request.query_params)
+        if not query_serializer.is_valid():
+            return self._gm.bad_request(query_serializer.errors)
+        query_params = query_serializer.validated_data
+
         queue = self.get_object()
         items_qs = (
             QueueItem.objects.filter(queue=queue, deleted=False)
@@ -3047,7 +3055,7 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
         )
 
         status_filter = _normalize_query_filter_value(
-            request.query_params.get("status")
+            query_params.get("status")
         )
         if status_filter:
             items_qs = items_qs.filter(status=status_filter)
@@ -3086,9 +3094,7 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
                 }
             )
 
-        fmt = request.query_params.get(
-            "export_format", request.query_params.get("format", "json")
-        )
+        fmt = query_params.get("export_format") or "json"
         if fmt == "csv":
             import csv
             import io
@@ -3801,16 +3807,21 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
         """
         import json
 
+        query_serializer = QueueForSourceQuerySerializer(data=request.query_params)
+        if not query_serializer.is_valid():
+            return self._gm.bad_request(query_serializer.errors)
+        query_params = query_serializer.validated_data
+
         # Parse sources – either single or multi
-        sources_param = request.query_params.get("sources")
+        sources_param = query_params.get("sources")
         if sources_param:
             try:
                 sources = json.loads(sources_param)
             except (json.JSONDecodeError, TypeError):
                 return self._gm.bad_request("Invalid sources JSON.")
         else:
-            source_type = request.query_params.get("source_type")
-            source_id = request.query_params.get("source_id")
+            source_type = query_params.get("source_type")
+            source_id = query_params.get("source_id")
             if not source_type or not source_id:
                 return self._gm.bad_request(
                     "source_type and source_id (or sources) are required."
@@ -4238,7 +4249,8 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         source_types = _normalize_repeated_query_filter_values(
             self.request.query_params, "source_type"
         )
-        assigned_to = self.request.query_params.get("assigned_to")
+        query_params = getattr(self, "_validated_queue_item_list_query", {})
+        assigned_to = query_params.get("assigned_to")
 
         if statuses:
             status_q = Q()
@@ -4284,12 +4296,12 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             )
 
         review_status = _normalize_query_filter_value(
-            self.request.query_params.get("review_status")
+            query_params.get("review_status")
         )
         if review_status:
             queryset = queryset.filter(review_status=review_status)
 
-        ordering = self.request.query_params.get("ordering") or "-created_at"
+        ordering = query_params.get("ordering") or "-created_at"
         queue_item_ordering = {
             "created_at": ("created_at", "id"),
             "-created_at": ("-created_at", "-id"),
@@ -4300,6 +4312,10 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
 
     @swagger_auto_schema(query_serializer=QueueItemListQuerySerializer)
     def list(self, request, *args, **kwargs):
+        serializer = QueueItemListQuerySerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+        self._validated_queue_item_list_query = serializer.validated_data
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
@@ -5125,9 +5141,14 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
           exclude_review_status: optional review status to omit (for annotator queues)
           include_completed: when true, navigation can visit completed items too
         """
-        review_status = request.query_params.get("review_status")
-        exclude_review_status = request.query_params.get("exclude_review_status")
-        include_completed = _is_truthy(request.query_params.get("include_completed"))
+        query_serializer = QueueItemNextQuerySerializer(data=request.query_params)
+        if not query_serializer.is_valid():
+            return self._gm.bad_request(query_serializer.errors)
+        query_params = query_serializer.validated_data
+
+        review_status = query_params.get("review_status")
+        exclude_review_status = query_params.get("exclude_review_status")
+        include_completed = _is_truthy(query_params.get("include_completed"))
         is_reviewer = _has_queue_role(
             queue_id,
             request.user,
@@ -5138,8 +5159,9 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             request,
             is_reviewer=is_reviewer,
             review_status=review_status,
+            query_params=query_params,
         )
-        before_id = request.query_params.get("before")
+        before_id = query_params.get("before")
         if before_id:
             try:
                 current = QueueItem.objects.get(
@@ -5185,7 +5207,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             item_data = QueueItemSerializer(prev_item).data if prev_item else None
             return self._gm.success_response({"item": item_data})
 
-        exclude_ids = self._parse_exclude_ids(request.query_params.get("exclude", ""))
+        exclude_ids = self._parse_exclude_ids(query_params.get("exclude") or "")
         item = self._get_next_pending_item(
             queue_id,
             exclude_ids=exclude_ids or None,
@@ -5208,6 +5230,13 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="annotate-detail")
     def annotate_detail(self, request, queue_id=None, pk=None):
         """Get full annotation workspace data for an item."""
+        query_serializer = QueueItemAnnotateDetailQuerySerializer(
+            data=request.query_params
+        )
+        if not query_serializer.is_valid():
+            return self._gm.bad_request(query_serializer.errors)
+        query_params = query_serializer.validated_data
+
         try:
             item = QueueItem.objects.select_related(
                 "dataset_row",
@@ -5228,9 +5257,9 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
 
         queue = item.queue
         now = timezone.now()
-        include_completed = _is_truthy(request.query_params.get("include_completed"))
-        review_status = request.query_params.get("review_status")
-        exclude_review_status = request.query_params.get("exclude_review_status")
+        include_completed = _is_truthy(query_params.get("include_completed"))
+        review_status = query_params.get("review_status")
+        exclude_review_status = query_params.get("exclude_review_status")
         is_reviewer = _has_queue_role(
             queue_id,
             request.user,
@@ -5241,6 +5270,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             request,
             is_reviewer=is_reviewer,
             review_status=review_status,
+            query_params=query_params,
         )
         if not is_reviewer and _targeted_rework_denies_user(item, request.user):
             return self._gm.forbidden_response(
@@ -5248,7 +5278,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             )
 
         # Reservation logic: opt-in via ?reserve=true query param
-        reserve = request.query_params.get("reserve", "").lower() == "true"
+        reserve = _is_truthy(query_params.get("reserve"))
         if reserve:
             # Atomic reservation to prevent race condition
             updated = (
@@ -5283,13 +5313,10 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         # even reviewer/manager users get their own annotation draft so a
         # multi-role user can still annotate an assigned item.
         annotations_qs = _scores_for_queue_item(item).select_related("label")
-        raw_annotator_id = request.query_params.get("annotator_id") or None
+        raw_annotator_id = query_params.get("annotator_id") or None
         viewing_annotator_id = None
         if raw_annotator_id and is_reviewer:
-            try:
-                viewing_annotator_id = uuid.UUID(raw_annotator_id)
-            except (ValueError, TypeError):
-                return self._gm.bad_request("Invalid annotator selection.")
+            viewing_annotator_id = raw_annotator_id
 
         if viewing_annotator_id:
             annotations_qs = annotations_qs.filter(annotator_id=viewing_annotator_id)
