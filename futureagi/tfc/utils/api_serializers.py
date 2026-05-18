@@ -37,6 +37,20 @@ class ApiErrorResponseSerializer(serializers.Serializer):
     error = serializers.JSONField(required=False, allow_null=True)
 
 
+class ApiTextErrorResponseSerializer(serializers.Serializer):
+    """GeneralMethods error envelope for string-only failures."""
+
+    status = serializers.BooleanField(default=False)
+    result = serializers.CharField(required=False, allow_null=True)
+    message = serializers.CharField(required=False, allow_null=True)
+
+
+class ApiDetailErrorResponseSerializer(serializers.Serializer):
+    """DRF authentication/permission error envelope."""
+
+    detail = serializers.CharField()
+
+
 class ApiSelectionTooLargeErrorSerializer(serializers.Serializer):
     """Bulk-selection cap error envelope used by annotation queue item imports."""
 
@@ -87,3 +101,9 @@ class CallWebsocketRequestSerializer(serializers.Serializer):
 class CallWebsocketResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(default=True)
     result = serializers.CharField()
+
+
+class CallWebsocketErrorResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=False)
+    result = serializers.CharField()
+    message = serializers.CharField()

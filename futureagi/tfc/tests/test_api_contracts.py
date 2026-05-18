@@ -142,5 +142,5 @@ def test_core_management_endpoints_have_runtime_backed_contracts():
     assert _body_ref("/call-websocket/", "post") == "#/definitions/CallWebsocketRequest"
     assert (
         _response_ref("/call-websocket/", "post", "400")
-        == "#/definitions/ApiErrorResponse"
+        == "#/definitions/CallWebsocketErrorResponse"
     )

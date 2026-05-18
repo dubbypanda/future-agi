@@ -28,6 +28,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.payload_storage import PAYLOAD_DEFAULT_TTL, payload_storage
 from tracer.utils.trace_ingestion import bulk_create_observation_span_task
@@ -348,7 +349,12 @@ class OTLPHealthView(APIView):
     permission_classes = []
     authentication_classes = []
 
-    @swagger_auto_schema(responses={200: OTLPHealthResponseSerializer})
+    @swagger_auto_schema(
+        responses={
+            200: OTLPHealthResponseSerializer,
+            500: ApiTextErrorResponseSerializer,
+        }
+    )
     def get(self, request: Request, *args, **kwargs) -> HttpResponse:
         """Health check - always returns OK."""
         return HttpResponse(

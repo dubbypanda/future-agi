@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from accounts.authentication import APIKeyAuthentication, LangfuseBasicAuthentication
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
+    ApiTextErrorResponseSerializer,
     HealthCheckResponseSerializer,
     LangfuseHealthResponseSerializer,
     LangfuseTracesResponseSerializer,
@@ -20,7 +21,12 @@ class HealthCheckView(APIView):
 
     _gm = GeneralMethods()
 
-    @validated_request(responses={200: HealthCheckResponseSerializer})
+    @validated_request(
+        responses={
+            200: HealthCheckResponseSerializer,
+            500: ApiTextErrorResponseSerializer,
+        }
+    )
     def get(self, request, *args, **kwargs):
         """
         GET method for health check.

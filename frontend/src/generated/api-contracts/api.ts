@@ -183,11 +183,13 @@ import type {
   AnnotationTaskApi,
   AnnotationsApi,
   AnnotationsLabelsApi,
+  ApiDetailErrorResponseApi,
   ApiErrorResponseApi,
   ApiKeyApi,
   ApiPublicOtelV1TracesCreateBodyOne,
   ApiPublicOtelV1TracesCreateBodyTwo,
   ApiSelectionTooLargeErrorApi,
+  ApiTextErrorResponseApi,
   ApiTracesSpanAttributeDetailListParams,
   ApiTracesSpanAttributeKeysListParams,
   ApiTracesSpanAttributeValuesListParams,
@@ -221,6 +223,7 @@ import type {
   CallExecutionRerunApi,
   CallExecutionStatusUpdateApi,
   CallTranscriptResponseApi,
+  CallWebsocketErrorResponseApi,
   CallWebsocketRequestApi,
   CallWebsocketResponseApi,
   CancelTestExecutionResponseApi,
@@ -15052,12 +15055,24 @@ export type aiToolsToolsListResponse200 = {
   status: 200
 }
 
+export type aiToolsToolsListResponse403 = {
+  data: ApiDetailErrorResponseApi
+  status: 403
+}
+
+export type aiToolsToolsListResponse500 = {
+  data: ApiTextErrorResponseApi
+  status: 500
+}
+
 export type aiToolsToolsListResponseSuccess = (aiToolsToolsListResponse200) & {
   headers: Headers;
 };
-;
+export type aiToolsToolsListResponseError = (aiToolsToolsListResponse403 | aiToolsToolsListResponse500) & {
+  headers: Headers;
+};
 
-export type aiToolsToolsListResponse = (aiToolsToolsListResponseSuccess)
+export type aiToolsToolsListResponse = (aiToolsToolsListResponseSuccess | aiToolsToolsListResponseError)
 
 export const getAiToolsToolsListUrl = () => {
 
@@ -15566,7 +15581,7 @@ export type callWebsocketCreateResponse200 = {
 }
 
 export type callWebsocketCreateResponse400 = {
-  data: ApiErrorResponseApi
+  data: CallWebsocketErrorResponseApi
   status: 400
 }
 
@@ -16882,12 +16897,19 @@ export type healthListResponse200 = {
   status: 200
 }
 
+export type healthListResponse500 = {
+  data: ApiTextErrorResponseApi
+  status: 500
+}
+
 export type healthListResponseSuccess = (healthListResponse200) & {
   headers: Headers;
 };
-;
+export type healthListResponseError = (healthListResponse500) & {
+  headers: Headers;
+};
 
-export type healthListResponse = (healthListResponseSuccess)
+export type healthListResponse = (healthListResponseSuccess | healthListResponseError)
 
 export const getHealthListUrl = () => {
 
@@ -59926,12 +59948,19 @@ export type tracerV1HealthListResponse200 = {
   status: 200
 }
 
+export type tracerV1HealthListResponse500 = {
+  data: ApiTextErrorResponseApi
+  status: 500
+}
+
 export type tracerV1HealthListResponseSuccess = (tracerV1HealthListResponse200) & {
   headers: Headers;
 };
-;
+export type tracerV1HealthListResponseError = (tracerV1HealthListResponse500) & {
+  headers: Headers;
+};
 
-export type tracerV1HealthListResponse = (tracerV1HealthListResponseSuccess)
+export type tracerV1HealthListResponse = (tracerV1HealthListResponseSuccess | tracerV1HealthListResponseError)
 
 export const getTracerV1HealthListUrl = () => {
 
@@ -67139,12 +67168,19 @@ export type v1HealthListResponse200 = {
   status: 200
 }
 
+export type v1HealthListResponse500 = {
+  data: ApiTextErrorResponseApi
+  status: 500
+}
+
 export type v1HealthListResponseSuccess = (v1HealthListResponse200) & {
   headers: Headers;
 };
-;
+export type v1HealthListResponseError = (v1HealthListResponse500) & {
+  headers: Headers;
+};
 
-export type v1HealthListResponse = (v1HealthListResponseSuccess)
+export type v1HealthListResponse = (v1HealthListResponseSuccess | v1HealthListResponseError)
 
 export const getV1HealthListUrl = () => {
 

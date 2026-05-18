@@ -6996,6 +6996,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/ToolDiscoveryResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiDetailErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
           }
         }
       }
@@ -7222,7 +7228,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/CallWebsocketResponse"
           },
           "400": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/CallWebsocketErrorResponse"
           }
         }
       }
@@ -7706,6 +7712,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/HealthCheckResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
           }
         }
       }
@@ -30317,6 +30326,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/OTLPHealthResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
           }
         }
       }
@@ -34199,6 +34211,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/OTLPHealthResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
           }
         }
       }
@@ -38891,6 +38906,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ApiDetailErrorResponse": {
+      "required": [
+        "detail"
+      ],
+      "type": "object",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "ApiErrorResponse": {
       "type": "object",
       "properties": {
@@ -38985,6 +39013,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "error": {
           "title": "Error",
           "type": "object"
+        }
+      }
+    },
+    "ApiTextErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
         }
       }
     },
@@ -40369,6 +40419,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Total transcripts",
           "type": "integer",
           "readOnly": true
+        }
+      }
+    },
+    "CallWebsocketErrorResponse": {
+      "required": [
+        "result",
+        "message"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

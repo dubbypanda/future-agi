@@ -7,9 +7,7 @@ def _repo_root():
 
 
 def _swagger():
-    with (
-        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
-    ).open() as f:
+    with (_repo_root() / "api_contracts" / "openapi" / "swagger.json").open() as f:
         return json.load(f)
 
 
@@ -59,10 +57,19 @@ def test_small_core_api_tags_stay_debt_free():
     ] == []
 
 
+def test_small_core_api_error_contract_debt_is_burned_down():
+    report = _debt_report()
+    groups = {"ai-tools", "call-websocket", "health", "v1"}
+
+    for group in groups:
+        group_report = report["by_group"][group]
+        assert group_report["operations_without_error_response_schema"] == 0
+        assert group_report["broad_error_response_schemas"] == 0
+
+
 def test_small_core_api_endpoints_have_contracts():
     assert (
-        _response_ref(_operation("/ai-tools/tools/", "GET"))
-        == "ToolDiscoveryResponse"
+        _response_ref(_operation("/ai-tools/tools/", "GET")) == "ToolDiscoveryResponse"
     )
     assert (
         _body_ref(_operation("/api/public/ingestion", "POST"))
@@ -75,4 +82,16 @@ def test_small_core_api_endpoints_have_contracts():
     assert (
         _response_ref(_operation("/api/health/clickhouse/", "GET"))
         == "ClickHouseHealthResponse"
+    )
+    assert _response_ref(_operation("/health/", "GET"), "500") == "ApiTextErrorResponse"
+    assert (
+        _response_ref(_operation("/ai-tools/tools/", "GET"), "403")
+        == "ApiDetailErrorResponse"
+    )
+    assert (
+        _response_ref(_operation("/v1/health", "GET"), "500") == "ApiTextErrorResponse"
+    )
+    assert (
+        _response_ref(_operation("/call-websocket/", "POST"), "400")
+        == "CallWebsocketErrorResponse"
     )

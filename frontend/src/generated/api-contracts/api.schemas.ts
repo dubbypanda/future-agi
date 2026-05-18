@@ -3283,6 +3283,19 @@ export interface ToolDiscoveryResponseApi {
   result: ToolDiscoveryResultApi;
 }
 
+export interface ApiDetailErrorResponseApi {
+  /** @minLength 1 */
+  detail: string;
+}
+
+export interface ApiTextErrorResponseApi {
+  status?: boolean;
+  /** @minLength 1 */
+  result?: string;
+  /** @minLength 1 */
+  message?: string;
+}
+
 export type DeploymentInfoResultApiMode = typeof DeploymentInfoResultApiMode[keyof typeof DeploymentInfoResultApiMode];
 
 
@@ -3477,6 +3490,14 @@ export interface CallWebsocketResponseApi {
   status?: boolean;
   /** @minLength 1 */
   result: string;
+}
+
+export interface CallWebsocketErrorResponseApi {
+  status?: boolean;
+  /** @minLength 1 */
+  result: string;
+  /** @minLength 1 */
+  message: string;
 }
 
 export interface FalconConversationListApi {

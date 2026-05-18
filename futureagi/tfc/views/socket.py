@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from model_hub.utils.utils import send_message_to_channel, send_message_to_uuid
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
-    ApiErrorResponseSerializer,
+    CallWebsocketErrorResponseSerializer,
     CallWebsocketRequestSerializer,
     CallWebsocketResponseSerializer,
 )
@@ -25,7 +25,7 @@ class CallWebsocketView(APIView):
         request_serializer=CallWebsocketRequestSerializer,
         responses={
             200: CallWebsocketResponseSerializer,
-            400: ApiErrorResponseSerializer,
+            400: CallWebsocketErrorResponseSerializer,
         },
     )
     def post(self, request, *args, **kwargs):

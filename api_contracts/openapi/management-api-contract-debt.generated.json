@@ -6,8 +6,8 @@
     "mutation_endpoints_without_body_schema": 0,
     "operations_without_response_schema": 0,
     "broad_success_response_schemas": 0,
-    "operations_without_error_response_schema": 567,
-    "broad_error_response_schemas": 2890
+    "operations_without_error_response_schema": 563,
+    "broad_error_response_schemas": 2889
   },
   "by_group": {
     "accounts": {
@@ -43,7 +43,7 @@
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
-      "operations_without_error_response_schema": 1,
+      "operations_without_error_response_schema": 0,
       "broad_error_response_schemas": 0
     },
     "api": {
@@ -62,7 +62,7 @@
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
       "operations_without_error_response_schema": 0,
-      "broad_error_response_schemas": 1
+      "broad_error_response_schemas": 0
     },
     "falcon-ai": {
       "paths": 17,
@@ -79,7 +79,7 @@
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
-      "operations_without_error_response_schema": 1,
+      "operations_without_error_response_schema": 0,
       "broad_error_response_schemas": 0
     },
     "integrations": {
@@ -142,7 +142,7 @@
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
-      "operations_without_error_response_schema": 201,
+      "operations_without_error_response_schema": 200,
       "broad_error_response_schemas": 89
     },
     "usage": {
@@ -160,7 +160,7 @@
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
-      "operations_without_error_response_schema": 1,
+      "operations_without_error_response_schema": 0,
       "broad_error_response_schemas": 0
     }
   },
