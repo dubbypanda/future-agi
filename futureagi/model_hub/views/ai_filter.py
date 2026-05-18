@@ -25,7 +25,6 @@ import json
 import traceback
 
 import structlog
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -33,6 +32,7 @@ from model_hub.serializers.ai_filter import (
     AIFilterRequestSerializer,
     AIFilterResponseSerializer,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tfc.utils.general_methods import GeneralMethods
 
@@ -986,16 +986,17 @@ class AIFilterView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=AIFilterRequestSerializer,
+    @validated_request(
+        request_serializer=AIFilterRequestSerializer,
         responses={200: AIFilterResponseSerializer, **ERROR_RESPONSES},
     )
     def post(self, request, *args, **kwargs):
         mode = "build_filters"  # default — referenced by except blocks below
         try:
-            mode = request.data.get("mode", "build_filters")
-            query = request.data.get("query", "").strip()
-            schema = request.data.get("schema", [])
+            payload = request.validated_data
+            mode = payload.get("mode", "build_filters")
+            query = payload.get("query", "").strip()
+            schema = payload.get("schema", [])
 
             if not query:
                 return self._gm.bad_request("Query is required")
@@ -1008,9 +1009,9 @@ class AIFilterView(APIView):
             # Smart mode — agentic tool-use loop
             # ------------------------------------------------------------
             if mode == "smart":
-                source = request.data.get("source", "traces")
+                source = payload.get("source", "traces")
                 if source == "traces":
-                    project_id = request.data.get("project_id")
+                    project_id = payload.get("project_id")
                     project_ids = _resolve_project_ids(request.workspace, project_id)
                     if project_id and not project_ids:
                         return self._gm.bad_request("project not found in workspace")
@@ -1036,7 +1037,7 @@ class AIFilterView(APIView):
                     # Smart mode for dataset rows: scope to one dataset and
                     # look up per-column distinct cell values so the LLM can
                     # fuzzy-match the user's wording against real data.
-                    raw_dataset_id = request.data.get("dataset_id") or request.data.get(
+                    raw_dataset_id = payload.get("dataset_id") or payload.get(
                         "project_id"
                     )
                     dataset_id = _resolve_dataset_id(request.workspace, raw_dataset_id)
