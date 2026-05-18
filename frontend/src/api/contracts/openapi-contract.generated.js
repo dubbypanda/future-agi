@@ -17443,7 +17443,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/PerformanceOptionsResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -17497,7 +17497,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "201": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/PerformanceReportCreateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -17524,7 +17524,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/ModelHubStringResultResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -17553,7 +17553,52 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "required": [
+              "status",
+              "result"
+            ],
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "boolean"
+              },
+              "result": {
+                "description": "Tag distribution chart data. `all` returns `good` and `bad`; single-tag views return the selected distribution series.",
+                "type": "object",
+                "properties": {
+                  "good": {
+                    "type": "array",
+                    "items": {
+                      "description": "Chart row returned by ClickHouse, for example [timestamp, value].",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "bad": {
+                    "type": "array",
+                    "items": {
+                      "description": "Chart row returned by ClickHouse, for example [timestamp, value].",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "description": "Chart row returned by ClickHouse, for example [timestamp, value].",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -17582,9 +17627,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
+            "description": "Map of dataset or breakdown label to chart rows.",
             "type": "object",
             "additionalProperties": {
-              "type": "object"
+              "type": "array",
+              "items": {
+                "description": "Chart row returned by ClickHouse, for example [timestamp, value].",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           },
           "400": {
@@ -49150,6 +49203,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PerformanceOptionsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/PerformanceOptionsResult"
+        }
+      }
+    },
     "PerformanceQueryRequest": {
       "type": "object",
       "properties": {
@@ -49230,6 +49299,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "End date",
           "type": "string",
           "format": "date-time"
+        }
+      }
+    },
+    "PerformanceReportCreateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/PerformanceReport"
         }
       }
     },
@@ -65067,6 +65152,43 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PerformanceOptionsResult": {
+      "required": [
+        "performance_metric",
+        "properties",
+        "meta_tags",
+        "performance_tags"
+      ],
+      "type": "object",
+      "properties": {
+        "performance_metric": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PerformanceMetricOption"
+          }
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PerformancePropertyOption"
+          }
+        },
+        "meta_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "performance_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "PerformanceReport": {
       "required": [
         "name",
@@ -71158,6 +71280,57 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "x-nullable": true
           },
           "x-nullable": true
+        }
+      }
+    },
+    "PerformanceMetricOption": {
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "PerformancePropertyOption": {
+      "required": [
+        "id",
+        "name",
+        "datatype",
+        "values"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "datatype": {
+          "title": "Datatype",
+          "type": "string",
+          "minLength": 1
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },

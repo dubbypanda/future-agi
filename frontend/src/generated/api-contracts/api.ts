@@ -572,6 +572,7 @@ import type {
   ModelHubOrganizationsUsersListParams,
   ModelHubPaginatedResponseApi,
   ModelHubPerformanceCreate200,
+  ModelHubPerformanceTagDistributionCreate200,
   ModelHubPromptBaseTemplatesGetAllCategories200,
   ModelHubPromptBaseTemplatesGetAllCategoriesParams,
   ModelHubPromptBaseTemplatesList200,
@@ -652,8 +653,10 @@ import type {
   PerformanceDetailsRequestApi,
   PerformanceDetailsResponseApi,
   PerformanceExportRequestApi,
+  PerformanceOptionsResponseApi,
   PerformanceQueryRequestApi,
   PerformanceReportCreateApi,
+  PerformanceReportCreateResponseApi,
   PerformanceReportPaginatedResponseApi,
   PerformanceSummaryApi,
   PerformanceTagDistributionRequestApi,
@@ -37451,7 +37454,7 @@ export const modelHubPerformanceExportCreate = async (id: string,
 
 
 export type modelHubPerformanceOptionsReadResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: PerformanceOptionsResponseApi
   status: 200
 }
 
@@ -37571,7 +37574,7 @@ export const modelHubPerformanceReportRead = async (modelId: string, options?: R
 
 
 export type modelHubPerformanceReportCreateResponse201 = {
-  data: ModelHubJSONResponseApi
+  data: PerformanceReportCreateResponseApi
   status: 201
 }
 
@@ -37633,7 +37636,7 @@ export const modelHubPerformanceReportCreate = async (modelId: string,
 
 
 export type modelHubPerformanceReportDeleteResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubStringResultResponseApi
   status: 200
 }
 
@@ -37695,7 +37698,7 @@ export const modelHubPerformanceReportDelete = async (modelId: string,
 
 
 export type modelHubPerformanceTagDistributionCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubPerformanceTagDistributionCreate200
   status: 200
 }
 

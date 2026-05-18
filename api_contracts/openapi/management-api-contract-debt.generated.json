@@ -5,7 +5,7 @@
     "operations": 1336,
     "mutation_endpoints_without_body_schema": 0,
     "operations_without_response_schema": 0,
-    "broad_success_response_schemas": 259
+    "broad_success_response_schemas": 254
   },
   "by_group": {
     "accounts": {
@@ -83,7 +83,7 @@
       "operations": 473,
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
-      "broad_success_response_schemas": 141
+      "broad_success_response_schemas": 136
     },
     "saml2_auth": {
       "paths": 12,
@@ -2698,66 +2698,6 @@
       "status_code": "200",
       "schema": "ModelHubJSONResponse",
       "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/performance/options/{model_id}/",
-      "operation_id": "model-hub_performance_options_read",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/performance/report/{model_id}/",
-      "operation_id": "model-hub_performance_report_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "201",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "DELETE",
-      "path": "/model-hub/performance/report/{model_id}/{report_id}/",
-      "operation_id": "model-hub_performance_report_delete",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/performance/tag-distribution/{model_id}/",
-      "operation_id": "model-hub_performance_tag-distribution_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/performance/{id}/",
-      "operation_id": "model-hub_performance_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "inline",
-      "reason": "inline success response is an unshaped object"
     },
     {
       "group": "model-hub",

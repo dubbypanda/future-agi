@@ -983,16 +983,13 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "PerformanceDetailsResponse"
         ),
         ("GET", "/model-hub/performance/options/{model_id}/"): (
-            "ModelHubJSONResponse"
+            "PerformanceOptionsResponse"
         ),
         ("GET", "/model-hub/performance/report/{model_id}/"): (
             "PerformanceReportPaginatedResponse"
         ),
         ("POST", "/model-hub/performance/report/{model_id}/"): (
-            "ModelHubJSONResponse"
-        ),
-        ("POST", "/model-hub/performance/tag-distribution/{model_id}/"): (
-            "ModelHubJSONResponse"
+            "PerformanceReportCreateResponse"
         ),
         ("GET", "/model-hub/overview/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/prompt/metrics/"): "ModelHubJSONResponse",
@@ -1027,6 +1024,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
 
 def test_model_hub_performance_endpoints_with_dynamic_payloads_have_response_contracts():
     expected = [
+        ("POST", "/model-hub/performance/tag-distribution/{model_id}/"),
         ("POST", "/model-hub/performance/{id}/"),
         ("POST", "/model-hub/performance/export/{id}/"),
     ]

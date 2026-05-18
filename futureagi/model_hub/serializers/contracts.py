@@ -664,6 +664,30 @@ class PerformanceTagDistributionRequestSerializer(serializers.Serializer):
     graph_type = serializers.CharField(required=False, allow_blank=True)
 
 
+class PerformanceMetricOptionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class PerformancePropertyOptionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    datatype = serializers.CharField()
+    values = serializers.ListField(child=serializers.JSONField())
+
+
+class PerformanceOptionsResultSerializer(serializers.Serializer):
+    performance_metric = PerformanceMetricOptionSerializer(many=True)
+    properties = PerformancePropertyOptionSerializer(many=True)
+    meta_tags = serializers.ListField(child=serializers.CharField())
+    performance_tags = serializers.ListField(child=serializers.CharField())
+
+
+class PerformanceOptionsResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = PerformanceOptionsResultSerializer()
+
+
 class PerformanceDetailsResponseSerializer(serializers.Serializer):
     result = serializers.ListField(child=serializers.JSONField())
     processing_count = serializers.IntegerField()
@@ -679,6 +703,11 @@ class PerformanceReportPaginatedResponseSerializer(serializers.Serializer):
     results = PerformanceReportSerializer(many=True)
     total_pages = serializers.IntegerField(required=False)
     current_page = serializers.IntegerField(required=False)
+
+
+class PerformanceReportCreateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = PerformanceReportSerializer()
 
 
 class VectorDBColumnRequestSerializer(serializers.Serializer):

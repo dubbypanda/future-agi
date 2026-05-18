@@ -7,7 +7,8 @@ from model_hub.models.ai_model import AIModel
 from model_hub.models.performance_report import PerformanceReport
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
-    ModelHubJSONResponseSerializer,
+    ModelHubStringResultResponseSerializer,
+    PerformanceReportCreateResponseSerializer,
     PerformanceReportPaginatedResponseSerializer,
 )
 from model_hub.serializers.performance_report import (
@@ -48,7 +49,10 @@ class PerformanceReportApiView(APIView):
 
     @swagger_auto_schema(
         request_body=PerformanceReportCreateSerializer,
-        responses={201: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            201: PerformanceReportCreateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, model_id):
         try:
@@ -72,7 +76,10 @@ class PerformanceReportDetailApiView(APIView):
     _gm = GeneralMethods()
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: ModelHubStringResultResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def delete(self, request, model_id, report_id):
         try:

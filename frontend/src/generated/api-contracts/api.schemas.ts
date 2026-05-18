@@ -8501,6 +8501,35 @@ export interface PerformanceExportRequestApi {
   metric?: PerformanceExportRequestApiMetric;
 }
 
+export interface PerformanceMetricOptionApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+}
+
+export type PerformancePropertyOptionApiValuesItem = { [key: string]: unknown };
+
+export interface PerformancePropertyOptionApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  datatype: string;
+  values: PerformancePropertyOptionApiValuesItem[];
+}
+
+export interface PerformanceOptionsResultApi {
+  performance_metric: PerformanceMetricOptionApi[];
+  properties: PerformancePropertyOptionApi[];
+  meta_tags: string[];
+  performance_tags: string[];
+}
+
+export interface PerformanceOptionsResponseApi {
+  status: boolean;
+  result: PerformanceOptionsResultApi;
+}
+
 export type PerformanceReportApiDatasets = { [key: string]: unknown };
 
 export type PerformanceReportApiFilters = { [key: string]: unknown };
@@ -8564,6 +8593,11 @@ export interface PerformanceReportCreateApi {
   aggregation: string;
   start_date: string;
   end_date: string;
+}
+
+export interface PerformanceReportCreateResponseApi {
+  status: boolean;
+  result: PerformanceReportApi;
 }
 
 export type PerformanceTagDistributionRequestApiDataset = { [key: string]: unknown };
@@ -17491,7 +17525,25 @@ export type ModelHubOrganizationsUsersList200 = {
   results: DevelopAnnotationsUserApi[];
 };
 
-export type ModelHubPerformanceCreate200 = {[key: string]: { [key: string]: unknown }};
+/**
+ * Tag distribution chart data. `all` returns `good` and `bad`; single-tag views return the selected distribution series.
+ */
+export type ModelHubPerformanceTagDistributionCreate200Result = {
+  good?: string[][];
+  bad?: string[][];
+  [key: string]: string[][];
+};
+
+export type ModelHubPerformanceTagDistributionCreate200 = {
+  status: boolean;
+  /** Tag distribution chart data. `all` returns `good` and `bad`; single-tag views return the selected distribution series. */
+  result: ModelHubPerformanceTagDistributionCreate200Result;
+};
+
+/**
+ * Map of dataset or breakdown label to chart rows.
+ */
+export type ModelHubPerformanceCreate200 = {[key: string]: string[][]};
 
 export type ModelHubPromptBaseTemplatesListParams = {
 /**

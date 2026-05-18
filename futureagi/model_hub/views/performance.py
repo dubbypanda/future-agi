@@ -18,10 +18,10 @@ from model_hub.models.conversations import Conversation, Message, Node
 from model_hub.models.metric import Metric
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
-    ModelHubJSONResponseSerializer,
     PerformanceDetailsRequestSerializer,
     PerformanceDetailsResponseSerializer,
     PerformanceExportRequestSerializer,
+    PerformanceOptionsResponseSerializer,
     PerformanceQueryRequestSerializer,
     PerformanceTagDistributionRequestSerializer,
 )
@@ -40,6 +40,40 @@ from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
 
+PERFORMANCE_CHART_ROW_SCHEMA = openapi.Schema(
+    type=openapi.TYPE_ARRAY,
+    items=openapi.Schema(type=openapi.TYPE_STRING),
+    description="Chart row returned by ClickHouse, for example [timestamp, value].",
+)
+PERFORMANCE_CHART_SERIES_SCHEMA = openapi.Schema(
+    type=openapi.TYPE_ARRAY,
+    items=PERFORMANCE_CHART_ROW_SCHEMA,
+)
+PERFORMANCE_GRAPH_RESPONSE_SCHEMA = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    additional_properties=PERFORMANCE_CHART_SERIES_SCHEMA,
+    description="Map of dataset or breakdown label to chart rows.",
+)
+PERFORMANCE_TAG_DISTRIBUTION_RESPONSE_SCHEMA = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "status": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        "result": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "good": PERFORMANCE_CHART_SERIES_SCHEMA,
+                "bad": PERFORMANCE_CHART_SERIES_SCHEMA,
+            },
+            additional_properties=PERFORMANCE_CHART_SERIES_SCHEMA,
+            description=(
+                "Tag distribution chart data. `all` returns `good` and `bad`; "
+                "single-tag views return the selected distribution series."
+            ),
+        ),
+    },
+    required=["status", "result"],
+)
+
 
 class PerformanceView(APIView):
     permission_classes = [IsAuthenticated]
@@ -48,10 +82,7 @@ class PerformanceView(APIView):
     @swagger_auto_schema(
         request_body=PerformanceQueryRequestSerializer,
         responses={
-            200: openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                additional_properties=openapi.Schema(type=openapi.TYPE_OBJECT),
-            ),
+            200: PERFORMANCE_GRAPH_RESPONSE_SCHEMA,
             **MODEL_HUB_ERROR_RESPONSES,
         },
     )
@@ -461,7 +492,10 @@ class GetPerformanceOptionsView(APIView):
     _gm = GeneralMethods()
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: PerformanceOptionsResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, model_id, *args, **kwargs):
         user_organization = get_request_organization(self.request)
@@ -548,7 +582,10 @@ class GetPerformanceTagDistributionView(APIView):
 
     @swagger_auto_schema(
         request_body=PerformanceTagDistributionRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: PERFORMANCE_TAG_DISTRIBUTION_RESPONSE_SCHEMA,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, model_id, *args, **kwargs):
         user_organization = get_request_organization(self.request)

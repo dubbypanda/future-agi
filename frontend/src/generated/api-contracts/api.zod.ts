@@ -22895,23 +22895,31 @@ export const ModelHubPerformanceOptionsReadParams = zod.object({
   "model_id": zod.string()
 })
 
+
+
+
+
+
+
+
 export const ModelHubPerformanceOptionsReadResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "performance_metric": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1)
+})),
+  "properties": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "datatype": zod.string().min(1),
+  "values": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough())
+})),
+  "meta_tags": zod.array(zod.string().min(1)),
+  "performance_tags": zod.array(zod.string().min(1))
+})
 })
 
 
@@ -22989,23 +22997,12 @@ export const ModelHubPerformanceReportDeleteParams = zod.object({
   "report_id": zod.string()
 })
 
+
+
+
 export const ModelHubPerformanceReportDeleteResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 
@@ -23029,22 +23026,11 @@ export const ModelHubPerformanceTagDistributionCreateBody = zod.object({
 })
 
 export const ModelHubPerformanceTagDistributionCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "good": zod.array(zod.array(zod.string()).describe('Chart row returned by ClickHouse, for example [timestamp, value].')).optional(),
+  "bad": zod.array(zod.array(zod.string()).describe('Chart row returned by ClickHouse, for example [timestamp, value].')).optional()
+}).describe('Tag distribution chart data. `all` returns `good` and `bad`; single-tag views return the selected distribution series.')
 })
 
 
@@ -23071,9 +23057,7 @@ export const ModelHubPerformanceCreateBody = zod.object({
   "end_date": zod.string().optional()
 })
 
-export const ModelHubPerformanceCreateResponse = zod.record(zod.string(), zod.object({
-
-}).passthrough())
+export const ModelHubPerformanceCreateResponse = zod.record(zod.string(), zod.array(zod.array(zod.string()).describe('Chart row returned by ClickHouse, for example [timestamp, value].'))).describe('Map of dataset or breakdown label to chart rows.')
 
 
 /**
