@@ -38431,8 +38431,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           ]
         },
         "conditions": {
-          "title": "Conditions",
-          "type": "object"
+          "$ref": "#/definitions/AutomationRuleConditions"
         },
         "enabled": {
           "title": "Enabled",
@@ -65120,6 +65119,101 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AutomationRuleConditions": {
+      "type": "object",
+      "properties": {
+        "operator": {
+          "title": "Operator",
+          "type": "string",
+          "enum": [
+            "and"
+          ],
+          "default": "and"
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "column_id": {
+                "type": "string",
+                "description": "Column or attribute id to filter on."
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Optional UI label for chips and saved views."
+              },
+              "source": {
+                "type": "string",
+                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+              },
+              "output_type": {
+                "type": "string",
+                "description": "Optional metric output type metadata used by eval and annotation filters."
+              },
+              "filter_config": {
+                "type": "object",
+                "properties": {
+                  "filter_type": {
+                    "type": "string",
+                    "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                  },
+                  "filter_op": {
+                    "type": "string",
+                    "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                  },
+                  "filter_value": {
+                    "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                  },
+                  "col_type": {
+                    "type": "string",
+                    "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                  }
+                },
+                "required": [
+                  "filter_type",
+                  "filter_op"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "column_id",
+              "filter_config"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "scope": {
+          "$ref": "#/definitions/AutomationRuleScope"
+        },
+        "rules": {
+          "title": "Rules",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "op": {
+                "type": "string",
+                "default": "eq",
+                "minLength": 1
+              },
+              "value": {
+                "description": "Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator."
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
     "AutomationRuleEvaluateResult": {
       "required": [
         "matched",
@@ -78540,6 +78634,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "x-nullable": true
+        }
+      }
+    },
+    "AutomationRuleScope": {
+      "type": "object",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "title": "Project id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "is_voice_call": {
+          "title": "Is voice call",
+          "type": "boolean"
+        },
+        "remove_simulation_calls": {
+          "title": "Remove simulation calls",
+          "type": "boolean"
         }
       }
     },

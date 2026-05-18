@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from django.db import transaction
 from rest_framework import serializers
@@ -22,6 +23,7 @@ from model_hub.models.choices import AnnotationQueueStatusChoices, AnnotatorRole
 from model_hub.models.develop_annotations import AnnotationsLabels
 from model_hub.serializers.scores import ScoreSerializer
 from model_hub.utils.annotation_queue_helpers import (
+    FIELD_MAPPING,
     get_fk_field_name,
     resolve_source_content,
     resolve_source_object,
@@ -1139,6 +1141,90 @@ class AutomationRuleEvaluateAcceptedResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+AUTOMATION_RULE_VALUE_SCHEMA = {
+    "description": (
+        "Rule comparison value. Can be a scalar, list, object, boolean, "
+        "or null depending on the operator."
+    ),
+}
+
+AUTOMATION_RULE_CONDITION_RULE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "op": {"type": "string", "default": "eq", "minLength": 1},
+        "value": AUTOMATION_RULE_VALUE_SCHEMA,
+    },
+    "required": ["field"],
+    "additionalProperties": False,
+}
+
+AUTOMATION_RULE_RULES_SCHEMA = {
+    "type": "array",
+    "items": AUTOMATION_RULE_CONDITION_RULE_SCHEMA,
+}
+
+
+class AutomationRuleRulesField(serializers.JSONField):
+    class Meta:
+        swagger_schema_fields = AUTOMATION_RULE_RULES_SCHEMA
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        if not isinstance(value, list):
+            raise serializers.ValidationError("rules must be a list.")
+
+        cleaned = []
+        allowed_keys = {"field", "op", "value"}
+        for index, rule in enumerate(value):
+            if not isinstance(rule, dict):
+                raise serializers.ValidationError(
+                    f"rules[{index}] must be an object."
+                )
+            unknown = sorted(set(rule) - allowed_keys)
+            if unknown:
+                raise serializers.ValidationError(
+                    f"rules[{index}] has unknown field(s): {', '.join(unknown)}"
+                )
+            field = str(rule.get("field") or "").strip()
+            if not field:
+                raise serializers.ValidationError(
+                    f"rules[{index}].field is required."
+                )
+            op = str(rule.get("op") or "eq").strip()
+            if not op:
+                raise serializers.ValidationError(f"rules[{index}].op is required.")
+
+            cleaned_rule = {"field": field, "op": op}
+            if "value" in rule:
+                cleaned_rule["value"] = rule["value"]
+            cleaned.append(cleaned_rule)
+        return cleaned
+
+
+class AutomationRuleScopeSerializer(StrictInputSerializer):
+    dataset_id = serializers.UUIDField(required=False)
+    project_id = serializers.UUIDField(required=False)
+    is_voice_call = serializers.BooleanField(required=False)
+    remove_simulation_calls = serializers.BooleanField(required=False)
+
+
+class AutomationRuleConditionsSerializer(StrictInputSerializer):
+    operator = serializers.ChoiceField(choices=["and"], required=False, default="and")
+    filter = filter_list_field(required=False)
+    scope = AutomationRuleScopeSerializer(required=False)
+    # `rules` is the deprecated ORM-field rule shape. Keep it typed for
+    # existing saved rules while new UI/API writes use `filter`.
+    rules = AutomationRuleRulesField(required=False)
+
+    def validate(self, attrs):
+        if attrs.get("filter") and attrs.get("rules"):
+            raise serializers.ValidationError(
+                "Use either filter or rules in automation rule conditions, not both."
+            )
+        return attrs
+
+
 class AssignItemsSerializer(StrictInputSerializer):
     item_ids = serializers.ListField(
         child=serializers.UUIDField(),
@@ -1541,6 +1627,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(
         source="created_by.name", read_only=True, default=None
     )
+    conditions = AutomationRuleConditionsSerializer(required=False)
 
     class Meta:
         model = AutomationRule
@@ -1578,8 +1665,40 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             )
 
         conditions = dict(value)
-        if "filter" in conditions:
-            conditions["filter"] = filter_list_field().run_validation(
-                conditions["filter"]
-            )
+        scope = conditions.get("scope")
+        if scope is not None:
+            conditions["scope"] = {
+                key: str(item) if isinstance(item, uuid.UUID) else item
+                for key, item in dict(scope).items()
+            }
         return conditions
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        source_type = attrs.get(
+            "source_type", getattr(self.instance, "source_type", None)
+        )
+        conditions = attrs.get("conditions")
+        if not conditions and self.instance is not None:
+            conditions = self.instance.conditions or {}
+
+        rules = (conditions or {}).get("rules") or []
+        if rules and source_type in FIELD_MAPPING:
+            valid_fields = set(FIELD_MAPPING[source_type])
+            invalid_fields = sorted(
+                {
+                    rule.get("field")
+                    for rule in rules
+                    if rule.get("field") not in valid_fields
+                }
+            )
+            if invalid_fields:
+                raise serializers.ValidationError(
+                    {
+                        "conditions": (
+                            "Unknown rule field(s): "
+                            f"{', '.join(str(field) for field in invalid_fields)}"
+                        )
+                    }
+                )
+        return attrs

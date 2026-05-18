@@ -12365,6 +12365,9 @@ export const ModelHubAnnotationQueuesAutomationRulesListQueryParams = zod.object
 
 export const modelHubAnnotationQueuesAutomationRulesListResponseResultsItemNameMax = 255;
 
+export const modelHubAnnotationQueuesAutomationRulesListResponseResultsItemConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesListResponseResultsItemConditionsRulesItemOpDefault = `eq`;
+
 
 
 
@@ -12378,8 +12381,31 @@ export const ModelHubAnnotationQueuesAutomationRulesListResponse = zod.object({
   "queue": zod.string().uuid().optional(),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesListResponseResultsItemConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesListResponseResultsItemConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional(),
   "organization": zod.string().uuid().optional(),
@@ -12398,14 +12424,40 @@ export const ModelHubAnnotationQueuesAutomationRulesCreateParams = zod.object({
 
 export const modelHubAnnotationQueuesAutomationRulesCreateBodyNameMax = 255;
 
+export const modelHubAnnotationQueuesAutomationRulesCreateBodyConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesCreateBodyConditionsRulesItemOpDefault = `eq`;
+
 
 
 export const ModelHubAnnotationQueuesAutomationRulesCreateBody = zod.object({
   "name": zod.string().min(1).max(modelHubAnnotationQueuesAutomationRulesCreateBodyNameMax),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesCreateBodyConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesCreateBodyConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional()
 })
@@ -12418,6 +12470,9 @@ export const ModelHubAnnotationQueuesAutomationRulesReadParams = zod.object({
 
 export const modelHubAnnotationQueuesAutomationRulesReadResponseNameMax = 255;
 
+export const modelHubAnnotationQueuesAutomationRulesReadResponseConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesReadResponseConditionsRulesItemOpDefault = `eq`;
+
 
 
 
@@ -12427,8 +12482,31 @@ export const ModelHubAnnotationQueuesAutomationRulesReadResponse = zod.object({
   "queue": zod.string().uuid().optional(),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesReadResponseConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesReadResponseConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional(),
   "organization": zod.string().uuid().optional(),
@@ -12447,19 +12525,48 @@ export const ModelHubAnnotationQueuesAutomationRulesUpdateParams = zod.object({
 
 export const modelHubAnnotationQueuesAutomationRulesUpdateBodyNameMax = 255;
 
+export const modelHubAnnotationQueuesAutomationRulesUpdateBodyConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesUpdateBodyConditionsRulesItemOpDefault = `eq`;
+
 
 
 export const ModelHubAnnotationQueuesAutomationRulesUpdateBody = zod.object({
   "name": zod.string().min(1).max(modelHubAnnotationQueuesAutomationRulesUpdateBodyNameMax),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesUpdateBodyConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesUpdateBodyConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional()
 })
 
 export const modelHubAnnotationQueuesAutomationRulesUpdateResponseNameMax = 255;
+
+export const modelHubAnnotationQueuesAutomationRulesUpdateResponseConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesUpdateResponseConditionsRulesItemOpDefault = `eq`;
 
 
 
@@ -12470,8 +12577,31 @@ export const ModelHubAnnotationQueuesAutomationRulesUpdateResponse = zod.object(
   "queue": zod.string().uuid().optional(),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesUpdateResponseConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesUpdateResponseConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional(),
   "organization": zod.string().uuid().optional(),
@@ -12490,19 +12620,48 @@ export const ModelHubAnnotationQueuesAutomationRulesPartialUpdateParams = zod.ob
 
 export const modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyNameMax = 255;
 
+export const modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyConditionsRulesItemOpDefault = `eq`;
+
 
 
 export const ModelHubAnnotationQueuesAutomationRulesPartialUpdateBody = zod.object({
   "name": zod.string().min(1).max(modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyNameMax),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesPartialUpdateBodyConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional()
 })
 
 export const modelHubAnnotationQueuesAutomationRulesPartialUpdateResponseNameMax = 255;
+
+export const modelHubAnnotationQueuesAutomationRulesPartialUpdateResponseConditionsOperatorDefault = `and`;
+export const modelHubAnnotationQueuesAutomationRulesPartialUpdateResponseConditionsRulesItemOpDefault = `eq`;
 
 
 
@@ -12513,8 +12672,31 @@ export const ModelHubAnnotationQueuesAutomationRulesPartialUpdateResponse = zod.
   "queue": zod.string().uuid().optional(),
   "source_type": zod.enum(['dataset_row', 'trace', 'observation_span', 'prototype_run', 'call_execution', 'trace_session']),
   "conditions": zod.object({
-
-}).passthrough().optional(),
+  "operator": zod.enum(['and']).default(modelHubAnnotationQueuesAutomationRulesPartialUpdateResponseConditionsOperatorDefault),
+  "filter": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
+  "scope": zod.object({
+  "dataset_id": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "is_voice_call": zod.boolean().optional(),
+  "remove_simulation_calls": zod.boolean().optional()
+}).optional(),
+  "rules": zod.array(zod.object({
+  "field": zod.string().min(1),
+  "op": zod.string().min(1).default(modelHubAnnotationQueuesAutomationRulesPartialUpdateResponseConditionsRulesItemOpDefault),
+  "value": zod.unknown().optional().describe('Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator.')
+})).optional()
+}).optional(),
   "enabled": zod.boolean().optional(),
   "trigger_frequency": zod.enum(['manual', 'hourly', 'daily', 'weekly', 'monthly']).optional(),
   "organization": zod.string().uuid().optional(),

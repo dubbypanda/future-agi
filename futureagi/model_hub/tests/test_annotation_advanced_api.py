@@ -1045,6 +1045,52 @@ class TestAutomationRules:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert "conditions" in resp.data
 
+    def test_create_automation_rule_rejects_unknown_condition_key(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Auto Q unknown condition")
+        resp = auth_client.post(
+            self._rules_url(queue_id),
+            {
+                "name": "Unknown condition key",
+                "source_type": "trace",
+                "conditions": {
+                    "filter": [],
+                    "filterConfig": {"field": "created_at"},
+                },
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
+    def test_create_automation_rule_rejects_legacy_rule_filter_type_alias(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Auto Q bad rule alias")
+        resp = auth_client.post(
+            self._rules_url(queue_id),
+            {
+                "name": "Legacy rule alias",
+                "source_type": "dataset_row",
+                "conditions": {
+                    "rules": [
+                        {
+                            "field": "order",
+                            "op": "greater_than_or_equal",
+                            "value": 1,
+                            "filterType": "number",
+                        }
+                    ]
+                },
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
     def test_create_automation_rule_rejects_legacy_filter_shape(
         self, auth_client, organization, workspace
     ):

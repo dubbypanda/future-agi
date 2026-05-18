@@ -5094,8 +5094,6 @@ export const AutomationRuleApiSourceType = {
   trace_session: 'trace_session',
 } as const;
 
-export type AutomationRuleApiConditions = { [key: string]: unknown };
-
 export type AutomationRuleApiTriggerFrequency = typeof AutomationRuleApiTriggerFrequency[keyof typeof AutomationRuleApiTriggerFrequency];
 
 
@@ -5107,6 +5105,59 @@ export const AutomationRuleApiTriggerFrequency = {
   monthly: 'monthly',
 } as const;
 
+export type AutomationRuleConditionsApiOperator = typeof AutomationRuleConditionsApiOperator[keyof typeof AutomationRuleConditionsApiOperator];
+
+
+export const AutomationRuleConditionsApiOperator = {
+  and: 'and',
+} as const;
+
+export interface AutomationRuleScopeApi {
+  dataset_id?: string;
+  project_id?: string;
+  is_voice_call?: boolean;
+  remove_simulation_calls?: boolean;
+}
+
+export type AutomationRuleConditionsApiFilterItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type AutomationRuleConditionsApiFilterItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: AutomationRuleConditionsApiFilterItemFilterConfig;
+};
+
+export type AutomationRuleConditionsApiRulesItem = {
+  /** @minLength 1 */
+  field: string;
+  /** @minLength 1 */
+  op?: string;
+  /** Rule comparison value. Can be a scalar, list, object, boolean, or null depending on the operator. */
+  value?: unknown;
+};
+
+export interface AutomationRuleConditionsApi {
+  operator?: AutomationRuleConditionsApiOperator;
+  filter?: AutomationRuleConditionsApiFilterItem[];
+  scope?: AutomationRuleScopeApi;
+  rules?: AutomationRuleConditionsApiRulesItem[];
+}
+
 export interface AutomationRuleApi {
   readonly id?: string;
   /**
@@ -5116,7 +5167,7 @@ export interface AutomationRuleApi {
   name: string;
   readonly queue?: string;
   source_type: AutomationRuleApiSourceType;
-  conditions?: AutomationRuleApiConditions;
+  conditions?: AutomationRuleConditionsApi;
   enabled?: boolean;
   trigger_frequency?: AutomationRuleApiTriggerFrequency;
   readonly organization?: string;

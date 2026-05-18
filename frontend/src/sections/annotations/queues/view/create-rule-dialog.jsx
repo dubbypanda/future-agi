@@ -193,24 +193,6 @@ function filterWithValue(filter) {
   return apiFilterHasValue(filter);
 }
 
-function toRuleRows(filters) {
-  return (filters || []).filter(filterWithValue).map((filter) => ({
-    field: filter.columnId,
-    op: filter.filterConfig.filterOp,
-    value: filter.filterConfig.filterValue,
-    filterType: filter.filterConfig.filterType,
-  }));
-}
-
-function toCanonicalRuleRows(filters) {
-  return (filters || []).map((filter) => ({
-    field: filter.column_id,
-    op: filter.filter_config?.filter_op,
-    value: filter.filter_config?.filter_value,
-    filterType: filter.filter_config?.filter_type,
-  }));
-}
-
 function getSubmittableFilters(filters) {
   // Drop rows that don't carry a value (or aren't a unary op like
   // is_null / is_empty). Without this, a half-filled row with just a
@@ -247,7 +229,7 @@ function snakeFilterToUi(filter) {
 
 export function ruleConditionsToFilters(rule) {
   const sourceType = rule?.source_type || "trace";
-  const filterPayload = rule?.conditions?.filter || rule?.conditions?.filters;
+  const filterPayload = rule?.conditions?.filter;
   if (Array.isArray(filterPayload) && filterPayload.length > 0) {
     return filterPayload.map(snakeFilterToUi);
   }
@@ -257,7 +239,7 @@ export function ruleConditionsToFilters(rule) {
     id: getRandomId(),
     column_id: row.field || "",
     filter_config: {
-      filter_type: row.filterType || "text",
+      filter_type: "text",
       filter_op: row.op || "",
       filter_value: row.value ?? "",
     },
@@ -283,7 +265,6 @@ export function buildConditionsForRule(sourceType, filters, scope, queue) {
     if (datasetId) nextScope.dataset_id = datasetId;
     return {
       operator: "and",
-      rules: toRuleRows(filters),
       filter: filters.filter(validateFilter).map(transformFilter),
       scope: nextScope,
     };
@@ -303,7 +284,6 @@ export function buildConditionsForRule(sourceType, filters, scope, queue) {
     const apiFilters = getSubmittableFilters(filters);
     return {
       operator: "and",
-      rules: toCanonicalRuleRows(apiFilters),
       filter: apiFilters,
       scope: nextScope,
     };
@@ -319,7 +299,6 @@ export function buildConditionsForRule(sourceType, filters, scope, queue) {
     const apiFilters = getSubmittableFilters(filters);
     return {
       operator: "and",
-      rules: toCanonicalRuleRows(apiFilters),
       filter: apiFilters,
       scope: nextScope,
     };
@@ -331,7 +310,6 @@ export function buildConditionsForRule(sourceType, filters, scope, queue) {
     const apiFilters = getSubmittableFilters(filters);
     return {
       operator: "and",
-      rules: toCanonicalRuleRows(apiFilters),
       filter: apiFilters,
       ...(Object.keys(nextScope).length ? { scope: nextScope } : {}),
     };
@@ -339,7 +317,7 @@ export function buildConditionsForRule(sourceType, filters, scope, queue) {
 
   return {
     operator: "and",
-    rules: toRuleRows(filters),
+    filter: getSubmittableFilters(filters),
     ...(Object.keys(nextScope).length ? { scope: nextScope } : {}),
   };
 }

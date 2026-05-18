@@ -310,6 +310,98 @@ class TestAutomationRulesE2E:
         assert result["matched"] == 2
         assert result["added"] == 2
 
+    def test_create_rule_rejects_unknown_condition_key(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Unknown condition key Q")
+
+        resp = auth_client.post(
+            _rules_url(queue_id),
+            {
+                "name": "Unknown condition key",
+                "source_type": "trace",
+                "conditions": {
+                    "filter": [],
+                    "filterConfig": {"field": "name"},
+                },
+                "enabled": True,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
+    def test_create_rule_rejects_legacy_filters_key(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Legacy filters key Q")
+
+        resp = auth_client.post(
+            _rules_url(queue_id),
+            {
+                "name": "Legacy filters key",
+                "source_type": "trace",
+                "conditions": {"filters": []},
+                "enabled": True,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
+    def test_create_rule_rejects_legacy_rule_filter_type_alias(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Legacy rule alias Q")
+
+        resp = auth_client.post(
+            _rules_url(queue_id),
+            {
+                "name": "Legacy rule alias",
+                "source_type": "dataset_row",
+                "conditions": {
+                    "rules": [
+                        {
+                            "field": "order",
+                            "op": "greater_than_or_equal",
+                            "value": 1,
+                            "filterType": "number",
+                        }
+                    ]
+                },
+                "enabled": True,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
+    def test_create_rule_rejects_legacy_camel_case_rule_field(
+        self, auth_client, organization, workspace
+    ):
+        queue_id = _create_queue(auth_client, name="Legacy camel field Q")
+
+        resp = auth_client.post(
+            _rules_url(queue_id),
+            {
+                "name": "Legacy camel field",
+                "source_type": "trace",
+                "conditions": {
+                    "rules": [
+                        {"field": "traceName", "op": "contains", "value": "yes"},
+                    ]
+                },
+                "enabled": True,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+
     # -----------------------------------------------------------------------
     # 3. Project-scoped queue
     # -----------------------------------------------------------------------
@@ -676,12 +768,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 9. Disallowed field is rejected / ignored
+    # 9. Disallowed field is rejected
     # -----------------------------------------------------------------------
     def test_disallowed_field_is_rejected(self, auth_client, organization, workspace):
         """A rule whose only condition references an unknown/disallowed
-        field must fail closed — refusing to enqueue anything — rather
-        than skip the bad condition and match the entire scope."""
+        field must fail at creation instead of being accepted and then
+        evaluating as an empty or over-broad rule."""
         project = _create_project(organization, workspace, name="Reject Project")
         _create_trace(project, name="reject-trace-1")
         _create_trace(project, name="reject-trace-2")
@@ -707,18 +799,9 @@ class TestAutomationRulesE2E:
             },
             format="json",
         )
-        rule_id = resp.data["id"]
-
-        resp = auth_client.post(
-            f"{_rule_detail_url(queue_id, rule_id)}evaluate/",
-            format="json",
-        )
-        assert resp.status_code == status.HTTP_200_OK
-        result = resp.data.get("result", resp.data)
-        assert result["matched"] == 0
-        assert result["added"] == 0
-        assert "error" in result
-        assert "user__password" in result["error"]
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "conditions" in resp.data
+        assert "user__password" in str(resp.data["conditions"])
 
     # -----------------------------------------------------------------------
     # 10. Rule stats updated after evaluation
@@ -891,13 +974,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 13. camelCase field IDs (traceName) — new frontend format
+    # 13. Canonical trace field IDs
     # -----------------------------------------------------------------------
-    def test_evaluate_rule_camelcase_traceName(
+    def test_evaluate_rule_canonical_trace_name(
         self, auth_client, organization, workspace
     ):
-        """Frontend sends camelCase field IDs like 'traceName'.
-        Backend FIELD_MAPPING must resolve them to Django ORM fields."""
+        """Rule fields use canonical snake_case IDs owned by the backend."""
         project = _create_project(organization, workspace, name="Camel Project")
         _create_trace(project, name="camel-yes")
         _create_trace(project, name="camel-no")
@@ -908,11 +990,11 @@ class TestAutomationRulesE2E:
         resp = auth_client.post(
             _rules_url(queue_id),
             {
-                "name": "CamelCase traceName",
+                "name": "By trace_name",
                 "source_type": "trace",
                 "conditions": {
                     "rules": [
-                        {"field": "traceName", "op": "contains", "value": "yes"},
+                        {"field": "trace_name", "op": "contains", "value": "yes"},
                     ]
                 },
                 "enabled": True,
@@ -928,12 +1010,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 14. camelCase projectName filter
+    # 14. Canonical project_name filter
     # -----------------------------------------------------------------------
-    def test_evaluate_rule_camelcase_projectName(
+    def test_evaluate_rule_canonical_project_name(
         self, auth_client, organization, workspace
     ):
-        """projectName should map to project__name."""
+        """project_name should map to project__name."""
         proj_a = _create_project(organization, workspace, name="AlphaProject")
         proj_b = _create_project(organization, workspace, name="BetaProject")
         _create_trace(proj_a, name="a-trace")
@@ -944,12 +1026,12 @@ class TestAutomationRulesE2E:
         resp = auth_client.post(
             _rules_url(queue_id),
             {
-                "name": "By projectName",
+                "name": "By project_name",
                 "source_type": "trace",
                 "conditions": {
                     "rules": [
                         {
-                            "field": "projectName",
+                            "field": "project_name",
                             "op": "equals",
                             "value": "AlphaProject",
                         },
@@ -968,12 +1050,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 15. Annotated trace fields: nodeType and status
+    # 15. Annotated trace fields: node_type and status
     # -----------------------------------------------------------------------
     def test_evaluate_rule_trace_node_type_and_status(
         self, auth_client, organization, workspace
     ):
-        """nodeType and status are annotated from root spans.
+        """node_type and status are annotated from root spans.
         Filtering by these computed fields must work."""
         from tracer.models.observation_span import ObservationSpan
 
@@ -1004,7 +1086,7 @@ class TestAutomationRulesE2E:
         queue_id = _create_queue(auth_client, name="NodeType Q1")
         AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
 
-        # Filter by nodeType = chain
+        # Filter by node_type = chain
         resp = auth_client.post(
             _rules_url(queue_id),
             {
@@ -1012,7 +1094,7 @@ class TestAutomationRulesE2E:
                 "source_type": "trace",
                 "conditions": {
                     "rules": [
-                        {"field": "nodeType", "op": "equals", "value": "chain"},
+                        {"field": "node_type", "op": "equals", "value": "chain"},
                     ]
                 },
                 "enabled": True,
@@ -1054,13 +1136,13 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 16. Span source type with camelCase filters
+    # 16. Span source type with canonical filters
     # -----------------------------------------------------------------------
     def test_evaluate_rule_span_source_with_filters(
         self, auth_client, organization, workspace
     ):
-        """Span rules should filter by observation_type via nodeType mapping,
-        and traceName should resolve to trace__name."""
+        """Span rules should filter by observation_type via node_type mapping,
+        and trace_name should resolve to trace__name."""
         from tracer.models.observation_span import ObservationSpan
 
         project = _create_project(organization, workspace, name="Span Project")
@@ -1098,7 +1180,7 @@ class TestAutomationRulesE2E:
         queue_id = _create_queue(auth_client, name="Span Q1")
         AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
 
-        # Filter spans by nodeType = llm
+        # Filter spans by node_type = llm
         resp = auth_client.post(
             _rules_url(queue_id),
             {
@@ -1106,7 +1188,7 @@ class TestAutomationRulesE2E:
                 "source_type": "observation_span",
                 "conditions": {
                     "rules": [
-                        {"field": "nodeType", "op": "equals", "value": "llm"},
+                        {"field": "node_type", "op": "equals", "value": "llm"},
                     ]
                 },
                 "enabled": True,
@@ -1121,7 +1203,7 @@ class TestAutomationRulesE2E:
         assert result["matched"] == 2  # span-1 and span-3
         assert result["added"] == 2
 
-        # Filter spans by traceName
+        # Filter spans by trace_name
         queue_id2 = _create_queue(auth_client, name="Span TraceName Q1")
         AnnotationQueue.objects.filter(pk=queue_id2).update(project=project)
 
@@ -1132,7 +1214,7 @@ class TestAutomationRulesE2E:
                 "source_type": "observation_span",
                 "conditions": {
                     "rules": [
-                        {"field": "traceName", "op": "equals", "value": "my-trace"},
+                        {"field": "trace_name", "op": "equals", "value": "my-trace"},
                     ]
                 },
                 "enabled": True,
@@ -1151,7 +1233,7 @@ class TestAutomationRulesE2E:
     # 17. Session source type with computed filters
     # -----------------------------------------------------------------------
     def test_evaluate_rule_session_source(self, auth_client, organization, workspace):
-        """Session rules should work with basic evaluation and projectName."""
+        """Session rules should work with basic evaluation and project_name."""
         from tracer.models.trace_session import TraceSession
 
         project = _create_project(organization, workspace, name="Session Project")
@@ -1181,12 +1263,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 2
 
     # -----------------------------------------------------------------------
-    # 18. Session projectName filter
+    # 18. Session project_name filter
     # -----------------------------------------------------------------------
     def test_evaluate_rule_session_project_name(
         self, auth_client, organization, workspace
     ):
-        """Session rules with projectName filter."""
+        """Session rules with project_name filter."""
         from tracer.models.trace_session import TraceSession
 
         proj_a = _create_project(organization, workspace, name="SessionProjA")
@@ -1204,7 +1286,7 @@ class TestAutomationRulesE2E:
                 "conditions": {
                     "rules": [
                         {
-                            "field": "projectName",
+                            "field": "project_name",
                             "op": "equals",
                             "value": "SessionProjA",
                         },
@@ -1223,12 +1305,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 1
 
     # -----------------------------------------------------------------------
-    # 19. Session computed fields (totalCost, startTime)
+    # 19. Session computed fields (total_cost, start_time)
     # -----------------------------------------------------------------------
     def test_evaluate_rule_session_computed_fields(
         self, auth_client, organization, workspace
     ):
-        """Session computed fields (totalCost, startTime) are annotated
+        """Session computed fields (total_cost, start_time) are annotated
         from span aggregates and should be filterable."""
         from tracer.models.observation_span import ObservationSpan
         from tracer.models.trace_session import TraceSession
@@ -1272,7 +1354,7 @@ class TestAutomationRulesE2E:
         queue_id = _create_queue(auth_client, name="SessComp Q1")
         AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
 
-        # Filter sessions with totalCost > 1.0
+        # Filter sessions with total_cost > 1.0
         resp = auth_client.post(
             _rules_url(queue_id),
             {
@@ -1281,7 +1363,7 @@ class TestAutomationRulesE2E:
                 "conditions": {
                     "rules": [
                         {
-                            "field": "totalCost",
+                            "field": "total_cost",
                             "op": "greater_than",
                             "value": "1.0",
                         },
@@ -1305,7 +1387,7 @@ class TestAutomationRulesE2E:
     def test_evaluate_rule_simulation_source(
         self, auth_client, organization, workspace
     ):
-        """CallExecution rules should filter by status and callType."""
+        """CallExecution rules should filter by status and call_type."""
         from simulate.models import AgentDefinition, Scenarios
         from simulate.models.run_test import RunTest
         from simulate.models.simulator_agent import SimulatorAgent
@@ -1421,7 +1503,7 @@ class TestAutomationRulesE2E:
         assert result["matched"] == 2
         assert result["added"] == 2
 
-        # Filter by callType = voice
+        # Filter by call_type = voice
         queue_id2 = _create_queue(auth_client, name="Sim CallType Q1")
         AnnotationQueue.objects.filter(pk=queue_id2).update(agent_definition=agent_def)
 
@@ -1432,7 +1514,7 @@ class TestAutomationRulesE2E:
                 "source_type": "call_execution",
                 "conditions": {
                     "rules": [
-                        {"field": "callType", "op": "equals", "value": "voice"},
+                        {"field": "call_type", "op": "equals", "value": "voice"},
                     ]
                 },
                 "enabled": True,
@@ -1448,12 +1530,12 @@ class TestAutomationRulesE2E:
         assert result["added"] == 2
 
     # -----------------------------------------------------------------------
-    # 21. Dataset row with camelCase filters
+    # 21. Dataset row with canonical filters
     # -----------------------------------------------------------------------
-    def test_evaluate_rule_dataset_row_camelcase(
+    def test_evaluate_rule_dataset_row_canonical_fields(
         self, auth_client, organization, workspace
     ):
-        """Dataset row rules with camelCase field IDs (datasetName)."""
+        """Dataset row rules with canonical field IDs."""
         ds1 = Dataset.objects.create(
             name="FilterableDS", organization=organization, workspace=workspace
         )
@@ -1473,7 +1555,7 @@ class TestAutomationRulesE2E:
                 "conditions": {
                     "rules": [
                         {
-                            "field": "datasetName",
+                            "field": "dataset_name",
                             "op": "equals",
                             "value": "FilterableDS",
                         },
