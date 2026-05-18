@@ -7,9 +7,7 @@ def _repo_root():
 
 
 def _swagger():
-    with (
-        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
-    ).open() as f:
+    with (_repo_root() / "api_contracts" / "openapi" / "swagger.json").open() as f:
         return json.load(f)
 
 
@@ -41,6 +39,7 @@ def _response_ref(operation, status_code="200"):
 
 def test_saml_contract_debt_is_fully_burned_down():
     report = _debt_report()
+    saml_report = report["by_group"]["saml2_auth"]
 
     assert [
         item
@@ -52,6 +51,8 @@ def test_saml_contract_debt_is_fully_burned_down():
         for item in report["operations_without_response_schema"]
         if item["tags"] == ["saml2_auth"]
     ] == []
+    assert saml_report["operations_without_error_response_schema"] == 0
+    assert saml_report["broad_error_response_schemas"] == 0
 
 
 def test_saml_form_mutations_have_form_data_contracts():
@@ -77,14 +78,24 @@ def test_saml_json_endpoints_have_response_contracts():
     assert _response_ref(_operation("/saml2_auth/idp-login/", "GET")) == (
         "SAMLUrlResponse"
     )
-    assert _response_ref(_operation("/saml2_auth/login/", "GET")) == (
-        "SAMLUrlResponse"
-    )
+    assert _response_ref(_operation("/saml2_auth/login/", "GET")) == ("SAMLUrlResponse")
     assert _response_ref(_operation("/saml2_auth/idp-uploads/", "POST")) == (
         "SAMLStringResponse"
     )
     assert _response_ref(_operation("/saml2_auth/idp-uploads/{id}/", "PUT")) == (
         "SAMLStringResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/", "GET")) == (
+        "SAMLIDPUploadListResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/{id}/", "GET")) == (
+        "SAMLIDPUploadDetailResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/{id}/", "DELETE")) == (
+        "SAMLStringResponse"
+    )
+    assert _response_ref(_operation("/saml2_auth/idp-uploads/", "POST"), "400") == (
+        "SAMLErrorResponse"
     )
 
 
@@ -102,4 +113,4 @@ def test_saml_oauth_callbacks_are_documented_as_redirects():
         "/saml2_auth/microsoft/callback/",
         "/saml2_auth/microsoft/callback{format}",
     ):
-        assert set(_operation(path, "GET")["responses"]) == {"302"}
+        assert set(_operation(path, "GET")["responses"]) == {"302", "400"}

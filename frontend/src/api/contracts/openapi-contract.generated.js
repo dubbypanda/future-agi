@@ -21068,7 +21068,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/auth/callback{format}": {
@@ -21083,7 +21087,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/github/callback/": {
@@ -21098,7 +21106,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/github/callback{format}": {
@@ -21113,7 +21125,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/idp-login/": {
@@ -21166,32 +21182,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/SAML"
-                }
-              }
-            }
+            "$ref": "#/definitions/SAMLIDPUploadListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/SAMLErrorResponse"
           }
         }
       },
@@ -21219,7 +21216,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/SAML"
+            "$ref": "#/definitions/SAMLIDPUploadDetailResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/SAMLErrorResponse"
           }
         }
       },
@@ -21243,7 +21246,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "saml2_auth_idp-uploads_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SAMLStringResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/login/": {
@@ -21312,7 +21325,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/saml2_auth/microsoft/callback{format}": {
@@ -21327,7 +21344,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
             }
           }
         },
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/SAMLErrorResponse"
+          }
+        }
       }
     },
     "/sdk/api/v1/configure-evaluations/": {
@@ -57689,37 +57710,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
-    "SAML": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string",
-          "maxLength": 250,
-          "x-nullable": true
-        },
-        "id": {
-          "title": "Id",
-          "type": "string",
-          "readOnly": true,
-          "minLength": 1
-        },
-        "identity_type": {
-          "title": "Identity type",
-          "type": "integer",
-          "enum": [
-            1,
-            2,
-            3
-          ],
-          "readOnly": true
-        },
-        "is_enabled": {
-          "title": "Is enabled",
-          "type": "boolean"
-        }
-      }
-    },
     "SAMLErrorResponse": {
       "required": [
         "status"
@@ -57732,13 +57722,47 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "title": "Result",
-          "type": "object",
+          "type": "string",
+          "minLength": 1,
           "x-nullable": true
         },
         "message": {
           "title": "Message",
-          "type": "object",
+          "type": "string",
+          "minLength": 1,
           "x-nullable": true
+        }
+      }
+    },
+    "SAMLIDPUploadDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/SAMLIDPUploadDetailResult"
+        }
+      }
+    },
+    "SAMLIDPUploadListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/SAMLIDPUploadListResult"
         }
       }
     },
@@ -76438,6 +76462,90 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SAMLIDPUploadDetailResult": {
+      "required": [
+        "is_enabled",
+        "identity_type",
+        "name",
+        "acs_url",
+        "audience_url"
+      ],
+      "type": "object",
+      "properties": {
+        "is_enabled": {
+          "title": "Is enabled",
+          "type": "boolean"
+        },
+        "identity_type": {
+          "title": "Identity type",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "acs_url": {
+          "title": "Acs url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "audience_url": {
+          "title": "Audience url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        }
+      }
+    },
+    "SAMLIDPUploadListResult": {
+      "required": [
+        "count",
+        "results",
+        "acs_url",
+        "audience_url"
+      ],
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "next": {
+          "title": "Next",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "previous": {
+          "title": "Previous",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SAML"
+          }
+        },
+        "acs_url": {
+          "title": "Acs url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "audience_url": {
+          "title": "Audience url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        }
+      }
+    },
     "SAMLUrlResult": {
       "required": [
         "url"
@@ -84921,6 +85029,37 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Description",
           "type": "string",
           "x-nullable": true
+        }
+      }
+    },
+    "SAML": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 250,
+          "x-nullable": true
+        },
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "identity_type": {
+          "title": "Identity type",
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "readOnly": true
+        },
+        "is_enabled": {
+          "title": "Is enabled",
+          "type": "boolean"
         }
       }
     },

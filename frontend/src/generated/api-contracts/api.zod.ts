@@ -26327,21 +26327,30 @@ export const Saml2AuthIdpUploadsListQueryParams = zod.object({
   "limit": zod.number().optional().describe('Number of results to return per page.')
 })
 
-export const saml2AuthIdpUploadsListResponseResultsItemNameMax = 250;
+
+
+export const saml2AuthIdpUploadsListResponseResultResultsItemNameMax = 250;
+
+
 
 
 
 
 export const Saml2AuthIdpUploadsListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
   "count": zod.number(),
-  "next": zod.string().url().optional(),
-  "previous": zod.string().url().optional(),
+  "next": zod.string().url().min(1).optional(),
+  "previous": zod.string().url().min(1).optional(),
   "results": zod.array(zod.object({
-  "name": zod.string().max(saml2AuthIdpUploadsListResponseResultsItemNameMax).optional(),
+  "name": zod.string().max(saml2AuthIdpUploadsListResponseResultResultsItemNameMax).optional(),
   "id": zod.string().min(1).optional(),
   "identity_type": zod.union([zod.literal(1),zod.literal(2),zod.literal(3)]).optional(),
   "is_enabled": zod.boolean().optional()
-}))
+})),
+  "acs_url": zod.string().url().min(1),
+  "audience_url": zod.string().url().min(1)
+})
 })
 
 
@@ -26365,16 +26374,20 @@ export const Saml2AuthIdpUploadsReadParams = zod.object({
   "id": zod.string().describe('A unique value identifying this SAML Meta.')
 })
 
-export const saml2AuthIdpUploadsReadResponseNameMax = 250;
+
 
 
 
 
 export const Saml2AuthIdpUploadsReadResponse = zod.object({
-  "name": zod.string().max(saml2AuthIdpUploadsReadResponseNameMax).optional(),
-  "id": zod.string().min(1).optional(),
-  "identity_type": zod.union([zod.literal(1),zod.literal(2),zod.literal(3)]).optional(),
-  "is_enabled": zod.boolean().optional()
+  "status": zod.boolean(),
+  "result": zod.object({
+  "is_enabled": zod.boolean(),
+  "identity_type": zod.number(),
+  "name": zod.string().min(1),
+  "acs_url": zod.string().url().min(1),
+  "audience_url": zod.string().url().min(1)
+})
 })
 
 
@@ -26400,6 +26413,14 @@ export const Saml2AuthIdpUploadsUpdateResponse = zod.object({
 
 export const Saml2AuthIdpUploadsDeleteParams = zod.object({
   "id": zod.string().describe('A unique value identifying this SAML Meta.')
+})
+
+
+
+
+export const Saml2AuthIdpUploadsDeleteResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 

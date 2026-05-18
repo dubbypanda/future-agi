@@ -12190,14 +12190,12 @@ export interface UploadFileResponseApi {
   result: UploadedFileResultApi[];
 }
 
-export type SAMLErrorResponseApiResult = { [key: string]: unknown };
-
-export type SAMLErrorResponseApiMessage = { [key: string]: unknown };
-
 export interface SAMLErrorResponseApi {
   status: boolean;
-  result?: SAMLErrorResponseApiResult;
-  message?: SAMLErrorResponseApiMessage;
+  /** @minLength 1 */
+  result?: string;
+  /** @minLength 1 */
+  message?: string;
 }
 
 export interface SAMLUrlResultApi {
@@ -12228,10 +12226,44 @@ export interface SamlApi {
   is_enabled?: boolean;
 }
 
+export interface SAMLIDPUploadListResultApi {
+  count: number;
+  /** @minLength 1 */
+  next?: string;
+  /** @minLength 1 */
+  previous?: string;
+  results: SamlApi[];
+  /** @minLength 1 */
+  acs_url: string;
+  /** @minLength 1 */
+  audience_url: string;
+}
+
+export interface SAMLIDPUploadListResponseApi {
+  status: boolean;
+  result: SAMLIDPUploadListResultApi;
+}
+
 export interface SAMLStringResponseApi {
   status: boolean;
   /** @minLength 1 */
   result: string;
+}
+
+export interface SAMLIDPUploadDetailResultApi {
+  is_enabled: boolean;
+  identity_type: number;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  acs_url: string;
+  /** @minLength 1 */
+  audience_url: string;
+}
+
+export interface SAMLIDPUploadDetailResponseApi {
+  status: boolean;
+  result: SAMLIDPUploadDetailResultApi;
 }
 
 export type ConfigureEvaluationsApiInputs = {[key: string]: string};
@@ -22492,13 +22524,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type Saml2AuthIdpUploadsList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: SamlApi[];
 };
 
 export type Saml2AuthIdpUploadsCreateBodyOne = {

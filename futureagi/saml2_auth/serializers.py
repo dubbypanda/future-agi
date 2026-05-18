@@ -19,8 +19,8 @@ class SAMLSerializer(serializers.ModelSerializer):
 
 class SAMLErrorResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField()
-    result = serializers.JSONField(required=False, allow_null=True)
-    message = serializers.JSONField(required=False, allow_null=True)
+    result = serializers.CharField(required=False, allow_null=True)
+    message = serializers.CharField(required=False, allow_null=True)
 
 
 class SAMLUrlResultSerializer(serializers.Serializer):
@@ -35,6 +35,33 @@ class SAMLUrlResponseSerializer(serializers.Serializer):
 class SAMLStringResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField()
     result = serializers.CharField()
+
+
+class SAMLIDPUploadListResultSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.URLField(required=False, allow_null=True)
+    previous = serializers.URLField(required=False, allow_null=True)
+    results = SAMLSerializer(many=True)
+    acs_url = serializers.URLField()
+    audience_url = serializers.URLField()
+
+
+class SAMLIDPUploadListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = SAMLIDPUploadListResultSerializer()
+
+
+class SAMLIDPUploadDetailResultSerializer(serializers.Serializer):
+    is_enabled = serializers.BooleanField()
+    identity_type = serializers.IntegerField()
+    name = serializers.CharField()
+    acs_url = serializers.URLField()
+    audience_url = serializers.URLField()
+
+
+class SAMLIDPUploadDetailResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = SAMLIDPUploadDetailResultSerializer()
 
 
 class SAMLIDPLoginQuerySerializer(serializers.Serializer):

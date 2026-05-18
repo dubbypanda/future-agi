@@ -6,8 +6,8 @@
     "mutation_endpoints_without_body_schema": 0,
     "operations_without_response_schema": 0,
     "broad_success_response_schemas": 0,
-    "operations_without_error_response_schema": 563,
-    "broad_error_response_schemas": 2889
+    "operations_without_error_response_schema": 554,
+    "broad_error_response_schemas": 2881
   },
   "by_group": {
     "accounts": {
@@ -115,8 +115,8 @@
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
       "broad_success_response_schemas": 0,
-      "operations_without_error_response_schema": 9,
-      "broad_error_response_schemas": 8
+      "operations_without_error_response_schema": 0,
+      "broad_error_response_schemas": 0
     },
     "sdk": {
       "paths": 9,

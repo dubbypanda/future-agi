@@ -900,6 +900,8 @@ import type {
   RunTestResponseApi,
   RunTestScenarioItemResponseApi,
   SAMLErrorResponseApi,
+  SAMLIDPUploadDetailResponseApi,
+  SAMLIDPUploadListResponseApi,
   SAMLStringResponseApi,
   SAMLUrlResponseApi,
   SDKCICDEvaluationRunAcceptedResponseApi,
@@ -926,7 +928,6 @@ import type {
   Saml2AuthIdpLoginListParams,
   Saml2AuthIdpUploadsCreateBodyOne,
   Saml2AuthIdpUploadsCreateBodyTwo,
-  Saml2AuthIdpUploadsList200,
   Saml2AuthIdpUploadsListParams,
   Saml2AuthIdpUploadsUpdateBodyOne,
   Saml2AuthIdpUploadsUpdateBodyTwo,
@@ -934,7 +935,6 @@ import type {
   Saml2AuthMicrosoftCallbackListParams,
   Saml2AuthMicrosoftReadParams,
   Saml2AuthReadParams,
-  SamlApi,
   SavedViewDetailApi,
   SavedViewListApi,
   ScenarioAddColumnsRequestApi,
@@ -43682,8 +43682,13 @@ export type saml2AuthAuthCallbackListResponse302 = {
   status: 302
 }
 
+export type saml2AuthAuthCallbackListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthAuthCallbackListResponseError = (saml2AuthAuthCallbackListResponse302) & {
+export type saml2AuthAuthCallbackListResponseError = (saml2AuthAuthCallbackListResponse302 | saml2AuthAuthCallbackListResponse400) & {
   headers: Headers;
 };
 
@@ -43722,8 +43727,13 @@ export type saml2AuthAuthReadResponse302 = {
   status: 302
 }
 
+export type saml2AuthAuthReadResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthAuthReadResponseError = (saml2AuthAuthReadResponse302) & {
+export type saml2AuthAuthReadResponseError = (saml2AuthAuthReadResponse302 | saml2AuthAuthReadResponse400) & {
   headers: Headers;
 };
 
@@ -43764,8 +43774,13 @@ export type saml2AuthGithubCallbackListResponse302 = {
   status: 302
 }
 
+export type saml2AuthGithubCallbackListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthGithubCallbackListResponseError = (saml2AuthGithubCallbackListResponse302) & {
+export type saml2AuthGithubCallbackListResponseError = (saml2AuthGithubCallbackListResponse302 | saml2AuthGithubCallbackListResponse400) & {
   headers: Headers;
 };
 
@@ -43804,8 +43819,13 @@ export type saml2AuthGithubReadResponse302 = {
   status: 302
 }
 
+export type saml2AuthGithubReadResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthGithubReadResponseError = (saml2AuthGithubReadResponse302) & {
+export type saml2AuthGithubReadResponseError = (saml2AuthGithubReadResponse302 | saml2AuthGithubReadResponse400) & {
   headers: Headers;
 };
 
@@ -43889,16 +43909,28 @@ export const saml2AuthIdpLoginList = async (params: Saml2AuthIdpLoginListParams,
 
 
 export type saml2AuthIdpUploadsListResponse200 = {
-  data: Saml2AuthIdpUploadsList200
+  data: SAMLIDPUploadListResponseApi
   status: 200
+}
+
+export type saml2AuthIdpUploadsListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+export type saml2AuthIdpUploadsListResponse500 = {
+  data: SAMLErrorResponseApi
+  status: 500
 }
 
 export type saml2AuthIdpUploadsListResponseSuccess = (saml2AuthIdpUploadsListResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpUploadsListResponseError = (saml2AuthIdpUploadsListResponse400 | saml2AuthIdpUploadsListResponse500) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpUploadsListResponse = (saml2AuthIdpUploadsListResponseSuccess)
+export type saml2AuthIdpUploadsListResponse = (saml2AuthIdpUploadsListResponseSuccess | saml2AuthIdpUploadsListResponseError)
 
 export const getSaml2AuthIdpUploadsListUrl = (params?: Saml2AuthIdpUploadsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -43975,16 +44007,28 @@ export const saml2AuthIdpUploadsCreate = async (saml2AuthIdpUploadsCreateBody?: 
 
 
 export type saml2AuthIdpUploadsReadResponse200 = {
-  data: SamlApi
+  data: SAMLIDPUploadDetailResponseApi
   status: 200
+}
+
+export type saml2AuthIdpUploadsReadResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+export type saml2AuthIdpUploadsReadResponse500 = {
+  data: SAMLErrorResponseApi
+  status: 500
 }
 
 export type saml2AuthIdpUploadsReadResponseSuccess = (saml2AuthIdpUploadsReadResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpUploadsReadResponseError = (saml2AuthIdpUploadsReadResponse400 | saml2AuthIdpUploadsReadResponse500) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpUploadsReadResponse = (saml2AuthIdpUploadsReadResponseSuccess)
+export type saml2AuthIdpUploadsReadResponse = (saml2AuthIdpUploadsReadResponseSuccess | saml2AuthIdpUploadsReadResponseError)
 
 export const getSaml2AuthIdpUploadsReadUrl = (id: string,) => {
 
@@ -44054,17 +44098,29 @@ export const saml2AuthIdpUploadsUpdate = async (id: string,
 
 
 
-export type saml2AuthIdpUploadsDeleteResponse204 = {
-  data: void
-  status: 204
+export type saml2AuthIdpUploadsDeleteResponse200 = {
+  data: SAMLStringResponseApi
+  status: 200
 }
 
-export type saml2AuthIdpUploadsDeleteResponseSuccess = (saml2AuthIdpUploadsDeleteResponse204) & {
+export type saml2AuthIdpUploadsDeleteResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
+export type saml2AuthIdpUploadsDeleteResponse500 = {
+  data: SAMLErrorResponseApi
+  status: 500
+}
+
+export type saml2AuthIdpUploadsDeleteResponseSuccess = (saml2AuthIdpUploadsDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type saml2AuthIdpUploadsDeleteResponseError = (saml2AuthIdpUploadsDeleteResponse400 | saml2AuthIdpUploadsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type saml2AuthIdpUploadsDeleteResponse = (saml2AuthIdpUploadsDeleteResponseSuccess)
+export type saml2AuthIdpUploadsDeleteResponse = (saml2AuthIdpUploadsDeleteResponseSuccess | saml2AuthIdpUploadsDeleteResponseError)
 
 export const getSaml2AuthIdpUploadsDeleteUrl = (id: string,) => {
 
@@ -44188,8 +44244,13 @@ export type saml2AuthMicrosoftCallbackListResponse302 = {
   status: 302
 }
 
+export type saml2AuthMicrosoftCallbackListResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthMicrosoftCallbackListResponseError = (saml2AuthMicrosoftCallbackListResponse302) & {
+export type saml2AuthMicrosoftCallbackListResponseError = (saml2AuthMicrosoftCallbackListResponse302 | saml2AuthMicrosoftCallbackListResponse400) & {
   headers: Headers;
 };
 
@@ -44228,8 +44289,13 @@ export type saml2AuthMicrosoftReadResponse302 = {
   status: 302
 }
 
+export type saml2AuthMicrosoftReadResponse400 = {
+  data: SAMLErrorResponseApi
+  status: 400
+}
+
 ;
-export type saml2AuthMicrosoftReadResponseError = (saml2AuthMicrosoftReadResponse302) & {
+export type saml2AuthMicrosoftReadResponseError = (saml2AuthMicrosoftReadResponse302 | saml2AuthMicrosoftReadResponse400) & {
   headers: Headers;
 };
 

@@ -39855,6 +39855,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -39878,6 +39884,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -39908,6 +39920,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -39931,6 +39949,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -40010,32 +40034,19 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "required": [
-                                "count",
-                                "results"
-                            ],
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "next": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "previous": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "results": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/SAML"
-                                    }
-                                }
-                            }
+                            "$ref": "#/definitions/SAMLIDPUploadListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
                         }
                     }
                 },
@@ -40119,7 +40130,19 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/SAML"
+                            "$ref": "#/definitions/SAMLIDPUploadDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
                         }
                     }
                 },
@@ -40197,8 +40220,23 @@
                 "description": "",
                 "parameters": [],
                 "responses": {
-                    "204": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLStringResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "consumes": [
@@ -40315,6 +40353,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -40338,6 +40382,12 @@
                 "responses": {
                     "302": {
                         "description": "Redirects to the configured frontend URL."
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SAMLErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -95351,12 +95401,14 @@
                 },
                 "result": {
                     "title": "Result",
-                    "type": "object",
+                    "type": "string",
+                    "minLength": 1,
                     "x-nullable": true
                 },
                 "message": {
                     "title": "Message",
-                    "type": "object",
+                    "type": "string",
+                    "minLength": 1,
                     "x-nullable": true
                 }
             }
@@ -95422,6 +95474,69 @@
                 }
             }
         },
+        "SAMLIDPUploadListResult": {
+            "required": [
+                "count",
+                "results",
+                "acs_url",
+                "audience_url"
+            ],
+            "type": "object",
+            "properties": {
+                "count": {
+                    "title": "Count",
+                    "type": "integer"
+                },
+                "next": {
+                    "title": "Next",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "previous": {
+                    "title": "Previous",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SAML"
+                    }
+                },
+                "acs_url": {
+                    "title": "Acs url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
+                "audience_url": {
+                    "title": "Audience url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                }
+            }
+        },
+        "SAMLIDPUploadListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SAMLIDPUploadListResult"
+                }
+            }
+        },
         "SAMLStringResponse": {
             "required": [
                 "status",
@@ -95437,6 +95552,59 @@
                     "title": "Result",
                     "type": "string",
                     "minLength": 1
+                }
+            }
+        },
+        "SAMLIDPUploadDetailResult": {
+            "required": [
+                "is_enabled",
+                "identity_type",
+                "name",
+                "acs_url",
+                "audience_url"
+            ],
+            "type": "object",
+            "properties": {
+                "is_enabled": {
+                    "title": "Is enabled",
+                    "type": "boolean"
+                },
+                "identity_type": {
+                    "title": "Identity type",
+                    "type": "integer"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "acs_url": {
+                    "title": "Acs url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                },
+                "audience_url": {
+                    "title": "Audience url",
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1
+                }
+            }
+        },
+        "SAMLIDPUploadDetailResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/SAMLIDPUploadDetailResult"
                 }
             }
         },

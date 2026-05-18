@@ -41,6 +41,8 @@ from saml2_auth.serializers import (
     SAMLAuthLoginQuerySerializer,
     SAMLErrorResponseSerializer,
     SAMLIDPLoginQuerySerializer,
+    SAMLIDPUploadDetailResponseSerializer,
+    SAMLIDPUploadListResponseSerializer,
     SAMLOAuthCallbackQuerySerializer,
     SAMLSerializer,
     SAMLStringResponseSerializer,
@@ -83,6 +85,7 @@ SAML_REDIRECT_RESPONSES = {
     200: None,
     201: None,
     302: openapi.Response(description="Redirects to the configured frontend URL."),
+    400: SAMLErrorResponseSerializer,
 }
 
 SAML_ACS_FORM_PARAMETERS = [
@@ -198,6 +201,16 @@ def get_alias(request):
     return request.get_host().split(".")[0]
 
 
+def _format_form_errors(errors):
+    for field, messages in errors.items():
+        if isinstance(messages, (list, tuple)):
+            message = messages[0] if messages else "Invalid value."
+        else:
+            message = messages
+        return f"{field}: {message}"
+    return "Invalid request."
+
+
 class ACSView(APIView):
     _gm = GeneralMethods()
     parser_classes = [FormParser, MultiPartParser]
@@ -227,7 +240,6 @@ class ACSView(APIView):
         manual_parameters=SAML_ACS_FORM_PARAMETERS,
         responses={
             **SAML_REDIRECT_RESPONSES,
-            400: SAMLErrorResponseSerializer,
         },
     )
     def post(self, request, *args, **kwargs):
@@ -466,6 +478,13 @@ class IDPUploadViews(viewsets.ModelViewSet):
         # if self.request.method == "PUT":
         #     return WorkspaceTagsSerializer
 
+    @swagger_auto_schema(
+        responses={
+            200: SAMLIDPUploadListResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+            500: SAMLErrorResponseSerializer,
+        }
+    )
     def list(self, request, *args, **kwargs):
         try:
             # Get the response from parent class
@@ -491,6 +510,13 @@ class IDPUploadViews(viewsets.ModelViewSet):
             logger.error(f"Error in IDPUploadViews.list: {str(e)}")  # Add logging
             return self._gm.internal_server_error_response(get_error_message("US25"))
 
+    @swagger_auto_schema(
+        responses={
+            200: SAMLIDPUploadDetailResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+            500: SAMLErrorResponseSerializer,
+        }
+    )
     def retrieve(self, request, *args, **kwargs):
         try:
             uuid = kwargs.get(self.lookup_url_kwarg)
@@ -531,7 +557,7 @@ class IDPUploadViews(viewsets.ModelViewSet):
         try:
             form = IDPUploadForm(request.POST, request.FILES)
             if not form.is_valid():
-                return self._gm.bad_request(form.errors)
+                return self._gm.bad_request(_format_form_errors(form.errors))
             data = form.cleaned_data
             data["organization"] = get_request_organization(request)
             if "file" in data:
@@ -554,6 +580,13 @@ class IDPUploadViews(viewsets.ModelViewSet):
             traceback.print_exc()
             return self._gm.internal_server_error_response(get_error_message("US25"))
 
+    @swagger_auto_schema(
+        responses={
+            200: SAMLStringResponseSerializer,
+            400: SAMLErrorResponseSerializer,
+            500: SAMLErrorResponseSerializer,
+        }
+    )
     def destroy(self, request, *args, **kwargs):
         try:
             uuid = kwargs.get(self.lookup_url_kwarg)
@@ -583,7 +616,7 @@ class IDPUploadViews(viewsets.ModelViewSet):
             form = IDPUploadForm(request.POST, request.FILES)
             saml_model = SAMLMetadataModel.objects.filter(id=uuid, deleted=False).get()
             if not form.is_valid():
-                return self._gm.bad_request(form.errors)
+                return self._gm.bad_request(_format_form_errors(form.errors))
             data = form.cleaned_data
             data["organization"] = get_request_organization(request)
             if int(saml_model.identity_type) != int(
