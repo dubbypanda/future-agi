@@ -9,6 +9,7 @@ from model_hub.serializers.contracts import (
 )
 from tracer.serializers.eval_task import EditEvalTaskSerializer
 from tracer.serializers.dashboard import DashboardFilterValuesQuerySerializer
+from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.observation_span import ObservationAttributeListQuerySerializer
 from tracer.serializers.project import (
     ProjectGraphDataQuerySerializer,
@@ -255,6 +256,30 @@ class TestFilterSerializerContracts:
 
         assert not serializer.is_valid()
         assert "filters" in serializer.errors
+
+    def test_observe_graph_request_rejects_camel_case_project_alias(self):
+        serializer = ObserveGraphDataRequestSerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "interval": "day",
+                "req_data_config": {"id": "latency", "type": "SYSTEM_METRIC"},
+                "filters": [_span_attr_filter()],
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectId" in serializer.errors
+
+    def test_observe_graph_request_requires_metric_config(self):
+        serializer = ObserveGraphDataRequestSerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": [_span_attr_filter()],
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "req_data_config" in serializer.errors
 
     def test_prompt_metrics_query_accepts_canonical_filters(self):
         serializer = PromptMetricsQuerySerializer(

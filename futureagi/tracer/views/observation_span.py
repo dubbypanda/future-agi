@@ -76,6 +76,7 @@ from tracer.services.clickhouse.query_service import (
     AnalyticsQueryService,
     QueryType,
 )
+from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.observation_span import (
     ObservationAttributeListQuerySerializer,
     ObservationSpanSerializer,
@@ -2471,15 +2472,18 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
 
         return self._gm.success_response(response)
 
+    @swagger_auto_schema(request_body=ObserveGraphDataRequestSerializer)
     @action(detail=False, methods=["post"])
     def get_graph_methods(self, request, *args, **kwargs):
         """
         Fetch data for the observe graph with optimized queries
         """
         try:
-            project_id = self.request.data.get("project_id", None)
-            if not project_id:
-                raise Exception("Project id is required")
+            body_serializer = ObserveGraphDataRequestSerializer(data=request.data)
+            if not body_serializer.is_valid():
+                return self._gm.bad_request(body_serializer.errors)
+            body = body_serializer.validated_data
+            project_id = str(body["project_id"])
 
             project = Project.objects.get(
                 id=project_id,
@@ -2488,6 +2492,8 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             )
             if project.trace_type != "observe":
                 raise Exception("Project should be of type observe")
+
+            filters = body["filters"]
 
             # Base query with annotations
             base_query = (
@@ -2650,7 +2656,6 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 )
 
             # Apply filters - combine all filter conditions for better performance
-            filters = self.request.data.get("filters", [])
             if filters:
                 # Combine all filter conditions into a single Q object
                 combined_filter_conditions = Q()
@@ -2702,13 +2707,9 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             total_final_span_queryset = base_query
 
             # Get parameters
-            property = self.request.data.get("property", "count")
-            interval = self.request.data.get("interval", "hour")
-
-            req_data_config = self.request.data.get("req_data_config", None)
-
-            if not req_data_config:
-                return self._gm.bad_request("Req data config property is required")
+            property = body["property"]
+            interval = body["interval"]
+            req_data_config = body["req_data_config"]
 
             type = req_data_config.get("type", None)
             if type not in ["EVAL", "ANNOTATION", "SYSTEM_METRIC"]:

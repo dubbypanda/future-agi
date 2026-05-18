@@ -55,6 +55,7 @@ from tracer.models.observation_span import EndUser, EvalLogger, ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
+from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.observation_span import (
     ObservationSpanSerializer,
     SpanExportSerializer,
@@ -1930,13 +1931,18 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 f"error fetching the traces list {get_error_message('ERROR_GETTING_TRACE_LIST')}"
             )
 
+    @swagger_auto_schema(request_body=ObserveGraphDataRequestSerializer)
     @action(detail=False, methods=["post"])
     def get_graph_methods(self, request, *args, **kwargs):
         """
         Fetch data for the observe graph with optimized queries
         """
         try:
-            project_id = self.request.data.get("project_id", None)
+            body_serializer = ObserveGraphDataRequestSerializer(data=request.data)
+            if not body_serializer.is_valid():
+                return self._gm.bad_request(body_serializer.errors)
+            body = body_serializer.validated_data
+            project_id = str(body["project_id"])
             project = Project.objects.get(
                 id=project_id,
                 organization=getattr(self.request, "organization", None)
@@ -1949,9 +1955,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
 
             # Get parameters
-            property = self.request.data.get("property", "count")
-            filters = self.request.data.get("filters", [])
-            interval = self.request.data.get("interval", "hour")
+            property = body["property"]
+            filters = body["filters"]
+            interval = body["interval"]
 
             # Base query with annotations
             base_query = Trace.objects.filter(project_id=project_id).annotate(
@@ -2204,10 +2210,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                     base_query = base_query.filter(has_annotation_condition)
 
             filtered_trace_queryset = base_query
-            req_data_config = self.request.data.get("req_data_config", None)
-
-            if not req_data_config:
-                return self._gm.bad_request("Req data config property is required")
+            req_data_config = body["req_data_config"]
 
             type = req_data_config.get("type", None)
             if type not in ["EVAL", "ANNOTATION", "SYSTEM_METRIC"]:

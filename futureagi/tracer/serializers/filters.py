@@ -120,6 +120,39 @@ class StrictInputSerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
 
+class ObserveGraphMetricConfigField(serializers.JSONField):
+    class Meta:
+        swagger_schema_fields = {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "type": {
+                    "type": "string",
+                    "enum": ["SYSTEM_METRIC", "EVAL", "ANNOTATION"],
+                },
+                "output_type": {"type": "string"},
+                "eval_output_type": {"type": "string"},
+                "choices": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["id", "type"],
+            "additionalProperties": True,
+        }
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("req_data_config must be an object.")
+        if "id" not in value:
+            raise serializers.ValidationError("req_data_config.id is required.")
+        if "type" not in value:
+            raise serializers.ValidationError("req_data_config.type is required.")
+        if value["type"] not in ("SYSTEM_METRIC", "EVAL", "ANNOTATION"):
+            raise serializers.ValidationError(
+                "req_data_config.type must be SYSTEM_METRIC, EVAL, or ANNOTATION."
+            )
+        return value
+
+
 def parse_filter_list_payload(data):
     """Decode the canonical filter-list payload from body or query params."""
     if data in (None, ""):
@@ -240,6 +273,20 @@ class FilterListQueryParamField(serializers.CharField):
 
     def to_internal_value(self, data):
         return FilterListField().run_validation(data)
+
+
+class ObserveGraphDataRequestSerializer(StrictInputSerializer):
+    project_id = serializers.UUIDField()
+    filters = FilterListField(required=False, default=list)
+    interval = serializers.ChoiceField(
+        choices=["hour", "day", "week", "month"],
+        required=False,
+        default="day",
+    )
+    property = serializers.CharField(
+        required=False, allow_blank=True, default="average"
+    )
+    req_data_config = ObserveGraphMetricConfigField()
 
 
 class EvalTaskFiltersField(serializers.JSONField):

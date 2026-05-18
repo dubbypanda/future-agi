@@ -4,6 +4,7 @@ from tracer.models.project import Project
 from tracer.models.trace_session import TraceSession
 from tracer.serializers.filters import (
     StrictInputSerializer,
+    ObserveGraphDataRequestSerializer,
     filter_list_field,
     filter_list_query_param_field,
 )
@@ -58,48 +59,5 @@ class TraceSessionListQuerySerializer(StrictInputSerializer):
     interval = serializers.CharField(required=False, allow_blank=True)
 
 
-class SessionGraphMetricConfigField(serializers.JSONField):
-    class Meta:
-        swagger_schema_fields = {
-            "type": "object",
-            "properties": {
-                "id": {"type": "string"},
-                "type": {
-                    "type": "string",
-                    "enum": ["SYSTEM_METRIC", "EVAL", "ANNOTATION"],
-                },
-                "output_type": {"type": "string"},
-                "eval_output_type": {"type": "string"},
-                "choices": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["id", "type"],
-            "additionalProperties": True,
-        }
-
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-        if not isinstance(value, dict):
-            raise serializers.ValidationError("req_data_config must be an object.")
-        if "id" not in value:
-            raise serializers.ValidationError("req_data_config.id is required.")
-        if "type" not in value:
-            raise serializers.ValidationError("req_data_config.type is required.")
-        if value["type"] not in ("SYSTEM_METRIC", "EVAL", "ANNOTATION"):
-            raise serializers.ValidationError(
-                "req_data_config.type must be SYSTEM_METRIC, EVAL, or ANNOTATION."
-            )
-        return value
-
-
-class TraceSessionGraphDataRequestSerializer(StrictInputSerializer):
-    project_id = serializers.UUIDField()
-    filters = filter_list_field(required=False, default=list)
-    interval = serializers.ChoiceField(
-        choices=["hour", "day", "week", "month"],
-        required=False,
-        default="day",
-    )
-    property = serializers.CharField(
-        required=False, allow_blank=True, default="average"
-    )
-    req_data_config = SessionGraphMetricConfigField()
+class TraceSessionGraphDataRequestSerializer(ObserveGraphDataRequestSerializer):
+    pass
