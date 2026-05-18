@@ -58,16 +58,16 @@ from tracer.models.trace import Trace
 from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.observation_span import (
     ObservationSpanSerializer,
-    SpanExportSerializer,
 )
 from tracer.serializers.trace import (
     TraceAgentGraphQuerySerializer,
-    TraceExportSerializer,
+    TraceExportQuerySerializer,
     TraceIndexQuerySerializer,
     TraceListQuerySerializer,
     TraceObserveIndexQuerySerializer,
     TraceObserveListQuerySerializer,
     TraceSerializer,
+    TraceVoiceCallListQuerySerializer,
     UserCodeExampleResponseSerializer,
     UsersQuerySerializer,
     UsersResponseSerializer,
@@ -3383,31 +3383,15 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         - page_size (optional, default 30)
         """
         try:
-            project_id = request.query_params.get(
-                "project_id"
-            ) or request.query_params.get("projectId")
-            remove_simulation_calls = request.query_params.get(
-                "remove_simulation_calls"
-            )
-            if not project_id:
-                raise Exception("Project id is required")
-
-            query_data = {"filters": request.query_params.get("filters", "[]")}
-
-            # Parse JSON fields from query parameters
-            try:
-                if query_data["filters"]:
-                    query_data["filters"] = json.loads(query_data["filters"])
-            except json.JSONDecodeError as e:
-                return self._gm.bad_request(
-                    f"Invalid JSON format in filters parameter: {str(e)}"
-                )
-
-            serializer = SpanExportSerializer(data=query_data)
+            serializer = TraceVoiceCallListQuerySerializer(data=request.query_params)
             if not serializer.is_valid():
                 return self._gm.bad_request(serializer.errors)
 
             validated_data = serializer.validated_data
+            project_id = str(validated_data["project_id"])
+            remove_simulation_calls = validated_data.get(
+                "remove_simulation_calls", False
+            )
 
             # Validate project exists
             Project.objects.get(
@@ -3587,12 +3571,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             # Use ExtendedPageNumberPagination
             paginator = ExtendedPageNumberPagination()
             # Respect page_size if provided; fallback to 'limit' which paginator supports
-            requested_page_size = request.query_params.get("page_size")
-            if requested_page_size:
-                try:
-                    paginator.page_size = int(requested_page_size)
-                except (TypeError, ValueError):
-                    pass
+            paginator.page_size = validated_data.get("page_size", paginator.page_size)
             page_qs = paginator.paginate_queryset(base_query, request, view=self)
 
             results = self.populate_call_logs_result(
@@ -4427,14 +4406,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             )
 
             # Apply filters
-            filters = request.query_params.get("filters", "[]")
-            try:
-                if filters:
-                    filters = json.loads(filters)
-            except json.JSONDecodeError as e:
-                return self._gm.bad_request(
-                    f"Invalid JSON format in filters parameter: {str(e)}"
-                )
+            filters = validated_data.get("filters", [])
 
             if filters:
                 # Apply system metric filters
@@ -4536,11 +4508,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         Auto-detects voice/conversation projects and exports voice-specific fields.
         """
         try:
-            project_id = request.query_params.get(
-                "project_id"
-            ) or request.query_params.get("projectId")
-            if not project_id:
-                return self._gm.bad_request("Project id is required")
+            serializer = TraceExportQuerySerializer(data=request.query_params)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+            validated_data = serializer.validated_data
+            project_id = str(validated_data["project_id"])
 
             project = Project.no_workspace_objects.get(
                 id=project_id, organization=request.user.organization
@@ -4588,14 +4560,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         """
         Export voice/conversation traces as CSV with call-specific fields.
         """
-        query_data = {"filters": request.query_params.get("filters", "[]")}
-        try:
-            if query_data["filters"]:
-                query_data["filters"] = json.loads(query_data["filters"])
-        except json.JSONDecodeError:
-            query_data["filters"] = []
-
-        serializer = SpanExportSerializer(data=query_data)
+        serializer = TraceExportQuerySerializer(data=request.query_params)
         if not serializer.is_valid():
             return self._gm.bad_request(serializer.errors)
 
@@ -5155,8 +5120,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         )
 
         filters = validated_data.get("filters", [])
-        page = int(request.query_params.get("page", 1))
-        page_size = int(request.query_params.get("page_size", 30))
+        page = validated_data.get("page", 1)
+        page_size = validated_data.get("page_size", 30)
         page_number = page - 1  # Convert 1-based to 0-based
 
         # Get eval config IDs from CH (fast) instead of PG EvalLogger scan

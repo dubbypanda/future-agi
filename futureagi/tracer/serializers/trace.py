@@ -85,6 +85,19 @@ class TraceObserveListQuerySerializer(StrictInputSerializer):
     interval = serializers.CharField(required=False, allow_blank=True)
 
 
+class TraceExportQuerySerializer(StrictInputSerializer):
+    project_id = serializers.UUIDField()
+    filters = filter_list_query_param_field(required=False, default=list)
+
+
+class TraceVoiceCallListQuerySerializer(TraceExportQuerySerializer):
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    page_size = serializers.IntegerField(
+        required=False, default=30, min_value=1, max_value=500
+    )
+    remove_simulation_calls = serializers.BooleanField(required=False, default=False)
+
+
 class TraceIndexQuerySerializer(StrictInputSerializer):
     trace_id = serializers.UUIDField()
     project_version_id = serializers.UUIDField()

@@ -59,5 +59,9 @@ class TraceSessionListQuerySerializer(StrictInputSerializer):
     interval = serializers.CharField(required=False, allow_blank=True)
 
 
+class TraceSessionExportQuerySerializer(TraceSessionListQuerySerializer):
+    project_id = serializers.UUIDField()
+
+
 class TraceSessionGraphDataRequestSerializer(ObserveGraphDataRequestSerializer):
     pass

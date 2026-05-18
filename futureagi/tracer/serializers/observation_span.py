@@ -126,6 +126,11 @@ class SpanExportSerializer(serializers.Serializer):
         return validate_filters_helper(value)
 
 
+class SpanExportQuerySerializer(StrictInputSerializer):
+    project_id = serializers.UUIDField()
+    filters = filter_list_query_param_field(required=False, default=list)
+
+
 class SpanObserveListQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField()
     user_id = serializers.CharField(required=False, allow_blank=True)

@@ -80,10 +80,10 @@ from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.observation_span import (
     ObservationAttributeListQuerySerializer,
     ObservationSpanSerializer,
+    SpanExportQuerySerializer,
     SpanIndexQuerySerializer,
     SpanObserveIndexQuerySerializer,
     SpanObserveListQuerySerializer,
-    SpanExportSerializer,
     SubmitFeedbackActionTypeSerializer,
     SubmitFeedbackSerializer,
 )
@@ -3272,14 +3272,17 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
     @action(detail=False, methods=["get"])
     def get_spans_export_data(self, request, *args, **kwargs):
         try:
+            serializer = SpanExportQuerySerializer(data=request.query_params)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+            validated_data = serializer.validated_data
+
             response = self.list_spans_observe(request, export=True)
 
             if response.status_code != 200:
                 return response
 
-            project_id = self.request.query_params.get(
-                "project_id"
-            ) or self.request.query_params.get("projectId")
+            project_id = str(validated_data["project_id"])
             project = Project.objects.get(
                 id=project_id,
                 organization=getattr(self.request, "organization", None)

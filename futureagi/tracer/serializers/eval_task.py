@@ -18,18 +18,15 @@ from tracer.serializers.filters import (
 
 
 class PaginationQuerySerializer(serializers.Serializer):
-    """Shared query-params validator for paginated eval-log endpoints.
+    """Shared query-params validator for eval-log endpoints."""
 
-    DRF's ``PageNumberPagination`` is 1-indexed; the FE state is 0-indexed,
-    so consumers send ``page+1``. ``page_size`` is exposed under the
-    paginator's ``page_size_query_param='limit'`` alias too — this
-    serializer accepts either spelling to keep older FE callers working.
-    """
-
-    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    page = serializers.IntegerField(required=False, default=0, min_value=0)
     page_size = serializers.IntegerField(
-        required=False, default=25, min_value=1, max_value=100
+        required=False, default=25, min_value=1
     )
+
+    def validate_page_size(self, value):
+        return min(value, 100)
 
 
 class EvalTaskListQuerySerializer(StrictInputSerializer):

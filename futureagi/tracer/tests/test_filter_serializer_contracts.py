@@ -17,6 +17,7 @@ from tracer.serializers.filters import ObserveGraphDataRequestSerializer
 from tracer.serializers.monitor import FetchGraphSerializer
 from tracer.serializers.observation_span import (
     ObservationAttributeListQuerySerializer,
+    SpanExportQuerySerializer,
     SpanIndexQuerySerializer,
     SpanObserveIndexQuerySerializer,
     SpanObserveListQuerySerializer,
@@ -28,13 +29,16 @@ from tracer.serializers.project import (
 )
 from tracer.serializers.trace import (
     TraceAgentGraphQuerySerializer,
+    TraceExportQuerySerializer,
     TraceIndexQuerySerializer,
     TraceListQuerySerializer,
     TraceObserveIndexQuerySerializer,
     TraceObserveListQuerySerializer,
+    TraceVoiceCallListQuerySerializer,
     UsersQuerySerializer,
 )
 from tracer.serializers.trace_session import (
+    TraceSessionExportQuerySerializer,
     TraceSessionFilterValuesQuerySerializer,
     TraceSessionGraphDataRequestSerializer,
     TraceSessionListQuerySerializer,
@@ -433,6 +437,32 @@ class TestFilterSerializerContracts:
         assert "projectVersionId" in serializer.errors
         assert "pageNumber" in serializer.errors
 
+    def test_trace_export_query_rejects_camel_case_aliases(self):
+        serializer = TraceExportQuerySerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps([_span_attr_filter()]),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectId" in serializer.errors
+
+    def test_trace_voice_call_query_accepts_canonical_pagination(self):
+        serializer = TraceVoiceCallListQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps([_span_attr_filter()]),
+                "page": "2",
+                "page_size": "25",
+                "remove_simulation_calls": "true",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["page"] == 2
+        assert serializer.validated_data["remove_simulation_calls"] is True
+
     def test_trace_index_queries_reject_camel_case_aliases(self):
         trace_index = TraceIndexQuerySerializer(
             data={
@@ -639,6 +669,17 @@ class TestFilterSerializerContracts:
         assert "userId" in serializer.errors
         assert "pageNumber" in serializer.errors
 
+    def test_span_export_query_rejects_camel_case_project_alias(self):
+        serializer = SpanExportQuerySerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps([_span_attr_filter()]),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectId" in serializer.errors
+
     def test_span_index_queries_reject_camel_case_aliases(self):
         span_index = SpanIndexQuerySerializer(
             data={
@@ -711,6 +752,17 @@ class TestFilterSerializerContracts:
 
     def test_trace_agent_graph_query_rejects_camel_case_project_id(self):
         serializer = TraceAgentGraphQuerySerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps([_span_attr_filter()]),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectId" in serializer.errors
+
+    def test_session_export_query_requires_canonical_project_id(self):
+        serializer = TraceSessionExportQuerySerializer(
             data={
                 "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
                 "filters": json.dumps([_span_attr_filter()]),

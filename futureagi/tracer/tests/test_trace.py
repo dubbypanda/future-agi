@@ -221,6 +221,14 @@ class TestVoiceCallListAPI:
         assert payload["count"] >= 1
         assert payload["results"][0]["trace_id"] == str(trace.id)
 
+    def test_list_voice_calls_rejects_legacy_project_alias(self, auth_client, project):
+        response = auth_client.get(
+            "/tracer/trace/list_voice_calls/",
+            {"projectId": str(project.id), "filters": "[]"},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.integration
 @pytest.mark.api

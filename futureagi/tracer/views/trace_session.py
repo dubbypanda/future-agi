@@ -65,8 +65,9 @@ from tracer.models.trace_session import TraceSession
 from tfc.utils.pagination import ExtendedPageNumberPagination
 from tracer.serializers.eval_task import PaginationQuerySerializer
 from tracer.serializers.trace_session import (
-    TraceSessionGraphDataRequestSerializer,
+    TraceSessionExportQuerySerializer,
     TraceSessionFilterValuesQuerySerializer,
+    TraceSessionGraphDataRequestSerializer,
     TraceSessionListQuerySerializer,
     TraceSessionSerializer,
 )
@@ -1756,14 +1757,17 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         Export traces filtered by project ID and project version ID with optimized queries.
         """
         try:
+            serializer = TraceSessionExportQuerySerializer(data=request.query_params)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+            validated_data = serializer.validated_data
+
             response = self.list_sessions(request, export=True)
 
             if response.status_code != 200:
                 return response
 
-            project_id = self.request.query_params.get(
-                "project_id"
-            ) or self.request.query_params.get("projectId")
+            project_id = str(validated_data["project_id"])
             project = Project.objects.get(
                 id=project_id,
                 organization=getattr(self.request, "organization", None)
@@ -1799,13 +1803,12 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         they appear.
 
         Query params:
-            page (int, 1-indexed, default 1)
+            page (int, 0-indexed, default 0)
             page_size (int, default 25, max 100)
 
         Returns:
-            Paginated DRF response: {count, next, previous, results,
-            total_pages, current_page}. Each ``results`` item carries the
-            same fields ``EvalTaskView.get_usage`` exposes, minus
+            Paginated response: {total, page, page_size, items}. Each item
+            carries the same fields ``EvalTaskView.get_usage`` exposes, minus
             span/trace-only fields (NULL on session rows per the
             ``eval_logger_target_type_fks`` check constraint).
         """
@@ -1816,6 +1819,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
             qp = PaginationQuerySerializer(data=request.query_params)
             qp.is_valid(raise_exception=True)
+            page = qp.validated_data["page"]
             page_size = qp.validated_data["page_size"]
 
             logs_qs = (
@@ -1830,9 +1834,9 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 .order_by("-created_at")
             )
 
-            paginator = ExtendedPageNumberPagination()
-            paginator.page_size = page_size
-            logs_page = paginator.paginate_queryset(logs_qs, request, view=self)
+            total = logs_qs.count()
+            start = page * page_size
+            logs_page = logs_qs[start : start + page_size]
 
             items = []
             for log in logs_page:
@@ -1902,10 +1906,14 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     }
                 )
 
-            # ExtendedPageNumberPagination response shape:
-            # {count, next, previous, results, total_pages, current_page}
-            paginated = paginator.get_paginated_response(items)
-            return self._gm.success_response(paginated.data)
+            return self._gm.success_response(
+                {
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "items": items,
+                }
+            )
         except Exception as e:
             logger.exception(f"Error in fetching session eval logs: {str(e)}")
             return self._gm.bad_request(f"Error fetching session eval logs: {str(e)}")
