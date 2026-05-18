@@ -153,7 +153,7 @@ describe("OpenAPI runtime contract", () => {
     expect(result.error.message).toContain("status");
   });
 
-  it("does not validate undocumented error responses against a success schema", () => {
+  it("validates default error responses instead of falling back to success schemas", () => {
     const response = {
       status: 404,
       config: {
@@ -168,7 +168,10 @@ describe("OpenAPI runtime contract", () => {
 
     expect(validateContractedResponse(response)).toMatchObject({
       ok: true,
-      skipped: true,
+      endpoint: {
+        template: "/usage/ee/licenses/{grant_id}/revoke/",
+        method: "post",
+      },
     });
   });
 });

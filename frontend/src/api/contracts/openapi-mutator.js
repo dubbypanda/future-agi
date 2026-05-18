@@ -27,22 +27,32 @@ export const apiMutator = async (url, options) => {
         }
       : undefined;
 
-  const response =
-    method === "GET"
-      ? await axios.get(url, config)
-      : method === "POST"
-        ? config
-          ? await axios.post(url, data, config)
-          : await axios.post(url, data)
-        : method === "PUT"
-          ? config
-            ? await axios.put(url, data, config)
-            : await axios.put(url, data)
-          : method === "PATCH"
-            ? config
-              ? await axios.patch(url, data, config)
-              : await axios.patch(url, data)
-            : await axios.delete(url, config);
+  let response;
+  switch (String(method || "").toUpperCase()) {
+    case "GET":
+      response = await axios.get(url, config);
+      break;
+    case "POST":
+      response = config
+        ? await axios.post(url, data, config)
+        : await axios.post(url, data);
+      break;
+    case "PUT":
+      response = config
+        ? await axios.put(url, data, config)
+        : await axios.put(url, data);
+      break;
+    case "PATCH":
+      response = config
+        ? await axios.patch(url, data, config)
+        : await axios.patch(url, data);
+      break;
+    case "DELETE":
+      response = await axios.delete(url, config);
+      break;
+    default:
+      throw new Error(`Unsupported OpenAPI method: ${method || "<missing>"}`);
+  }
 
   return response;
 };
