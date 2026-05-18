@@ -333,11 +333,10 @@ const Performance = () => {
   const { mutate: generateExport } = useMutation({
     mutationFn: () => {
       return axios.post(endpoints.performance.tableExport(id), {
-        dataset: {
-          startDate: dateFilter[0],
-          endDate: dateFilter[1],
-          aggBy: selectedAggregation,
-        },
+        dataset: apiSelectedDatasetObj,
+        filters: apiFilters,
+        start_date: dateFilter[0],
+        end_date: dateFilter[1],
       });
     },
     onSuccess: (data) => {

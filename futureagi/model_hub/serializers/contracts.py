@@ -976,9 +976,11 @@ class PerformanceDetailsRequestSerializer(StrictInputSerializer):
     end_date = serializers.CharField()
 
 
-class PerformanceExportRequestSerializer(serializers.Serializer):
-    dataset = serializers.JSONField()
-    metric = serializers.JSONField(required=False)
+class PerformanceExportRequestSerializer(StrictInputSerializer):
+    dataset = PerformanceDatasetSerializer()
+    filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+    start_date = serializers.CharField()
+    end_date = serializers.CharField()
 
 
 class PerformanceTagDistributionRequestSerializer(StrictInputSerializer):

@@ -171,6 +171,7 @@ class PerformanceView(APIView):
 
 class PerformanceDetailsView(APIView):
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     def extract_content_from_msg(self, content):
         result = []
@@ -204,10 +205,7 @@ class PerformanceDetailsView(APIView):
         limit = 30
         serializer = PerformanceDetailsRequestSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(
-                data=serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._gm.bad_request(serializer.errors)
         query_data = serializer.validated_data
 
         page = query_data["page"]
@@ -411,6 +409,7 @@ class PerformanceDetailsView(APIView):
 
 class PerformanceDetailsExport(APIView):
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         request_body=PerformanceExportRequestSerializer,
@@ -426,23 +425,25 @@ class PerformanceDetailsExport(APIView):
         user = request.user
         organization = user.organization
 
-        dataset = request.data.get("dataset")
+        serializer = PerformanceExportRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+        query_data = serializer.validated_data
 
-        metric = request.data.get("metric")
+        dataset = query_data["dataset"]
+        filters = query_data.get("filters", [])
+        start_date = query_data["start_date"]
+        end_date = query_data["end_date"]
 
-        if metric and "id" in metric:
-            metric_model = Metric.objects.get(id=metric["id"])
-        else:
-            model = AIModel.objects.get(id=id)
-            if model.default_metric:
-                metric_model = model.default_metric.id
-
+        metric_model = Metric.objects.filter(id=dataset["metric_id"]).first()
         if metric_model:
             performance = calculate_performance_details(
                 organization.id,
                 id,
                 dataset,
-                metric_model,
+                filters,
+                start_date,
+                end_date,
                 unpaginated=True,
             )
 
@@ -493,10 +494,7 @@ class PerformanceDetailsExport(APIView):
 
             return response
         else:
-            return Response(
-                data={},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return self._gm.not_found("Metric not found")
 
 
 class GetPerformanceOptionsView(APIView):

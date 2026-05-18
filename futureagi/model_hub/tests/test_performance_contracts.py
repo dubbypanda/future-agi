@@ -5,6 +5,7 @@ from rest_framework import status
 
 from model_hub.models.ai_model import AIModel
 from model_hub.serializers.contracts import (
+    PerformanceExportRequestSerializer,
     PerformanceQueryRequestSerializer,
     PerformanceTagDistributionRequestSerializer,
 )
@@ -106,6 +107,32 @@ class TestPerformanceContracts:
         assert not serializer.is_valid()
         assert "graphType" in serializer.errors
 
+    def test_performance_export_accepts_canonical_payload(self):
+        serializer = PerformanceExportRequestSerializer(
+            data={
+                "dataset": _performance_dataset(),
+                "filters": [_performance_filter()],
+                "start_date": "2026-01-01 00:00:00",
+                "end_date": "2026-01-31 23:59:59",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_performance_export_rejects_legacy_date_aliases(self):
+        serializer = PerformanceExportRequestSerializer(
+            data={
+                "dataset": _performance_dataset(),
+                "filters": [],
+                "startDate": "2026-01-01 00:00:00",
+                "endDate": "2026-01-31 23:59:59",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "startDate" in serializer.errors
+        assert "endDate" in serializer.errors
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -127,6 +154,29 @@ class TestPerformanceApiContracts:
                 "filters": [],
                 "breakdown": [],
                 "aggBy": "daily",
+                "startDate": "2026-01-01 00:00:00",
+                "endDate": "2026-01-31 23:59:59",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_performance_export_rejects_legacy_body_aliases(
+        self, auth_client, organization, workspace
+    ):
+        model = AIModel.objects.create(
+            user_model_id="performance-export-contract-model",
+            model_type=AIModel.ModelTypes.GENERATIVE_LLM,
+            organization=organization,
+            workspace=workspace,
+        )
+
+        response = auth_client.post(
+            f"/model-hub/performance/export/{model.id}/",
+            {
+                "dataset": _performance_dataset(),
+                "filters": [],
                 "startDate": "2026-01-01 00:00:00",
                 "endDate": "2026-01-31 23:59:59",
             },
