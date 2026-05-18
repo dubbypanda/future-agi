@@ -1,8 +1,11 @@
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from django.db import IntegrityError
+from django.http import Http404
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -11,6 +14,10 @@ from rest_framework.viewsets import ModelViewSet
 
 from accounts.utils import get_request_organization
 from integrations.models import ConnectionStatus, IntegrationConnection
+from integrations.serializers.contracts import (
+    INTEGRATION_ERROR_RESPONSES,
+    INTEGRATION_SYNC_ERROR_RESPONSES,
+)
 from integrations.serializers.integration_connection import (
     IntegrationConnectionCreateSerializer,
     IntegrationConnectionDetailSerializer,
@@ -29,6 +36,12 @@ from tracer.utils.otel import get_or_create_project
 logger = structlog.get_logger(__name__)
 
 
+integration_errors = swagger_auto_schema(responses=INTEGRATION_ERROR_RESPONSES)
+integration_sync_errors = swagger_auto_schema(
+    responses=INTEGRATION_SYNC_ERROR_RESPONSES
+)
+
+
 def _build_credentials(data: dict) -> dict:
     """Build a credentials dict from serializer data.
 
@@ -45,6 +58,26 @@ def _build_credentials(data: dict) -> dict:
     return {}
 
 
+def _serializer_errors_to_text(errors) -> str:
+    messages = []
+    for field, field_errors in dict(errors).items():
+        if isinstance(field_errors, (list, tuple)):
+            messages.extend(f"{field}: {error}" for error in field_errors)
+        else:
+            messages.append(f"{field}: {field_errors}")
+    return "; ".join(messages) or "Invalid request."
+
+
+@method_decorator(name="list", decorator=integration_errors)
+@method_decorator(name="create", decorator=integration_errors)
+@method_decorator(name="retrieve", decorator=integration_errors)
+@method_decorator(name="update", decorator=integration_errors)
+@method_decorator(name="partial_update", decorator=integration_errors)
+@method_decorator(name="destroy", decorator=integration_errors)
+@method_decorator(name="validate_credentials", decorator=integration_errors)
+@method_decorator(name="pause", decorator=integration_errors)
+@method_decorator(name="resume", decorator=integration_errors)
+@method_decorator(name="sync_now", decorator=integration_sync_errors)
 class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
     """API endpoints for managing integration connections."""
 
@@ -118,6 +151,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
                 project_name=data.get("project_name"),
             )
             return self._gm.success_response(data)
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error retrieving integration connection", error=str(e))
             return self._gm.internal_server_error_response(
@@ -130,7 +165,9 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
         try:
             serializer = IntegrationConnectionCreateSerializer(data=request.data)
             if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
+                return self._gm.bad_request(
+                    _serializer_errors_to_text(serializer.errors)
+                )
 
             data = serializer.validated_data
 
@@ -266,7 +303,9 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             instance = self.get_object()
             serializer = IntegrationConnectionUpdateSerializer(data=request.data)
             if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
+                return self._gm.bad_request(
+                    _serializer_errors_to_text(serializer.errors)
+                )
 
             data = serializer.validated_data
 
@@ -321,6 +360,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             result = IntegrationConnectionDetailSerializer(instance).data
             return self._gm.success_response(result)
 
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error updating integration connection", error=str(e))
             return self._gm.internal_server_error_response(
@@ -334,6 +375,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             instance = self.get_object()
             instance.delete()  # BaseModel soft delete
             return self._gm.success_response({"deleted": True})
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error deleting integration connection", error=str(e))
             return self._gm.internal_server_error_response(
@@ -349,7 +392,9 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             serializer = ValidateCredentialsSerializer(data=request.data)
             if not serializer.is_valid():
                 logger.warning("Validate serializer errors", errors=serializer.errors)
-                return self._gm.bad_request(serializer.errors)
+                return self._gm.bad_request(
+                    _serializer_errors_to_text(serializer.errors)
+                )
 
             data = serializer.validated_data
             logger.info(
@@ -412,9 +457,7 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
 
             # Cooldown: prevent sync spam (min 60s between manual syncs)
             if instance.last_synced_at:
-                elapsed = (
-                    datetime.now(timezone.utc) - instance.last_synced_at
-                ).total_seconds()
+                elapsed = (datetime.now(UTC) - instance.last_synced_at).total_seconds()
                 if elapsed < 60:
                     remaining = int(60 - elapsed)
                     return self._gm.bad_request(
@@ -436,6 +479,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
 
             return self._gm.success_response({"message": "Sync triggered."})
 
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error triggering sync", error=str(e))
             return self._gm.internal_server_error_response("Failed to trigger sync.")
@@ -455,6 +500,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             result = IntegrationConnectionDetailSerializer(instance).data
             return self._gm.success_response(result)
 
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error pausing connection", error=str(e))
             return self._gm.internal_server_error_response(
@@ -484,6 +531,8 @@ class IntegrationConnectionViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             result = IntegrationConnectionDetailSerializer(instance).data
             return self._gm.success_response(result)
 
+        except Http404:
+            return self._gm.not_found("Integration connection not found.")
         except Exception as e:
             logger.exception("Error resuming connection", error=str(e))
             return self._gm.internal_server_error_response(

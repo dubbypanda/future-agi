@@ -535,6 +535,7 @@ import type {
   ImportAnnotationsApi,
   IntegrationConnectionDetailApi,
   IntegrationConnectionListApi,
+  IntegrationErrorResponseApi,
   IntegrationsConnectionsList200,
   IntegrationsConnectionsListParams,
   IntegrationsSyncLogsList200,
@@ -16916,12 +16917,29 @@ export type integrationsConnectionsListResponse200 = {
   status: 200
 }
 
+export type integrationsConnectionsListResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsListResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsListResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsListResponseSuccess = (integrationsConnectionsListResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsListResponseError = (integrationsConnectionsListResponse400 | integrationsConnectionsListResponse404 | integrationsConnectionsListResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsListResponse = (integrationsConnectionsListResponseSuccess)
+export type integrationsConnectionsListResponse = (integrationsConnectionsListResponseSuccess | integrationsConnectionsListResponseError)
 
 export const getIntegrationsConnectionsListUrl = (params?: IntegrationsConnectionsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -16959,12 +16977,29 @@ export type integrationsConnectionsCreateResponse201 = {
   status: 201
 }
 
+export type integrationsConnectionsCreateResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsCreateResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsCreateResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsCreateResponseSuccess = (integrationsConnectionsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsCreateResponseError = (integrationsConnectionsCreateResponse400 | integrationsConnectionsCreateResponse404 | integrationsConnectionsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsCreateResponse = (integrationsConnectionsCreateResponseSuccess)
+export type integrationsConnectionsCreateResponse = (integrationsConnectionsCreateResponseSuccess | integrationsConnectionsCreateResponseError)
 
 export const getIntegrationsConnectionsCreateUrl = () => {
 
@@ -16996,12 +17031,29 @@ export type integrationsConnectionsValidateCredentialsResponse201 = {
   status: 201
 }
 
+export type integrationsConnectionsValidateCredentialsResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsValidateCredentialsResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsValidateCredentialsResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsValidateCredentialsResponseSuccess = (integrationsConnectionsValidateCredentialsResponse201) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsValidateCredentialsResponseError = (integrationsConnectionsValidateCredentialsResponse400 | integrationsConnectionsValidateCredentialsResponse404 | integrationsConnectionsValidateCredentialsResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsValidateCredentialsResponse = (integrationsConnectionsValidateCredentialsResponseSuccess)
+export type integrationsConnectionsValidateCredentialsResponse = (integrationsConnectionsValidateCredentialsResponseSuccess | integrationsConnectionsValidateCredentialsResponseError)
 
 export const getIntegrationsConnectionsValidateCredentialsUrl = () => {
 
@@ -17033,12 +17085,29 @@ export type integrationsConnectionsReadResponse200 = {
   status: 200
 }
 
+export type integrationsConnectionsReadResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsReadResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsReadResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsReadResponseSuccess = (integrationsConnectionsReadResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsReadResponseError = (integrationsConnectionsReadResponse400 | integrationsConnectionsReadResponse404 | integrationsConnectionsReadResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsReadResponse = (integrationsConnectionsReadResponseSuccess)
+export type integrationsConnectionsReadResponse = (integrationsConnectionsReadResponseSuccess | integrationsConnectionsReadResponseError)
 
 export const getIntegrationsConnectionsReadUrl = (id: string,) => {
 
@@ -17069,12 +17138,29 @@ export type integrationsConnectionsUpdateResponse200 = {
   status: 200
 }
 
+export type integrationsConnectionsUpdateResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsUpdateResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsUpdateResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsUpdateResponseSuccess = (integrationsConnectionsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsUpdateResponseError = (integrationsConnectionsUpdateResponse400 | integrationsConnectionsUpdateResponse404 | integrationsConnectionsUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsUpdateResponse = (integrationsConnectionsUpdateResponseSuccess)
+export type integrationsConnectionsUpdateResponse = (integrationsConnectionsUpdateResponseSuccess | integrationsConnectionsUpdateResponseError)
 
 export const getIntegrationsConnectionsUpdateUrl = (id: string,) => {
 
@@ -17107,12 +17193,29 @@ export type integrationsConnectionsPartialUpdateResponse200 = {
   status: 200
 }
 
+export type integrationsConnectionsPartialUpdateResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsPartialUpdateResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsPartialUpdateResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsPartialUpdateResponseSuccess = (integrationsConnectionsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsPartialUpdateResponseError = (integrationsConnectionsPartialUpdateResponse400 | integrationsConnectionsPartialUpdateResponse404 | integrationsConnectionsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsPartialUpdateResponse = (integrationsConnectionsPartialUpdateResponseSuccess)
+export type integrationsConnectionsPartialUpdateResponse = (integrationsConnectionsPartialUpdateResponseSuccess | integrationsConnectionsPartialUpdateResponseError)
 
 export const getIntegrationsConnectionsPartialUpdateUrl = (id: string,) => {
 
@@ -17145,12 +17248,29 @@ export type integrationsConnectionsDeleteResponse204 = {
   status: 204
 }
 
+export type integrationsConnectionsDeleteResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsDeleteResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsDeleteResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsDeleteResponseSuccess = (integrationsConnectionsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsDeleteResponseError = (integrationsConnectionsDeleteResponse400 | integrationsConnectionsDeleteResponse404 | integrationsConnectionsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsDeleteResponse = (integrationsConnectionsDeleteResponseSuccess)
+export type integrationsConnectionsDeleteResponse = (integrationsConnectionsDeleteResponseSuccess | integrationsConnectionsDeleteResponseError)
 
 export const getIntegrationsConnectionsDeleteUrl = (id: string,) => {
 
@@ -17181,12 +17301,29 @@ export type integrationsConnectionsPauseResponse201 = {
   status: 201
 }
 
+export type integrationsConnectionsPauseResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsPauseResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsPauseResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsPauseResponseSuccess = (integrationsConnectionsPauseResponse201) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsPauseResponseError = (integrationsConnectionsPauseResponse400 | integrationsConnectionsPauseResponse404 | integrationsConnectionsPauseResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsPauseResponse = (integrationsConnectionsPauseResponseSuccess)
+export type integrationsConnectionsPauseResponse = (integrationsConnectionsPauseResponseSuccess | integrationsConnectionsPauseResponseError)
 
 export const getIntegrationsConnectionsPauseUrl = (id: string,) => {
 
@@ -17219,12 +17356,29 @@ export type integrationsConnectionsResumeResponse201 = {
   status: 201
 }
 
+export type integrationsConnectionsResumeResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsResumeResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsResumeResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsResumeResponseSuccess = (integrationsConnectionsResumeResponse201) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsResumeResponseError = (integrationsConnectionsResumeResponse400 | integrationsConnectionsResumeResponse404 | integrationsConnectionsResumeResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsResumeResponse = (integrationsConnectionsResumeResponseSuccess)
+export type integrationsConnectionsResumeResponse = (integrationsConnectionsResumeResponseSuccess | integrationsConnectionsResumeResponseError)
 
 export const getIntegrationsConnectionsResumeUrl = (id: string,) => {
 
@@ -17257,12 +17411,34 @@ export type integrationsConnectionsSyncNowResponse201 = {
   status: 201
 }
 
+export type integrationsConnectionsSyncNowResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsConnectionsSyncNowResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsConnectionsSyncNowResponse409 = {
+  data: IntegrationErrorResponseApi
+  status: 409
+}
+
+export type integrationsConnectionsSyncNowResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsConnectionsSyncNowResponseSuccess = (integrationsConnectionsSyncNowResponse201) & {
   headers: Headers;
 };
-;
+export type integrationsConnectionsSyncNowResponseError = (integrationsConnectionsSyncNowResponse400 | integrationsConnectionsSyncNowResponse404 | integrationsConnectionsSyncNowResponse409 | integrationsConnectionsSyncNowResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsConnectionsSyncNowResponse = (integrationsConnectionsSyncNowResponseSuccess)
+export type integrationsConnectionsSyncNowResponse = (integrationsConnectionsSyncNowResponseSuccess | integrationsConnectionsSyncNowResponseError)
 
 export const getIntegrationsConnectionsSyncNowUrl = (id: string,) => {
 
@@ -17295,12 +17471,29 @@ export type integrationsSyncLogsListResponse200 = {
   status: 200
 }
 
+export type integrationsSyncLogsListResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsSyncLogsListResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsSyncLogsListResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsSyncLogsListResponseSuccess = (integrationsSyncLogsListResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsSyncLogsListResponseError = (integrationsSyncLogsListResponse400 | integrationsSyncLogsListResponse404 | integrationsSyncLogsListResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsSyncLogsListResponse = (integrationsSyncLogsListResponseSuccess)
+export type integrationsSyncLogsListResponse = (integrationsSyncLogsListResponseSuccess | integrationsSyncLogsListResponseError)
 
 export const getIntegrationsSyncLogsListUrl = (params?: IntegrationsSyncLogsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -17338,12 +17531,29 @@ export type integrationsSyncLogsReadResponse200 = {
   status: 200
 }
 
+export type integrationsSyncLogsReadResponse400 = {
+  data: IntegrationErrorResponseApi
+  status: 400
+}
+
+export type integrationsSyncLogsReadResponse404 = {
+  data: IntegrationErrorResponseApi
+  status: 404
+}
+
+export type integrationsSyncLogsReadResponse500 = {
+  data: IntegrationErrorResponseApi
+  status: 500
+}
+
 export type integrationsSyncLogsReadResponseSuccess = (integrationsSyncLogsReadResponse200) & {
   headers: Headers;
 };
-;
+export type integrationsSyncLogsReadResponseError = (integrationsSyncLogsReadResponse400 | integrationsSyncLogsReadResponse404 | integrationsSyncLogsReadResponse500) & {
+  headers: Headers;
+};
 
-export type integrationsSyncLogsReadResponse = (integrationsSyncLogsReadResponseSuccess)
+export type integrationsSyncLogsReadResponse = (integrationsSyncLogsReadResponseSuccess | integrationsSyncLogsReadResponseError)
 
 export const getIntegrationsSyncLogsReadUrl = (id: string,) => {
 

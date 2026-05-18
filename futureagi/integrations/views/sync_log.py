@@ -1,17 +1,24 @@
 import math
 
 import structlog
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from integrations.models import SyncLog
+from integrations.serializers.contracts import INTEGRATION_ERROR_RESPONSES
 from integrations.serializers.sync_log import SyncLogSerializer
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
 
+integration_errors = swagger_auto_schema(responses=INTEGRATION_ERROR_RESPONSES)
 
+
+@method_decorator(name="list", decorator=integration_errors)
+@method_decorator(name="retrieve", decorator=integration_errors)
 class SyncLogViewSet(BaseModelViewSetMixin, ReadOnlyModelViewSet):
     """Read-only viewset for sync logs."""
 

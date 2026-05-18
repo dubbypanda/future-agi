@@ -7756,6 +7756,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       },
@@ -7768,6 +7777,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7782,6 +7800,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7794,6 +7821,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/IntegrationConnectionDetail"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       },
@@ -7806,6 +7842,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       },
@@ -7818,6 +7863,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       },
@@ -7825,7 +7879,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "integrations_connections_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          }
+        }
       }
     },
     "/integrations/connections/{id}/pause/": {
@@ -7838,6 +7902,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7852,6 +7925,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7866,6 +7948,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/IntegrationConnectionList"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7916,6 +8010,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -7928,6 +8031,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/SyncLog"
+          },
+          "400": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/IntegrationErrorResponse"
           }
         }
       }
@@ -48773,6 +48885,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "IntegrationErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
         }
       }
     },

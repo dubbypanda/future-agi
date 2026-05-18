@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,8 +11,6 @@ from rest_framework import status as http_status
 from integrations.models import (
     ConnectionStatus,
     IntegrationConnection,
-    SyncLog,
-    SyncStatus,
 )
 
 
@@ -83,7 +81,7 @@ class TestIntegrationConnectionListAPI:
         """Connections from other orgs should not be visible."""
         from accounts.models.organization import Organization
 
-        other_org = Organization.objects.create(name="Other Org")
+        Organization.objects.create(name="Other Org")
         resp = auth_client.get(self.URL)
         result = _result(resp)
         # Only our org's connection
@@ -129,8 +127,7 @@ class TestIntegrationConnectionRetrieveAPI:
 
     def test_not_found(self, auth_client):
         resp = auth_client.get(self._url(uuid.uuid4()))
-        # View catches Http404 via generic except → 500
-        assert resp.status_code == http_status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert resp.status_code == http_status.HTTP_404_NOT_FOUND
 
 
 # ---------------------------------------------------------------------------
@@ -431,8 +428,7 @@ class TestIntegrationConnectionDeleteAPI:
     def test_delete_other_org_forbidden(self, auth_client, db):
         """Cannot delete a connection that doesn't belong to our org."""
         resp = auth_client.delete(f"/integrations/connections/{uuid.uuid4()}/")
-        # View catches Http404 via generic except → 500
-        assert resp.status_code == http_status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert resp.status_code == http_status.HTTP_404_NOT_FOUND
 
 
 # ---------------------------------------------------------------------------
@@ -530,7 +526,7 @@ class TestSyncNowAction:
 
     @patch("integrations.temporal.activities.sync_integration_connection")
     def test_sync_now_cooldown(self, mock_sync, auth_client, integration_connection):
-        integration_connection.last_synced_at = datetime.now(timezone.utc) - timedelta(
+        integration_connection.last_synced_at = datetime.now(UTC) - timedelta(
             seconds=10
         )
         integration_connection.save(update_fields=["last_synced_at"])
@@ -560,7 +556,7 @@ class TestSyncNowAction:
         self, mock_sync, auth_client, integration_connection
     ):
         """Exactly 60 seconds elapsed should allow sync."""
-        integration_connection.last_synced_at = datetime.now(timezone.utc) - timedelta(
+        integration_connection.last_synced_at = datetime.now(UTC) - timedelta(
             seconds=61
         )
         integration_connection.save(update_fields=["last_synced_at"])

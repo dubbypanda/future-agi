@@ -4094,6 +4094,13 @@ export interface IntegrationConnectionListApi {
   readonly created_at?: string;
 }
 
+export interface IntegrationErrorResponseApi {
+  status?: boolean;
+  result?: string;
+  message?: string;
+  error?: string;
+}
+
 export type IntegrationConnectionDetailApiPlatform = typeof IntegrationConnectionDetailApiPlatform[keyof typeof IntegrationConnectionDetailApiPlatform];
 
 

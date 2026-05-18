@@ -14288,6 +14288,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14312,6 +14330,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     }
                 },
@@ -14341,6 +14377,24 @@
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14359,6 +14413,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     }
                 },
@@ -14385,6 +14457,24 @@
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14410,6 +14500,24 @@
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14423,6 +14531,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14457,6 +14583,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     }
                 },
@@ -14493,6 +14637,24 @@
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14527,6 +14689,30 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationConnectionList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     }
                 },
@@ -14594,6 +14780,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -14612,6 +14816,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/SyncLog"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     }
                 },
@@ -72853,6 +73075,31 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "IntegrationErrorResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": false
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         },
