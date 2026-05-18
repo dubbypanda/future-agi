@@ -5,7 +5,7 @@ import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
 
 import structlog
@@ -13,6 +13,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -155,11 +156,41 @@ def apply_filters(row_data, filters):
             filter_op = filter_config.get("filter_op")
             filter_value = filter_config.get("filter_value")
 
-            if filter_value is None:
+            if filter_value is None and filter_op not in ("is_null", "is_not_null"):
+                continue
+
+            def cell_value(row):
+                cell = row.get(column_id)
+                if cell is None:
+                    return None
+                value = cell.get("cell_value") if isinstance(cell, dict) else cell
+                if isinstance(value, dict) and "output" in value:
+                    return value["output"]
+                return value
+
+            def is_empty(value):
+                return value is None or value == ""
+
+            if filter_op in ("is_null", "is_not_null"):
+                filtered_data = [
+                    row
+                    for row in filtered_data
+                    if (
+                        is_empty(cell_value(row))
+                        if filter_op == "is_null"
+                        else not is_empty(cell_value(row))
+                    )
+                ]
                 continue
 
             if filter_type == "text":
-                filter_value = filter_value.lower()
+                if filter_op in ("in", "not_in"):
+                    if not isinstance(filter_value, list):
+                        raise ValueError("in/not_in filters require a list value")
+                    filter_values = {str(value).lower() for value in filter_value}
+                else:
+                    filter_value = str(filter_value).lower()
+                    filter_values = set()
                 text_ops = {
                     "contains": lambda x, fv=filter_value: fv in x.lower(),
                     "not_contains": lambda x, fv=filter_value: fv not in x.lower(),
@@ -167,8 +198,8 @@ def apply_filters(row_data, filters):
                     "not_equals": lambda x, fv=filter_value: x.lower() != fv,
                     "starts_with": lambda x, fv=filter_value: x.lower().startswith(fv),
                     "ends_with": lambda x, fv=filter_value: x.lower().endswith(fv),
-                    "in": lambda x, fv=filter_value: x.lower() in fv,
-                    "not_in": lambda x, fv=filter_value: x.lower() not in fv,
+                    "in": lambda x, fv=filter_values: x.lower() in fv,
+                    "not_in": lambda x, fv=filter_values: x.lower() not in fv,
                 }
 
                 if filter_op not in text_ops:
@@ -182,13 +213,7 @@ def apply_filters(row_data, filters):
                 result = []
 
                 for row in filtered_data:
-                    if row.get(column_id, None) is None:
-                        continue
-                    value = row[column_id]["cell_value"]
-
-                    if isinstance(value, dict) and "output" in value:
-                        value = value["output"]
-
+                    value = cell_value(row)
                     if value is None:
                         continue
 
@@ -219,12 +244,7 @@ def apply_filters(row_data, filters):
                         filter_value = float(filter_value)
 
                     for row in filtered_data:
-                        if row.get(column_id, None) is None:
-                            continue
-                        value = row[column_id]["cell_value"]
-                        if isinstance(value, dict) and "output" in value:
-                            value = value["output"]
-
+                        value = cell_value(row)
                         if value is None:
                             continue
 
@@ -240,19 +260,18 @@ def apply_filters(row_data, filters):
 
             elif filter_type == "boolean":
                 result = []
-                if filter_value not in ["true", "false", "passed", "failed"]:
+                if filter_op not in ("equals", "not_equals"):
+                    raise ValueError(
+                        "Invalid filter operation. Allowed operations are: equals, not_equals, is_null, is_not_null"
+                    )
+                desired = str(filter_value).lower()
+                if desired not in ["true", "false", "passed", "failed"]:
                     raise ValueError(
                         "Invalid filter value. Allowed values are: true, false"
                     )
 
                 for row in filtered_data:
-                    if row.get(column_id, None) is None:
-                        continue
-                    value = row[column_id]["cell_value"]
-
-                    if isinstance(value, dict) and "output" in value:
-                        value = value["output"]
-
+                    value = cell_value(row)
                     if value is None:
                         continue
 
@@ -261,17 +280,72 @@ def apply_filters(row_data, filters):
 
                     value = value.lower()
 
-                    if (filter_value == "true" or filter_value == "passed") and (
-                        value == "true" or value == "passed"
+                    matches = (
+                        (desired == "true" or desired == "passed")
+                        and (value == "true" or value == "passed")
+                    ) or (
+                        (desired == "false" or desired == "failed")
+                        and (value == "false" or value == "failed")
+                    )
+                    if (filter_op == "equals" and matches) or (
+                        filter_op == "not_equals" and not matches
                     ):
                         result.append(row)
-                    elif (filter_value == "false" or filter_value == "failed") and (
-                        value == "false" or value == "failed"
-                    ):
-                        result.append(row)
-                    else:
-                        continue
 
+                filtered_data = result
+
+            elif filter_type == "datetime":
+
+                def parse_value(value):
+                    if isinstance(value, datetime):
+                        return value
+                    if isinstance(value, str):
+                        return parse_datetime(value) or parse_datetime(
+                            value.replace("Z", "+00:00")
+                        )
+                    return None
+
+                if filter_op in ("between", "not_between"):
+                    if not isinstance(filter_value, list) or len(filter_value) != 2:
+                        raise ValueError(
+                            "between/not_between filters require two values"
+                        )
+                    lower, upper = (
+                        parse_value(filter_value[0]),
+                        parse_value(filter_value[1]),
+                    )
+                    if lower is None or upper is None:
+                        raise ValueError("Invalid datetime filter value")
+                else:
+                    parsed_filter_value = parse_value(filter_value)
+                    if parsed_filter_value is None:
+                        raise ValueError("Invalid datetime filter value")
+
+                result = []
+                for row in filtered_data:
+                    value = parse_value(cell_value(row))
+                    if value is None:
+                        continue
+                    if filter_op == "equals":
+                        matches = value == parsed_filter_value
+                    elif filter_op == "not_equals":
+                        matches = value != parsed_filter_value
+                    elif filter_op == "greater_than":
+                        matches = value > parsed_filter_value
+                    elif filter_op == "greater_than_or_equal":
+                        matches = value >= parsed_filter_value
+                    elif filter_op == "less_than":
+                        matches = value < parsed_filter_value
+                    elif filter_op == "less_than_or_equal":
+                        matches = value <= parsed_filter_value
+                    elif filter_op == "between":
+                        matches = lower <= value <= upper
+                    elif filter_op == "not_between":
+                        matches = value < lower or value > upper
+                    else:
+                        raise ValueError(f"Invalid filter operation: {filter_op}")
+                    if matches:
+                        result.append(row)
                 filtered_data = result
 
             else:

@@ -1712,7 +1712,15 @@ class GetDatasetTableView(APIView):
                 filter_value = filter_config.get("filter_value")
                 cells = all_cells.filter(column_id=column_id)
 
-                #
+                if filter_op in ("is_null", "is_not_null"):
+                    non_empty_row_ids = cells.exclude(
+                        Q(value__isnull=True) | Q(value="")
+                    ).values_list("row_id", flat=True)
+                    if filter_op == "is_null":
+                        rows = rows.exclude(id__in=non_empty_row_ids)
+                        continue
+                    rows = rows.filter(id__in=non_empty_row_ids, deleted=False)
+                    continue
 
                 if filter_type == "number":
                     operator_map = {
@@ -1798,8 +1806,32 @@ class GetDatasetTableView(APIView):
                         error_messages.append(message)
                         raise ValueError(message)
 
-                elif filter_type == "text" or filter_type == "array":
-                    filter_value = filter_value.lower()
+                elif filter_type in (
+                    "text",
+                    "array",
+                    "categorical",
+                    "thumbs",
+                    "annotator",
+                ):
+                    if filter_op in ("in", "not_in"):
+                        if not isinstance(filter_value, list):
+                            message = "in/not_in operations require a list value"
+                            error_messages.append(message)
+                            raise ValueError(message)
+                        value_condition = Q()
+                        for item in filter_value:
+                            value_condition |= Q(value__iexact=str(item))
+                        if filter_op == "not_in":
+                            cells = cells.filter(~value_condition, deleted=False)
+                        else:
+                            cells = cells.filter(value_condition, deleted=False)
+                        rows = rows.filter(
+                            id__in=cells.values_list("row_id", flat=True),
+                            deleted=False,
+                        )
+                        continue
+
+                    filter_value = str(filter_value).lower()
                     text_ops = {
                         "contains": {"value__icontains": filter_value},
                         "not_contains": {
@@ -1813,8 +1845,6 @@ class GetDatasetTableView(APIView):
                         },
                         "starts_with": {"value__istartswith": filter_value},
                         "ends_with": {"value__iendswith": filter_value},
-                        "in": {"value__in": filter_value},
-                        "not_in": {"value__in": filter_value, "negate": True},
                     }
 
                     if filter_op not in text_ops:
@@ -1833,20 +1863,25 @@ class GetDatasetTableView(APIView):
                         cells = cells.filter(**filter_kwargs, deleted=False)
 
                 elif filter_type == "boolean":
-                    filter_value = filter_value.lower()
+                    filter_value = str(filter_value).lower()
                     if filter_value not in ["true", "false"]:
                         raise ValueError(
                             "Invalid filter value. Allowed values are: true, false"
                         )
+                    truthy = Q(value__icontains="true") | Q(value__iexact="Passed")
+                    falsy = Q(value__icontains="false") | Q(value__iexact="Failed")
                     if filter_value == "true":
-                        cells = cells.filter(
-                            Q(value__icontains="true") | Q(value__iexact="Passed"),
-                            deleted=False,
-                        )
-                    elif filter_value == "false":
-                        cells = cells.filter(
-                            Q(value__icontains="false") | Q(value__iexact="Failed"),
-                            deleted=False,
+                        match_condition = truthy
+                    else:
+                        match_condition = falsy
+
+                    if filter_op == "equals":
+                        cells = cells.filter(match_condition, deleted=False)
+                    elif filter_op == "not_equals":
+                        cells = cells.filter(~match_condition, deleted=False)
+                    else:
+                        raise ValueError(
+                            "Invalid filter operation. Allowed operations are: equals, not_equals, is_null, is_not_null"
                         )
 
                 elif filter_type == "datetime":
@@ -15429,7 +15464,10 @@ class GetJsonColumnSchemaView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: DatasetJsonSchemaResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: DatasetJsonSchemaResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
