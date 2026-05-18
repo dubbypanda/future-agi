@@ -41015,11 +41015,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "Evaluation configurations to create",
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "$ref": "#/definitions/EvalConfigDefinition"
           },
           "default": []
         },
@@ -41116,11 +41112,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "Evaluation configurations to create",
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "$ref": "#/definitions/EvalConfigDefinition"
           },
           "default": []
         },
@@ -43909,21 +43901,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Config",
           "description": "Updated evaluation configuration parameters.",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         },
         "mapping": {
           "title": "Mapping",
           "description": "Updated field mapping between test data and evaluation inputs.",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         },
         "model": {
           "title": "Model",
@@ -64002,31 +63988,71 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Config",
           "description": "Template-specific configuration parameters.",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "default": {}
+          "default": {},
+          "additionalProperties": true
         },
         "mapping": {
           "title": "Mapping",
           "description": "Maps test execution data fields to the evaluation template's expected inputs.",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "default": {}
+          "default": {},
+          "additionalProperties": true
         },
         "filters": {
-          "title": "Filters",
-          "description": "Filter criteria to restrict which test results are evaluated.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
+          "description": "Canonical filter list to restrict which test results are evaluated.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "column_id": {
+                "type": "string",
+                "description": "Column or attribute id to filter on."
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Optional UI label for chips and saved views."
+              },
+              "source": {
+                "type": "string",
+                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+              },
+              "output_type": {
+                "type": "string",
+                "description": "Optional metric output type metadata used by eval and annotation filters."
+              },
+              "filter_config": {
+                "type": "object",
+                "properties": {
+                  "filter_type": {
+                    "type": "string",
+                    "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                  },
+                  "filter_op": {
+                    "type": "string",
+                    "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                  },
+                  "filter_value": {
+                    "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                  },
+                  "col_type": {
+                    "type": "string",
+                    "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                  }
+                },
+                "required": [
+                  "filter_type",
+                  "filter_op"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "column_id",
+              "filter_config"
+            ],
+            "additionalProperties": false
           },
-          "default": {}
+          "default": []
         },
         "error_localizer": {
           "title": "Error localizer",
@@ -64039,6 +64065,20 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "Model to use for running this evaluation.",
           "type": "string",
           "minLength": 1,
+          "x-nullable": true
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "description": "Knowledge base file to use for this evaluation.",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "eval_group": {
+          "title": "Eval group",
+          "description": "Eval group that created this evaluation config.",
+          "type": "string",
+          "format": "uuid",
           "x-nullable": true
         }
       }
@@ -75453,32 +75493,72 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "config": {
           "title": "Config",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
           "readOnly": true,
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         },
         "mapping": {
           "title": "Mapping",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
           "readOnly": true,
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         },
         "filters": {
-          "title": "Filters",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "column_id": {
+                "type": "string",
+                "description": "Column or attribute id to filter on."
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Optional UI label for chips and saved views."
+              },
+              "source": {
+                "type": "string",
+                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+              },
+              "output_type": {
+                "type": "string",
+                "description": "Optional metric output type metadata used by eval and annotation filters."
+              },
+              "filter_config": {
+                "type": "object",
+                "properties": {
+                  "filter_type": {
+                    "type": "string",
+                    "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                  },
+                  "filter_op": {
+                    "type": "string",
+                    "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                  },
+                  "filter_value": {
+                    "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                  },
+                  "col_type": {
+                    "type": "string",
+                    "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                  }
+                },
+                "required": [
+                  "filter_type",
+                  "filter_op"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "column_id",
+              "filter_config"
+            ],
+            "additionalProperties": false
           },
           "readOnly": true,
-          "x-nullable": true
+          "default": []
         },
         "error_localizer": {
           "title": "Error localizer",

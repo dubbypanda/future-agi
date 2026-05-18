@@ -15,6 +15,7 @@ stays in RunTestSerializer in simulate.serializers.run_test.
 from rest_framework import serializers
 
 from simulate.models import RunTest
+from tracer.serializers.filters import filter_list_field, json_object_field
 
 
 class SimulateEvalConfigResponseSerializer(serializers.Serializer):
@@ -26,9 +27,9 @@ class SimulateEvalConfigResponseSerializer(serializers.Serializer):
 
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True, allow_null=True)
-    config = serializers.DictField(read_only=True, allow_null=True)
-    mapping = serializers.DictField(read_only=True, allow_null=True)
-    filters = serializers.DictField(read_only=True, allow_null=True)
+    config = json_object_field(read_only=True, allow_null=True)
+    mapping = json_object_field(read_only=True, allow_null=True)
+    filters = filter_list_field(read_only=True, default=list)
     error_localizer = serializers.BooleanField(read_only=True)
     model = serializers.CharField(read_only=True, allow_null=True)
     status = serializers.CharField(read_only=True, allow_null=True)

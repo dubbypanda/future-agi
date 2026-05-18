@@ -477,7 +477,7 @@ class CreateRunTestView(APIView):
                                     ),
                                     mapping=eval_config_data.get("mapping", {}),
                                     run_test=run_test,
-                                    filters=eval_config_data.get("filters", {}),
+                                    filters=eval_config_data.get("filters", []),
                                     error_localizer=eval_config_data.get(
                                         "error_localizer", False
                                     ),
@@ -4512,7 +4512,7 @@ class AddEvalConfigView(APIView):
                         ),
                         mapping=eval_config_data.get("mapping", {}),
                         run_test=run_test,
-                        filters=eval_config_data.get("filters", {}),
+                        filters=eval_config_data.get("filters", []),
                         error_localizer=eval_config_data.get("error_localizer", False),
                         model=eval_config_data.get("model", None),
                     )

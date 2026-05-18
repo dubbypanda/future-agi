@@ -14,9 +14,11 @@ import uuid
 from rest_framework import serializers
 
 from simulate.models import AgentDefinition, RunTest, Scenarios, SimulateEvalConfig
+from simulate.serializers.requests.run_test_evals import EvalConfigDefinitionSerializer
+from tracer.serializers.filters import StrictInputSerializer
 
 
-class RunTestFilterSerializer(serializers.Serializer):
+class RunTestFilterSerializer(StrictInputSerializer):
     """
     Validates GET /run-tests/ query parameters.
     """
@@ -33,7 +35,7 @@ class RunTestFilterSerializer(serializers.Serializer):
     limit = serializers.IntegerField(required=False, min_value=1)
 
 
-class CreateRunTestSerializer(serializers.Serializer):
+class CreateRunTestSerializer(StrictInputSerializer):
     """Serializer for creating a new RunTest"""
 
     name = serializers.CharField(max_length=255)
@@ -49,7 +51,7 @@ class CreateRunTestSerializer(serializers.Serializer):
         child=serializers.UUIDField(), allow_empty=True, required=False, default=list
     )
     evaluations_config = serializers.ListField(
-        child=serializers.DictField(),
+        child=EvalConfigDefinitionSerializer(),
         allow_empty=True,
         required=False,
         default=list,
@@ -113,7 +115,7 @@ class CreateRunTestSerializer(serializers.Serializer):
         return list(existing_ids)
 
 
-class UpdateRunTestSerializer(serializers.Serializer):
+class UpdateRunTestSerializer(StrictInputSerializer):
     """Serializer for updating a RunTest (PATCH)"""
 
     name = serializers.CharField(max_length=255, required=False)
@@ -130,7 +132,7 @@ class UpdateRunTestSerializer(serializers.Serializer):
     )
 
 
-class RunTestComponentsUpdateSerializer(serializers.Serializer):
+class RunTestComponentsUpdateSerializer(StrictInputSerializer):
     """Serializer for updating run-test component references."""
 
     agent_definition_id = serializers.UUIDField(required=False)
@@ -142,7 +144,7 @@ class RunTestComponentsUpdateSerializer(serializers.Serializer):
     enable_tool_evaluation = serializers.BooleanField(required=False)
 
 
-class ExecuteRunTestSerializer(serializers.Serializer):
+class ExecuteRunTestSerializer(StrictInputSerializer):
     """Serializer for POST /run-tests/{run_test_id}/execute/."""
 
     scenario_ids = serializers.ListField(
@@ -152,7 +154,7 @@ class ExecuteRunTestSerializer(serializers.Serializer):
     select_all = serializers.BooleanField(required=False, default=False)
 
 
-class CreatePromptSimulationSerializer(serializers.Serializer):
+class CreatePromptSimulationSerializer(StrictInputSerializer):
     """Serializer for creating a new prompt-based simulation run"""
 
     name = serializers.CharField(max_length=255)
@@ -170,7 +172,7 @@ class CreatePromptSimulationSerializer(serializers.Serializer):
         child=serializers.CharField(max_length=255), allow_empty=True, required=False
     )
     evaluations_config = serializers.ListField(
-        child=serializers.DictField(),
+        child=EvalConfigDefinitionSerializer(),
         allow_empty=True,
         required=False,
         default=list,

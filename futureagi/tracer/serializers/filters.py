@@ -70,6 +70,10 @@ JSON_OBJECT_QUERY_PARAM_SCHEMA = {
     "type": "string",
     "description": "JSON-encoded object.",
 }
+JSON_OBJECT_SCHEMA = {
+    "type": "object",
+    "additionalProperties": True,
+}
 
 EVAL_TASK_FILTERS_SCHEMA = {
     "type": "object",
@@ -320,6 +324,34 @@ class JsonObjectQueryParamField(serializers.Field):
         return value or {}
 
 
+class JsonObjectField(serializers.JSONField):
+    """Body/response JSON object field with explicit OpenAPI shape.
+
+    DRF's DictField(child=JSONField) validates runtime data correctly, but it
+    documents nested values as objects only. Eval configs and mappings are JSON
+    objects whose values can be strings, numbers, booleans, arrays, or objects,
+    so expose that contract directly.
+    """
+
+    class Meta:
+        swagger_schema_fields = JSON_OBJECT_SCHEMA
+
+    def to_internal_value(self, data):
+        if data == "":
+            return {}
+        value = super().to_internal_value(data)
+        if value is None:
+            return None if self.allow_null else {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Value must be an object.")
+        return value
+
+    def to_representation(self, value):
+        if value is None and self.allow_null:
+            return None
+        return value or {}
+
+
 class SortParamField(serializers.JSONField):
     ALLOWED_KEYS = {"column_id", "direction"}
     REQUIRED_KEYS = {"column_id"}
@@ -483,3 +515,7 @@ def eval_task_filters_field(**kwargs):
 
 def json_object_query_param_field(**kwargs):
     return JsonObjectQueryParamField(**kwargs)
+
+
+def json_object_field(**kwargs):
+    return JsonObjectField(**kwargs)

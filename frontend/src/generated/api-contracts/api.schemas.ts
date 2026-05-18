@@ -14572,11 +14572,32 @@ export type RunTestResponseApiScenariosDetailItem = {[key: string]: string};
 
 export type RunTestResponseApiSimulatorAgentDetail = {[key: string]: string};
 
-export type SimulateEvalConfigResponseApiConfig = {[key: string]: string};
+export type SimulateEvalConfigResponseApiConfig = { [key: string]: unknown };
 
-export type SimulateEvalConfigResponseApiMapping = {[key: string]: string};
+export type SimulateEvalConfigResponseApiMapping = { [key: string]: unknown };
 
-export type SimulateEvalConfigResponseApiFilters = {[key: string]: string};
+export type SimulateEvalConfigResponseApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type SimulateEvalConfigResponseApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: SimulateEvalConfigResponseApiFiltersItemFilterConfig;
+};
 
 export interface SimulateEvalConfigResponseApi {
   readonly id?: string;
@@ -14584,7 +14605,7 @@ export interface SimulateEvalConfigResponseApi {
   readonly name?: string;
   readonly config?: SimulateEvalConfigResponseApiConfig;
   readonly mapping?: SimulateEvalConfigResponseApiMapping;
-  readonly filters?: SimulateEvalConfigResponseApiFilters;
+  readonly filters?: readonly SimulateEvalConfigResponseApiFiltersItem[];
   readonly error_localizer?: boolean;
   /** @minLength 1 */
   readonly model?: string;
@@ -15188,7 +15209,62 @@ export interface PromptSimulationListResponseApi {
   result: PromptSimulationListResultApi;
 }
 
-export type CreatePromptSimulationApiEvaluationsConfigItem = {[key: string]: string};
+/**
+ * Template-specific configuration parameters.
+ */
+export type EvalConfigDefinitionApiConfig = { [key: string]: unknown };
+
+/**
+ * Maps test execution data fields to the evaluation template's expected inputs.
+ */
+export type EvalConfigDefinitionApiMapping = { [key: string]: unknown };
+
+export type EvalConfigDefinitionApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type EvalConfigDefinitionApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: EvalConfigDefinitionApiFiltersItemFilterConfig;
+};
+
+export interface EvalConfigDefinitionApi {
+  /** UUID of the evaluation template to use. */
+  template_id: string;
+  /** Name for this evaluation configuration. Defaults to 'Eval-<template_id>' if omitted. */
+  name?: string;
+  /** Template-specific configuration parameters. */
+  config?: EvalConfigDefinitionApiConfig;
+  /** Maps test execution data fields to the evaluation template's expected inputs. */
+  mapping?: EvalConfigDefinitionApiMapping;
+  /** Canonical filter list to restrict which test results are evaluated. */
+  filters?: EvalConfigDefinitionApiFiltersItem[];
+  /** Enables granular error localization on evaluation failures. */
+  error_localizer?: boolean;
+  /**
+     * Model to use for running this evaluation.
+     * @minLength 1
+     */
+  model?: string;
+  /** Knowledge base file to use for this evaluation. */
+  kb_id?: string;
+  /** Eval group that created this evaluation config. */
+  eval_group?: string;
+}
 
 export interface CreatePromptSimulationApi {
   /**
@@ -15208,7 +15284,7 @@ export interface CreatePromptSimulationApi {
   scenario_ids: string[];
   dataset_row_ids?: string[];
   /** Evaluation configurations to create */
-  evaluations_config?: CreatePromptSimulationApiEvaluationsConfigItem[];
+  evaluations_config?: EvalConfigDefinitionApi[];
   /** Enable automatic tool evaluation for this simulation run */
   enable_tool_evaluation?: boolean;
 }
@@ -15263,8 +15339,6 @@ export interface AllActiveTestsApi {
   total_active: number;
 }
 
-export type CreateRunTestApiEvaluationsConfigItem = {[key: string]: string};
-
 export interface CreateRunTestApi {
   /**
      * @minLength 1
@@ -15277,7 +15351,7 @@ export interface CreateRunTestApi {
   dataset_row_ids?: string[];
   eval_config_ids?: string[];
   /** Evaluation configurations to create */
-  evaluations_config?: CreateRunTestApiEvaluationsConfigItem[];
+  evaluations_config?: EvalConfigDefinitionApi[];
   /** Enable automatic tool evaluation for this test run */
   enable_tool_evaluation?: boolean;
   /** Optional replay session ID to mark as completed after run test creation */
@@ -15391,41 +15465,6 @@ export interface TestExecutionBulkDeleteResponseApi {
   readonly run_test_id?: string;
   readonly deleted_count?: number;
   readonly deleted_ids?: readonly string[];
-}
-
-/**
- * Template-specific configuration parameters.
- */
-export type EvalConfigDefinitionApiConfig = {[key: string]: string};
-
-/**
- * Maps test execution data fields to the evaluation template's expected inputs.
- */
-export type EvalConfigDefinitionApiMapping = {[key: string]: string};
-
-/**
- * Filter criteria to restrict which test results are evaluated.
- */
-export type EvalConfigDefinitionApiFilters = {[key: string]: string};
-
-export interface EvalConfigDefinitionApi {
-  /** UUID of the evaluation template to use. */
-  template_id: string;
-  /** Name for this evaluation configuration. Defaults to 'Eval-<template_id>' if omitted. */
-  name?: string;
-  /** Template-specific configuration parameters. */
-  config?: EvalConfigDefinitionApiConfig;
-  /** Maps test execution data fields to the evaluation template's expected inputs. */
-  mapping?: EvalConfigDefinitionApiMapping;
-  /** Filter criteria to restrict which test results are evaluated. */
-  filters?: EvalConfigDefinitionApiFilters;
-  /** Enables granular error localization on evaluation failures. */
-  error_localizer?: boolean;
-  /**
-     * Model to use for running this evaluation.
-     * @minLength 1
-     */
-  model?: string;
 }
 
 export interface AddEvalConfigsRequestApi {
@@ -15563,12 +15602,12 @@ export interface EvalConfigStructureResponseApi {
 /**
  * Updated evaluation configuration parameters.
  */
-export type EvalConfigUpdateRequestApiConfig = {[key: string]: string};
+export type EvalConfigUpdateRequestApiConfig = { [key: string]: unknown };
 
 /**
  * Updated field mapping between test data and evaluation inputs.
  */
-export type EvalConfigUpdateRequestApiMapping = {[key: string]: string};
+export type EvalConfigUpdateRequestApiMapping = { [key: string]: unknown };
 
 export interface EvalConfigUpdateRequestApi {
   /** Updated evaluation configuration parameters. */

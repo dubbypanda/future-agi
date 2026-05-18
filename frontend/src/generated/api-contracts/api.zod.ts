@@ -29353,11 +29353,11 @@ export const SimulateApiRunTestsListQueryParams = zod.object({
 export const simulateApiRunTestsListResponseDatasetRowIdsItemMax = 255;
 
 
+export const simulateApiRunTestsListResponseSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulateApiRunTestsListResponseEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -29384,9 +29384,20 @@ export const SimulateApiRunTestsListResponseItem = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateApiRunTestsListResponseSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -29396,9 +29407,20 @@ export const SimulateApiRunTestsListResponseItem = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateApiRunTestsListResponseEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30156,11 +30178,11 @@ export const simulatePromptTemplatesSimulationsListResponseStatusDefault = true;
 export const simulatePromptTemplatesSimulationsListResponseResultResultsItemDatasetRowIdsItemMax = 255;
 
 
+export const simulatePromptTemplatesSimulationsListResponseResultResultsItemSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulatePromptTemplatesSimulationsListResponseResultResultsItemEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30194,9 +30216,20 @@ export const SimulatePromptTemplatesSimulationsListResponse = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsListResponseResultResultsItemSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30206,9 +30239,20 @@ export const SimulatePromptTemplatesSimulationsListResponse = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsListResponseResultResultsItemEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30252,6 +30296,10 @@ export const simulatePromptTemplatesSimulationsCreateBodyPromptVersionIdMax = 25
 
 export const simulatePromptTemplatesSimulationsCreateBodyDatasetRowIdsItemMax = 255;
 
+export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemConfigDefault = {  };
+export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemMappingDefault = {  };
+export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemFiltersDefault = [];
+export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemErrorLocalizerDefault = false;
 export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault = [];
 export const simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDefault = false;
 
@@ -30262,7 +30310,28 @@ export const SimulatePromptTemplatesSimulationsCreateBody = zod.object({
   "prompt_version_id": zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyPromptVersionIdMax).describe('Prompt version ID (UUID) or template_version string'),
   "scenario_ids": zod.array(zod.string().uuid()),
   "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyDatasetRowIdsItemMax)).optional(),
-  "evaluations_config": zod.array(zod.record(zod.string(), zod.string())).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
+  "evaluations_config": zod.array(zod.object({
+  "template_id": zod.string().uuid().describe('UUID of the evaluation template to use.'),
+  "name": zod.string().optional().describe('Name for this evaluation configuration. Defaults to \'Eval-<template_id>\' if omitted.'),
+  "config": zod.record(zod.string(), zod.unknown()).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemConfigDefault).describe('Template-specific configuration parameters.'),
+  "mapping": zod.record(zod.string(), zod.unknown()).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemMappingDefault).describe('Maps test execution data fields to the evaluation template\'s expected inputs.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
+  "error_localizer": zod.boolean().default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
+  "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
+  "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
+})).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
   "enable_tool_evaluation": zod.boolean().default(simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDefault).describe('Enable automatic tool evaluation for this simulation run')
 })
 
@@ -30281,11 +30350,11 @@ export const simulatePromptTemplatesSimulationsReadResponseStatusDefault = true;
 export const simulatePromptTemplatesSimulationsReadResponseResultDatasetRowIdsItemMax = 255;
 
 
+export const simulatePromptTemplatesSimulationsReadResponseResultSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulatePromptTemplatesSimulationsReadResponseResultEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30314,9 +30383,20 @@ export const SimulatePromptTemplatesSimulationsReadResponse = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsReadResponseResultSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30326,9 +30406,20 @@ export const SimulatePromptTemplatesSimulationsReadResponse = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsReadResponseResultEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30374,11 +30465,11 @@ export const simulatePromptTemplatesSimulationsPartialUpdateResponseStatusDefaul
 export const simulatePromptTemplatesSimulationsPartialUpdateResponseResultDatasetRowIdsItemMax = 255;
 
 
+export const simulatePromptTemplatesSimulationsPartialUpdateResponseResultSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulatePromptTemplatesSimulationsPartialUpdateResponseResultEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30407,9 +30498,20 @@ export const SimulatePromptTemplatesSimulationsPartialUpdateResponse = zod.objec
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsPartialUpdateResponseResultSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30419,9 +30521,20 @@ export const SimulatePromptTemplatesSimulationsPartialUpdateResponse = zod.objec
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulatePromptTemplatesSimulationsPartialUpdateResponseResultEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30517,11 +30630,11 @@ export const SimulateRunTestsListQueryParams = zod.object({
 export const simulateRunTestsListResponseDatasetRowIdsItemMax = 255;
 
 
+export const simulateRunTestsListResponseSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulateRunTestsListResponseEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30548,9 +30661,20 @@ export const SimulateRunTestsListResponseItem = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsListResponseSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30560,9 +30684,20 @@ export const SimulateRunTestsListResponseItem = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsListResponseEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30597,6 +30732,10 @@ export const simulateRunTestsCreateCreateBodyNameMax = 255;
 export const simulateRunTestsCreateCreateBodyDatasetRowIdsItemMax = 255;
 
 export const simulateRunTestsCreateCreateBodyEvalConfigIdsDefault = [];
+export const simulateRunTestsCreateCreateBodyEvaluationsConfigItemConfigDefault = {  };
+export const simulateRunTestsCreateCreateBodyEvaluationsConfigItemMappingDefault = {  };
+export const simulateRunTestsCreateCreateBodyEvaluationsConfigItemFiltersDefault = [];
+export const simulateRunTestsCreateCreateBodyEvaluationsConfigItemErrorLocalizerDefault = false;
 export const simulateRunTestsCreateCreateBodyEvaluationsConfigDefault = [];
 export const simulateRunTestsCreateCreateBodyEnableToolEvaluationDefault = false;
 
@@ -30607,7 +30746,28 @@ export const SimulateRunTestsCreateCreateBody = zod.object({
   "scenario_ids": zod.array(zod.string().uuid()),
   "dataset_row_ids": zod.array(zod.string().min(1).max(simulateRunTestsCreateCreateBodyDatasetRowIdsItemMax)).optional(),
   "eval_config_ids": zod.array(zod.string().uuid()).default(simulateRunTestsCreateCreateBodyEvalConfigIdsDefault),
-  "evaluations_config": zod.array(zod.record(zod.string(), zod.string())).default(simulateRunTestsCreateCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
+  "evaluations_config": zod.array(zod.object({
+  "template_id": zod.string().uuid().describe('UUID of the evaluation template to use.'),
+  "name": zod.string().optional().describe('Name for this evaluation configuration. Defaults to \'Eval-<template_id>\' if omitted.'),
+  "config": zod.record(zod.string(), zod.unknown()).default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemConfigDefault).describe('Template-specific configuration parameters.'),
+  "mapping": zod.record(zod.string(), zod.unknown()).default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemMappingDefault).describe('Maps test execution data fields to the evaluation template\'s expected inputs.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
+  "error_localizer": zod.boolean().default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
+  "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
+  "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
+})).default(simulateRunTestsCreateCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
   "enable_tool_evaluation": zod.boolean().default(simulateRunTestsCreateCreateBodyEnableToolEvaluationDefault).describe('Enable automatic tool evaluation for this test run'),
   "replay_session_id": zod.string().uuid().optional().describe('Optional replay session ID to mark as completed after run test creation')
 })
@@ -30645,11 +30805,11 @@ export const SimulateRunTestsReadParams = zod.object({
 export const simulateRunTestsReadResponseDatasetRowIdsItemMax = 255;
 
 
+export const simulateRunTestsReadResponseSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulateRunTestsReadResponseEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30676,9 +30836,20 @@ export const SimulateRunTestsReadResponse = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsReadResponseSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30688,9 +30859,20 @@ export const SimulateRunTestsReadResponse = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsReadResponseEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30735,11 +30917,11 @@ export const SimulateRunTestsPartialUpdateBody = zod.object({
 export const simulateRunTestsPartialUpdateResponseDatasetRowIdsItemMax = 255;
 
 
+export const simulateRunTestsPartialUpdateResponseSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulateRunTestsPartialUpdateResponseEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30766,9 +30948,20 @@ export const SimulateRunTestsPartialUpdateResponse = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsPartialUpdateResponseSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30778,9 +30971,20 @@ export const SimulateRunTestsPartialUpdateResponse = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsPartialUpdateResponseEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30902,11 +31106,11 @@ export const SimulateRunTestsComponentsPartialUpdateBody = zod.object({
 export const simulateRunTestsComponentsPartialUpdateResponseDatasetRowIdsItemMax = 255;
 
 
+export const simulateRunTestsComponentsPartialUpdateResponseSimulateEvalConfigsDetailItemFiltersDefault = [];
 
 
 
-
-
+export const simulateRunTestsComponentsPartialUpdateResponseEvalsDetailItemFiltersDefault = [];
 
 
 
@@ -30933,9 +31137,20 @@ export const SimulateRunTestsComponentsPartialUpdateResponse = zod.object({
   "simulate_eval_configs_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsComponentsPartialUpdateResponseSimulateEvalConfigsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -30945,9 +31160,20 @@ export const SimulateRunTestsComponentsPartialUpdateResponse = zod.object({
   "evals_detail": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
-  "config": zod.record(zod.string(), zod.string()).optional(),
-  "mapping": zod.record(zod.string(), zod.string()).optional(),
-  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional(),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsComponentsPartialUpdateResponseEvalsDetailItemFiltersDefault),
   "error_localizer": zod.boolean().optional(),
   "model": zod.string().min(1).optional(),
   "status": zod.string().min(1).optional(),
@@ -31007,7 +31233,7 @@ export const SimulateRunTestsEvalConfigsCreateParams = zod.object({
 
 export const simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemConfigDefault = {  };
 export const simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemMappingDefault = {  };
-export const simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemFiltersDefault = {  };
+export const simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemFiltersDefault = [];
 export const simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemErrorLocalizerDefault = false;
 
 
@@ -31016,11 +31242,24 @@ export const SimulateRunTestsEvalConfigsCreateBody = zod.object({
   "evaluations_config": zod.array(zod.object({
   "template_id": zod.string().uuid().describe('UUID of the evaluation template to use.'),
   "name": zod.string().optional().describe('Name for this evaluation configuration. Defaults to \'Eval-<template_id>\' if omitted.'),
-  "config": zod.record(zod.string(), zod.string()).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemConfigDefault).describe('Template-specific configuration parameters.'),
-  "mapping": zod.record(zod.string(), zod.string()).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemMappingDefault).describe('Maps test execution data fields to the evaluation template\'s expected inputs.'),
-  "filters": zod.record(zod.string(), zod.string()).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemFiltersDefault).describe('Filter criteria to restrict which test results are evaluated.'),
+  "config": zod.record(zod.string(), zod.unknown()).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemConfigDefault).describe('Template-specific configuration parameters.'),
+  "mapping": zod.record(zod.string(), zod.unknown()).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemMappingDefault).describe('Maps test execution data fields to the evaluation template\'s expected inputs.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
   "error_localizer": zod.boolean().default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
-  "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.')
+  "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
+  "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
 })).min(1).describe('Array of evaluation configuration objects to add. At least one required.')
 })
 
@@ -31114,8 +31353,8 @@ export const SimulateRunTestsEvalConfigsUpdateCreateParams = zod.object({
 export const simulateRunTestsEvalConfigsUpdateCreateBodyRunDefault = false;
 
 export const SimulateRunTestsEvalConfigsUpdateCreateBody = zod.object({
-  "config": zod.record(zod.string(), zod.string()).optional().describe('Updated evaluation configuration parameters.'),
-  "mapping": zod.record(zod.string(), zod.string()).optional().describe('Updated field mapping between test data and evaluation inputs.'),
+  "config": zod.record(zod.string(), zod.unknown()).optional().describe('Updated evaluation configuration parameters.'),
+  "mapping": zod.record(zod.string(), zod.unknown()).optional().describe('Updated field mapping between test data and evaluation inputs.'),
   "model": zod.string().min(1).optional().describe('Model to use for evaluations.'),
   "error_localizer": zod.boolean().optional().describe('Enable granular error localization in evaluation results.'),
   "kb_id": zod.string().uuid().optional().describe('UUID of a knowledge base to use for grounding. Pass null to clear.'),

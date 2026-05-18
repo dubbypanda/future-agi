@@ -566,7 +566,7 @@ def apply_eval_group_to_simulate(
     kb_id = filters.get("kb_id", None)
     model = filters.get("model", None)
     error_localizer = filters.get("error_localizer", False)
-    simulate_config_filters = filters.get("filters", {})
+    simulate_config_filters = filters.get("filters", [])
 
     simulate_eval_metrics = []
     for eval_template in eval_templates:
