@@ -1,8 +1,11 @@
 from rest_framework import serializers
 
 from tracer.serializers.filters import (
+    StrictInputSerializer,
+    SortParamField,
     filter_list_field,
     filter_list_query_param_field,
+    json_object_query_param_field,
     parse_filter_list_payload,
 )
 
@@ -1330,6 +1333,63 @@ class EvalTemplateListChartsRequestSerializer(serializers.Serializer):
     template_ids = serializers.ListField(child=serializers.UUIDField())
 
 
+class DatasetSortParamField(SortParamField):
+    ALLOWED_KEYS = {"column_id", "type"}
+
+    class Meta:
+        swagger_schema_fields = {
+            "type": "object",
+            "properties": {
+                "column_id": {"type": "string"},
+                "type": {"type": "string", "enum": ["ascending", "descending"]},
+            },
+            "required": ["column_id"],
+            "additionalProperties": False,
+        }
+
+    def to_internal_value(self, data):
+        value = serializers.JSONField().to_internal_value(data)
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Sort item must be an object.")
+        missing = sorted(self.REQUIRED_KEYS - set(value))
+        if missing:
+            raise serializers.ValidationError(
+                f"Missing sort item keys: {', '.join(missing)}"
+            )
+        extra = sorted(set(value) - self.ALLOWED_KEYS)
+        if extra:
+            raise serializers.ValidationError(
+                f"Unknown sort item keys: {', '.join(extra)}"
+            )
+        sort_type = value.get("type", "ascending")
+        if sort_type not in ("ascending", "descending"):
+            raise serializers.ValidationError(
+                "type must be 'ascending' or 'descending'."
+            )
+        return {"column_id": value["column_id"], "type": sort_type}
+
+
+class DatasetSortListField(serializers.ListField):
+    child = DatasetSortParamField()
+
+
+class DatasetSortListQueryParamField(serializers.CharField):
+    def to_internal_value(self, data):
+        sort_params = parse_filter_list_payload(data)
+        return DatasetSortListField().run_validation(sort_params)
+
+
+class DatasetTableQuerySerializer(StrictInputSerializer):
+    filters = filter_list_query_param_field(required=False, default=list)
+    sort = DatasetSortListQueryParamField(required=False, default=list)
+    search = json_object_query_param_field(required=False, default=dict)
+    page_size = serializers.IntegerField(required=False, default=10, min_value=1)
+    current_page_index = serializers.IntegerField(
+        required=False, default=0, min_value=0
+    )
+    column_config_only = serializers.BooleanField(required=False, default=False)
+
+
 class EvalApiLogTableQuerySerializer(serializers.Serializer):
     eval_template_id = serializers.UUIDField()
     page_size = serializers.IntegerField(required=False, default=10, min_value=1)
@@ -2539,17 +2599,9 @@ class DatasetUpdateColumnTypeRequestSerializer(serializers.Serializer):
     force_update = serializers.BooleanField(required=False, default=False)
 
 
-class DatasetRowDataRequestSerializer(serializers.Serializer):
-    filters = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    sort = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
+class DatasetRowDataRequestSerializer(StrictInputSerializer):
+    filters = filter_list_field(required=False, default=list)
+    sort = DatasetSortListField(required=False, default=list)
     row_id = serializers.UUIDField()
 
 

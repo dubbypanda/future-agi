@@ -1,7 +1,14 @@
+import json
+
 import pytest
+from rest_framework import status
 
 from model_hub.models.choices import DataTypeChoices, SourceChoices
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
+from model_hub.serializers.contracts import (
+    DatasetRowDataRequestSerializer,
+    DatasetTableQuerySerializer,
+)
 from model_hub.views.develop_dataset import GetDatasetTableView
 
 
@@ -107,3 +114,84 @@ def test_dataset_table_boolean_not_equals_and_null_filters(dataset_filter_seed):
         )
         == rows[:2]
     )
+
+
+def test_dataset_table_query_serializer_rejects_camel_case_aliases():
+    serializer = DatasetTableQuerySerializer(
+        data={
+            "filters": json.dumps([]),
+            "pageSize": "10",
+            "currentPageIndex": "0",
+            "columnConfigOnly": "false",
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "pageSize" in serializer.errors
+    assert "currentPageIndex" in serializer.errors
+    assert "columnConfigOnly" in serializer.errors
+
+
+def test_dataset_row_data_request_rejects_legacy_filter_shape(dataset_filter_seed):
+    _dataset, rows, text_col, _bool_col = dataset_filter_seed
+    serializer = DatasetRowDataRequestSerializer(
+        data={
+            "row_id": str(rows[0].id),
+            "filters": [
+                {
+                    "column_id": str(text_col.id),
+                    "filterConfig": {
+                        "filter_type": "text",
+                        "filter_op": "equals",
+                        "filter_value": "Alpha",
+                    },
+                }
+            ],
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "filters" in serializer.errors
+
+
+def test_dataset_table_api_rejects_legacy_query_aliases(
+    auth_client, dataset_filter_seed
+):
+    dataset, _rows, _text_col, _bool_col = dataset_filter_seed
+
+    response = auth_client.get(
+        f"/model-hub/develops/{dataset.id}/get-dataset-table/",
+        {
+            "pageSize": "10",
+            "currentPageIndex": "0",
+            "columnConfigOnly": "false",
+        },
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_dataset_row_data_api_rejects_legacy_filter_shape(
+    auth_client, dataset_filter_seed
+):
+    dataset, rows, text_col, _bool_col = dataset_filter_seed
+
+    response = auth_client.post(
+        f"/model-hub/develops/{dataset.id}/get-row-data/",
+        {
+            "row_id": str(rows[0].id),
+            "filters": [
+                {
+                    "column_id": str(text_col.id),
+                    "filterConfig": {
+                        "filter_type": "text",
+                        "filter_op": "equals",
+                        "filter_value": "Alpha",
+                    },
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST

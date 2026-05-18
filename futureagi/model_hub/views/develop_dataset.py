@@ -143,6 +143,7 @@ from model_hub.serializers.contracts import (
     DatasetRowDataRequestSerializer,
     DatasetSdkRowsRequestSerializer,
     DatasetStaticColumnRequestSerializer,
+    DatasetTableQuerySerializer,
     DatasetUpdateCellValueRequestSerializer,
     DatasetUpdateColumnNameRequestSerializer,
     DatasetUpdateColumnTypeRequestSerializer,
@@ -2128,38 +2129,19 @@ class GetDatasetTableView(APIView):
     )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
-            # Get request parameters from query params instead of request.data
-            filters = request.GET.get("filters", "[]") or request.GET.get(
-                "filters", "[]"
-            )
-            sort_configs = request.GET.get("sort", "[]") or request.GET.get(
-                "sort", "[]"
-            )
-            search = request.GET.get("search", "{}") or request.GET.get("search", "{}")
+            query_serializer = DatasetTableQuerySerializer(data=request.query_params)
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+            query_data = query_serializer.validated_data
+
+            filters = query_data.get("filters", [])
+            sort_configs = query_data.get("sort", [])
+            search = query_data.get("search", {})
             from model_hub.services.dataset_validators import MAX_PAGE_SIZE
 
-            page_size = min(
-                int(request.GET.get("page_size", 10))
-                or int(request.GET.get("pageSize", 10)),
-                MAX_PAGE_SIZE,
-            )
-            current_page = int(request.GET.get("current_page_index", 0)) or int(
-                request.GET.get("currentPageIndex", 0)
-            )
-            column_config_only = (
-                request.GET.get("column_config_only", "false").lower() == "true"
-                or request.GET.get("columnConfigOnly", "false").lower() == "true"
-            )
-
-            # Parse JSON parameters
-            try:
-                filters = json.loads(filters) if filters else []
-                sort_configs = json.loads(sort_configs) if sort_configs else []
-                search = json.loads(search) if search else {}
-            except json.JSONDecodeError:
-                filters = []
-                sort_configs = []
-                search = {}
+            page_size = min(query_data.get("page_size", 10), MAX_PAGE_SIZE)
+            current_page = query_data.get("current_page_index", 0)
+            column_config_only = query_data.get("column_config_only", False)
             # Get base dataset and rows
             try:
                 dataset = Dataset.objects.select_related("organization").get(
@@ -2824,10 +2806,14 @@ class GetRowDataView(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            # Get request parameters
-            filters = request.data.get("filters", [])
-            sort_configs = request.data.get("sort", [])
-            row_id = request.data.get("row_id", None)
+            request_serializer = DatasetRowDataRequestSerializer(data=request.data)
+            if not request_serializer.is_valid():
+                return self._gm.bad_request(request_serializer.errors)
+            request_data = request_serializer.validated_data
+
+            filters = request_data.get("filters", [])
+            sort_configs = request_data.get("sort", [])
+            row_id = request_data.get("row_id")
 
             # Get base dataset and rows
             dataset = get_object_or_404(Dataset, id=dataset_id, deleted=False)
