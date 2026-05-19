@@ -375,7 +375,8 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                             "message": warning.get("message")
                             or (
                                 "Eval ran with some inputs empty. "
-                                "Result may be less reliable."
+                                "Result may be less reliable. "
+                                "Ignore if this is intentional."
                             ),
                             "count": 0,
                         }

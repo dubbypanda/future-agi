@@ -329,7 +329,7 @@ const WarningGroupCard = ({ group, defaultExpanded = false }) => {
   const filledKeys = group.filled_keys || [];
   const message =
     group.message ||
-    "Eval ran with some inputs empty. Result may be less reliable.";
+    "Eval ran with some inputs empty. Result may be less reliable. Ignore if this is intentional.";
 
   return (
     <Box

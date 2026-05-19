@@ -118,7 +118,8 @@ def validate_eval_inputs(
                 "filled_keys": nonempty,
                 "message": (
                     "Eval ran with some inputs empty. "
-                    "Result may be less reliable."
+                    "Result may be less reliable. "
+                    "Ignore if this is intentional."
                 ),
             }
         return warning, normalized

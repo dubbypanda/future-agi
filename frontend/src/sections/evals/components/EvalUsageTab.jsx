@@ -796,7 +796,7 @@ const PartialInputWarningDetails = ({ warnings }) => {
         sx={{ fontSize: "12px", color: "text.secondary", lineHeight: 1.5 }}
       >
         {partial.message ||
-          "Eval ran with some inputs empty. Result may be less reliable."}
+          "Eval ran with some inputs empty. Result may be less reliable. Ignore if this is intentional."}
       </Typography>
       {emptyKeys.length > 0 && (
         <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 1 }}>

@@ -15,7 +15,7 @@ const PartialInputWarningBadge = ({ warnings }) => {
   const emptyKeys = partial.empty_keys || [];
   const message =
     partial.message ||
-    `Eval ran with some inputs empty (${emptyKeys.join(", ")}). Result may be less reliable.`;
+    `Eval ran with some inputs empty (${emptyKeys.join(", ")}). Result may be less reliable. Ignore if this is intentional.`;
   return (
     <CustomTooltip title={message} arrow>
       <Box
