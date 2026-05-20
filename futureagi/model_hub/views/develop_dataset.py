@@ -189,6 +189,7 @@ from model_hub.serializers.develop_dataset_contracts import (
     DatasetCellDataResponseSerializer,
     DatasetColumnsMutationResponseSerializer,
     DatasetCopyResponseSerializer,
+    DatasetListQuerySerializer,
     DatasetListResponseSerializer,
     DatasetNamesResponseSerializer,
     DatasetRowDataResponseSerializer,
@@ -1508,8 +1509,10 @@ class GetDatasetsView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        responses={200: DatasetListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    @validated_request(
+        query_serializer=DatasetListQuerySerializer,
+        responses={200: DatasetListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def get(self, request, *args, **kwargs):  # Changed from 'post' to 'get'
         try:

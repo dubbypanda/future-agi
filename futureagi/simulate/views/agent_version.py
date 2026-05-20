@@ -32,6 +32,7 @@ from simulate.utils.eval_summary import (
     _get_completed_call_executions_for_agent_version,
     _get_eval_config_for_agent_version,
 )
+from tfc.utils.api_errors import build_error_envelope
 from tfc.utils.api_serializers import (
     ApiErrorWithDetailsResponseSerializer,
     EmptyRequestSerializer,
@@ -40,6 +41,13 @@ from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
 from tracer.utils.observability_provider import create_observability_provider
+
+
+def _error_response(message, status_code):
+    return Response(
+        build_error_envelope(message, status_code=status_code),
+        status=status_code,
+    )
 
 
 class AgentVersionListView(APIView):
@@ -77,16 +85,15 @@ class AgentVersionListView(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except NotFound:
             raise
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve agent versions: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to retrieve agent versions: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -121,10 +128,11 @@ class CreateAgentVersionView(APIView):
             req_serializer = AgentVersionCreateRequestSerializer(data=request.data)
             if not req_serializer.is_valid():
                 return Response(
-                    {
-                        "error": "Invalid data for agent update",
-                        "details": req_serializer.errors,
-                    },
+                    build_error_envelope(
+                        "Invalid data for agent update",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        details=req_serializer.errors,
+                    ),
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -195,14 +203,15 @@ class CreateAgentVersionView(APIView):
                         id=kb_id, organization=organization
                     ).exists():
                         return Response(
-                            {
-                                "error": "Invalid data for agent update",
-                                "details": {
+                            build_error_envelope(
+                                "Invalid data for agent update",
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                details={
                                     "knowledge_base": [
                                         "Knowledge base not found in your organization."
                                     ]
                                 },
-                            },
+                            ),
                             status=status.HTTP_400_BAD_REQUEST,
                         )
                 agent.knowledge_base_id = kb_id
@@ -246,14 +255,13 @@ class CreateAgentVersionView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            return Response(
-                {"error": f"Failed to create agent version: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to create agent version: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -289,18 +297,15 @@ class AgentVersionDetailView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except AgentVersion.DoesNotExist:
-            return Response(
-                {"error": "Agent version not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return _error_response("Agent version not found", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve agent version: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to retrieve agent version: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -341,18 +346,15 @@ class ActivateAgentVersionView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except AgentVersion.DoesNotExist:
-            return Response(
-                {"error": "Agent version not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return _error_response("Agent version not found", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(
-                {"error": f"Failed to activate agent version: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to activate agent version: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -391,11 +393,9 @@ class DeleteAgentVersionView(APIView):
                 ).exclude(id=version_id)
 
                 if not active_versions.exists():
-                    return Response(
-                        {
-                            "error": "Cannot delete the only active version. Please activate another version first."
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
+                    return _error_response(
+                        "Cannot delete the only active version. Please activate another version first.",
+                        status.HTTP_400_BAD_REQUEST,
                     )
 
             version.delete()
@@ -407,18 +407,15 @@ class DeleteAgentVersionView(APIView):
             )
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except AgentVersion.DoesNotExist:
-            return Response(
-                {"error": "Agent version not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return _error_response("Agent version not found", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(
-                {"error": f"Failed to delete agent version: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to delete agent version: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -462,20 +459,17 @@ class RestoreAgentVersionView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
+            return _error_response(
+                "Agent definition not found", status.HTTP_404_NOT_FOUND
             )
         except AgentVersion.DoesNotExist:
-            return Response(
-                {"error": "Agent version not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return _error_response("Agent version not found", status.HTTP_404_NOT_FOUND)
         except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return _error_response(str(e), status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response(
-                {"error": f"Failed to restore agent version: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return _error_response(
+                f"Failed to restore agent version: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 

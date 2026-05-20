@@ -41,10 +41,10 @@ from model_hub.serializers.develop_dataset_contracts import (
     DatasetCreationProgressResponseSerializer,
     LocalFileDatasetCreateStartedResponseSerializer,
 )
-from model_hub.serializers.develop_dataset import UploadFileForm
 from model_hub.utils.file_reader import FileProcessor
 from tfc.settings.settings import UPLOAD_BUCKET_NAME
 from tfc.temporal import temporal_activity
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.storage import (
@@ -935,20 +935,21 @@ class CreateDatasetFromLocalFileView(CreateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
-    @swagger_auto_schema(
-        request_body=CreateDatasetFromLocalFileRequestSerializer,
+    @validated_request(
+        request_serializer=CreateDatasetFromLocalFileRequestSerializer,
         responses={
             200: LocalFileDatasetCreateStartedResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
         try:
-            form = UploadFileForm(request.POST, request.FILES)
-            file = form.files.get("file")
-            new_dataset_name = form.data.get("new_dataset_name")
-            model_type = form.data.get("model_type")
-            source = form.data.get("source", DatasetSourceChoices.BUILD.value)
+            validated_data = request.validated_data
+            file = validated_data["file"]
+            new_dataset_name = validated_data.get("new_dataset_name")
+            model_type = validated_data.get("model_type")
+            source = validated_data.get("source") or DatasetSourceChoices.BUILD.value
 
             # Enforce file size limit (aligned with UI: max 10 MB)
             if file:

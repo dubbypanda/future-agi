@@ -556,8 +556,7 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
         });
         return;
       }
-      // canonicalEntries drops the camelCase aliases the axios interceptor
-      // layers on — otherwise `span_attributes.*` and `spanAttributes.*`
+      // canonicalEntries drops legacy camelCase aliases that may exist on cached or pre-normalized objects — otherwise `span_attributes.*` and `spanAttributes.*`
       // both end up in valueMap and only the snake side gets stripped.
       for (const [k, v] of canonicalEntries(node)) {
         if (k.startsWith("_")) continue;

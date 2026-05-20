@@ -262,9 +262,6 @@ export default function AnnotateWorkspaceView() {
   });
   const currentUserId = String(
     user?.id ||
-      user?.pk ||
-      user?.user_id ||
-      user?.userId ||
       (typeof window !== "undefined"
         ? window.sessionStorage.getItem("currentUserId")
         : "") ||
@@ -663,11 +660,10 @@ export default function AnnotateWorkspaceView() {
   );
 
   const handleAssignCurrentItem = useCallback(
-    ({ itemIds, userId, userIds, action }) => {
+    ({ itemIds, userIds, action }) => {
       assignItems({
         queueId,
         itemIds,
-        userId,
         userIds,
         action,
         assignees: queueAnnotators,

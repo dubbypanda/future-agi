@@ -45,7 +45,11 @@ from accounts.serializers.contracts import (
     WorkspaceInviteResponseSerializer,
     WorkspaceListPaginatedResponseSerializer,
 )
-from accounts.serializers.user import CreateMemberSerializer, UserSerializer
+from accounts.serializers.user import (
+    CreateMemberSerializer,
+    TeamCreateRequestSerializer,
+    UserSerializer,
+)
 from accounts.serializers.workspace import (
     DeactivateUserSerializer,
     DeleteUserSerializer,
@@ -156,19 +160,22 @@ class WorkspaceListAPIView(APIView):
     _gm = GeneralMethods()
     pagination_class = ExtendedPageNumberPagination
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=WorkspaceListRequestSerializer,
         responses={
             200: WorkspaceListPaginatedResponseSerializer,
             **ACCOUNTS_ERROR_RESPONSES,
         },
+        reject_unknown_fields=True,
     )
     def get(self, request):
         """Get paginated list of workspaces"""
         try:
+            query = request.validated_query_data
             # Get query parameters instead of request data
-            search_query = request.query_params.get("search", "")
-            sort_params = request.query_params.getlist("sort", [])
+            search_query = query.get("search", "")
+            sort_value = query.get("sort", "")
+            sort_params = [sort_value] if sort_value else []
 
             user = request.user
             organization = resolve_org(request)
@@ -637,36 +644,30 @@ class UserListAPIView(APIView):
     _gm = GeneralMethods()
     pagination_class = ExtendedPageNumberPagination
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=UserListRequestSerializer,
         responses={
             200: UserListPaginatedResponseSerializer,
             **ACCOUNTS_ERROR_RESPONSES,
         },
+        reject_unknown_fields=True,
     )
     def get(self, request):
         """Get paginated list of users with filtering at workspace level"""
         try:
+            query = request.validated_query_data
             # Get query parameters instead of request data
-            search_query = request.query_params.get("search", "")
-            filter_status = request.query_params.get(
-                "filter_status", []
-            ) or request.query_params.get("filterStatus", [])
-            filter_role = request.query_params.get(
-                "filter_role", []
-            ) or request.query_params.get("filterRole", [])
-            sort_params_raw = request.query_params.get("sort", "")
+            search_query = query.get("search", "")
+            filter_status = query.get("filter_status", [])
+            filter_role = query.get("filter_role", [])
+            sort_params_raw = query.get("sort", "")
 
-            if filter_status:
-                filter_status = json.loads(filter_status)
-            if filter_role:
-                filter_role = json.loads(filter_role)
             sort_params = None
             if sort_params_raw:
                 try:
                     sort_params = json.loads(sort_params_raw)
                 except Exception:
-                    sort_params = None
+                    sort_params = [sort_params_raw]
 
             user = request.user
             organization = resolve_org(request)
@@ -677,9 +678,7 @@ class UserListAPIView(APIView):
                 )
 
             # Resolve workspace context: prefer explicit query param, else request-global, else org default
-            workspace_id = request.query_params.get(
-                "workspace_id"
-            ) or request.query_params.get("workspaceId")
+            workspace_id = query.get("workspace_id")
             current_workspace = None
             if workspace_id:
                 try:
@@ -1985,12 +1984,14 @@ class ManageTeamView(APIView):
 
         return self._gm.success_response(response)
 
-    @swagger_auto_schema(
-        request_body=CreateMemberSerializer,
+    @validated_request(
+        request_serializer=TeamCreateRequestSerializer,
         responses={201: TeamCreateResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
         try:
+            validated_data = request.validated_data
             user = request.user
             organization = resolve_org(request)
             org_role = resolve_org_role(user, organization)
@@ -2005,7 +2006,7 @@ class ManageTeamView(APIView):
                 )
 
             # Handle organization name update
-            org_display_name = request.data.get("org_name", None)
+            org_display_name = validated_data.get("org_name")
             if org_display_name:
                 organization.display_name = org_display_name
                 # Subscription tracking requires ee — skip the lookup and report
@@ -2028,7 +2029,7 @@ class ManageTeamView(APIView):
             organization.save()
 
             # Handle workspace creation/management
-            workspace_data = request.data.get("workspace", {})
+            workspace_data = validated_data.get("workspace", {})
             workspace = None
             if workspace_data:
                 workspace_name = workspace_data.get("name")
@@ -2090,7 +2091,7 @@ class ManageTeamView(APIView):
                         invited_by=user,
                     )
 
-            members_data = request.data.get("members", [])
+            members_data = validated_data.get("members", [])
             if not isinstance(members_data, list):
                 return self._gm.bad_request(get_error_message("INVALID_DATA_TYPE"))
 
@@ -2149,6 +2150,7 @@ class ManageTeamView(APIView):
             ]
 
             for index, member_data in enumerate(members_data):
+                member_data = dict(member_data)
                 serializer = CreateMemberSerializer(data=member_data)
 
                 if serializer.is_valid():

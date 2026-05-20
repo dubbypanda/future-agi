@@ -14,6 +14,8 @@ from tfc.utils.general_methods import GeneralMethods
 logger = structlog.get_logger(__name__)
 
 DEFAULT_ERROR_STATUS_CODE = "default"
+RUNTIME_REQUEST_VALIDATION_EXTENSION = "x-runtime-request-validation"
+RUNTIME_RESPONSE_VALIDATION_EXTENSION = "x-runtime-response-validation"
 
 
 def _documented_response_has_schema(response):
@@ -28,6 +30,16 @@ def _documented_response_has_schema(response):
 
 class ManagementAPIAutoSchema(SwaggerAutoSchema):
     """Add a common typed error contract to management API operations."""
+
+    def get_operation(self, operation_keys=None):
+        operation = super().get_operation(operation_keys)
+
+        if self.overrides.get("runtime_request_validation"):
+            operation[RUNTIME_REQUEST_VALIDATION_EXTENSION] = True
+        if self.overrides.get("runtime_response_validation"):
+            operation[RUNTIME_RESPONSE_VALIDATION_EXTENSION] = True
+
+        return operation
 
     def get_response_serializers(self):
         responses = super().get_response_serializers()
@@ -100,6 +112,22 @@ def _validate_serializer(
     return serializer, serializer.errors, is_valid
 
 
+def _query_params_without_framework_params(query_params, framework_query_params):
+    framework_owned = set(framework_query_params or ())
+    if not framework_owned:
+        return query_params
+    if not hasattr(query_params, "copy"):
+        return {
+            key: value
+            for key, value in query_params.items()
+            if key not in framework_owned
+        }
+    filtered = query_params.copy()
+    for key in framework_owned:
+        filtered.pop(key, None)
+    return filtered
+
+
 def _validate_response(view_name, serializer, response, strict):
     validator = _response_validator(serializer, response.data)
     if validator is None:
@@ -150,6 +178,7 @@ def validated_request(
     strict_response_validation=False,
     partial_request_validation=False,
     reject_unknown_fields=False,
+    framework_query_params=(),
     **swagger_kwargs,
 ):
     """Document and validate a DRF view method from the same serializers.
@@ -170,6 +199,10 @@ def validated_request(
             swagger_options["query_serializer"] = query_serializer
         if responses is not None:
             swagger_options["responses"] = responses
+        if request_serializer is not None or query_serializer is not None:
+            swagger_options["runtime_request_validation"] = True
+        if responses is not None:
+            swagger_options["runtime_response_validation"] = True
 
         @swagger_auto_schema(**swagger_options)
         @wraps(view_func)
@@ -182,9 +215,13 @@ def validated_request(
             gm = GeneralMethods(request=request)
 
             if query_serializer is not None:
+                query_data = _query_params_without_framework_params(
+                    request.query_params,
+                    framework_query_params,
+                )
                 serializer, errors, is_valid = _validate_serializer(
                     query_serializer,
-                    request.query_params,
+                    query_data,
                     reject_unknown_fields=reject_unknown_fields,
                 )
                 if not is_valid:
@@ -267,6 +304,7 @@ def validated_api_request(
     strict_response_validation=False,
     partial_request_validation=False,
     reject_unknown_fields=False,
+    framework_query_params=(),
     **swagger_kwargs,
 ):
     """Document and validate a function-based DRF view from one serializer set."""
@@ -286,6 +324,10 @@ def validated_api_request(
             swagger_options["query_serializer"] = query_serializer
         if responses is not None:
             swagger_options["responses"] = responses
+        if request_serializer is not None or query_serializer is not None:
+            swagger_options["runtime_request_validation"] = True
+        if responses is not None:
+            swagger_options["runtime_response_validation"] = True
 
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
@@ -296,9 +338,13 @@ def validated_api_request(
             gm = GeneralMethods(request=request)
 
             if query_serializer is not None:
+                query_data = _query_params_without_framework_params(
+                    request.query_params,
+                    framework_query_params,
+                )
                 serializer, errors, is_valid = _validate_serializer(
                     query_serializer,
-                    request.query_params,
+                    query_data,
                     reject_unknown_fields=reject_unknown_fields,
                 )
                 if not is_valid:

@@ -32,7 +32,6 @@ from django.forms.models import model_to_dict
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -47,10 +46,10 @@ logger = structlog.get_logger(__name__)
 import atexit
 import concurrent.futures
 
-from agentic_eval.core_evals.fi_evals import *  # noqa: F403
-from agentic_eval.core_evals.run_prompt.litellm_response import RunPrompt
 from django.db import connection
 
+from agentic_eval.core_evals.fi_evals import *  # noqa: F403
+from agentic_eval.core_evals.run_prompt.litellm_response import RunPrompt
 from analytics.utils import (
     MixpanelEvents,
     MixpanelSources,
@@ -86,9 +85,9 @@ from model_hub.models.run_prompt import (
     PromptVersion,
 )
 from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
     ColumnValuesRequestSerializer,
     ColumnValuesResponseSerializer,
-    MODEL_HUB_ERROR_RESPONSES,
     UploadFileResponseSerializer,
 )
 from model_hub.serializers.prompt_folder import PromptFolderSerializer
@@ -124,11 +123,11 @@ from model_hub.utils.websocket_manager import (
 from model_hub.views.eval_runner import EvaluationRunner
 from tfc.settings.settings import BASE_URL
 from tfc.temporal import temporal_activity
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import (
     BaseModelViewSetMixin,
     BaseModelViewSetMixinWithUserOrg,
 )
-from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -172,7 +171,11 @@ try:
 except ImportError:
     APICallStatusChoices = None
 try:
-    from ee.usage.utils.usage_entries import APICallTypeChoices, count_text_tokens, log_and_deduct_cost_for_api_request
+    from ee.usage.utils.usage_entries import (
+        APICallTypeChoices,
+        count_text_tokens,
+        log_and_deduct_cost_for_api_request,
+    )
 except ImportError:
     APICallTypeChoices = None
     count_text_tokens = None
@@ -294,7 +297,7 @@ def replace_variables(
     Returns:
         List[dict]: Messages with variables replaced in content
     """
-    from model_hub.views.run_prompt import render_template, TEMPLATE_FORMAT_JINJA2
+    from model_hub.views.run_prompt import TEMPLATE_FORMAT_JINJA2, render_template
 
     use_jinja = template_format in ("jinja", "jinja2")
 
@@ -542,17 +545,14 @@ class UploadFileView(APIView):
             logger.exception(f"Unexpected error in base64 conversion: {str(e)}")
             raise ValueError(f"Failed to process file: {str(e)}")  # noqa: B904
 
-    @swagger_auto_schema(
-        request_body=UploadFileSerializer,
+    @validated_request(
+        request_serializer=UploadFileSerializer,
         responses={200: UploadFileResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            serializer = UploadFileSerializer(data=request.data)
-            if not serializer.is_valid():
-                errors = parse_serialized_errors(serializer)
-                return self._gm.bad_request(str(errors))
-            validated_data = serializer.validated_data
+            validated_data = request.validated_data
 
             files = validated_data.get("files")
             links = validated_data.get("links")

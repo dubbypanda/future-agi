@@ -145,7 +145,6 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
       suppressHeaderMenuButton: true,
       suppressHeaderContextMenu: true,
       minWidth: 180,
-      suppressMultiSort: true,
       cellStyle: {
         padding: "0px",
         display: "flex",
@@ -185,6 +184,12 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     enabled,
   });
 
+  useEffect(() => {
+    if (!isLoading) {
+      setTotalPages(data?.total_pages || 1);
+    }
+  }, [data?.total_pages, isLoading]);
+
   const rows = useMemo(() => {
     if (isLoading) {
       return Array.from({ length: 10 }, (_, index) => ({
@@ -195,8 +200,6 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
         overall_score: "",
         status: "",
       }));
-    } else {
-      setTotalPages(data?.total_pages || 1);
     }
     return data?.results || [];
   }, [data, isLoading]);
@@ -386,15 +389,17 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
             defaultColDef={defaultColDef}
             rowData={rows}
             suppressServerSideFullWidthLoadingRow={true}
-            suppressRowClickSelection
-            rowSelection={onSelectionChanged ? { mode: "multiRow" } : undefined}
+            rowSelection={
+              onSelectionChanged
+                ? { mode: "multiRow", enableClickSelection: false }
+                : undefined
+            }
             selectionColumnDef={
               onSelectionChanged
                 ? { pinned: true, lockPinned: true }
                 : undefined
             }
             pagination={false}
-            serverSideInitialRowCount={5}
             noRowsOverlayComponent={() =>
               NoRowsOverlay(
                 <Typography

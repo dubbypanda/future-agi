@@ -12,6 +12,7 @@ from mcp_server.serializers.contracts import (
     MCPSessionRevokeResponseSerializer,
 )
 from mcp_server.serializers.session import MCPSessionSerializer
+from tfc.utils.api_errors import build_error_envelope
 
 
 class MCPSessionListView(APIView):
@@ -31,7 +32,8 @@ class MCPSessionListView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         status_filter = request.query_params.get("status")
@@ -64,7 +66,8 @@ class MCPSessionDetailView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         try:
@@ -73,7 +76,10 @@ class MCPSessionDetailView(APIView):
                 organization=organization,
             )
         except MCPSession.DoesNotExist:
-            return Response({"status": False, "error": "Session not found"}, status=404)
+            return Response(
+                build_error_envelope("Session not found", status_code=404),
+                status=404,
+            )
 
         session.status = "revoked"
         session.ended_at = timezone.now()

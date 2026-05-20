@@ -1,6 +1,5 @@
 import json
 import re
-import uuid
 from datetime import datetime
 
 import structlog
@@ -16,7 +15,6 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from retell import Retell
 
-logger = structlog.get_logger(__name__)
 from simulate.models import AgentDefinition, AgentVersion
 from simulate.serializers.requests.agent_definition import (
     AgentDefinitionBulkDeleteRequestSerializer,
@@ -44,8 +42,8 @@ try:
 except ImportError:
     VapiService = _ee_stub("VapiService")
 from tfc.ee_gating import FeatureUnavailable
-from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.api_serializers import ApiErrorWithDetailsResponseSerializer
+from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -54,6 +52,8 @@ from tracer.models.replay_session import ReplaySession
 from tracer.utils.observability_provider import create_observability_provider
 from tracer.utils.otel import ResourceLimitError
 from tracer.utils.replay_session import link_agent_to_replay_session
+
+logger = structlog.get_logger(__name__)
 
 
 class AgentDefinitionView(APIView):
@@ -84,10 +84,7 @@ class AgentDefinitionView(APIView):
             )
 
             if not user_organization:
-                return Response(
-                    {"error": "Organization not found for the user."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                return self._gm.not_found("Organization not found for the user.")
 
             # Validate query parameters through serializer
             filter_serializer = AgentDefinitionFilterSerializer(
@@ -166,9 +163,8 @@ class AgentDefinitionView(APIView):
         except NotFound:
             raise
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve agent definitions: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to retrieve agent definitions: {str(e)}"
             )
 
     @swagger_auto_schema(
@@ -213,9 +209,8 @@ class AgentDefinitionView(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
-            return Response(
-                {"error": f"Failed to delete agents: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to delete agents: {str(e)}"
             )
 
 
@@ -244,10 +239,7 @@ class CreateAgentDefinitionView(APIView):
             # Validate request through serializer
             req_serializer = AgentDefinitionCreateRequestSerializer(data=request.data)
             if not req_serializer.is_valid():
-                return Response(
-                    {"error": "Invalid data", "details": req_serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return self._gm.bad_request(req_serializer.errors)
 
             validated = req_serializer.validated_data
             organization = (
@@ -350,12 +342,11 @@ class CreateAgentDefinitionView(APIView):
 
         except ReplaySession.DoesNotExist:
             return self._gm.not_found(get_error_message("REPLAY_SESSION_NOT_FOUND"))
-        except ResourceLimitError as e:
+        except ResourceLimitError:
             return self._gm.bad_request("PROJECT CREATION LIMIT REACHED")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to create agent definition: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to create agent definition: {str(e)}"
             )
 
 
@@ -365,6 +356,7 @@ class AgentDefinitionDetailView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         responses={
@@ -410,14 +402,10 @@ class AgentDefinitionDetailView(APIView):
             )
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Agent definition not found")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve agent definition: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to retrieve agent definition: {str(e)}"
             )
 
 
@@ -578,6 +566,7 @@ class EditAgentDefinitionView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         request_body=AgentDefinitionEditRequestSerializer,
@@ -603,10 +592,7 @@ class EditAgentDefinitionView(APIView):
             # Validate request through request serializer
             req_serializer = AgentDefinitionEditRequestSerializer(data=request.data)
             if not req_serializer.is_valid():
-                return Response(
-                    {"error": "Invalid data", "details": req_serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return self._gm.bad_request(req_serializer.errors)
 
             # Update agent fields directly from validated data. NOTE:
             # ``livekit_*`` fields are NOT model columns on AgentDefinition;
@@ -670,14 +656,10 @@ class EditAgentDefinitionView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Agent definition not found")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to update agent definition: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to update agent definition: {str(e)}"
             )
 
 
@@ -687,6 +669,7 @@ class DeleteAgentDefinitionView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         responses={
@@ -716,12 +699,8 @@ class DeleteAgentDefinitionView(APIView):
             )
 
         except AgentDefinition.DoesNotExist:
-            return Response(
-                {"error": "Agent definition not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Agent definition not found")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to delete agent definition: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to delete agent definition: {str(e)}"
             )

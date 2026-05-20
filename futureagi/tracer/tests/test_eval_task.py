@@ -132,11 +132,38 @@ class TestEvalTaskListWithProjectNameAPI:
     def test_list_with_project_name_success(self, auth_client, project, eval_task):
         """List eval tasks with project names."""
         response = auth_client.get(
-            "/tracer/eval-task/list_eval_tasks_with_project_name/"
+            "/tracer/eval-task/list_eval_tasks_with_project_name/",
+            {
+                "page_number": "0",
+                "page_size": "25",
+                "sort_params": json.dumps(
+                    [{"column_id": "created_at", "direction": "desc"}]
+                ),
+            },
         )
         assert response.status_code == status.HTTP_200_OK
         data = get_result(response)
         assert "metadata" in data or "table" in data
+
+    def test_list_with_project_name_rejects_grid_param_drift(
+        self, auth_client, project
+    ):
+        """The frontend must send the backend serializer's canonical query shape."""
+        response = auth_client.get(
+            "/tracer/eval-task/list_eval_tasks_with_project_name/",
+            {
+                "page": "1",
+                "sort_by": "created_at",
+                "sort_order": "desc",
+            },
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["details"] == {
+            "page": ["Unknown field."],
+            "sort_by": ["Unknown field."],
+            "sort_order": ["Unknown field."],
+        }
 
     def test_list_with_project_name_rejects_legacy_filter_shape(
         self, auth_client, project
@@ -377,6 +404,16 @@ class TestEvalTaskGetDetailsAPI:
         assert response.status_code == status.HTTP_200_OK
         data = get_result(response)
         assert data["name"] == eval_task.name
+
+    def test_get_details_missing_task_returns_not_found(self, auth_client):
+        """A missing eval task is a 404, not a retriable bad request."""
+        response = auth_client.get(
+            "/tracer/eval-task/get_eval_details/",
+            {"eval_id": str(uuid.uuid4())},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert get_result(response) == "Eval task not found"
 
 
 @pytest.mark.integration

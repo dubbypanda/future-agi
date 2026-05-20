@@ -445,7 +445,14 @@ class TestDeleteUsersAPI:
             format="json",
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Cannot delete your own account" in str(response.json())
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "validation_error"
+        assert data["code"] == "invalid"
+        assert data["detail"] == "Cannot delete your own account. Please try again."
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]
 
     def test_delete_user_same_org(self, owner_client, second_user):
         """Owner can delete user in same organization."""
@@ -622,6 +629,29 @@ class TestUpdateUserFullName:
         user.refresh_from_db()
         assert user.name == original_name  # Name unchanged
 
+    def test_update_full_name_deleted_user_uses_error_envelope(self, user):
+        client = APIClient()
+        client.force_authenticate(user=user)
+        user_id = user.id
+        user.delete()
+
+        response = client.post(
+            "/accounts/update-user-full-name/",
+            {"name": "Ghost User"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "not_found"
+        assert data["code"] == "not_found"
+        assert data["detail"] == "User does not exist."
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]
+        assert str(user_id) not in str(data)
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -767,7 +797,7 @@ class TestAccountTakeoverVulnerabilityFixed:
         original_email = user.email
         original_password_hash = user.password
 
-        response = api_client.post(
+        api_client.post(
             "/accounts/signup/",
             {
                 "email": "attacker@futureagi.com",
@@ -808,7 +838,7 @@ class TestAccountTakeoverVulnerabilityFixed:
         original_email = user.email
         original_password_hash = user.password
 
-        response = api_client.post(
+        api_client.post(
             "/accounts/signup/",
             {
                 "email": "newuser@futureagi.com",

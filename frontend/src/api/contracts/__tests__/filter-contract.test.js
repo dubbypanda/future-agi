@@ -6,6 +6,8 @@ import {
   isAllowedFilterOperator,
   normalizeFilterOperator,
   normalizeFilterType,
+  serializeFilterForApi,
+  serializeFilterListForApi,
 } from "../filter-contract";
 import {
   FILTER_CONTRACT_VERSION,
@@ -102,6 +104,99 @@ describe("filter contract", () => {
     expect(apiFilter).not.toHaveProperty("columnId");
     expect(apiFilter).not.toHaveProperty("filterConfig");
     expect(apiFilter.filter_config).not.toHaveProperty("filterOp");
+  });
+
+  it("serializes filter UI state to the canonical API wire shape", () => {
+    const apiFilter = serializeFilterForApi({
+      id: "local-row-id",
+      _meta: { parentProperty: "" },
+      col_type: "SYSTEM_METRIC",
+      column_id: "created_at",
+      display_name: "Created at",
+      filter_config: {
+        filter_type: "datetime",
+        filter_op: "between",
+        filter_value: [
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-02T00:00:00.000Z",
+        ],
+      },
+    });
+
+    expect(apiFilter).toEqual({
+      column_id: "created_at",
+      display_name: "Created at",
+      filter_config: {
+        filter_type: "datetime",
+        filter_op: "between",
+        filter_value: [
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-02T00:00:00.000Z",
+        ],
+      },
+    });
+    expect(apiFilter).not.toHaveProperty("id");
+    expect(apiFilter).not.toHaveProperty("_meta");
+    expect(apiFilter).not.toHaveProperty("col_type");
+  });
+
+  it("keeps filter-list serialization strict instead of accepting aliases", () => {
+    expect(() =>
+      serializeFilterListForApi([
+        {
+          columnId: "status",
+          filter_config: {
+            filter_type: "text",
+            filter_op: "equals",
+            filter_value: "OK",
+          },
+        },
+      ]),
+    ).toThrow(/Unknown API filter keys/);
+    expect(() =>
+      serializeFilterForApi({
+        column_id: "status",
+        filter_config: {
+          filter_type: "text",
+          filterOp: "equals",
+          filter_value: "OK",
+        },
+      }),
+    ).toThrow(/Unknown API filter_config keys/);
+  });
+
+  it("drops empty UI draft filters before sending the filter list", () => {
+    expect(
+      serializeFilterListForApi([
+        {
+          column_id: "",
+          id: "draft-row",
+          _meta: { parentProperty: "" },
+          filter_config: {
+            filter_type: "",
+            filter_op: "",
+            filter_value: "",
+          },
+        },
+        {
+          column_id: "status",
+          filter_config: {
+            filter_type: "text",
+            filter_op: "equals",
+            filter_value: "OK",
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        column_id: "status",
+        filter_config: {
+          filter_type: "text",
+          filter_op: "equals",
+          filter_value: "OK",
+        },
+      },
+    ]);
   });
 
   it("keeps the API contract explicit per type", () => {

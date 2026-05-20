@@ -196,7 +196,7 @@ const getDataSource = (
       const { request } = params;
       const pageNumber = Math.floor(request.startRow / DATASET_ROWS_LIMIT);
       const sort = request?.sortModel?.map(({ colId, sort }) => ({
-        columnId: colId,
+        column_id: colId,
         type: sort === "asc" ? "ascending" : "descending",
       }));
       const filters = useDevelopFilterStore.getState().filters;
@@ -663,7 +663,7 @@ const DevelopDataV2 = ({ datasetId, viewOptions }) => {
     queryFn: () =>
       axios.get(endpoints.develop.getDatasetDetail(dataset), {
         params: {
-          columnConfigOnly: true,
+          column_config_only: true,
         },
       }),
     select: (d) => ({
@@ -885,7 +885,7 @@ const DevelopDataV2 = ({ datasetId, viewOptions }) => {
     const sort = columnState.reduce((acc, { colId, sort }) => {
       if (sort) {
         acc.push({
-          columnId: colId,
+          column_id: colId,
           type: sort === "asc" ? "ascending" : "descending",
         });
       }

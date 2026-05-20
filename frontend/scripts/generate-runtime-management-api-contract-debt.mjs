@@ -159,6 +159,14 @@ function decoratorHasInputContract(record) {
   );
 }
 
+function swaggerDecoratorHasRuntimeValidation(record) {
+  if (record?.decorator !== "swagger_auto_schema") return false;
+  return (
+    /\bruntime_request_validation\s*=\s*True\b/.test(record.text) ||
+    /\bruntime_response_validation\s*=\s*True\b/.test(record.text)
+  );
+}
+
 function analyzeFile(filePath) {
   const rel = path.relative(repoRoot, filePath);
   const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
@@ -187,7 +195,9 @@ const decorators = FOCUS_DIRS.flatMap((dir) =>
 );
 const validated = decorators.filter(decoratorUsesRuntimeValidation);
 const directSwagger = decorators.filter(
-  (record) => record.decorator === "swagger_auto_schema",
+  (record) =>
+    record.decorator === "swagger_auto_schema" &&
+    !swaggerDecoratorHasRuntimeValidation(record),
 );
 const runtimeInputContractKeys = new Set(
   validated

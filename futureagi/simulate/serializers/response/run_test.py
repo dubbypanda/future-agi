@@ -15,6 +15,7 @@ stays in RunTestSerializer in simulate.serializers.run_test.
 from rest_framework import serializers
 
 from simulate.models import RunTest
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tracer.serializers.filters import filter_list_field, json_object_field
 
 
@@ -186,12 +187,7 @@ class RunTestCallExecutionsResponseSerializer(serializers.Serializer):
     current_page = serializers.IntegerField(read_only=True)
 
 
-class RunTestErrorResponseSerializer(serializers.Serializer):
+class RunTestErrorResponseSerializer(ApiTextErrorResponseSerializer):
     """
     Standard error response shape for all run-test endpoints.
-    Used for @swagger_auto_schema documentation only — not applied to actual responses.
-    Shape: {"error": "...", "details": {...}}  — details only present on HTTP 400.
     """
-
-    error = serializers.CharField(read_only=True)
-    details = serializers.DictField(required=False, read_only=True)

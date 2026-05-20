@@ -10,6 +10,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/recovery-codes/": {
       "get": {
         "operationId": "accounts_2fa_recovery-codes_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -40,6 +42,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/recovery-codes/regenerate/": {
       "post": {
         "operationId": "accounts_2fa_recovery-codes_regenerate_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/RecoveryCodesRegenerate"
         },
@@ -72,6 +76,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/status/": {
       "get": {
         "operationId": "accounts_2fa_status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -102,6 +108,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/totp/": {
       "delete": {
         "operationId": "accounts_2fa_totp_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TOTPDisable"
         },
@@ -134,6 +142,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/totp/confirm/": {
       "post": {
         "operationId": "accounts_2fa_totp_confirm_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TOTPConfirm"
         },
@@ -166,6 +176,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/totp/setup/": {
       "post": {
         "operationId": "accounts_2fa_totp_setup_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AccountsEmptyRequest"
         },
@@ -198,6 +210,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/verify/passkey/": {
       "post": {
         "operationId": "accounts_2fa_verify_passkey_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TwoFactorPasskeyVerifyRequest"
         },
@@ -230,6 +244,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/verify/passkey/options/": {
       "post": {
         "operationId": "accounts_2fa_verify_passkey_options_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TwoFactorChallengeToken"
         },
@@ -262,6 +278,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/verify/recovery/": {
       "post": {
         "operationId": "accounts_2fa_verify_recovery_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TwoFactorVerify"
         },
@@ -294,6 +312,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/2fa/verify/totp/": {
       "post": {
         "operationId": "accounts_2fa_verify_totp_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TwoFactorVerify"
         },
@@ -326,6 +346,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/accept-invitation/{uidb64}/{token}/": {
       "get": {
         "operationId": "accounts_accept-invitation_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -354,6 +376,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_accept-invitation_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AcceptInvitationRequest"
         },
@@ -386,6 +410,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/appsmith/users/": {
       "get": {
         "operationId": "accounts_appsmith_users_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -414,6 +440,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_appsmith_users_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserCreate"
         },
@@ -444,6 +472,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "accounts_appsmith_users_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PasswordValidation"
         },
@@ -476,6 +506,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/appsmith/users/login": {
       "post": {
         "operationId": "accounts_appsmith_users_login_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SOSLogin"
         },
@@ -508,6 +540,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/appsmith/users/{user_id}/": {
       "get": {
         "operationId": "accounts_appsmith_users_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -536,6 +570,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_appsmith_users_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserCreate"
         },
@@ -566,6 +602,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "accounts_appsmith_users_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PasswordValidation"
         },
@@ -598,6 +636,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/aws-marketplace/launch-software/": {
       "post": {
         "operationId": "accounts_aws-marketplace_launch-software_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AWSMarketplaceLaunchRequest"
         },
@@ -627,6 +667,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/aws-marketplace/signup/": {
       "post": {
         "operationId": "accounts_aws-marketplace_signup_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AWSMarketplaceSignupRequest"
         },
@@ -659,6 +701,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/aws-marketplace/verify-token/": {
       "post": {
         "operationId": "accounts_aws-marketplace_verify-token_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -686,6 +730,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/config/": {
       "get": {
         "operationId": "accounts_config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -716,6 +762,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/delete-users/": {
       "delete": {
         "operationId": "accounts_delete-users_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserIdsRequest"
         },
@@ -751,6 +799,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/first-checks/": {
       "get": {
         "operationId": "accounts_first-checks_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -781,6 +831,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/get-user-profile-details/": {
       "get": {
         "operationId": "accounts_get-user-profile-details_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -811,6 +863,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/key/delete_secret_key/": {
       "delete": {
         "operationId": "accounts_key_delete_secret_key",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UserSecretKey"
         },
@@ -843,6 +897,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/key/disable_key/": {
       "post": {
         "operationId": "accounts_key_disable_key",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UserSecretKey"
         },
@@ -875,6 +931,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/key/enable_key/": {
       "post": {
         "operationId": "accounts_key_enable_key",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UserSecretKey"
         },
@@ -907,6 +965,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/key/generate_secret_key/": {
       "post": {
         "operationId": "accounts_key_generate_secret_key",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CreateSecretKey"
         },
@@ -939,6 +999,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/key/get_secret_keys/": {
       "get": {
         "operationId": "accounts_key_get_secret_keys",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -969,6 +1031,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/keys/": {
       "get": {
         "operationId": "accounts_keys_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -999,8 +1063,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/logout/": {
       "post": {
         "operationId": "accounts_logout_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
-          "$ref": "#/definitions/AccountsJSONRequest"
+          "$ref": "#/definitions/LogoutRequest"
         },
         "queryParameters": {},
         "responses": {
@@ -1031,6 +1097,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/me/timezone/": {
       "post": {
         "operationId": "accounts_me_timezone_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TimezoneRequest"
         },
@@ -1063,6 +1131,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/notifications/snooze/": {
       "get": {
         "operationId": "accounts_notifications_snooze_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1093,6 +1163,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/notifications/unsubscribe/": {
       "get": {
         "operationId": "accounts_notifications_unsubscribe_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1123,6 +1195,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/onboarding/": {
       "get": {
         "operationId": "accounts_onboarding_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1151,6 +1225,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_onboarding_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserOnboarding"
         },
@@ -1183,6 +1259,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/2fa-policy/": {
       "get": {
         "operationId": "accounts_organization_2fa-policy_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1211,6 +1289,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "accounts_organization_2fa-policy_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrgTwoFactorPolicy"
         },
@@ -1243,6 +1323,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/invite/": {
       "post": {
         "operationId": "accounts_organization_invite_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/InviteCreate"
         },
@@ -1275,6 +1357,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/invite/cancel/": {
       "delete": {
         "operationId": "accounts_organization_invite_cancel_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/InviteCancel"
         },
@@ -1307,6 +1391,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/invite/resend/": {
       "post": {
         "operationId": "accounts_organization_invite_resend_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/InviteResend"
         },
@@ -1339,6 +1425,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/members/": {
       "get": {
         "operationId": "accounts_organization_members_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -1396,7 +1484,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "required": false,
             "schema": {
               "type": "string",
-              "minLength": 1,
+              "enum": [
+                "name",
+                "-name",
+                "email",
+                "-email",
+                "status",
+                "-status",
+                "type",
+                "-type",
+                "date_joined",
+                "-date_joined",
+                "created_at",
+                "-created_at",
+                "org_level",
+                "-org_level"
+              ],
               "default": "-created_at"
             }
           }
@@ -1429,6 +1532,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/members/reactivate/": {
       "post": {
         "operationId": "accounts_organization_members_reactivate_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/MemberRemove"
         },
@@ -1461,6 +1566,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/members/remove/": {
       "delete": {
         "operationId": "accounts_organization_members_remove_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/MemberRemove"
         },
@@ -1493,6 +1600,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organization/members/role/": {
       "post": {
         "operationId": "accounts_organization_members_role_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/MemberRoleUpdate"
         },
@@ -1525,6 +1634,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/": {
       "get": {
         "operationId": "accounts_organizations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1553,6 +1664,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_organizations_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrganizationSwitchRequest"
         },
@@ -1585,6 +1698,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/create/": {
       "post": {
         "operationId": "accounts_organizations_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrganizationNameRequest"
         },
@@ -1617,6 +1732,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/current/": {
       "get": {
         "operationId": "accounts_organizations_current_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1647,6 +1764,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/new/": {
       "post": {
         "operationId": "accounts_organizations_new_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrganizationCreateRequest"
         },
@@ -1679,6 +1798,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/switch/": {
       "post": {
         "operationId": "accounts_organizations_switch_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrganizationSwitchRequest"
         },
@@ -1711,6 +1832,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/organizations/update/": {
       "patch": {
         "operationId": "accounts_organizations_update_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OrganizationUpdateRequest"
         },
@@ -1743,6 +1866,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkey/authenticate/options/": {
       "post": {
         "operationId": "accounts_passkey_authenticate_options_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AccountsEmptyRequest"
         },
@@ -1775,6 +1900,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkey/authenticate/verify/": {
       "post": {
         "operationId": "accounts_passkey_authenticate_verify_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PasskeyCredentialRequest"
         },
@@ -1807,6 +1934,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkey/register/options/": {
       "post": {
         "operationId": "accounts_passkey_register_options_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AccountsEmptyRequest"
         },
@@ -1839,6 +1968,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkey/register/verify/": {
       "post": {
         "operationId": "accounts_passkey_register_verify_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PasskeyRegisterVerify"
         },
@@ -1871,6 +2002,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkeys/": {
       "get": {
         "operationId": "accounts_passkeys_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1904,6 +2037,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/passkeys/{id}/": {
       "patch": {
         "operationId": "accounts_passkeys_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PasskeyRename"
         },
@@ -1934,6 +2069,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_passkeys_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -1961,6 +2098,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/password-reset-confirm/{uidb64}/{token}/": {
       "post": {
         "operationId": "accounts_password-reset-confirm_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PasswordResetConfirmRequest"
         },
@@ -1993,6 +2132,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/password-reset-initiate/": {
       "post": {
         "operationId": "accounts_password-reset-initiate_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PasswordResetInitiateRequest"
         },
@@ -2025,6 +2166,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/redis-key/": {
       "post": {
         "operationId": "accounts_redis-key_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/RedisKeyRequest"
         },
@@ -2055,6 +2198,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_redis-key_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/RedisKeyRequest"
         },
@@ -2087,6 +2232,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/resend-invitation-emails/": {
       "post": {
         "operationId": "accounts_resend-invitation-emails_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserIdsRequest"
         },
@@ -2122,8 +2269,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/signup/": {
       "post": {
         "operationId": "accounts_signup_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
-          "$ref": "#/definitions/AccountsJSONRequest"
+          "$ref": "#/definitions/SignupRequest"
         },
         "queryParameters": {},
         "responses": {
@@ -2154,6 +2303,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/team/users/": {
       "get": {
         "operationId": "accounts_team_users_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -2182,6 +2333,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_team_users_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateMember"
         },
@@ -2212,6 +2365,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_team_users_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -2242,6 +2397,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/team/users/{member_id}/": {
       "get": {
         "operationId": "accounts_team_users_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -2270,6 +2427,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_team_users_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateMember"
         },
@@ -2300,6 +2459,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_team_users_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -2330,6 +2491,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/token/": {
       "post": {
         "operationId": "accounts_token_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/LoginRequest"
         },
@@ -2362,6 +2525,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/token/refresh/": {
       "post": {
         "operationId": "accounts_token_refresh_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TokenRefreshRequest"
         },
@@ -2394,6 +2559,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/update-user-full-name/": {
       "post": {
         "operationId": "accounts_update-user-full-name_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserFullNameUpdateRequest"
         },
@@ -2426,6 +2593,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/update-user/": {
       "post": {
         "operationId": "accounts_update-user_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UpdateUser"
         },
@@ -2458,6 +2627,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user-info/": {
       "get": {
         "operationId": "accounts_user-info_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -2488,6 +2659,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user/deactivate/": {
       "post": {
         "operationId": "accounts_user_deactivate_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DeactivateUser"
         },
@@ -2520,6 +2693,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user/delete/": {
       "post": {
         "operationId": "accounts_user_delete_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DeleteUser"
         },
@@ -2552,6 +2727,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user/list/": {
       "get": {
         "operationId": "accounts_user_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -2653,6 +2830,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user/resend-invite/": {
       "post": {
         "operationId": "accounts_user_resend-invite_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ResendInvite"
         },
@@ -2685,6 +2864,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/user/role/update/": {
       "post": {
         "operationId": "accounts_user_role_update_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UserRoleUpdate"
         },
@@ -2717,6 +2898,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/invite/": {
       "post": {
         "operationId": "accounts_workspace_invite_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceInvite"
         },
@@ -2749,6 +2932,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/list/": {
       "get": {
         "operationId": "accounts_workspace_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -2815,6 +3000,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/switch/": {
       "post": {
         "operationId": "accounts_workspace_switch_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SwitchWorkspace"
         },
@@ -2847,6 +3034,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/{workspace_id}/members/": {
       "get": {
         "operationId": "accounts_workspace_members_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -2903,7 +3092,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "required": false,
             "schema": {
               "type": "string",
-              "minLength": 1,
+              "enum": [
+                "name",
+                "-name",
+                "email",
+                "-email",
+                "status",
+                "-status",
+                "type",
+                "-type",
+                "date_joined",
+                "-date_joined",
+                "created_at",
+                "-created_at",
+                "ws_level",
+                "-ws_level"
+              ],
               "default": "-created_at"
             }
           }
@@ -2936,6 +3140,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/{workspace_id}/members/remove/": {
       "delete": {
         "operationId": "accounts_workspace_members_remove_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceMemberRemove"
         },
@@ -2968,6 +3174,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspace/{workspace_id}/members/role/": {
       "post": {
         "operationId": "accounts_workspace_members_role_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceMemberRoleUpdate"
         },
@@ -3000,6 +3208,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspaces/": {
       "get": {
         "operationId": "accounts_workspaces_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3028,6 +3238,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_workspaces_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceCreateRequest"
         },
@@ -3058,6 +3270,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "accounts_workspaces_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceUpdateRequest"
         },
@@ -3088,6 +3302,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_workspaces_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3118,6 +3334,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspaces/{workspace_id}/": {
       "get": {
         "operationId": "accounts_workspaces_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3146,6 +3364,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_workspaces_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceCreateRequest"
         },
@@ -3176,6 +3396,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "accounts_workspaces_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceUpdateRequest"
         },
@@ -3206,6 +3428,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_workspaces_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3236,6 +3460,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspaces/{workspace_id}/members/": {
       "get": {
         "operationId": "accounts_workspaces_members_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3264,6 +3490,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_workspaces_members_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceMembersRequest"
         },
@@ -3294,6 +3522,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_workspaces_members_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3324,6 +3554,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/accounts/workspaces/{workspace_id}/members/{member_id}/": {
       "get": {
         "operationId": "accounts_workspaces_members_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3352,6 +3584,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "accounts_workspaces_members_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WorkspaceMembersRequest"
         },
@@ -3382,6 +3616,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "accounts_workspaces_members_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3412,6 +3648,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/executions/{execution_id}/nodes/{node_execution_id}/": {
       "get": {
         "operationId": "agent-playground_executions_node_detail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3433,6 +3671,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/": {
       "get": {
         "operationId": "agent-playground_graphs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -3493,6 +3733,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agent-playground_graphs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphCreate"
         },
@@ -3519,6 +3761,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/delete/": {
       "post": {
         "operationId": "agent-playground_graphs_bulk_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphList"
         },
@@ -3545,6 +3789,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/from-trace/": {
       "post": {
         "operationId": "agent-playground_graphs_from-trace_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceToGraphRequest"
         },
@@ -3571,6 +3817,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/dataset/": {
       "get": {
         "operationId": "agent-playground_graphs_dataset_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3595,6 +3843,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/dataset/cells/{cell_id}/": {
       "put": {
         "operationId": "agent-playground_graphs_dataset_update_cell",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CellUpdate"
         },
@@ -3621,6 +3871,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/dataset/execute/": {
       "post": {
         "operationId": "agent-playground_graphs_dataset_execute",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExecuteRequest"
         },
@@ -3647,6 +3899,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/dataset/rows/": {
       "post": {
         "operationId": "agent-playground_graphs_dataset_create_row",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CellUpdate"
         },
@@ -3673,6 +3927,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/dataset/rows/delete/": {
       "delete": {
         "operationId": "agent-playground_graphs_dataset_rows_delete_rows",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3694,6 +3950,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/executions/": {
       "get": {
         "operationId": "agent-playground_graphs_executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -3725,6 +3983,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{graph_id}/executions/{execution_id}/": {
       "get": {
         "operationId": "agent-playground_graphs_executions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3746,6 +4006,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/": {
       "get": {
         "operationId": "agent-playground_graphs_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3768,6 +4030,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agent-playground_graphs_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphUpdate"
         },
@@ -3792,6 +4056,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agent-playground_graphs_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphUpdate"
         },
@@ -3816,6 +4082,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agent-playground_graphs_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3837,6 +4105,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/referenceable-graphs/": {
       "get": {
         "operationId": "agent-playground_graphs_referenceable_graphs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -3861,6 +4131,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/": {
       "get": {
         "operationId": "agent-playground_graphs_versions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -3921,6 +4193,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agent-playground_graphs_versions_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphList"
         },
@@ -3947,6 +4221,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/": {
       "get": {
         "operationId": "agent-playground_graphs_versions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4007,6 +4283,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agent-playground_graphs_versions_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphList"
         },
@@ -4031,6 +4309,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agent-playground_graphs_versions_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphList"
         },
@@ -4055,6 +4335,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agent-playground_graphs_versions_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4076,6 +4358,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/activate/": {
       "post": {
         "operationId": "agent-playground_graphs_versions_activate_version",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GraphList"
         },
@@ -4102,6 +4386,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/node-connections/": {
       "post": {
         "operationId": "agent-playground_graphs_versions_node-connections_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateNodeConnection"
         },
@@ -4128,6 +4414,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/node-connections/{nc_id}/": {
       "delete": {
         "operationId": "agent-playground_graphs_versions_node-connections_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4149,6 +4437,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/nodes/": {
       "post": {
         "operationId": "agent-playground_graphs_versions_nodes_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateNode"
         },
@@ -4175,6 +4465,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/": {
       "get": {
         "operationId": "agent-playground_graphs_versions_nodes_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4197,6 +4489,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agent-playground_graphs_versions_nodes_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UpdateNode"
         },
@@ -4221,6 +4515,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agent-playground_graphs_versions_nodes_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4242,6 +4538,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/possible-edge-mappings/": {
       "get": {
         "operationId": "agent-playground_graphs_versions_nodes_possible_edge_mappings",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4304,6 +4602,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/graphs/{id}/versions/{version_id}/ports/{port_id}/": {
       "patch": {
         "operationId": "agent-playground_graphs_versions_ports_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UpdatePort"
         },
@@ -4330,6 +4630,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/node-templates/": {
       "get": {
         "operationId": "agent-playground_node-templates_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4392,6 +4694,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agent-playground/node-templates/{id}/": {
       "get": {
         "operationId": "agent-playground_node-templates_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4416,6 +4720,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/cost-breakdown/": {
       "get": {
         "operationId": "agentcc_analytics_cost_breakdown",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4469,6 +4775,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/error-breakdown/": {
       "get": {
         "operationId": "agentcc_analytics_error_breakdown",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4522,6 +4830,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/guardrail-overview/": {
       "get": {
         "operationId": "agentcc_analytics_guardrail_overview",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4575,6 +4885,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/guardrail-rules/": {
       "get": {
         "operationId": "agentcc_analytics_guardrail_rules",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4628,6 +4940,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/guardrail-trends/": {
       "get": {
         "operationId": "agentcc_analytics_guardrail_trends",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4681,6 +4995,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/latency-stats/": {
       "get": {
         "operationId": "agentcc_analytics_latency_stats",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4734,6 +5050,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/model-comparison/": {
       "get": {
         "operationId": "agentcc_analytics_model_comparison",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4787,6 +5105,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/overview/": {
       "get": {
         "operationId": "agentcc_analytics_overview",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4840,6 +5160,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/analytics/usage-timeseries/": {
       "get": {
         "operationId": "agentcc_analytics_usage_timeseries",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4893,6 +5215,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/api-keys/": {
       "get": {
         "operationId": "agentcc_api-keys_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -4944,6 +5268,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_api-keys_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccAPIKey"
         },
@@ -4961,6 +5287,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/api-keys/bulk/": {
       "get": {
         "operationId": "agentcc_api-keys_bulk_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -4979,6 +5307,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/api-keys/sync/": {
       "post": {
         "operationId": "agentcc_api-keys_sync",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccAPIKey"
         },
@@ -4996,6 +5326,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/api-keys/{id}/": {
       "get": {
         "operationId": "agentcc_api-keys_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5009,6 +5341,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_api-keys_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccAPIKey"
         },
@@ -5024,6 +5358,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_api-keys_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccAPIKey"
         },
@@ -5039,6 +5375,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_api-keys_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5051,6 +5389,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/api-keys/{id}/revoke/": {
       "post": {
         "operationId": "agentcc_api-keys_revoke",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccAPIKey"
         },
@@ -5068,6 +5408,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/blocklists/": {
       "get": {
         "operationId": "agentcc_blocklists_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -5119,6 +5461,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_blocklists_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccBlocklist"
         },
@@ -5136,6 +5480,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/blocklists/{id}/": {
       "get": {
         "operationId": "agentcc_blocklists_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5149,6 +5495,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_blocklists_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccBlocklist"
         },
@@ -5164,6 +5512,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_blocklists_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccBlocklist"
         },
@@ -5179,6 +5529,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_blocklists_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5191,6 +5543,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/blocklists/{id}/add-words/": {
       "post": {
         "operationId": "agentcc_blocklists_add_words",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccBlocklist"
         },
@@ -5208,6 +5562,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/blocklists/{id}/remove-words/": {
       "post": {
         "operationId": "agentcc_blocklists_remove_words",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccBlocklist"
         },
@@ -5225,6 +5581,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/custom-properties/": {
       "get": {
         "operationId": "agentcc_custom-properties_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -5276,6 +5634,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_custom-properties_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccCustomPropertySchema"
         },
@@ -5293,6 +5653,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/custom-properties/validate/": {
       "post": {
         "operationId": "agentcc_custom-properties_validate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccCustomPropertySchema"
         },
@@ -5310,6 +5672,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/custom-properties/{id}/": {
       "get": {
         "operationId": "agentcc_custom-properties_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5323,6 +5687,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_custom-properties_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccCustomPropertySchema"
         },
@@ -5338,6 +5704,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_custom-properties_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccCustomPropertySchema"
         },
@@ -5353,6 +5721,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_custom-properties_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5365,6 +5735,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/email-alerts/": {
       "get": {
         "operationId": "agentcc_email-alerts_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -5416,6 +5788,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_email-alerts_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmailAlert"
         },
@@ -5433,6 +5807,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/email-alerts/{id}/": {
       "get": {
         "operationId": "agentcc_email-alerts_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5446,6 +5822,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_email-alerts_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmailAlert"
         },
@@ -5461,6 +5839,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_email-alerts_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmailAlert"
         },
@@ -5476,6 +5856,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_email-alerts_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5488,6 +5870,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/email-alerts/{id}/test/": {
       "post": {
         "operationId": "agentcc_email-alerts_test",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmailAlert"
         },
@@ -5505,6 +5889,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/": {
       "get": {
         "operationId": "agentcc_gateways_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5523,6 +5909,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/protect-templates/": {
       "get": {
         "operationId": "agentcc_gateways_protect_templates",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5541,6 +5929,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/": {
       "get": {
         "operationId": "agentcc_gateways_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5559,6 +5949,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/cancel-batch/": {
       "post": {
         "operationId": "agentcc_gateways_cancel_batch",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayBatchRequest"
         },
@@ -5582,6 +5974,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/config/": {
       "get": {
         "operationId": "agentcc_gateways_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5600,6 +5994,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/get-batch/": {
       "get": {
         "operationId": "agentcc_gateways_get_batch",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5621,6 +6017,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/health_check/": {
       "post": {
         "operationId": "agentcc_gateways_health_check",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmptyRequest"
         },
@@ -5641,6 +6039,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/mcp-prompts/": {
       "get": {
         "operationId": "agentcc_gateways_mcp_prompts",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5656,6 +6056,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/mcp-resources/": {
       "get": {
         "operationId": "agentcc_gateways_mcp_resources",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5671,6 +6073,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/mcp-status/": {
       "get": {
         "operationId": "agentcc_gateways_mcp_status",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5689,6 +6093,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/mcp-tools/": {
       "get": {
         "operationId": "agentcc_gateways_mcp_tools",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5704,6 +6110,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/providers/": {
       "get": {
         "operationId": "agentcc_gateways_providers",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -5722,6 +6130,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/reload/": {
       "post": {
         "operationId": "agentcc_gateways_reload",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccEmptyRequest"
         },
@@ -5742,6 +6152,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/remove-budget/": {
       "post": {
         "operationId": "agentcc_gateways_remove_budget",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayBudgetRemoveRequest"
         },
@@ -5762,6 +6174,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/remove-mcp-server/": {
       "post": {
         "operationId": "agentcc_gateways_remove_mcp_server",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayMCPServerRemoveRequest"
         },
@@ -5785,6 +6199,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/remove-provider/": {
       "post": {
         "operationId": "agentcc_gateways_remove_provider",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayNameRequest"
         },
@@ -5808,6 +6224,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/set-budget/": {
       "post": {
         "operationId": "agentcc_gateways_set_budget",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayBudgetSetRequest"
         },
@@ -5828,6 +6246,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/submit-batch/": {
       "post": {
         "operationId": "agentcc_gateways_submit_batch",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayBatchSubmitRequest"
         },
@@ -5848,6 +6268,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/test-mcp-tool/": {
       "post": {
         "operationId": "agentcc_gateways_test_mcp_tool",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayMCPToolTestRequest"
         },
@@ -5868,6 +6290,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/test-playground/": {
       "post": {
         "operationId": "agentcc_gateways_test_playground",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayPlaygroundTestRequest"
         },
@@ -5888,6 +6312,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/toggle-guardrail/": {
       "post": {
         "operationId": "agentcc_gateways_toggle_guardrail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayToggleGuardrailRequest"
         },
@@ -5908,6 +6334,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/update-config/": {
       "post": {
         "operationId": "agentcc_gateways_update_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayConfigPatchRequest"
         },
@@ -5928,6 +6356,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/update-guardrail/": {
       "post": {
         "operationId": "agentcc_gateways_update_guardrail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayNamedConfigRequest"
         },
@@ -5948,6 +6378,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/update-mcp-guardrails/": {
       "post": {
         "operationId": "agentcc_gateways_update_mcp_guardrails",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayMCPGuardrailsUpdateRequest"
         },
@@ -5968,6 +6400,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/update-mcp-server/": {
       "post": {
         "operationId": "agentcc_gateways_update_mcp_server",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayMCPServerUpdateRequest"
         },
@@ -5988,6 +6422,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/gateways/{id}/update-provider/": {
       "post": {
         "operationId": "agentcc_gateways_update_provider",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GatewayProviderUpdateRequest"
         },
@@ -6008,6 +6444,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-configs/pii-entities/": {
       "get": {
         "operationId": "agentcc_guardrail-configs_pii_entities",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6036,6 +6474,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-configs/topics/": {
       "get": {
         "operationId": "agentcc_guardrail-configs_topics",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6064,6 +6504,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-configs/validate-cel/": {
       "post": {
         "operationId": "agentcc_guardrail-configs_validate_cel",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ValidateCELRequest"
         },
@@ -6084,6 +6526,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-feedback/": {
       "get": {
         "operationId": "agentcc_guardrail-feedback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6135,6 +6579,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_guardrail-feedback_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailFeedback"
         },
@@ -6152,6 +6598,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-feedback/summary/": {
       "get": {
         "operationId": "agentcc_guardrail-feedback_summary",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6205,6 +6653,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-feedback/{id}/": {
       "get": {
         "operationId": "agentcc_guardrail-feedback_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6218,6 +6668,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_guardrail-feedback_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailFeedback"
         },
@@ -6233,6 +6685,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_guardrail-feedback_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailFeedback"
         },
@@ -6248,6 +6702,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_guardrail-feedback_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6260,6 +6716,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-policies/": {
       "get": {
         "operationId": "agentcc_guardrail-policies_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6311,6 +6769,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_guardrail-policies_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailPolicy"
         },
@@ -6328,6 +6788,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-policies/sync/": {
       "post": {
         "operationId": "agentcc_guardrail-policies_sync",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailPolicy"
         },
@@ -6345,6 +6807,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-policies/{id}/": {
       "get": {
         "operationId": "agentcc_guardrail-policies_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6358,6 +6822,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_guardrail-policies_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailPolicy"
         },
@@ -6373,6 +6839,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_guardrail-policies_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailPolicy"
         },
@@ -6388,6 +6856,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_guardrail-policies_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6400,6 +6870,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/guardrail-policies/{id}/apply/": {
       "post": {
         "operationId": "agentcc_guardrail-policies_apply",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccGuardrailPolicy"
         },
@@ -6417,6 +6889,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/": {
       "get": {
         "operationId": "agentcc_org-configs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6468,6 +6942,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_org-configs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccOrgConfig"
         },
@@ -6485,6 +6961,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/active/": {
       "get": {
         "operationId": "agentcc_org-configs_active",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6538,6 +7016,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/bulk/": {
       "get": {
         "operationId": "agentcc_org-configs_bulk_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6556,6 +7036,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/{id}/": {
       "get": {
         "operationId": "agentcc_org-configs_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6569,6 +7051,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_org-configs_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccOrgConfig"
         },
@@ -6584,6 +7068,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_org-configs_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccOrgConfig"
         },
@@ -6599,6 +7085,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_org-configs_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6611,6 +7099,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/{id}/activate/": {
       "post": {
         "operationId": "agentcc_org-configs_activate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccOrgConfig"
         },
@@ -6628,6 +7118,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/org-configs/{id}/diff/": {
       "get": {
         "operationId": "agentcc_org-configs_diff",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6643,6 +7135,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/provider-credentials/": {
       "get": {
         "operationId": "agentcc_provider-credentials_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6694,6 +7188,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_provider-credentials_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccProviderCredential"
         },
@@ -6711,6 +7207,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/provider-credentials/fetch_models/": {
       "post": {
         "operationId": "agentcc_provider-credentials_fetch_models",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccProviderCredential"
         },
@@ -6728,6 +7226,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/provider-credentials/{id}/": {
       "get": {
         "operationId": "agentcc_provider-credentials_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6741,6 +7241,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_provider-credentials_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccProviderCredential"
         },
@@ -6756,6 +7258,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_provider-credentials_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccProviderCredential"
         },
@@ -6771,6 +7275,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_provider-credentials_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -6783,6 +7289,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/provider-credentials/{id}/rotate/": {
       "post": {
         "operationId": "agentcc_provider-credentials_rotate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccProviderCredential"
         },
@@ -6800,6 +7308,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/": {
       "get": {
         "operationId": "agentcc_request-logs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6853,6 +7363,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/export/": {
       "get": {
         "operationId": "agentcc_request-logs_export",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6906,6 +7418,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/search/": {
       "get": {
         "operationId": "agentcc_request-logs_search",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -6959,6 +7473,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/sessions/": {
       "get": {
         "operationId": "agentcc_request-logs_sessions",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7012,6 +7528,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/sessions/{session_id}/": {
       "get": {
         "operationId": "agentcc_request-logs_session_detail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7065,6 +7583,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/request-logs/{id}/": {
       "get": {
         "operationId": "agentcc_request-logs_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7080,6 +7600,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/routing-policies/": {
       "get": {
         "operationId": "agentcc_routing-policies_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7131,6 +7653,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_routing-policies_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccRoutingPolicy"
         },
@@ -7148,6 +7672,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/routing-policies/sync/": {
       "post": {
         "operationId": "agentcc_routing-policies_sync",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccRoutingPolicy"
         },
@@ -7165,6 +7691,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/routing-policies/{id}/": {
       "get": {
         "operationId": "agentcc_routing-policies_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7178,6 +7706,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_routing-policies_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccRoutingPolicy"
         },
@@ -7193,6 +7723,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_routing-policies_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccRoutingPolicy"
         },
@@ -7208,6 +7740,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_routing-policies_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7220,6 +7754,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/routing-policies/{id}/activate/": {
       "post": {
         "operationId": "agentcc_routing-policies_activate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccRoutingPolicy"
         },
@@ -7237,6 +7773,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/sessions/": {
       "get": {
         "operationId": "agentcc_sessions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7288,6 +7826,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_sessions_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccSession"
         },
@@ -7305,6 +7845,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/sessions/{id}/": {
       "get": {
         "operationId": "agentcc_sessions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7318,6 +7860,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_sessions_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccSession"
         },
@@ -7333,6 +7877,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_sessions_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccSession"
         },
@@ -7348,6 +7894,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_sessions_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7360,6 +7908,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/sessions/{id}/close/": {
       "post": {
         "operationId": "agentcc_sessions_close",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccSession"
         },
@@ -7377,6 +7927,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/sessions/{id}/requests/": {
       "get": {
         "operationId": "agentcc_sessions_requests",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7392,6 +7944,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/": {
       "get": {
         "operationId": "agentcc_shadow-experiments_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7443,6 +7997,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_shadow-experiments_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7460,6 +8016,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/{id}/": {
       "get": {
         "operationId": "agentcc_shadow-experiments_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7473,6 +8031,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_shadow-experiments_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7488,6 +8048,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_shadow-experiments_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7503,6 +8065,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_shadow-experiments_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7515,6 +8079,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/{id}/complete/": {
       "patch": {
         "operationId": "agentcc_shadow-experiments_complete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7532,6 +8098,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/{id}/pause/": {
       "patch": {
         "operationId": "agentcc_shadow-experiments_pause",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7549,6 +8117,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/{id}/resume/": {
       "patch": {
         "operationId": "agentcc_shadow-experiments_resume",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccShadowExperiment"
         },
@@ -7566,6 +8136,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-experiments/{id}/stats/": {
       "get": {
         "operationId": "agentcc_shadow-experiments_stats",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7581,6 +8153,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-results/": {
       "get": {
         "operationId": "agentcc_shadow-results_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7634,6 +8208,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/shadow-results/{id}/": {
       "get": {
         "operationId": "agentcc_shadow-results_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7649,6 +8225,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/spend-summary/": {
       "get": {
         "operationId": "agentcc_spend-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "period": {
@@ -7680,6 +8258,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook-events/": {
       "get": {
         "operationId": "agentcc_webhook-events_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7733,6 +8313,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook-events/{id}/": {
       "get": {
         "operationId": "agentcc_webhook-events_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7748,6 +8330,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook-events/{id}/retry/": {
       "post": {
         "operationId": "agentcc_webhook-events_retry",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccWebhookEvent"
         },
@@ -7765,6 +8349,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook/logs/": {
       "post": {
         "operationId": "agentcc_webhook_logs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/WebhookLogsRequest"
         },
@@ -7785,6 +8371,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhook/shadow-results/": {
       "post": {
         "operationId": "agentcc_webhook_shadow-results_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ShadowResultsWebhookRequest"
         },
@@ -7805,6 +8393,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhooks/": {
       "get": {
         "operationId": "agentcc_webhooks_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -7856,6 +8446,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "agentcc_webhooks_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccWebhook"
         },
@@ -7873,6 +8465,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhooks/{id}/": {
       "get": {
         "operationId": "agentcc_webhooks_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7886,6 +8480,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "agentcc_webhooks_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccWebhook"
         },
@@ -7901,6 +8497,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "agentcc_webhooks_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccWebhook"
         },
@@ -7916,6 +8514,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "agentcc_webhooks_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7928,6 +8528,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/agentcc/webhooks/{id}/test/": {
       "post": {
         "operationId": "agentcc_webhooks_test",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentccWebhook"
         },
@@ -7945,6 +8547,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/ai-tools/tools/": {
       "get": {
         "operationId": "ai-tools_tools_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7966,6 +8570,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/deployment-info/": {
       "get": {
         "operationId": "api_deployment-info_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7984,6 +8590,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/health/clickhouse/": {
       "get": {
         "operationId": "api_health_clickhouse_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -7991,7 +8599,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/ClickHouseHealthResponse"
           },
           "503": {
-            "$ref": "#/definitions/ClickHouseHealthResponse"
+            "$ref": "#/definitions/ClickHouseHealthErrorResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -8002,6 +8610,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/public/health": {
       "get": {
         "operationId": "api_public_health_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8026,6 +8636,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/public/ingestion": {
       "post": {
         "operationId": "api_public_ingestion_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/LangfuseIngestionRequest"
         },
@@ -8046,6 +8658,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/public/otel/v1/traces": {
       "post": {
         "operationId": "api_public_otel_v1_traces_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "Legacy OTLP JSON/protobuf trace payload. Prefer /tracer/v1/traces for new integrations.",
           "type": "object"
@@ -8070,6 +8684,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/public/traces": {
       "get": {
         "operationId": "api_public_traces_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8094,6 +8710,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/traces/span-attribute-detail/": {
       "get": {
         "operationId": "api_traces_span-attribute-detail_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -8136,6 +8754,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/traces/span-attribute-keys/": {
       "get": {
         "operationId": "api_traces_span-attribute-keys_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -8171,6 +8791,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/api/traces/span-attribute-values/": {
       "get": {
         "operationId": "api_traces_span-attribute-values_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -8227,6 +8849,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/call-websocket/": {
       "post": {
         "operationId": "call-websocket_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CallWebsocketRequest"
         },
@@ -8247,6 +8871,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/conversations/": {
       "get": {
         "operationId": "falcon-ai_conversations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8263,6 +8889,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "falcon-ai_conversations_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ConversationCreateRequest"
         },
@@ -8283,6 +8911,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/conversations/{conversation_id}/": {
       "get": {
         "operationId": "falcon-ai_conversations_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8302,6 +8932,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "falcon-ai_conversations_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ConversationUpdateRequest"
         },
@@ -8323,6 +8955,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "falcon-ai_conversations_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8341,6 +8975,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/conversations/{conversation_id}/stream-status/": {
       "get": {
         "operationId": "falcon-ai_conversations_stream-status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8362,6 +8998,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/files/upload/": {
       "post": {
         "operationId": "falcon-ai_files_upload_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8383,6 +9021,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/": {
       "get": {
         "operationId": "falcon-ai_mcp-connectors_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8399,6 +9039,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "falcon-ai_mcp-connectors_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPConnectorCreate"
         },
@@ -8422,6 +9064,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/": {
       "get": {
         "operationId": "falcon-ai_mcp-connectors_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8441,6 +9085,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "falcon-ai_mcp-connectors_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/MCPConnectorUpdateRequest"
         },
@@ -8462,6 +9108,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "falcon-ai_mcp-connectors_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8480,6 +9128,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/authenticate/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_authenticate_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FalconEmptyRequest"
         },
@@ -8506,6 +9156,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/discover/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_discover_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FalconEmptyRequest"
         },
@@ -8532,6 +9184,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/oauth/callback/": {
       "get": {
         "operationId": "falcon-ai_mcp-connectors_oauth_callback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -8578,6 +9232,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/test/": {
       "post": {
         "operationId": "falcon-ai_mcp-connectors_test_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FalconEmptyRequest"
         },
@@ -8604,6 +9260,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/mcp-connectors/{connector_id}/tools/": {
       "patch": {
         "operationId": "falcon-ai_mcp-connectors_tools_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPConnectorTools"
         },
@@ -8630,6 +9288,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/memory/": {
       "get": {
         "operationId": "falcon-ai_memory_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8646,6 +9306,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "falcon-ai_memory_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FalconMemoryCreate"
         },
@@ -8669,6 +9331,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/memory/{memory_id}/": {
       "delete": {
         "operationId": "falcon-ai_memory_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8687,6 +9351,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/messages/{message_id}/feedback/": {
       "post": {
         "operationId": "falcon-ai_messages_feedback_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MessageFeedback"
         },
@@ -8710,6 +9376,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/quick-analysis/": {
       "post": {
         "operationId": "falcon-ai_quick-analysis_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/QuickAnalysis"
         },
@@ -8736,6 +9404,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/skills/": {
       "get": {
         "operationId": "falcon-ai_skills_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8752,6 +9422,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "falcon-ai_skills_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SkillCreate"
         },
@@ -8775,6 +9447,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/falcon-ai/skills/{skill_id}/": {
       "get": {
         "operationId": "falcon-ai_skills_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8794,6 +9468,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "falcon-ai_skills_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SkillUpdateRequest"
         },
@@ -8815,6 +9491,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "falcon-ai_skills_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8833,6 +9511,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/health/": {
       "get": {
         "operationId": "health_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8851,6 +9531,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/": {
       "get": {
         "operationId": "integrations_connections_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -8911,6 +9593,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "integrations_connections_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -8937,6 +9621,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/validate/": {
       "post": {
         "operationId": "integrations_connections_validate_credentials",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -8963,6 +9649,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/{id}/": {
       "get": {
         "operationId": "integrations_connections_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -8985,6 +9673,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "integrations_connections_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -9009,6 +9699,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "integrations_connections_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -9033,6 +9725,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "integrations_connections_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9054,6 +9748,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/{id}/pause/": {
       "post": {
         "operationId": "integrations_connections_pause",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -9080,6 +9776,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/{id}/resume/": {
       "post": {
         "operationId": "integrations_connections_resume",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -9106,6 +9804,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/connections/{id}/sync_now/": {
       "post": {
         "operationId": "integrations_connections_sync_now",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/IntegrationConnectionList"
         },
@@ -9135,6 +9835,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/sync-logs/": {
       "get": {
         "operationId": "integrations_sync-logs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -9197,6 +9899,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/integrations/sync-logs/{id}/": {
       "get": {
         "operationId": "integrations_sync-logs_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9221,6 +9925,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/analytics/summary/": {
       "get": {
         "operationId": "mcp_analytics_summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9239,6 +9945,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/analytics/timeline/": {
       "get": {
         "operationId": "mcp_analytics_timeline_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9257,6 +9965,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/analytics/tools/": {
       "get": {
         "operationId": "mcp_analytics_tools_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9275,6 +9985,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/config/": {
       "get": {
         "operationId": "mcp_config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9291,6 +10003,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "mcp_config_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPConnectionUpdate"
         },
@@ -9314,6 +10028,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/config/tool-groups/": {
       "get": {
         "operationId": "mcp_config_tool-groups_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9333,6 +10049,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "mcp_config_tool-groups_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPToolGroupConfigUpdate"
         },
@@ -9353,6 +10071,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/health/": {
       "get": {
         "operationId": "mcp_health_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9371,6 +10091,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/internal/tool-call/": {
       "post": {
         "operationId": "mcp_internal_tool-call_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPToolCallRequest"
         },
@@ -9403,6 +10125,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/internal/tools/": {
       "get": {
         "operationId": "mcp_internal_tools_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9421,6 +10145,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/oauth/approve-info/": {
       "get": {
         "operationId": "mcp_oauth_approve-info_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9442,6 +10168,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/oauth/approve/": {
       "post": {
         "operationId": "mcp_oauth_approve_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPOAuthApproveRequest"
         },
@@ -9468,6 +10196,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/oauth/authorize/": {
       "get": {
         "operationId": "mcp_oauth_authorize_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9486,6 +10216,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/oauth/consent/": {
       "post": {
         "operationId": "mcp_oauth_consent_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPOAuthConsentRequest"
         },
@@ -9509,6 +10241,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/oauth/token/": {
       "post": {
         "operationId": "mcp_oauth_token_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/MCPOAuthTokenRequest"
         },
@@ -9532,6 +10266,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/sessions/": {
       "get": {
         "operationId": "mcp_sessions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9550,6 +10286,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/mcp/sessions/{session_id}/": {
       "delete": {
         "operationId": "mcp_sessions_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9574,6 +10312,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ai-eval-writer/": {
       "post": {
         "operationId": "model-hub_ai-eval-writer_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AIEvalWriterRequest"
         },
@@ -9606,6 +10346,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ai-filter/": {
       "post": {
         "operationId": "model-hub_ai-filter_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AIFilterRequest"
         },
@@ -9629,6 +10371,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/": {
       "get": {
         "operationId": "model-hub_annotation-queues_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -9698,6 +10442,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotation-queues_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationQueue"
         },
@@ -9715,6 +10461,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/for-source/": {
       "get": {
         "operationId": "model-hub_annotation-queues_for_source",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -9784,6 +10532,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/get-or-create-default/": {
       "post": {
         "operationId": "model-hub_annotation-queues_get_or_create_default",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueDefaultRequest"
         },
@@ -9816,6 +10566,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/": {
       "get": {
         "operationId": "model-hub_annotation-queues_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9829,6 +10581,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_annotation-queues_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationQueue"
         },
@@ -9844,6 +10598,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_annotation-queues_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationQueue"
         },
@@ -9859,6 +10615,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_annotation-queues_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9871,6 +10629,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/add-label/": {
       "post": {
         "operationId": "model-hub_annotation-queues_add_label",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueLabelRequest"
         },
@@ -9903,6 +10663,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/agreement/": {
       "get": {
         "operationId": "model-hub_annotation-queues_agreement",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9933,6 +10695,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/analytics/": {
       "get": {
         "operationId": "model-hub_annotation-queues_analytics",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9963,6 +10727,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/export-fields/": {
       "get": {
         "operationId": "model-hub_annotation-queues_export_fields",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -9993,6 +10759,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/export-to-dataset/": {
       "post": {
         "operationId": "model-hub_annotation-queues_export_to_dataset",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueExportToDatasetRequest"
         },
@@ -10025,6 +10793,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/export/": {
       "get": {
         "operationId": "model-hub_annotation-queues_export_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "export_format": {
@@ -10072,6 +10842,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/hard-delete/": {
       "post": {
         "operationId": "model-hub_annotation-queues_hard_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueHardDeleteRequest"
         },
@@ -10104,6 +10876,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/progress/": {
       "get": {
         "operationId": "model-hub_annotation-queues_progress",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10134,6 +10908,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/remove-label/": {
       "post": {
         "operationId": "model-hub_annotation-queues_remove_label",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueLabelRequest"
         },
@@ -10166,6 +10942,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/restore/": {
       "post": {
         "operationId": "model-hub_annotation-queues_restore",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -10198,6 +10976,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{id}/update-status/": {
       "post": {
         "operationId": "model-hub_annotation-queues_update_status",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueStatusRequest"
         },
@@ -10230,6 +11010,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/automation-rules/": {
       "get": {
         "operationId": "model-hub_annotation-queues_automation-rules_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -10281,6 +11063,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotation-queues_automation-rules_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AutomationRule"
         },
@@ -10298,6 +11082,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/": {
       "get": {
         "operationId": "model-hub_annotation-queues_automation-rules_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10311,6 +11097,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_annotation-queues_automation-rules_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AutomationRule"
         },
@@ -10326,6 +11114,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_annotation-queues_automation-rules_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AutomationRule"
         },
@@ -10341,6 +11131,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_annotation-queues_automation-rules_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10353,6 +11145,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/": {
       "post": {
         "operationId": "model-hub_annotation-queues_automation-rules_evaluate",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -10388,6 +11182,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/preview/": {
       "get": {
         "operationId": "model-hub_annotation-queues_automation-rules_preview",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10418,6 +11214,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -10435,13 +11233,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "status": {
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "source_type": {
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "assigned_to": {
@@ -10503,6 +11309,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotation-queues_items_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/QueueItem"
         },
@@ -10520,6 +11328,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/add-items/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_add_items",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddItems"
         },
@@ -10546,6 +11356,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/assign/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_assign_items",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AssignItems"
         },
@@ -10578,6 +11390,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/bulk-remove/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_bulk_remove",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/BulkRemoveItems"
         },
@@ -10610,6 +11424,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/next-item/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_next_item",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -10696,6 +11512,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10709,6 +11527,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_annotation-queues_items_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/QueueItem"
         },
@@ -10724,6 +11544,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_annotation-queues_items_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/QueueItem"
         },
@@ -10739,6 +11561,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_annotation-queues_items_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10751,6 +11575,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_annotate_detail",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "annotator_id": {
@@ -10825,6 +11651,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_annotations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10855,6 +11683,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/import/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_annotations_import_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ImportAnnotations"
         },
@@ -10887,6 +11717,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_annotations_submit_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SubmitAnnotations"
         },
@@ -10919,6 +11751,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_complete_item",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueItemNavigationRequest"
         },
@@ -10951,6 +11785,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/": {
       "get": {
         "operationId": "model-hub_annotation-queues_items_discussion_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -10979,6 +11815,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotation-queues_items_discussion_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DiscussionCommentRequest"
         },
@@ -11011,6 +11849,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/comments/{comment_id}/reaction/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_discussion_comments_discussion_comment_reaction",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DiscussionReactionRequest"
         },
@@ -11043,6 +11883,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/reopen/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_discussion_reopen_discussion_thread",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DiscussionThreadStatusRequest"
         },
@@ -11075,6 +11917,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/resolve/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_discussion_resolve_discussion_thread",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DiscussionThreadStatusRequest"
         },
@@ -11107,6 +11951,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/release/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_release_reservation",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -11139,6 +11985,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/review/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_review_item",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ReviewItemRequest"
         },
@@ -11171,6 +12019,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-queues/{queue_id}/items/{id}/skip/": {
       "post": {
         "operationId": "model-hub_annotation-queues_items_skip_item",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/QueueItemNavigationRequest"
         },
@@ -11203,6 +12053,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-tasks/": {
       "get": {
         "operationId": "model-hub_annotation-tasks_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -11263,6 +12115,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotation-tasks/{id}/": {
       "get": {
         "operationId": "model-hub_annotation-tasks_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11278,6 +12132,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations-labels/": {
       "get": {
         "operationId": "model-hub_annotations-labels_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -11361,6 +12217,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotations-labels_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationsLabels"
         },
@@ -11378,6 +12236,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations-labels/{id}/": {
       "get": {
         "operationId": "model-hub_annotations-labels_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11391,6 +12251,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_annotations-labels_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationsLabels"
         },
@@ -11406,6 +12268,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_annotations-labels_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AnnotationsLabels"
         },
@@ -11421,6 +12285,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_annotations-labels_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11433,6 +12299,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations-labels/{id}/restore/": {
       "post": {
         "operationId": "model-hub_annotations-labels_restore",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -11459,6 +12327,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/": {
       "get": {
         "operationId": "model-hub_annotations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -11510,6 +12380,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_annotations_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Annotations"
         },
@@ -11527,6 +12399,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/bulk_destroy/": {
       "post": {
         "operationId": "model-hub_annotations_bulk_destroy",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/BulkDestroyAnnotationsRequest"
         },
@@ -11553,6 +12427,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/preview_annotations/": {
       "post": {
         "operationId": "model-hub_annotations_preview_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PreviewAnnotationsRequest"
         },
@@ -11579,6 +12455,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/{id}/": {
       "get": {
         "operationId": "model-hub_annotations_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11592,6 +12470,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_annotations_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Annotations"
         },
@@ -11607,6 +12487,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_annotations_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Annotations"
         },
@@ -11622,6 +12504,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_annotations_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11634,6 +12518,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/{id}/annotate_row/": {
       "get": {
         "operationId": "model-hub_annotations_annotate_row",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "row_order": {
@@ -11657,6 +12543,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/{id}/reset_annotations/": {
       "post": {
         "operationId": "model-hub_annotations_reset_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ResetAnnotationsRequest"
         },
@@ -11683,6 +12571,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/annotations/{id}/update_cells/": {
       "post": {
         "operationId": "model-hub_annotations_update_cells",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UpdateAnnotationCellsRequest"
         },
@@ -11709,6 +12599,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/api-keys/": {
       "get": {
         "operationId": "model-hub_api-keys_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -11760,6 +12652,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_api-keys_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ApiKey"
         },
@@ -11777,6 +12671,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/api-keys/{id}/": {
       "get": {
         "operationId": "model-hub_api-keys_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11790,6 +12686,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_api-keys_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ApiKey"
         },
@@ -11805,6 +12703,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_api-keys_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ApiKey"
         },
@@ -11820,6 +12720,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_api-keys_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11832,6 +12734,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/api/model_parameters/": {
       "get": {
         "operationId": "model-hub_api_model_parameters_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11862,6 +12766,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/api/model_voices/": {
       "get": {
         "operationId": "model-hub_api_model_voices_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11892,6 +12798,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/api/models_list/": {
       "get": {
         "operationId": "model-hub_api_models_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11922,6 +12830,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/cells/{cell_id}/run-error-localizer/": {
       "get": {
         "operationId": "model-hub_cells_run-error-localizer_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -11950,6 +12860,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_cells_run-error-localizer_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -11982,6 +12894,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/column-config/{column_id}/": {
       "get": {
         "operationId": "model-hub_column-config_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12012,6 +12926,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/columns/{column_id}/operation-config/": {
       "get": {
         "operationId": "model-hub_columns_operation-config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12042,6 +12958,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/columns/{column_id}/rerun-operation/": {
       "post": {
         "operationId": "model-hub_columns_rerun-operation_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/RerunOperationRequest"
         },
@@ -12074,6 +12992,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/create_custom_evals/": {
       "post": {
         "operationId": "model-hub_create_custom_evals_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalTemplateCreate"
         },
@@ -12106,6 +13026,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/all/{model_id}/": {
       "get": {
         "operationId": "model-hub_custom-metric_all_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12136,6 +13058,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/create/": {
       "post": {
         "operationId": "model-hub_custom-metric_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomMetricMutationRequest"
         },
@@ -12168,6 +13092,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/tag-options/{metric_id}/": {
       "get": {
         "operationId": "model-hub_custom-metric_tag-options_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12201,6 +13127,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/test/": {
       "post": {
         "operationId": "model-hub_custom-metric_test_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomMetricTestRequest"
         },
@@ -12233,6 +13161,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/update/": {
       "post": {
         "operationId": "model-hub_custom-metric_update_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomMetricMutationRequest"
         },
@@ -12265,6 +13195,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-metric/{model_id}/": {
       "get": {
         "operationId": "model-hub_custom-metric_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12295,6 +13227,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-models/": {
       "get": {
         "operationId": "model-hub_custom-models_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12325,6 +13259,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-models/list/": {
       "get": {
         "operationId": "model-hub_custom-models_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12355,6 +13291,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom-models/{id}/": {
       "get": {
         "operationId": "model-hub_custom-models_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12383,6 +13321,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_custom-models_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelUpdateRequest"
         },
@@ -12415,6 +13355,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom_models/create/": {
       "post": {
         "operationId": "model-hub_custom_models_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelCreateRequest"
         },
@@ -12447,6 +13389,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom_models/delete/": {
       "delete": {
         "operationId": "model-hub_custom_models_delete_delete",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelDeleteRequest"
         },
@@ -12479,6 +13423,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom_models/edit/": {
       "get": {
         "operationId": "model-hub_custom_models_edit_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12507,6 +13453,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_custom_models_edit_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelEditRequest"
         },
@@ -12539,6 +13487,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom_models/update-baseline/{id}/": {
       "post": {
         "operationId": "model-hub_custom_models_update-baseline_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelBaselineRequest"
         },
@@ -12571,6 +13521,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/custom_models/update-metric/{id}/": {
       "post": {
         "operationId": "model-hub_custom_models_update-metric_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelDefaultMetricRequest"
         },
@@ -12603,6 +13555,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -12654,6 +13608,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_dataset-optimization_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetOptimizationCreate"
         },
@@ -12671,6 +13627,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12684,6 +13642,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_dataset-optimization_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetOptimization"
         },
@@ -12699,6 +13659,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_dataset-optimization_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetOptimization"
         },
@@ -12714,6 +13676,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_dataset-optimization_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12726,6 +13690,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/graph/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_graph",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12741,6 +13707,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/steps/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_steps",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12756,6 +13724,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/stop/": {
       "post": {
         "operationId": "model-hub_dataset-optimization_stop",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetOptimization"
         },
@@ -12773,6 +13743,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/trial/{trial_id}/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_trial_detail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12788,6 +13760,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/trial/{trial_id}/evaluations/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_trial_trial_evaluations",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12803,6 +13777,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/trial/{trial_id}/prompt/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_trial_trial_prompt",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12818,6 +13794,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset-optimization/{id}/trial/{trial_id}/scenarios/": {
       "get": {
         "operationId": "model-hub_dataset-optimization_trial_trial_scenarios",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12833,6 +13811,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset/columns/{dataset_id}/": {
       "get": {
         "operationId": "model-hub_dataset_columns_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12863,6 +13843,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset/{dataset_id}/annotation-summary/": {
       "get": {
         "operationId": "model-hub_dataset_annotation-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12887,6 +13869,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset/{dataset_id}/eval-stats/": {
       "get": {
         "operationId": "model-hub_dataset_eval-stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12917,6 +13901,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset/{dataset_id}/json-schema/": {
       "get": {
         "operationId": "model-hub_dataset_json-schema_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12947,6 +13933,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/dataset/{dataset_id}/run-prompt-stats/": {
       "get": {
         "operationId": "model-hub_dataset_run-prompt-stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -12977,6 +13965,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/compare/get-evals-list/": {
       "post": {
         "operationId": "model-hub_datasets_compare_get-evals-list_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompareEvalsListRequest"
         },
@@ -13009,6 +13999,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/compare/preview-run-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare_preview-run-eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ComparePreviewRunEvalRequest"
         },
@@ -13041,6 +14033,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/delete-compare/{compare_id}/": {
       "get": {
         "operationId": "model-hub_datasets_delete-compare_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13069,6 +14063,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_datasets_delete-compare_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13099,6 +14095,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/explanation-summary/{dataset_id}/": {
       "get": {
         "operationId": "model-hub_datasets_explanation-summary_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13129,6 +14127,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/": {
       "post": {
         "operationId": "model-hub_datasets_explanation-summary_refresh_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -13161,6 +14161,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/get-base-columns/": {
       "get": {
         "operationId": "model-hub_datasets_get-base-columns_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13191,6 +14193,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/": {
       "get": {
         "operationId": "model-hub_datasets_get-compare-row_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13219,6 +14223,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_datasets_get-compare-row_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13249,6 +14255,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/huggingface/detail/": {
       "post": {
         "operationId": "model-hub_datasets_huggingface_detail_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/HuggingFaceDatasetDetailRequest"
         },
@@ -13281,6 +14289,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/huggingface/list/": {
       "post": {
         "operationId": "model-hub_datasets_huggingface_list_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/HuggingFaceDatasetListRequest"
         },
@@ -13313,6 +14323,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/add-api-column/": {
       "post": {
         "operationId": "model-hub_datasets_add-api-column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddApiColumnRequest"
         },
@@ -13345,6 +14357,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/add_vector_db_column/": {
       "post": {
         "operationId": "model-hub_datasets_add_vector_db_column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/VectorDBColumnRequest"
         },
@@ -13377,6 +14391,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/classify-column/": {
       "post": {
         "operationId": "model-hub_datasets_classify-column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ClassifyColumnRequest"
         },
@@ -13409,6 +14425,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-datasets/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompareDataset"
         },
@@ -13441,8 +14459,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_add-eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
-          "$ref": "#/definitions/UserEval"
+          "$ref": "#/definitions/CompareExperimentEvalRequest"
         },
         "queryParameters": {},
         "responses": {
@@ -13473,6 +14493,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-datasets/download/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_download_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompareDataset"
         },
@@ -13505,6 +14527,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/": {
       "post": {
         "operationId": "model-hub_datasets_compare-datasets_start-eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompareStartEvalsRequest"
         },
@@ -13537,6 +14561,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/compare-stats/": {
       "post": {
         "operationId": "model-hub_datasets_compare-stats_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompareDatasetStatsRequest"
         },
@@ -13569,6 +14595,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/conditional-column/": {
       "post": {
         "operationId": "model-hub_datasets_conditional-column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ConditionalColumnRequest"
         },
@@ -13601,6 +14629,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/derived-variables/": {
       "get": {
         "operationId": "model-hub_datasets_derived-variables_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -13631,6 +14661,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/duplicate-rows/": {
       "post": {
         "operationId": "model-hub_datasets_duplicate-rows_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DuplicateRowsRequest"
         },
@@ -13663,6 +14695,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/duplicate/": {
       "post": {
         "operationId": "model-hub_datasets_duplicate_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DuplicateDatasetRequest"
         },
@@ -13695,6 +14729,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/extract-entities/": {
       "post": {
         "operationId": "model-hub_datasets_extract-entities_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ExtractEntitiesRequest"
         },
@@ -13727,6 +14763,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/merge/": {
       "post": {
         "operationId": "model-hub_datasets_merge_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/MergeDatasetRequest"
         },
@@ -13759,6 +14797,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/datasets/{dataset_id}/preview/{operation_type}/": {
       "post": {
         "operationId": "model-hub_datasets_preview_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PreviewDatasetOperationRequest"
         },
@@ -13791,6 +14831,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/delete-eval-template/": {
       "post": {
         "operationId": "model-hub_delete-eval-template_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DeleteEvalTemplate"
         },
@@ -13823,6 +14865,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/add-as-new/": {
       "post": {
         "operationId": "model-hub_develops_add-as-new_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddAsNewDatasetRequest"
         },
@@ -13855,6 +14899,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/add_rows_from_file/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_from_file_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddRowsFromFileRequest"
         },
@@ -13887,6 +14933,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/add_rows_sdk/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_sdk_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetSdkRowsRequest"
         },
@@ -13919,6 +14967,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/add_run_prompt_column/": {
       "post": {
         "operationId": "model-hub_develops_add_run_prompt_column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddRunPrompt"
         },
@@ -13951,6 +15001,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/clone-dataset/{dataset_id}/": {
       "post": {
         "operationId": "model-hub_develops_clone-dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CloneDatasetRequest"
         },
@@ -13983,6 +15035,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-dataset-from-huggingface/": {
       "post": {
         "operationId": "model-hub_develops_create-dataset-from-huggingface_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/HuggingFaceDatasetCreateRequest"
         },
@@ -14015,6 +15069,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-dataset-from-local-file/": {
       "post": {
         "operationId": "model-hub_develops_create-dataset-from-local-file_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateDatasetFromLocalFileRequest"
         },
@@ -14047,6 +15103,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-dataset-manually/": {
       "post": {
         "operationId": "model-hub_develops_create-dataset-manually_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ManualDatasetCreateRequest"
         },
@@ -14079,6 +15137,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-empty-dataset/": {
       "post": {
         "operationId": "model-hub_develops_create-empty-dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CreateEmptyDatasetRequest"
         },
@@ -14111,6 +15171,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/create-synthetic-dataset/": {
       "post": {
         "operationId": "model-hub_develops_create-synthetic-dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SyntheticDatasetCreation"
         },
@@ -14143,6 +15205,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/dataset-creation-progress/{dataset_id}/": {
       "get": {
         "operationId": "model-hub_develops_dataset-creation-progress_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14173,6 +15237,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/delete_dataset/": {
       "delete": {
         "operationId": "model-hub_develops_delete_dataset_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14185,6 +15251,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/edit_run_prompt_column/": {
       "post": {
         "operationId": "model-hub_develops_edit_run_prompt_column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EditRunPromptColumn"
         },
@@ -14217,6 +15285,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-cell-data/": {
       "post": {
         "operationId": "model-hub_develops_get-cell-data_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetCellDataRequest"
         },
@@ -14249,6 +15319,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-datasets-names/": {
       "get": {
         "operationId": "model-hub_develops_get-datasets-names_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14279,8 +15351,41 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-datasets/": {
       "get": {
         "operationId": "model-hub_develops_get-datasets_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "search_text": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "page": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          },
+          "sort": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/DatasetListResponse"
@@ -14309,6 +15414,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-derived-datasets/{dataset_id}/": {
       "get": {
         "operationId": "model-hub_develops_get-derived-datasets_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14339,6 +15446,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-huggingface-dataset-config/": {
       "post": {
         "operationId": "model-hub_develops_get-huggingface-dataset-config_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/HuggingFaceDatasetConfigRequest"
         },
@@ -14371,6 +15480,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get-row-diff/": {
       "post": {
         "operationId": "model-hub_develops_get-row-diff_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetRowDiffRequest"
         },
@@ -14403,6 +15514,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/get_function_list/": {
       "get": {
         "operationId": "model-hub_develops_get_function_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14433,6 +15546,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/preview_run_prompt_column/": {
       "post": {
         "operationId": "model-hub_develops_preview_run_prompt_column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PreviewRunPrompt"
         },
@@ -14465,6 +15580,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/provider-status/": {
       "get": {
         "operationId": "model-hub_develops_provider-status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14495,6 +15612,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/retrieve_run_prompt_column_config/": {
       "get": {
         "operationId": "model-hub_develops_retrieve_run_prompt_column_config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14525,6 +15644,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/retrieve_run_prompt_options/": {
       "get": {
         "operationId": "model-hub_develops_retrieve_run_prompt_options_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14555,6 +15676,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_columns/": {
       "post": {
         "operationId": "model-hub_develops_add_columns_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetAddColumnsRequest"
         },
@@ -14587,6 +15710,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_empty_columns/": {
       "post": {
         "operationId": "model-hub_develops_add_empty_columns_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetAddEmptyColumnsRequest"
         },
@@ -14619,6 +15744,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_empty_rows/": {
       "post": {
         "operationId": "model-hub_develops_add_empty_rows_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetAddEmptyRowsRequest"
         },
@@ -14651,6 +15778,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_multiple_static_columns/": {
       "post": {
         "operationId": "model-hub_develops_add_multiple_static_columns_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetMultipleStaticColumnsRequest"
         },
@@ -14683,6 +15812,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_rows/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetAddRowsRequest"
         },
@@ -14715,6 +15846,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_rows_from_existing_dataset/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_from_existing_dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetAddRowsFromExistingRequest"
         },
@@ -14747,6 +15880,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/": {
       "post": {
         "operationId": "model-hub_develops_add_rows_from_huggingface_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/HuggingFaceAddRowsRequest"
         },
@@ -14779,6 +15914,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_static_column/": {
       "post": {
         "operationId": "model-hub_develops_add_static_column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetStaticColumnRequest"
         },
@@ -14811,6 +15948,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_synthetic_data/": {
       "post": {
         "operationId": "model-hub_develops_add_synthetic_data_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SyntheticData"
         },
@@ -14843,6 +15982,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/add_user_eval/": {
       "post": {
         "operationId": "model-hub_develops_add_user_eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UserEvalMutationRequest"
         },
@@ -14875,6 +16016,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/delete_column/{column_id}/": {
       "delete": {
         "operationId": "model-hub_develops_delete_column_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14887,6 +16030,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/delete_row/": {
       "delete": {
         "operationId": "model-hub_develops_delete_row_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14899,6 +16044,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/delete_template_eval/{eval_id}/": {
       "delete": {
         "operationId": "model-hub_develops_delete_template_eval_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14911,6 +16058,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/": {
       "delete": {
         "operationId": "model-hub_develops_delete_user_eval_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14923,6 +16072,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/download_dataset/": {
       "get": {
         "operationId": "model-hub_develops_download_dataset_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -14953,8 +16104,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/edit_and_run_user_eval/{eval_id}/": {
       "post": {
         "operationId": "model-hub_develops_edit_and_run_user_eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
-          "$ref": "#/definitions/UserEvalMutationRequest"
+          "$ref": "#/definitions/UserEvalUpdateRequest"
         },
         "queryParameters": {},
         "responses": {
@@ -14985,6 +16138,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/edit_dataset_behavior/": {
       "put": {
         "operationId": "model-hub_develops_edit_dataset_behavior_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetBehaviorRequest"
         },
@@ -15017,6 +16172,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/extract-json-column/": {
       "post": {
         "operationId": "model-hub_develops_extract-json-column_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ExtractJsonColumnRequest"
         },
@@ -15049,6 +16206,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/get-dataset-table/": {
       "get": {
         "operationId": "model-hub_develops_get-dataset-table_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "filters": {
@@ -15126,6 +16285,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/get-row-data/": {
       "post": {
         "operationId": "model-hub_develops_get-row-data_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetRowDataRequest"
         },
@@ -15158,6 +16319,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/get_eval_structure/{eval_id}/": {
       "get": {
         "operationId": "model-hub_develops_get_eval_structure_read",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "eval_type": {
@@ -15200,6 +16363,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/get_evals_list/": {
       "get": {
         "operationId": "model-hub_develops_get_evals_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15230,6 +16395,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/preview_run_eval/": {
       "post": {
         "operationId": "model-hub_develops_preview_run_eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PreviewRunEvalRequest"
         },
@@ -15262,6 +16429,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/start_evals_process/": {
       "post": {
         "operationId": "model-hub_develops_start_evals_process_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/StartEvalsProcessRequest"
         },
@@ -15294,6 +16463,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/stop_user_eval/{eval_id}/": {
       "post": {
         "operationId": "model-hub_develops_stop_user_eval_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/StopUserEvalRequest"
         },
@@ -15326,6 +16497,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/synthetic-config/": {
       "get": {
         "operationId": "model-hub_develops_synthetic-config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15356,6 +16529,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/update-synthetic-config/": {
       "put": {
         "operationId": "model-hub_develops_update-synthetic-config_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SyntheticDatasetConfig"
         },
@@ -15388,6 +16563,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/update_cell_value/": {
       "post": {
         "operationId": "model-hub_develops_update_cell_value_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetUpdateCellValueRequest"
         },
@@ -15420,6 +16597,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/update_column_name/{column_id}/": {
       "put": {
         "operationId": "model-hub_develops_update_column_name_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetUpdateColumnNameRequest"
         },
@@ -15452,6 +16631,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{dataset_id}/update_column_type/{column_id}/": {
       "put": {
         "operationId": "model-hub_develops_update_column_type_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DatasetUpdateColumnTypeRequest"
         },
@@ -15484,6 +16665,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{exp_dataset_id}/create-dataset/": {
       "post": {
         "operationId": "model-hub_develops_create-dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CreateDatasetFromExperimentRequest"
         },
@@ -15516,6 +16699,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/develops/{experiment_dataset_id}/get-experiment-dataset-table/": {
       "get": {
         "operationId": "model-hub_develops_get-experiment-dataset-table_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15546,6 +16731,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/duplicate-eval-template/": {
       "post": {
         "operationId": "model-hub_duplicate-eval-template_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DuplicateEvalTemplate"
         },
@@ -15578,6 +16765,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/embeddings/": {
       "get": {
         "operationId": "model-hub_embeddings_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15608,6 +16797,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/embeddings/{type}/": {
       "get": {
         "operationId": "model-hub_embeddings_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15638,6 +16829,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-groups/": {
       "get": {
         "operationId": "model-hub_eval-groups_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -15689,6 +16882,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_eval-groups_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalGroup"
         },
@@ -15706,6 +16901,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-groups/apply-eval-group/": {
       "post": {
         "operationId": "model-hub_eval-groups_apply_eval_group",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalGroup"
         },
@@ -15723,6 +16920,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-groups/edit-eval-list/": {
       "post": {
         "operationId": "model-hub_eval-groups_edit_eval_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalGroup"
         },
@@ -15740,6 +16939,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-groups/{id}/": {
       "get": {
         "operationId": "model-hub_eval-groups_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15753,6 +16954,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_eval-groups_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalGroup"
         },
@@ -15768,6 +16971,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_eval-groups_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalGroup"
         },
@@ -15783,6 +16988,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_eval-groups_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15795,6 +17002,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-playground/": {
       "post": {
         "operationId": "model-hub_eval-playground_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalPlayGround"
         },
@@ -15827,6 +17036,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-playground/feedback/": {
       "post": {
         "operationId": "model-hub_eval-playground_feedback_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalPlayGroundFeedback"
         },
@@ -15859,6 +17070,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-sdk-code/": {
       "get": {
         "operationId": "model-hub_eval-sdk-code_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15889,6 +17102,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-summary-templates/": {
       "get": {
         "operationId": "model-hub_eval-summary-templates_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -15917,6 +17132,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_eval-summary-templates_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
         },
@@ -15949,6 +17166,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-summary-templates/{template_id}/": {
       "put": {
         "operationId": "model-hub_eval-summary-templates_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalSummaryTemplateMutationRequest"
         },
@@ -15979,6 +17198,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_eval-summary-templates_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16009,6 +17230,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-template/create/": {
       "post": {
         "operationId": "model-hub_eval-template_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplate"
         },
@@ -16041,6 +17264,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/bulk-delete/": {
       "post": {
         "operationId": "model-hub_eval-templates_bulk-delete_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateBulkDeleteRequest"
         },
@@ -16073,6 +17298,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/composite/execute-adhoc/": {
       "post": {
         "operationId": "model-hub_eval-templates_composite_execute-adhoc_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompositeEvalAdhocExecuteRequest"
         },
@@ -16105,6 +17332,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/create-composite/": {
       "post": {
         "operationId": "model-hub_eval-templates_create-composite_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompositeEvalCreateRequest"
         },
@@ -16137,6 +17366,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/create-v2/": {
       "post": {
         "operationId": "model-hub_eval-templates_create-v2_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateCreateV2Request"
         },
@@ -16169,6 +17400,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/list-charts/": {
       "post": {
         "operationId": "model-hub_eval-templates_list-charts_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateListChartsRequest"
         },
@@ -16201,6 +17434,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/list/": {
       "post": {
         "operationId": "model-hub_eval-templates_list_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalListRequest"
         },
@@ -16233,6 +17468,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/composite/": {
       "get": {
         "operationId": "model-hub_eval-templates_composite_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16261,6 +17498,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_eval-templates_composite_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompositeEvalUpdateRequest"
         },
@@ -16293,6 +17532,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/composite/execute/": {
       "post": {
         "operationId": "model-hub_eval-templates_composite_execute_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CompositeEvalExecuteRequest"
         },
@@ -16325,6 +17566,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/detail/": {
       "get": {
         "operationId": "model-hub_eval-templates_detail_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16355,6 +17598,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/feedback-list/": {
       "get": {
         "operationId": "model-hub_eval-templates_feedback-list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16385,6 +17630,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/ground-truth-config/": {
       "get": {
         "operationId": "model-hub_eval-templates_ground-truth-config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16413,6 +17660,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_eval-templates_ground-truth-config_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/GroundTruthConfigRequest"
         },
@@ -16445,6 +17694,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/ground-truth/": {
       "get": {
         "operationId": "model-hub_eval-templates_ground-truth_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16475,6 +17726,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/ground-truth/upload/": {
       "post": {
         "operationId": "model-hub_eval-templates_ground-truth_upload_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/GroundTruthUploadRequest"
         },
@@ -16507,6 +17760,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/update/": {
       "put": {
         "operationId": "model-hub_eval-templates_update_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateUpdateV2Request"
         },
@@ -16539,6 +17794,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/usage/": {
       "get": {
         "operationId": "model-hub_eval-templates_usage_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16569,6 +17826,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/versions/": {
       "get": {
         "operationId": "model-hub_eval-templates_versions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16599,6 +17858,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/versions/create/": {
       "post": {
         "operationId": "model-hub_eval-templates_versions_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateVersionCreateRequest"
         },
@@ -16631,6 +17892,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/": {
       "post": {
         "operationId": "model-hub_eval-templates_versions_restore_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -16663,6 +17926,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/": {
       "put": {
         "operationId": "model-hub_eval-templates_versions_set-default_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -16695,6 +17960,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-user-template/create/": {
       "post": {
         "operationId": "model-hub_eval-user-template_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalUserTemplate"
         },
@@ -16727,6 +17994,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/evaluate-rows/": {
       "post": {
         "operationId": "model-hub_evaluate-rows_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SingleRowEvaluationRequest"
         },
@@ -16759,6 +18028,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiment-detail/": {
       "get": {
         "operationId": "model-hub_experiment-detail_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -16818,6 +18089,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/": {
       "get": {
         "operationId": "model-hub_experiments_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -16846,6 +18119,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_experiments_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentsTable"
         },
@@ -16876,6 +18151,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_experiments_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentsTable"
         },
@@ -16908,6 +18185,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/data/": {
       "get": {
         "operationId": "model-hub_experiments_data_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "created_at": {
@@ -16991,6 +18270,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/delete/": {
       "delete": {
         "operationId": "model-hub_experiments_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17003,6 +18284,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/re-run/": {
       "post": {
         "operationId": "model-hub_experiments_re-run_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentRerunRequest"
         },
@@ -17035,6 +18318,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/": {
       "post": {
         "operationId": "model-hub_experiments_v2_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentCreateV2"
         },
@@ -17067,6 +18352,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/delete/": {
       "delete": {
         "operationId": "model-hub_experiments_v2_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17079,6 +18366,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/list/": {
       "get": {
         "operationId": "model-hub_experiments_v2_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "created_at": {
@@ -17162,6 +18451,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/re-run/": {
       "post": {
         "operationId": "model-hub_experiments_v2_re-run_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentRerunRequest"
         },
@@ -17194,6 +18485,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/row-diff/": {
       "post": {
         "operationId": "model-hub_experiments_v2_row-diff_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DatasetRowDiffRequest"
         },
@@ -17226,6 +18519,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/suggest-name/{dataset_id}/": {
       "get": {
         "operationId": "model-hub_experiments_v2_suggest-name_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17256,6 +18551,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/validate-name/": {
       "get": {
         "operationId": "model-hub_experiments_v2_validate-name_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17286,6 +18583,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/": {
       "get": {
         "operationId": "model-hub_experiments_v2_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17314,6 +18613,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_experiments_v2_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentUpdateV2"
         },
@@ -17346,6 +18647,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/compare-experiments/": {
       "post": {
         "operationId": "model-hub_experiments_v2_compare-experiments_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentComparisonWeightsRequest"
         },
@@ -17378,6 +18681,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/comparisons/": {
       "get": {
         "operationId": "model-hub_experiments_v2_comparisons_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17408,6 +18713,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/derived-variables/": {
       "get": {
         "operationId": "model-hub_experiments_v2_derived-variables_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17438,6 +18745,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/download/": {
       "get": {
         "operationId": "model-hub_experiments_v2_download_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17469,6 +18778,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/evaluations/{evaluation_id}/stats/": {
       "get": {
         "operationId": "model-hub_experiments_v2_evaluations_stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17499,6 +18810,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/feedback/": {
       "post": {
         "operationId": "model-hub_experiments_v2_feedback_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/Feedback"
         },
@@ -17531,6 +18844,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/feedback/get-feedback-details/": {
       "get": {
         "operationId": "model-hub_experiments_v2_feedback_get-feedback-details_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17561,6 +18876,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/": {
       "get": {
         "operationId": "model-hub_experiments_v2_feedback_get-template_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17591,6 +18908,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/": {
       "post": {
         "operationId": "model-hub_experiments_v2_feedback_submit-feedback_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ExperimentFeedbackSubmitRequest"
         },
@@ -17623,6 +18942,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/json-schema/": {
       "get": {
         "operationId": "model-hub_experiments_v2_json-schema_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17653,6 +18974,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/rerun-cells/": {
       "post": {
         "operationId": "model-hub_experiments_v2_rerun-cells_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentRerunCells"
         },
@@ -17685,6 +19008,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/rows/": {
       "get": {
         "operationId": "model-hub_experiments_v2_rows_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17715,6 +19040,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/rows/{row_id}/": {
       "get": {
         "operationId": "model-hub_experiments_v2_rows_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17745,6 +19072,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/stats/": {
       "get": {
         "operationId": "model-hub_experiments_v2_stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17775,6 +19104,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/v2/{experiment_id}/stop/": {
       "post": {
         "operationId": "model-hub_experiments_v2_stop_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -17807,6 +19138,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/": {
       "get": {
         "operationId": "model-hub_experiments_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17837,6 +19170,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/add-eval/": {
       "post": {
         "operationId": "model-hub_experiments_add-eval_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserEval"
         },
@@ -17869,6 +19204,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/compare-experiments/": {
       "post": {
         "operationId": "model-hub_experiments_compare-experiments_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentComparisonWeightsRequest"
         },
@@ -17901,6 +19238,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/comparisons/": {
       "get": {
         "operationId": "model-hub_experiments_comparisons_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17931,6 +19270,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/download/": {
       "get": {
         "operationId": "model-hub_experiments_download_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17962,6 +19303,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/evaluations/{evaluation_id}/stats/": {
       "get": {
         "operationId": "model-hub_experiments_evaluations_stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -17992,6 +19335,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/run-evaluations/": {
       "post": {
         "operationId": "model-hub_experiments_run-evaluations_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExperimentAdditionalEvaluationsRequest"
         },
@@ -18024,6 +19369,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/stats/": {
       "get": {
         "operationId": "model-hub_experiments_stats_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18054,6 +19401,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/experiments/{experiment_id}/{row_id}/": {
       "get": {
         "operationId": "model-hub_experiments_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18084,6 +19433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/": {
       "get": {
         "operationId": "model-hub_feedback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -18135,6 +19486,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_feedback_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Feedback"
         },
@@ -18152,6 +19505,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/get-feedback-details/": {
       "get": {
         "operationId": "model-hub_feedback_get_feedback_details",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -18205,6 +19560,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/get-feedback-summary/": {
       "get": {
         "operationId": "model-hub_feedback_get_feedback_summary",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -18258,6 +19615,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/get_template/": {
       "get": {
         "operationId": "model-hub_feedback_get_template",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -18311,6 +19670,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/submit-feedback/": {
       "post": {
         "operationId": "model-hub_feedback_submit_feedback_action",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Feedback"
         },
@@ -18328,6 +19689,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/feedback/{id}/": {
       "get": {
         "operationId": "model-hub_feedback_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18341,6 +19704,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_feedback_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Feedback"
         },
@@ -18356,6 +19721,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_feedback_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Feedback"
         },
@@ -18371,6 +19738,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_feedback_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18383,6 +19752,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-column-values/": {
       "post": {
         "operationId": "model-hub_get-column-values_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ColumnValuesRequest"
         },
@@ -18415,6 +19786,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-config": {
       "get": {
         "operationId": "model-hub_get-eval-config_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "eval_id": {
@@ -18453,6 +19826,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-logs": {
       "get": {
         "operationId": "model-hub_get-eval-logs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18481,6 +19856,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_get-eval-logs_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UpdateColumnConfig"
         },
@@ -18511,6 +19888,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_get-eval-logs_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18523,6 +19902,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-logs-details": {
       "get": {
         "operationId": "model-hub_get-eval-logs-details_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "eval_template_id": {
@@ -18612,6 +19993,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-metrics": {
       "get": {
         "operationId": "model-hub_get-eval-metrics_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "eval_template_id": {
@@ -18656,6 +20039,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_get-eval-metrics_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalMetricRequest"
         },
@@ -18688,6 +20073,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-template-names": {
       "post": {
         "operationId": "model-hub_get-eval-template-names_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EvalTemplateNamesRequest"
         },
@@ -18720,6 +20107,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/get-eval-templates": {
       "post": {
         "operationId": "model-hub_get-eval-templates_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/LegacyEvalTemplatesRequest"
         },
@@ -18752,6 +20141,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/": {
       "delete": {
         "operationId": "model-hub_ground-truth_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18782,6 +20173,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/data/": {
       "get": {
         "operationId": "model-hub_ground-truth_data_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18812,6 +20205,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/embed/": {
       "post": {
         "operationId": "model-hub_ground-truth_embed_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -18844,6 +20239,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/mapping/": {
       "put": {
         "operationId": "model-hub_ground-truth_mapping_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/GroundTruthMappingRequest"
         },
@@ -18876,6 +20273,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/role-mapping/": {
       "put": {
         "operationId": "model-hub_ground-truth_role-mapping_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/GroundTruthRoleMappingRequest"
         },
@@ -18908,6 +20307,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/search/": {
       "post": {
         "operationId": "model-hub_ground-truth_search_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/GroundTruthSearchRequest"
         },
@@ -18940,6 +20341,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ground-truth/{ground_truth_id}/status/": {
       "get": {
         "operationId": "model-hub_ground-truth_status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -18970,6 +20373,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/kb/": {
       "get": {
         "operationId": "model-hub_kb_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -19017,6 +20422,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_kb_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/KnowledgeBaseCreate"
         },
@@ -19049,6 +20456,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/kb/supported-embedding-models": {
       "get": {
         "operationId": "model-hub_kb_supported_embedding_models",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -19098,6 +20507,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/kb/supported_embedding_models/": {
       "get": {
         "operationId": "model-hub_kb_supported_embedding_models",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -19147,6 +20558,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/kb/{id}/": {
       "get": {
         "operationId": "model-hub_kb_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19175,6 +20588,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_kb_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/KnowledgeBase"
         },
@@ -19205,6 +20620,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_kb_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/KnowledgeBase"
         },
@@ -19220,6 +20637,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_kb_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19247,6 +20666,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/knowledge-base/": {
       "get": {
         "operationId": "model-hub_knowledge-base_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19275,6 +20696,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_knowledge-base_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/LegacyKnowledgeBaseMutationRequest"
         },
@@ -19305,6 +20728,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_knowledge-base_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/LegacyKnowledgeBaseMutationRequest"
         },
@@ -19335,6 +20760,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_knowledge-base_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19347,6 +20774,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/knowledge-base/files/": {
       "post": {
         "operationId": "model-hub_knowledge-base_files_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/LegacyKnowledgeBaseFilesRequest"
         },
@@ -19377,6 +20806,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_knowledge-base_files_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19389,6 +20820,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/knowledge-base/get/": {
       "get": {
         "operationId": "model-hub_knowledge-base_get_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19419,6 +20852,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/knowledge-base/list/": {
       "get": {
         "operationId": "model-hub_knowledge-base_list_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19449,6 +20884,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/metrics/by-column/": {
       "get": {
         "operationId": "model-hub_metrics_by-column_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19479,6 +20916,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimisation/": {
       "get": {
         "operationId": "model-hub_optimisation_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "optimize_type": {
@@ -19556,6 +20995,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimisation/create/": {
       "post": {
         "operationId": "model-hub_optimisation_create_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizationDataset"
         },
@@ -19586,6 +21027,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_optimisation_create_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizationDataset"
         },
@@ -19618,6 +21061,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimisation/update/{id}/": {
       "post": {
         "operationId": "model-hub_optimisation_update_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizationDataset"
         },
@@ -19648,6 +21093,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_optimisation_update_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizationDataset"
         },
@@ -19680,6 +21127,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimisation/{id}/": {
       "get": {
         "operationId": "model-hub_optimisation_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19695,6 +21144,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimisation/{id}/details/": {
       "get": {
         "operationId": "model-hub_optimisation_details_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19710,6 +21161,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -19763,6 +21216,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/kb/{optim_id}/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_kb_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19793,6 +21248,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/knowledge-base/": {
       "post": {
         "operationId": "model-hub_optimize-dataset_knowledge-base_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetKnowledgeBaseRequest"
         },
@@ -19825,6 +21282,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_read",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "filters": {
@@ -19878,6 +21337,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_optimize-dataset_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetMutationRequest"
         },
@@ -19910,6 +21371,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/column-config/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_column-config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19938,6 +21401,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_optimize-dataset_column-config_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
         },
@@ -19970,6 +21435,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/column-config/prompt-template-explore/{optimization_id}/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_column-config_prompt-template-explore_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -19998,6 +21465,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_optimize-dataset_column-config_prompt-template-explore_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
         },
@@ -20030,6 +21499,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/column-config/right-answers/{optimization_id}/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_column-config_right-answers_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20058,6 +21529,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_optimize-dataset_column-config_right-answers_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
         },
@@ -20090,6 +21563,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/prompt-template-explore/{optimization_id}/": {
       "post": {
         "operationId": "model-hub_optimize-dataset_prompt-template-explore_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetPageRequest"
         },
@@ -20175,6 +21650,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/prompt-template-result/{optimization_id}/": {
       "post": {
         "operationId": "model-hub_optimize-dataset_prompt-template-result_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ModelHubEmptyRequest"
         },
@@ -20207,6 +21684,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/right-answers/{optimization_id}/": {
       "post": {
         "operationId": "model-hub_optimize-dataset_right-answers_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/OptimizeDatasetPageRequest"
         },
@@ -20292,6 +21771,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/optimize-dataset/{model_id}/{optimization_id}/": {
       "get": {
         "operationId": "model-hub_optimize-dataset_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20322,6 +21803,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/organizations/{organization_id}/users/": {
       "get": {
         "operationId": "model-hub_organizations_users_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -20373,6 +21856,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_organizations_users_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DevelopAnnotationsUser"
         },
@@ -20390,6 +21875,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/organizations/{organization_id}/users/{id}/": {
       "get": {
         "operationId": "model-hub_organizations_users_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20403,6 +21890,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_organizations_users_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DevelopAnnotationsUser"
         },
@@ -20418,6 +21907,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_organizations_users_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DevelopAnnotationsUser"
         },
@@ -20433,6 +21924,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_organizations_users_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20445,6 +21938,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/overview/": {
       "get": {
         "operationId": "model-hub_overview_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20475,6 +21970,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/detail/{id}/": {
       "post": {
         "operationId": "model-hub_performance_detail_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PerformanceDetailsRequest"
         },
@@ -20507,6 +22004,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/export/{id}/": {
       "post": {
         "operationId": "model-hub_performance_export_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PerformanceExportRequest"
         },
@@ -20540,6 +22039,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/options/{model_id}/": {
       "get": {
         "operationId": "model-hub_performance_options_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20570,6 +22071,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/report/{model_id}/": {
       "get": {
         "operationId": "model-hub_performance_report_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20598,6 +22101,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_performance_report_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PerformanceReportCreate"
         },
@@ -20630,6 +22135,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/report/{model_id}/{report_id}/": {
       "delete": {
         "operationId": "model-hub_performance_report_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20660,6 +22167,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/tag-distribution/{model_id}/": {
       "post": {
         "operationId": "model-hub_performance_tag-distribution_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PerformanceTagDistributionRequest"
         },
@@ -20737,6 +22246,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/performance/{id}/": {
       "post": {
         "operationId": "model-hub_performance_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/PerformanceQueryRequest"
         },
@@ -20780,6 +22291,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-base-templates/": {
       "get": {
         "operationId": "model-hub_prompt-base-templates_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -20831,6 +22344,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_prompt-base-templates_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptBaseTemplate"
         },
@@ -20848,6 +22363,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-base-templates/get-all-categories/": {
       "get": {
         "operationId": "model-hub_prompt-base-templates_get_all_categories",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -20901,6 +22418,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-base-templates/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-base-templates_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20914,6 +22433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_prompt-base-templates_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptBaseTemplate"
         },
@@ -20929,6 +22450,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_prompt-base-templates_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptBaseTemplate"
         },
@@ -20944,6 +22467,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_prompt-base-templates_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -20956,6 +22481,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-executions/": {
       "get": {
         "operationId": "model-hub_prompt-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "name": {
@@ -21027,6 +22554,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-executions/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-executions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21042,6 +22571,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-folders/": {
       "get": {
         "operationId": "model-hub_prompt-folders_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -21093,6 +22624,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_prompt-folders_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptFolder"
         },
@@ -21110,6 +22643,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-folders/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-folders_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21123,6 +22658,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_prompt-folders_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptFolder"
         },
@@ -21138,6 +22675,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_prompt-folders_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptFolder"
         },
@@ -21153,6 +22692,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_prompt-folders_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21165,6 +22706,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-history-executions/": {
       "get": {
         "operationId": "model-hub_prompt-history-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "template_name": {
@@ -21248,6 +22791,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-history-executions/execution-details/{execution_id}/": {
       "get": {
         "operationId": "model-hub_prompt-history-executions_get_execution_details",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "template_name": {
@@ -21331,6 +22876,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-history-executions/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-history-executions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21346,6 +22893,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/": {
       "get": {
         "operationId": "model-hub_prompt-labels_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -21412,6 +22961,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_prompt-labels_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21444,6 +22995,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/assign-multiple-labels/": {
       "post": {
         "operationId": "model-hub_prompt-labels_assign_multiple_labels",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21476,6 +23029,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/create-system-labels/": {
       "post": {
         "operationId": "model-hub_prompt-labels_create_system_labels",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21508,6 +23063,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/get-by-name/": {
       "get": {
         "operationId": "model-hub_prompt-labels_get_by_name",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -21576,6 +23133,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/remove/": {
       "post": {
         "operationId": "model-hub_prompt-labels_remove_label_from_version",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21608,6 +23167,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/set-default/": {
       "post": {
         "operationId": "model-hub_prompt-labels_set_default",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21640,6 +23201,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/template-labels/": {
       "get": {
         "operationId": "model-hub_prompt-labels_template_labels",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -21708,6 +23271,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-labels_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21736,6 +23301,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_prompt-labels_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21766,6 +23333,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_prompt-labels_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21796,6 +23365,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_prompt-labels_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -21823,6 +23394,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-labels/{template_id}/{label_id}/assign-label-by-id/": {
       "post": {
         "operationId": "model-hub_prompt-labels_assign_label_by_id",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptLabel"
         },
@@ -21855,6 +23428,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/": {
       "get": {
         "operationId": "model-hub_prompt-templates_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "name": {
@@ -21936,6 +23511,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_prompt-templates_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -21953,6 +23530,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/analyze-prompt/": {
       "post": {
         "operationId": "model-hub_prompt-templates_analyze_prompt",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -21970,6 +23549,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/bulk-delete/": {
       "post": {
         "operationId": "model-hub_prompt-templates_bulk_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -21987,6 +23568,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/create-draft/": {
       "post": {
         "operationId": "model-hub_prompt-templates_create_draft",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22004,6 +23587,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/derived-variables/preview/": {
       "post": {
         "operationId": "model-hub_prompt-templates_derived-variables_preview_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DerivedVariablePreviewRequest"
         },
@@ -22036,6 +23621,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/generate-prompt/": {
       "post": {
         "operationId": "model-hub_prompt-templates_generate_prompt",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22053,6 +23640,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/generate-variables/": {
       "post": {
         "operationId": "model-hub_prompt-templates_generate_variables",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22070,6 +23659,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/get-template-by-name/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_template_by_name",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "name": {
@@ -22153,6 +23744,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/improve-prompt/": {
       "post": {
         "operationId": "model-hub_prompt-templates_improve_prompt",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22170,6 +23763,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/": {
       "get": {
         "operationId": "model-hub_prompt-templates_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22183,6 +23778,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_prompt-templates_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22198,6 +23795,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_prompt-templates_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22213,6 +23812,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_prompt-templates_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22225,6 +23826,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/add-new-draft/": {
       "post": {
         "operationId": "model-hub_prompt-templates_add_new_draft",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22242,6 +23845,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/all-variables/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_all_variables",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22257,6 +23862,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/commit/": {
       "post": {
         "operationId": "model-hub_prompt-templates_commit",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22274,6 +23881,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/compare-versions/": {
       "post": {
         "operationId": "model-hub_prompt-templates_compare_versions",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22291,6 +23900,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/delete-evaluation-config/": {
       "delete": {
         "operationId": "model-hub_prompt-templates_delete_evaluation_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22303,6 +23914,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/evaluation-configs/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_evaluation_configs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22318,6 +23931,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/evaluations/": {
       "get": {
         "operationId": "model-hub_prompt-templates_retrieve_evaluations",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22333,6 +23948,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/get-next-version/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_next_version",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22348,6 +23965,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/get-run-status/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_run_status",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22363,6 +23982,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/get-sdk-code/{language}/": {
       "get": {
         "operationId": "model-hub_prompt-templates_get_sdk_code",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22378,6 +23999,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/run-evals-on-multiple-versions/": {
       "post": {
         "operationId": "model-hub_prompt-templates_run_evals_on_multiple_versions",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22395,6 +24018,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/run_template/": {
       "post": {
         "operationId": "model-hub_prompt-templates_run_template",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22412,6 +24037,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/save-name/": {
       "post": {
         "operationId": "model-hub_prompt-templates_save_name",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22429,6 +24056,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/save-prompt-folder/": {
       "post": {
         "operationId": "model-hub_prompt-templates_save_prompt_folder",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22446,6 +24075,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/set_default/": {
       "post": {
         "operationId": "model-hub_prompt-templates_set_default",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22463,6 +24094,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/stop-streaming/": {
       "get": {
         "operationId": "model-hub_prompt-templates_stop_streaming",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22478,6 +24111,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/update-evaluation-configs/": {
       "post": {
         "operationId": "model-hub_prompt-templates_update_evaluation_configs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptTemplate"
         },
@@ -22495,6 +24130,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{id}/versions/": {
       "get": {
         "operationId": "model-hub_prompt-templates_versions",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22510,6 +24147,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{prompt_id}/derived-variables/": {
       "get": {
         "operationId": "model-hub_prompt-templates_derived-variables_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22540,6 +24179,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{prompt_id}/derived-variables/extract/": {
       "post": {
         "operationId": "model-hub_prompt-templates_derived-variables_extract_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DerivedVariableExtractRequest"
         },
@@ -22572,6 +24213,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt-templates/{prompt_id}/derived-variables/{column_name}/schema/": {
       "get": {
         "operationId": "model-hub_prompt-templates_derived-variables_schema_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22602,6 +24245,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt/metrics/": {
       "get": {
         "operationId": "model-hub_prompt_metrics_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "prompt_template_id": {
@@ -22672,6 +24317,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt/metrics/empty-screen": {
       "get": {
         "operationId": "model-hub_prompt_metrics_empty-screen_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22702,6 +24349,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/prompt/span-metrics/": {
       "get": {
         "operationId": "model-hub_prompt_span-metrics_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "prompt_template_id": {
@@ -22772,6 +24421,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/response_schema/": {
       "get": {
         "operationId": "model-hub_response_schema_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -22823,6 +24474,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_response_schema_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserResponseSchema"
         },
@@ -22840,6 +24493,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/response_schema/{id}/": {
       "get": {
         "operationId": "model-hub_response_schema_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22853,6 +24508,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_response_schema_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserResponseSchema"
         },
@@ -22868,6 +24525,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_response_schema_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserResponseSchema"
         },
@@ -22883,6 +24542,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_response_schema_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -22895,6 +24556,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/run-prompt-for-rows/": {
       "post": {
         "operationId": "model-hub_run-prompt-for-rows_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/RunPromptForRowsRequest"
         },
@@ -22927,6 +24590,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/run-prompt/": {
       "post": {
         "operationId": "model-hub_run-prompt_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/Litellm"
         },
@@ -22959,6 +24624,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/scores/": {
       "get": {
         "operationId": "model-hub_scores_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23044,6 +24711,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_scores_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CreateScore"
         },
@@ -23076,6 +24745,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/scores/bulk/": {
       "post": {
         "operationId": "model-hub_scores_bulk_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/BulkCreateScores"
         },
@@ -23108,6 +24779,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/scores/for-source/": {
       "get": {
         "operationId": "model-hub_scores_for_source",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23172,6 +24845,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/scores/{id}/": {
       "get": {
         "operationId": "model-hub_scores_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23185,6 +24860,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_scores_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Score"
         },
@@ -23200,6 +24877,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_scores_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Score"
         },
@@ -23215,6 +24894,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_scores_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23245,6 +24926,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/secrets/": {
       "get": {
         "operationId": "model-hub_secrets_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23296,6 +24979,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_secrets_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Secret"
         },
@@ -23313,6 +24998,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/secrets/{id}/": {
       "get": {
         "operationId": "model-hub_secrets_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23326,6 +25013,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_secrets_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Secret"
         },
@@ -23341,6 +25030,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_secrets_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Secret"
         },
@@ -23356,6 +25047,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_secrets_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23368,6 +25061,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/test-evaluation/": {
       "post": {
         "operationId": "model-hub_test-evaluation_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TestEvalTemplate"
         },
@@ -23400,6 +25095,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/tools/": {
       "get": {
         "operationId": "model-hub_tools_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23451,6 +25148,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_tools_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Tools"
         },
@@ -23468,6 +25167,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/tools/{id}/": {
       "get": {
         "operationId": "model-hub_tools_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23481,6 +25182,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_tools_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Tools"
         },
@@ -23496,6 +25199,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_tools_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Tools"
         },
@@ -23511,6 +25216,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_tools_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23523,6 +25230,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/tts-voices/": {
       "get": {
         "operationId": "model-hub_tts-voices_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23574,6 +25283,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "model-hub_tts-voices_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TTSVoice"
         },
@@ -23591,6 +25302,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/tts-voices/{id}/": {
       "get": {
         "operationId": "model-hub_tts-voices_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23604,6 +25317,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "model-hub_tts-voices_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TTSVoice"
         },
@@ -23619,6 +25334,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "model-hub_tts-voices_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TTSVoice"
         },
@@ -23634,6 +25351,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "model-hub_tts-voices_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23646,6 +25365,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/update-eval-template/": {
       "post": {
         "operationId": "model-hub_update-eval-template_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UpdateEvalTemplate"
         },
@@ -23678,6 +25399,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/upload-file/": {
       "post": {
         "operationId": "model-hub_upload-file_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UploadFile"
         },
@@ -23710,6 +25433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/acs/": {
       "post": {
         "operationId": "saml2_auth_acs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23725,6 +25450,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/auth/callback/": {
       "get": {
         "operationId": "saml2_auth_auth_callback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -23747,6 +25474,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/auth/callback{format}": {
       "get": {
         "operationId": "saml2_auth_auth_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -23769,6 +25498,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/github/callback/": {
       "get": {
         "operationId": "saml2_auth_github_callback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -23791,6 +25522,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/github/callback{format}": {
       "get": {
         "operationId": "saml2_auth_github_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -23813,6 +25546,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/idp-login/": {
       "get": {
         "operationId": "saml2_auth_idp-login_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "email": {
@@ -23846,6 +25581,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/idp-uploads/": {
       "get": {
         "operationId": "saml2_auth_idp-uploads_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -23878,6 +25615,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "saml2_auth_idp-uploads_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23899,6 +25638,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/idp-uploads/{id}/": {
       "get": {
         "operationId": "saml2_auth_idp-uploads_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23918,6 +25659,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "saml2_auth_idp-uploads_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23937,6 +25680,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "saml2_auth_idp-uploads_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -23958,6 +25703,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/login/": {
       "get": {
         "operationId": "saml2_auth_login_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "provider": {
@@ -23988,6 +25735,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/login{format}": {
       "get": {
         "operationId": "saml2_auth_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "provider": {
@@ -24018,6 +25767,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/microsoft/callback/": {
       "get": {
         "operationId": "saml2_auth_microsoft_callback_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -24040,6 +25791,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/microsoft/callback{format}": {
       "get": {
         "operationId": "saml2_auth_microsoft_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -24062,6 +25815,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/configure-evaluations/": {
       "post": {
         "operationId": "sdk_api_v1_configure-evaluations_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SDKConfigureEvaluationsRequest"
         },
@@ -24085,6 +25840,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/eval/": {
       "post": {
         "operationId": "sdk_api_v1_eval_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SDKStandaloneEvalRequest"
         },
@@ -24108,6 +25865,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/eval/{eval_id}/": {
       "get": {
         "operationId": "sdk_api_v1_eval_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24129,6 +25888,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/evaluate-pipeline/": {
       "get": {
         "operationId": "sdk_api_v1_evaluate-pipeline_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "project_name": {
@@ -24163,6 +25924,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "sdk_api_v1_evaluate-pipeline_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CICDJob"
         },
@@ -24186,6 +25949,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/get-evals/": {
       "get": {
         "operationId": "sdk_api_v1_get-evals_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24204,6 +25969,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/new-eval/": {
       "get": {
         "operationId": "sdk_api_v1_new-eval_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "eval_id": {
@@ -24231,6 +25998,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "sdk_api_v1_new-eval_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SDKStandaloneEvalV2Request"
         },
@@ -24254,6 +26023,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/simulation/analytics/": {
       "get": {
         "operationId": "sdk_api_v1_simulation_analytics_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "run_test_name": {
@@ -24307,6 +26078,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/simulation/metrics/": {
       "get": {
         "operationId": "sdk_api_v1_simulation_metrics_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "run_test_name": {
@@ -24353,6 +26126,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/sdk/api/v1/simulation/runs/": {
       "get": {
         "operationId": "sdk_api_v1_simulation_runs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "run_test_name": {
@@ -24413,6 +26188,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/": {
       "get": {
         "operationId": "simulate_agent-definitions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -24478,6 +26255,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_agent-definitions_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionBulkDeleteRequest"
         },
@@ -24501,6 +26280,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/create/": {
       "post": {
         "operationId": "simulate_agent-definitions_create_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionCreateRequest"
         },
@@ -24527,6 +26308,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/": {
       "get": {
         "operationId": "simulate_agent-definitions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24548,6 +26331,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/delete/": {
       "delete": {
         "operationId": "simulate_agent-definitions_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24569,6 +26354,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/edit/": {
       "put": {
         "operationId": "simulate_agent-definitions_edit_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionEditRequest"
         },
@@ -24595,6 +26382,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/": {
       "get": {
         "operationId": "simulate_agent-definitions_versions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24619,6 +26408,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/create/": {
       "post": {
         "operationId": "simulate_agent-definitions_versions_create_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentVersionCreateRequest"
         },
@@ -24645,6 +26436,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/": {
       "get": {
         "operationId": "simulate_agent-definitions_versions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24666,6 +26459,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/activate/": {
       "post": {
         "operationId": "simulate_agent-definitions_versions_activate_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -24689,6 +26484,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/call-executions/": {
       "get": {
         "operationId": "simulate_agent-definitions_versions_call-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24713,6 +26510,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/delete/": {
       "delete": {
         "operationId": "simulate_agent-definitions_versions_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24737,6 +26536,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/eval-summary/": {
       "get": {
         "operationId": "simulate_agent-definitions_versions_eval-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24758,6 +26559,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/": {
       "post": {
         "operationId": "simulate_agent-definitions_versions_restore_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -24784,6 +26587,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-definition-operations/": {
       "get": {
         "operationId": "simulate_api_agent-definition-operations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -24841,6 +26646,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "simulate_api_agent-definition-operations_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionResponse"
         },
@@ -24864,6 +26671,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-definition-operations/fetch_assistant_from_provider/": {
       "post": {
         "operationId": "simulate_api_agent-definition-operations_fetch_assistant_from_provider",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FetchAssistantRequest"
         },
@@ -24890,6 +26699,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-definition-operations/{id}/": {
       "get": {
         "operationId": "simulate_api_agent-definition-operations_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24909,6 +26720,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "simulate_api_agent-definition-operations_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionResponse"
         },
@@ -24933,6 +26746,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_api_agent-definition-operations_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentDefinitionResponse"
         },
@@ -24957,6 +26772,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_api_agent-definition-operations_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -24975,6 +26792,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -25032,6 +26851,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "simulate_api_agent-prompt-optimiser_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentPromptOptimiserRunCreate"
         },
@@ -25055,6 +26876,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25077,6 +26900,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "simulate_api_agent-prompt-optimiser_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentPromptOptimiserRun"
         },
@@ -25101,6 +26926,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_api_agent-prompt-optimiser_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AgentPromptOptimiserRun"
         },
@@ -25125,6 +26952,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_api_agent-prompt-optimiser_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25143,6 +26972,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/graph/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_graph",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25167,6 +26998,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/steps/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_steps",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25191,6 +27024,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/evaluations/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_trial_trial_evaluations",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25215,6 +27050,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/prompt/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_trial_trial_prompt",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25239,6 +27076,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/scenarios/": {
       "get": {
         "operationId": "simulate_api_agent-prompt-optimiser_trial_trial_scenarios",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25263,6 +27102,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/call-executions/": {
       "get": {
         "operationId": "simulate_api_call-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -25324,6 +27165,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/call-config/{call_id}/": {
       "get": {
         "operationId": "simulate_api_livekit_call-config_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25342,6 +27185,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/call-execution/{call_id}/": {
       "patch": {
         "operationId": "simulate_api_livekit_call-execution_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/LiveKitCallExecutionUpdateRequest"
         },
@@ -25365,6 +27210,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/listener-token/{call_id}/": {
       "get": {
         "operationId": "simulate_api_livekit_listener-token_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25389,6 +27236,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/phone-resolution/{phone_number}/": {
       "get": {
         "operationId": "simulate_api_livekit_phone-resolution_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25407,6 +27256,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/temporal-signal/": {
       "post": {
         "operationId": "simulate_api_livekit_temporal-signal_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/LiveKitTemporalSignalRequest"
         },
@@ -25430,6 +27281,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/transcripts/{call_id}/": {
       "post": {
         "operationId": "simulate_api_livekit_transcripts_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/LiveKitTranscriptsRequest"
         },
@@ -25453,6 +27306,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/validate-credentials/": {
       "post": {
         "operationId": "simulate_api_livekit_validate-credentials_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ValidateLiveKitCredentialsRequest"
         },
@@ -25473,6 +27328,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/livekit/webhook/": {
       "post": {
         "operationId": "simulate_api_livekit_webhook_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "LiveKit webhook payload verified against the Authorization JWT.",
           "type": "object"
@@ -25494,6 +27351,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/": {
       "get": {
         "operationId": "simulate_api_personas_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -25551,6 +27410,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "simulate_api_personas_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PersonaCreate"
         },
@@ -25574,6 +27435,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/duplicate/{persona_id}/": {
       "post": {
         "operationId": "simulate_api_personas_duplicate_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PersonaDuplicateRequest"
         },
@@ -25594,6 +27457,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/field-options/": {
       "get": {
         "operationId": "simulate_api_personas_field_options",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -25650,6 +27515,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/system/": {
       "get": {
         "operationId": "simulate_api_personas_system_personas",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -25706,6 +27573,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/workspace/": {
       "get": {
         "operationId": "simulate_api_personas_workspace_personas",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -25765,6 +27634,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/{id}/": {
       "get": {
         "operationId": "simulate_api_personas_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25784,6 +27655,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "simulate_api_personas_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Persona"
         },
@@ -25811,6 +27684,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_api_personas_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Persona"
         },
@@ -25838,6 +27713,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_api_personas_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25859,6 +27736,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/personas/{id}/duplicate/": {
       "post": {
         "operationId": "simulate_api_personas_duplicate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PersonaDuplicateRequest"
         },
@@ -25885,6 +27764,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/run-tests/": {
       "get": {
         "operationId": "simulate_api_run-tests_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -25950,6 +27831,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/api/test-executions/": {
       "get": {
         "operationId": "simulate_api_test-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25974,6 +27857,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/": {
       "get": {
         "operationId": "simulate_call-executions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -25993,6 +27878,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_call-executions_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CallExecutionStatusUpdate"
         },
@@ -26019,6 +27906,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/branch-analysis/": {
       "get": {
         "operationId": "simulate_call-executions_branch-analysis_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26038,6 +27927,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "simulate_call-executions_branch-analysis_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -26061,6 +27952,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/chat/send-message/": {
       "post": {
         "operationId": "simulate_call-executions_chat_send-message_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SendChatRequest"
         },
@@ -26084,6 +27977,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/delete/": {
       "delete": {
         "operationId": "simulate_call-executions_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26105,6 +28000,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/error-localizer-tasks/": {
       "get": {
         "operationId": "simulate_call-executions_error-localizer-tasks_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26126,6 +28023,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/logs/": {
       "get": {
         "operationId": "simulate_call-executions_logs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26147,6 +28046,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/session-comparison/": {
       "get": {
         "operationId": "simulate_call-executions_session-comparison_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26168,6 +28069,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/call-executions/{call_execution_id}/transcripts/": {
       "get": {
         "operationId": "simulate_call-executions_transcripts_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26189,6 +28092,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/export/{item_id}/": {
       "get": {
         "operationId": "simulate_export_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "type": {
@@ -26236,6 +28141,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/prompt-simulations/scenarios/": {
       "get": {
         "operationId": "simulate_prompt-simulations_scenarios_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26257,6 +28164,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/prompt-templates/{prompt_template_id}/simulations/": {
       "get": {
         "operationId": "simulate_prompt-templates_simulations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26279,6 +28188,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "simulate_prompt-templates_simulations_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreatePromptSimulation"
         },
@@ -26305,6 +28216,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/": {
       "get": {
         "operationId": "simulate_prompt-templates_simulations_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26324,6 +28237,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_prompt-templates_simulations_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/PromptSimulationUpdateRequest"
         },
@@ -26348,6 +28263,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_prompt-templates_simulations_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26366,6 +28283,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/execute/": {
       "post": {
         "operationId": "simulate_prompt-templates_simulations_execute_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExecutePromptSimulationRequest"
         },
@@ -26392,6 +28311,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/": {
       "get": {
         "operationId": "simulate_run-tests_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -26454,6 +28375,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/active/": {
       "get": {
         "operationId": "simulate_run-tests_active_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26475,6 +28398,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/create/": {
       "post": {
         "operationId": "simulate_run-tests_create_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateRunTest"
         },
@@ -26501,6 +28426,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/get-id-by-name/{run_test_name}/": {
       "get": {
         "operationId": "simulate_run-tests_get-id-by-name_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26522,6 +28449,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/": {
       "get": {
         "operationId": "simulate_run-tests_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26541,6 +28470,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "simulate_run-tests_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UpdateRunTest"
         },
@@ -26565,6 +28496,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "simulate_run-tests_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26586,6 +28519,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/analytics/": {
       "get": {
         "operationId": "simulate_run-tests_analytics_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26607,6 +28542,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/call-executions/": {
       "get": {
         "operationId": "simulate_run-tests_call-executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26628,6 +28565,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/chat-execute/": {
       "post": {
         "operationId": "simulate_run-tests_chat-execute_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -26654,6 +28593,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/components/": {
       "patch": {
         "operationId": "simulate_run-tests_components_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/RunTestComponentsUpdate"
         },
@@ -26680,6 +28621,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/delete-test-executions/": {
       "post": {
         "operationId": "simulate_run-tests_delete-test-executions_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TestExecutionBulkDelete"
         },
@@ -26706,6 +28649,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/delete/": {
       "delete": {
         "operationId": "simulate_run-tests_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26727,6 +28672,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-configs/": {
       "post": {
         "operationId": "simulate_run-tests_eval-configs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AddEvalConfigsRequest"
         },
@@ -26753,6 +28700,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/": {
       "delete": {
         "operationId": "simulate_run-tests_eval-configs_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26777,6 +28726,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/get-structure/": {
       "get": {
         "operationId": "simulate_run-tests_eval-configs_get-structure_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26798,6 +28749,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/update/": {
       "post": {
         "operationId": "simulate_run-tests_eval-configs_update_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalConfigUpdateRequest"
         },
@@ -26824,6 +28777,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-summary-comparison/": {
       "get": {
         "operationId": "simulate_run-tests_eval-summary-comparison_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "execution_ids": {
@@ -26856,6 +28811,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/eval-summary/": {
       "get": {
         "operationId": "simulate_run-tests_eval-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "execution_id": {
@@ -26885,6 +28842,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/execute/": {
       "post": {
         "operationId": "simulate_run-tests_execute_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ExecuteRunTest"
         },
@@ -26911,6 +28870,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/executions/": {
       "get": {
         "operationId": "simulate_run-tests_executions_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -26935,6 +28896,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/rerun-test-executions/": {
       "post": {
         "operationId": "simulate_run-tests_rerun-test-executions_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TestExecutionRerun"
         },
@@ -26961,6 +28924,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/run-new-evals/": {
       "post": {
         "operationId": "simulate_run-tests_run-new-evals_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/RunNewEvalsOnTestExecution"
         },
@@ -26987,6 +28952,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/scenarios/": {
       "get": {
         "operationId": "simulate_run-tests_scenarios_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27011,6 +28978,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/sdk-code/": {
       "get": {
         "operationId": "simulate_run-tests_sdk-code_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27032,6 +29001,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/status/": {
       "get": {
         "operationId": "simulate_run-tests_status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27053,6 +29024,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/": {
       "get": {
         "operationId": "simulate_scenarios_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -27111,6 +29084,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/create/": {
       "post": {
         "operationId": "simulate_scenarios_create_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ScenarioCreateRequest"
         },
@@ -27134,6 +29109,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/get-columns/": {
       "get": {
         "operationId": "simulate_scenarios_get-columns_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -27192,6 +29169,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/": {
       "get": {
         "operationId": "simulate_scenarios_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27213,6 +29192,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/add-columns/": {
       "post": {
         "operationId": "simulate_scenarios_add-columns_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ScenarioAddColumnsRequest"
         },
@@ -27239,6 +29220,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/add-rows/": {
       "post": {
         "operationId": "simulate_scenarios_add-rows_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ScenarioAddRowsRequest"
         },
@@ -27265,6 +29248,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/delete/": {
       "delete": {
         "operationId": "simulate_scenarios_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27286,6 +29271,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/edit/": {
       "put": {
         "operationId": "simulate_scenarios_edit_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ScenarioEditRequest"
         },
@@ -27312,6 +29299,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/prompts/": {
       "put": {
         "operationId": "simulate_scenarios_prompts_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ScenarioEditPromptsRequest"
         },
@@ -27338,6 +29327,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/": {
       "get": {
         "operationId": "simulate_simulator-agents_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27359,6 +29350,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/create/": {
       "post": {
         "operationId": "simulate_simulator-agents_create_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SimulatorAgent"
         },
@@ -27379,6 +29372,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/{agent_id}/": {
       "get": {
         "operationId": "simulate_simulator-agents_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27400,6 +29395,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/{agent_id}/delete/": {
       "delete": {
         "operationId": "simulate_simulator-agents_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27421,6 +29418,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/{agent_id}/edit/": {
       "put": {
         "operationId": "simulate_simulator-agents_edit_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SimulatorAgent"
         },
@@ -27441,6 +29440,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/": {
       "get": {
         "operationId": "simulate_test-executions_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "search": {
@@ -27510,6 +29511,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/analytics/": {
       "get": {
         "operationId": "simulate_test-executions_analytics_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27531,6 +29534,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/cancel/": {
       "post": {
         "operationId": "simulate_test-executions_cancel_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -27557,6 +29562,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/chat/call-executions/batch/": {
       "post": {
         "operationId": "simulate_test-executions_chat_call-executions_batch_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -27580,6 +29587,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/column-order/": {
       "put": {
         "operationId": "simulate_test-executions_column-order_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TestExecutionColumnOrder"
         },
@@ -27606,6 +29615,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/delete/": {
       "delete": {
         "operationId": "simulate_test-executions_delete_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27627,6 +29638,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/": {
       "get": {
         "operationId": "simulate_test-executions_eval-explanation-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27648,6 +29661,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/refresh/": {
       "post": {
         "operationId": "simulate_test-executions_eval-explanation-summary_refresh_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -27671,6 +29686,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/kpis/": {
       "get": {
         "operationId": "simulate_test-executions_kpis_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27692,6 +29709,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/optimiser-analysis/": {
       "get": {
         "operationId": "simulate_test-executions_optimiser-analysis_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27713,6 +29732,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/": {
       "post": {
         "operationId": "simulate_test-executions_optimiser-analysis_refresh_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -27739,6 +29760,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/performance-summary/": {
       "get": {
         "operationId": "simulate_test-executions_performance-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27760,6 +29783,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/rerun-calls/": {
       "post": {
         "operationId": "simulate_test-executions_rerun-calls_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CallExecutionRerun"
         },
@@ -27786,6 +29811,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/test-executions/{test_execution_id}/transcripts/": {
       "get": {
         "operationId": "simulate_test-executions_transcripts_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27807,6 +29834,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/bulk-annotation/": {
       "post": {
         "operationId": "tracer_bulk-annotation_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/BulkAnnotationRequest"
         },
@@ -27830,6 +29859,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/charts/": {
       "get": {
         "operationId": "tracer_charts_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -27881,6 +29912,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_charts_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FetchGraph"
         },
@@ -27898,6 +29931,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/charts/fetch_graph/": {
       "get": {
         "operationId": "tracer_charts_fetch_graph",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -27951,6 +29986,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/charts/{id}/": {
       "get": {
         "operationId": "tracer_charts_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -27964,6 +30001,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_charts_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FetchGraph"
         },
@@ -27979,6 +30018,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_charts_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/FetchGraph"
         },
@@ -27994,6 +30035,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_charts_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28006,6 +30049,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/": {
       "get": {
         "operationId": "tracer_custom-eval-config_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28057,6 +30102,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_custom-eval-config_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28074,6 +30121,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/check_exists/": {
       "post": {
         "operationId": "tracer_custom-eval-config_check_exists",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28091,6 +30140,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/get_custom_eval_by_name/": {
       "post": {
         "operationId": "tracer_custom-eval-config_get_custom_eval_by_name",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28108,6 +30159,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/list_custom_eval_configs/": {
       "get": {
         "operationId": "tracer_custom-eval-config_list_custom_eval_configs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28161,6 +30214,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/run_evaluation/": {
       "post": {
         "operationId": "tracer_custom-eval-config_run_evaluation",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28178,6 +30233,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/custom-eval-config/{id}/": {
       "get": {
         "operationId": "tracer_custom-eval-config_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28191,6 +30248,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_custom-eval-config_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28206,6 +30265,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_custom-eval-config_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomEvalConfig"
         },
@@ -28221,6 +30282,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_custom-eval-config_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28233,6 +30296,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/": {
       "get": {
         "operationId": "tracer_dashboard_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28284,6 +30349,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_dashboard_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardCreateUpdate"
         },
@@ -28301,6 +30368,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/filter_values/": {
       "get": {
         "operationId": "tracer_dashboard_filter_values",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28354,6 +30423,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/metrics/": {
       "get": {
         "operationId": "tracer_dashboard_metrics",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28371,32 +30442,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/Dashboard"
-                }
-              }
-            }
+            "$ref": "#/definitions/DashboardMetricsCatalogResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -28407,6 +30456,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/query/": {
       "post": {
         "operationId": "tracer_dashboard_query",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DashboardQuery"
         },
@@ -28427,6 +30478,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/simulation-agents/": {
       "get": {
         "operationId": "tracer_dashboard_simulation_agents",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28480,6 +30533,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/": {
       "get": {
         "operationId": "tracer_dashboard_widgets_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28531,6 +30586,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_dashboard_widgets_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardWidget"
         },
@@ -28548,6 +30605,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/preview/": {
       "post": {
         "operationId": "tracer_dashboard_widgets_preview_query",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DashboardPreviewQuery"
         },
@@ -28568,6 +30627,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/reorder/": {
       "post": {
         "operationId": "tracer_dashboard_widgets_reorder",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardWidget"
         },
@@ -28585,6 +30646,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/{id}/": {
       "get": {
         "operationId": "tracer_dashboard_widgets_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28598,6 +30661,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_dashboard_widgets_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardWidget"
         },
@@ -28613,6 +30678,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_dashboard_widgets_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardWidget"
         },
@@ -28628,6 +30695,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_dashboard_widgets_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28640,6 +30709,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/{id}/duplicate/": {
       "post": {
         "operationId": "tracer_dashboard_widgets_duplicate_widget",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardWidget"
         },
@@ -28657,6 +30728,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{dashboard_pk}/widgets/{id}/query/": {
       "post": {
         "operationId": "tracer_dashboard_widgets_execute_query",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/EmptyRequest"
         },
@@ -28677,6 +30750,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dashboard/{id}/": {
       "get": {
         "operationId": "tracer_dashboard_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28690,6 +30765,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_dashboard_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardCreateUpdate"
         },
@@ -28705,6 +30782,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_dashboard_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DashboardCreateUpdate"
         },
@@ -28720,6 +30799,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_dashboard_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28732,6 +30813,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dataset/": {
       "get": {
         "operationId": "tracer_dataset_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28783,6 +30866,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_dataset_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Dataset"
         },
@@ -28800,6 +30885,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dataset/add_to_existing_dataset/": {
       "post": {
         "operationId": "tracer_dataset_add_to_existing_dataset",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Dataset"
         },
@@ -28817,6 +30904,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dataset/add_to_new_dataset/": {
       "post": {
         "operationId": "tracer_dataset_add_to_new_dataset",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Dataset"
         },
@@ -28834,6 +30923,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/dataset/{id}/": {
       "get": {
         "operationId": "tracer_dataset_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28847,6 +30938,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_dataset_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Dataset"
         },
@@ -28862,6 +30955,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_dataset_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Dataset"
         },
@@ -28877,6 +30972,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_dataset_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -28889,6 +30986,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/": {
       "get": {
         "operationId": "tracer_eval-task_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -28940,6 +31039,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_eval-task_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -28957,6 +31058,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/get_eval_details/": {
       "get": {
         "operationId": "tracer_eval-task_get_eval_details",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -29010,6 +31113,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/get_eval_task_logs/": {
       "get": {
         "operationId": "tracer_eval-task_get_eval_task_logs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -29063,6 +31168,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/get_usage/": {
       "get": {
         "operationId": "tracer_eval-task_get_usage",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -29116,48 +31223,62 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/list_eval_tasks/": {
       "get": {
         "operationId": "tracer_eval-task_list_eval_tasks",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "page": {
+          "project_id": {
             "required": false,
             "schema": {
-              "type": "integer"
+              "type": "string",
+              "format": "uuid"
             }
           },
-          "limit": {
+          "name": {
             "required": false,
             "schema": {
-              "type": "integer"
+              "type": "string"
+            }
+          },
+          "filters": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "sort_params": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "page_number": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 30
             }
           }
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/EvalTask"
-                }
-              }
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/EvalTask"
             }
           },
           "default": {
@@ -29169,48 +31290,62 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/list_eval_tasks_with_project_name/": {
       "get": {
         "operationId": "tracer_eval-task_list_eval_tasks_with_project_name",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "page": {
+          "project_id": {
             "required": false,
             "schema": {
-              "type": "integer"
+              "type": "string",
+              "format": "uuid"
             }
           },
-          "limit": {
+          "name": {
             "required": false,
             "schema": {
-              "type": "integer"
+              "type": "string"
+            }
+          },
+          "filters": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "sort_params": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "page_number": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 10
             }
           }
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/EvalTask"
-                }
-              }
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/EvalTask"
             }
           },
           "default": {
@@ -29222,6 +31357,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/mark_eval_tasks_deleted/": {
       "post": {
         "operationId": "tracer_eval-task_mark_eval_tasks_deleted",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29239,6 +31376,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/pause_eval_task/": {
       "post": {
         "operationId": "tracer_eval-task_pause_eval_task",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29256,6 +31395,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/unpause_eval_task/": {
       "post": {
         "operationId": "tracer_eval-task_unpause_eval_task",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29273,6 +31414,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/update_eval_task/": {
       "patch": {
         "operationId": "tracer_eval-task_update_eval_task",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29290,6 +31433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/eval-task/{id}/": {
       "get": {
         "operationId": "tracer_eval-task_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -29303,6 +31448,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_eval-task_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29318,6 +31465,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_eval-task_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EvalTask"
         },
@@ -29333,6 +31482,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_eval-task_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -29345,6 +31496,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/integrations/linear/teams/": {
       "get": {
         "operationId": "tracer_feed_integrations_linear_teams_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -29372,6 +31525,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/": {
       "get": {
         "operationId": "tracer_feed_issues_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -29495,6 +31650,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/stats/": {
       "get": {
         "operationId": "tracer_feed_issues_stats_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -29537,6 +31694,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/": {
       "get": {
         "operationId": "tracer_feed_issues_read",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -29570,6 +31729,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_feed_issues_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/FeedUpdateBody"
         },
@@ -29599,6 +31760,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/create-linear-issue/": {
       "post": {
         "operationId": "tracer_feed_issues_create-linear-issue_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/CreateLinearIssue"
         },
@@ -29628,6 +31791,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/deep-analysis/": {
       "post": {
         "operationId": "tracer_feed_issues_deep-analysis_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/DeepAnalysisBody"
         },
@@ -29657,6 +31822,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/overview/": {
       "get": {
         "operationId": "tracer_feed_issues_overview_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -29684,6 +31851,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/root-cause/": {
       "get": {
         "operationId": "tracer_feed_issues_root-cause_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "trace_id": {
@@ -29719,6 +31888,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/sidebar/": {
       "get": {
         "operationId": "tracer_feed_issues_sidebar_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "trace_id": {
@@ -29754,6 +31925,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/traces/": {
       "get": {
         "operationId": "tracer_feed_issues_traces_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "limit": {
@@ -29799,6 +31972,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/feed/issues/{cluster_id}/trends/": {
       "get": {
         "operationId": "tracer_feed_issues_trends_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "days": {
@@ -29836,6 +32011,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/get-annotation-labels/": {
       "get": {
         "operationId": "tracer_get-annotation-labels_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -29865,6 +32042,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/imagine-analysis/": {
       "get": {
         "operationId": "tracer_imagine-analysis_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "saved_view_id": {
@@ -29906,6 +32085,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_imagine-analysis_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TriggerAnalysis"
         },
@@ -29935,6 +32116,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observability-provider/": {
       "get": {
         "operationId": "tracer_observability-provider_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -29986,6 +32169,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_observability-provider_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservabilityProvider"
         },
@@ -30003,6 +32188,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observability-provider/verify_api_key/": {
       "post": {
         "operationId": "tracer_observability-provider_verify_api_key",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservabilityProvider"
         },
@@ -30020,6 +32207,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observability-provider/verify_assistant_id/": {
       "post": {
         "operationId": "tracer_observability-provider_verify_assistant_id",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservabilityProvider"
         },
@@ -30037,6 +32226,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observability-provider/{id}/": {
       "get": {
         "operationId": "tracer_observability-provider_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -30050,6 +32241,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_observability-provider_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservabilityProvider"
         },
@@ -30065,6 +32258,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_observability-provider_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservabilityProvider"
         },
@@ -30080,6 +32275,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_observability-provider_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -30092,6 +32289,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/": {
       "get": {
         "operationId": "tracer_observation-span_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30143,6 +32342,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_observation-span_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -30160,6 +32361,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/add_annotations/": {
       "post": {
         "operationId": "tracer_observation-span_add_annotations",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AddObservationSpanAnnotations"
         },
@@ -30177,6 +32380,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/bulk_create/": {
       "post": {
         "operationId": "tracer_observation-span_bulk_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -30194,6 +32399,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/create_otel_span/": {
       "post": {
         "operationId": "tracer_observation-span_create_otel_span",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -30211,6 +32418,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/delete_annotation_label/": {
       "delete": {
         "operationId": "tracer_observation-span_delete_annotation_label",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -30223,6 +32432,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_eval_attributes_list/": {
       "get": {
         "operationId": "tracer_observation-span_get_eval_attributes_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30260,32 +32471,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/ObservationSpan"
-                }
-              }
-            }
+            "$ref": "#/definitions/ObservationAttributeListResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -30296,6 +32482,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_evaluation_details/": {
       "get": {
         "operationId": "tracer_observation-span_get_evaluation_details",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30349,13 +32537,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_graph_methods/": {
       "post": {
         "operationId": "tracer_observation-span_get_graph_methods",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ObserveGraphDataRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/ObserveGraphDataRequest"
+          "200": {
+            "$ref": "#/definitions/ObserveGraphDataResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -30366,6 +32556,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_observation_span_fields/": {
       "get": {
         "operationId": "tracer_observation-span_get_observation_span_fields",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30419,6 +32611,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_span_attributes_list/": {
       "get": {
         "operationId": "tracer_observation-span_get_span_attributes_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30456,32 +32650,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/ObservationSpan"
-                }
-              }
-            }
+            "$ref": "#/definitions/ObservationAttributeListResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -30492,6 +32661,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_spans_export_data/": {
       "get": {
         "operationId": "tracer_observation-span_get_spans_export_data",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30545,6 +32716,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_trace_id_by_index_spans_as_base/": {
       "get": {
         "operationId": "tracer_observation-span_get_trace_id_by_index_spans_as_base",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30620,6 +32793,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/get_trace_id_by_index_spans_as_observe/": {
       "get": {
         "operationId": "tracer_observation-span_get_trace_id_by_index_spans_as_observe",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30701,6 +32876,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/list_spans/": {
       "get": {
         "operationId": "tracer_observation-span_list_spans",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30754,6 +32931,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/list_spans_observe/": {
       "get": {
         "operationId": "tracer_observation-span_list_spans_observe",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30845,6 +33024,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/retrieve_loading/": {
       "get": {
         "operationId": "tracer_observation-span_retrieve_loading",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30898,6 +33079,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/root-spans/": {
       "get": {
         "operationId": "tracer_observation-span_root_spans",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -30951,6 +33134,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/submit_feedback/": {
       "post": {
         "operationId": "tracer_observation-span_submit_feedback",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -30968,6 +33153,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/submit_feedback_action_type/": {
       "post": {
         "operationId": "tracer_observation-span_submit_feedback_action_type",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -30985,6 +33172,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/update-tags/": {
       "post": {
         "operationId": "tracer_observation-span_update_tags",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -31002,6 +33191,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/observation-span/{id}/": {
       "get": {
         "operationId": "tracer_observation-span_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -31015,6 +33206,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_observation-span_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -31030,6 +33223,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_observation-span_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ObservationSpan"
         },
@@ -31045,6 +33240,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_observation-span_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -31057,6 +33254,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/otlp/v1/traces": {
       "post": {
         "operationId": "tracer_otlp_v1_traces_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "Legacy OTLP JSON/protobuf trace payload. Prefer /tracer/v1/traces for new integrations.",
           "type": "object"
@@ -31081,6 +33280,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/": {
       "get": {
         "operationId": "tracer_project-version_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31132,6 +33333,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_project-version_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31149,6 +33352,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/add_annotations/": {
       "post": {
         "operationId": "tracer_project-version_add_annotations",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31166,6 +33371,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/delete_runs/": {
       "post": {
         "operationId": "tracer_project-version_delete_runs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31183,6 +33390,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/get_export_data/": {
       "post": {
         "operationId": "tracer_project-version_get_export_data",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31200,6 +33409,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/get_project_version_ids/": {
       "get": {
         "operationId": "tracer_project-version_get_project_version_ids",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31253,6 +33464,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/get_run_insights/": {
       "get": {
         "operationId": "tracer_project-version_get_run_insights",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31306,6 +33519,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/list_runs/": {
       "get": {
         "operationId": "tracer_project-version_list_runs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31359,6 +33574,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/project_version_winner/": {
       "post": {
         "operationId": "tracer_project-version_project_version_winner",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31376,6 +33593,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/update_project_version_config/": {
       "post": {
         "operationId": "tracer_project-version_update_project_version_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31393,6 +33612,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project-version/{id}/": {
       "get": {
         "operationId": "tracer_project-version_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -31406,6 +33627,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_project-version_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31421,6 +33644,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_project-version_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectVersion"
         },
@@ -31436,6 +33661,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_project-version_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -31448,6 +33675,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/": {
       "get": {
         "operationId": "tracer_project_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31499,6 +33728,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_project_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31516,6 +33747,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/fetch_system_metrics/": {
       "get": {
         "operationId": "tracer_project_fetch_system_metrics",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31569,6 +33802,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/get_graph_data/": {
       "get": {
         "operationId": "tracer_project_get_graph_data",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31645,6 +33880,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/get_user_graph_data/": {
       "post": {
         "operationId": "tracer_project_get_user_graph_data",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectUserGraphDataRequest"
         },
@@ -31677,6 +33914,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/get_user_metrics/": {
       "post": {
         "operationId": "tracer_project_get_user_metrics",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectUserMetricsRequest"
         },
@@ -31694,6 +33933,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/get_users_aggregate_graph_data/": {
       "post": {
         "operationId": "tracer_project_get_users_aggregate_graph_data",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/ProjectUsersAggregateGraphDataRequest"
         },
@@ -31711,6 +33952,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/list_project_ids/": {
       "get": {
         "operationId": "tracer_project_list_project_ids",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31728,32 +33971,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/Project"
-                }
-              }
-            }
+            "$ref": "#/definitions/ProjectIdListResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -31764,6 +33982,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/list_projects/": {
       "get": {
         "operationId": "tracer_project_list_projects",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31817,6 +34037,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/project_sdk_code/": {
       "get": {
         "operationId": "tracer_project_project_sdk_code",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -31870,6 +34092,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/update_project_config/": {
       "post": {
         "operationId": "tracer_project_update_project_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31887,6 +34111,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/update_project_name/": {
       "post": {
         "operationId": "tracer_project_update_project_name",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31904,6 +34130,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/update_project_session_config/": {
       "post": {
         "operationId": "tracer_project_update_project_session_config",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31921,11 +34149,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/{id}/": {
       "get": {
         "operationId": "tracer_project_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/Project"
+            "$ref": "#/definitions/ProjectDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -31934,6 +34164,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_project_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31949,6 +34181,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_project_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31964,6 +34198,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_project_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -31976,6 +34212,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/project/{id}/tags/": {
       "patch": {
         "operationId": "tracer_project_update_tags",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Project"
         },
@@ -31993,6 +34231,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/replay-session/": {
       "get": {
         "operationId": "tracer_replay-session_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32009,6 +34249,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_replay-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CreateReplaySession"
         },
@@ -32026,6 +34268,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/replay-session/eval-configs/": {
       "get": {
         "operationId": "tracer_replay-session_get_eval_configs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32044,6 +34288,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/replay-session/{id}/": {
       "get": {
         "operationId": "tracer_replay-session_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32059,6 +34305,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/replay-session/{id}/generate-scenario/": {
       "post": {
         "operationId": "tracer_replay-session_generate_scenario",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GenerateScenario"
         },
@@ -32076,6 +34324,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/saved-views/": {
       "get": {
         "operationId": "tracer_saved-views_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32093,32 +34343,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/SavedViewList"
-                }
-              }
-            }
+            "$ref": "#/definitions/SavedViewListResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32127,13 +34352,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_saved-views_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SavedViewList"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/SavedViewList"
+          "200": {
+            "$ref": "#/definitions/SavedViewDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32144,13 +34371,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/saved-views/reorder/": {
       "post": {
         "operationId": "tracer_saved-views_reorder",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SavedViewList"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/SavedViewList"
+          "200": {
+            "$ref": "#/definitions/SavedViewMessageResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32161,11 +34390,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/saved-views/{id}/": {
       "get": {
         "operationId": "tracer_saved-views_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/SavedViewDetail"
+            "$ref": "#/definitions/SavedViewDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32174,13 +34405,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_saved-views_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SavedViewList"
         },
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/SavedViewList"
+            "$ref": "#/definitions/SavedViewDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32189,13 +34422,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_saved-views_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SavedViewList"
         },
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/SavedViewList"
+            "$ref": "#/definitions/SavedViewDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32204,9 +34439,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_saved-views_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
+          "200": {
+            "$ref": "#/definitions/SavedViewMessageResponse"
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -32216,13 +34456,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/saved-views/{id}/duplicate/": {
       "post": {
         "operationId": "tracer_saved-views_duplicate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SavedViewList"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/SavedViewList"
+          "200": {
+            "$ref": "#/definitions/SavedViewDetailResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -32233,6 +34475,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/shared-links/": {
       "get": {
         "operationId": "tracer_shared-links_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32284,6 +34528,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_shared-links_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SharedLinkList"
         },
@@ -32301,6 +34547,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/shared-links/{id}/": {
       "get": {
         "operationId": "tracer_shared-links_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32314,6 +34562,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_shared-links_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SharedLinkList"
         },
@@ -32329,6 +34579,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_shared-links_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SharedLinkList"
         },
@@ -32344,6 +34596,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_shared-links_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32356,6 +34610,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/shared-links/{id}/access/": {
       "post": {
         "operationId": "tracer_shared-links_add_access",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/SharedLinkList"
         },
@@ -32373,6 +34629,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/shared-links/{id}/access/{access_id}/": {
       "delete": {
         "operationId": "tracer_shared-links_remove_access",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32385,6 +34643,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/shared/{token}/": {
       "get": {
         "operationId": "tracer_shared_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32412,6 +34672,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-annotation/": {
       "get": {
         "operationId": "tracer_trace-annotation_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32463,6 +34725,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_trace-annotation_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GetTraceAnnotation"
         },
@@ -32480,6 +34744,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-annotation/get_annotation_values/": {
       "get": {
         "operationId": "tracer_trace-annotation_get_annotation_values",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32543,6 +34809,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-annotation/{id}/": {
       "get": {
         "operationId": "tracer_trace-annotation_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32556,6 +34824,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_trace-annotation_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GetTraceAnnotation"
         },
@@ -32571,6 +34841,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_trace-annotation_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/GetTraceAnnotation"
         },
@@ -32586,6 +34858,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_trace-annotation_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32598,6 +34872,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-error-analysis/{trace_id}/": {
       "get": {
         "operationId": "tracer_trace-error-analysis_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32625,6 +34901,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-error-task/{project_id}/": {
       "get": {
         "operationId": "tracer_trace-error-task_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32650,6 +34928,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_trace-error-task_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/TraceErrorTaskUpdateRequest"
         },
@@ -32679,6 +34959,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/": {
       "get": {
         "operationId": "tracer_trace-session_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32730,6 +35012,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_trace-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceSession"
         },
@@ -32747,6 +35031,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/get_session_filter_values/": {
       "get": {
         "operationId": "tracer_trace-session_get_session_filter_values",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32800,6 +35086,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/get_session_graph_data/": {
       "post": {
         "operationId": "tracer_trace-session_get_session_graph_data",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceSessionGraphDataRequest"
         },
@@ -32817,6 +35105,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/get_trace_session_export_data/": {
       "get": {
         "operationId": "tracer_trace-session_get_trace_session_export_data",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32870,6 +35160,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/list_sessions/": {
       "get": {
         "operationId": "tracer_trace-session_list_sessions",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -32981,6 +35273,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/{id}/": {
       "get": {
         "operationId": "tracer_trace-session_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -32994,6 +35288,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_trace-session_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceSession"
         },
@@ -33009,6 +35305,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_trace-session_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceSession"
         },
@@ -33024,6 +35322,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_trace-session_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -33036,6 +35336,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace-session/{id}/eval_logs/": {
       "get": {
         "operationId": "tracer_trace-session_eval_logs",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -33051,6 +35353,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/": {
       "get": {
         "operationId": "tracer_trace_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33102,6 +35406,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_trace_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Trace"
         },
@@ -33119,6 +35425,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/agent_graph/": {
       "get": {
         "operationId": "tracer_trace_agent_graph",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33187,6 +35495,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/bulk_create/": {
       "post": {
         "operationId": "tracer_trace_bulk_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Trace"
         },
@@ -33204,6 +35514,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/compare_traces/": {
       "post": {
         "operationId": "tracer_trace_compare_traces",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Trace"
         },
@@ -33221,6 +35533,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_eval_names/": {
       "get": {
         "operationId": "tracer_trace_get_eval_names",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33274,13 +35588,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_graph_methods/": {
       "post": {
         "operationId": "tracer_trace_get_graph_methods",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ObserveGraphDataRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/ObserveGraphDataRequest"
+          "200": {
+            "$ref": "#/definitions/ObserveGraphDataResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -33291,6 +35607,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_properties/": {
       "get": {
         "operationId": "tracer_trace_get_properties",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33344,6 +35662,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_trace_export_data/": {
       "get": {
         "operationId": "tracer_trace_get_trace_export_data",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33397,6 +35717,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_trace_id_by_index/": {
       "get": {
         "operationId": "tracer_trace_get_trace_id_by_index",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33472,6 +35794,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/get_trace_id_by_index_observe/": {
       "get": {
         "operationId": "tracer_trace_get_trace_id_by_index_observe",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33547,6 +35871,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/list_traces/": {
       "get": {
         "operationId": "tracer_trace_list_traces",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33647,6 +35973,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/list_traces_of_session/": {
       "get": {
         "operationId": "tracer_trace_list_traces_of_session",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33752,6 +36080,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/list_voice_calls/": {
       "get": {
         "operationId": "tracer_trace_list_voice_calls",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33805,6 +36135,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/voice_call_detail/": {
       "get": {
         "operationId": "tracer_trace_voice_call_detail",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33858,6 +36190,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/{id}/": {
       "get": {
         "operationId": "tracer_trace_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -33871,6 +36205,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_trace_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Trace"
         },
@@ -33886,6 +36222,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_trace_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/Trace"
         },
@@ -33901,6 +36239,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_trace_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -33913,6 +36253,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/trace/{id}/tags/": {
       "patch": {
         "operationId": "tracer_trace_update_tags",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/TraceTagsUpdate"
         },
@@ -33930,6 +36272,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alert-logs/": {
       "get": {
         "operationId": "tracer_user-alert-logs_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -33981,6 +36325,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_user-alert-logs_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitorLog"
         },
@@ -33998,6 +36344,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alert-logs/all/": {
       "get": {
         "operationId": "tracer_user-alert-logs_list_all",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -34051,6 +36399,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alert-logs/resolve/": {
       "post": {
         "operationId": "tracer_user-alert-logs_mark_as_resolved",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitorLog"
         },
@@ -34068,6 +36418,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alert-logs/{id}/": {
       "get": {
         "operationId": "tracer_user-alert-logs_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34081,6 +36433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_user-alert-logs_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitorLog"
         },
@@ -34096,6 +36450,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_user-alert-logs_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitorLog"
         },
@@ -34111,6 +36467,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_user-alert-logs_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34123,6 +36481,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alert-logs/{id}/list/": {
       "get": {
         "operationId": "tracer_user-alert-logs_list_for_alert",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34138,6 +36498,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/": {
       "get": {
         "operationId": "tracer_user-alerts_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -34189,6 +36551,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "tracer_user-alerts_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitor"
         },
@@ -34206,6 +36570,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/bulk-mute/": {
       "post": {
         "operationId": "tracer_user-alerts_bulk_mute",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitor"
         },
@@ -34223,6 +36589,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/duplicate/": {
       "post": {
         "operationId": "tracer_user-alerts_duplicate",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitorDuplicate"
         },
@@ -34249,6 +36617,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/list_monitors/": {
       "get": {
         "operationId": "tracer_user-alerts_list_monitors",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -34302,6 +36672,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/metric-options/": {
       "get": {
         "operationId": "tracer_user-alerts_metric_options",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "page": {
@@ -34339,6 +36711,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/preview-graph/": {
       "post": {
         "operationId": "tracer_user-alerts_preview_graph",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitor"
         },
@@ -34356,6 +36730,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/{id}/": {
       "get": {
         "operationId": "tracer_user-alerts_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34369,6 +36745,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "tracer_user-alerts_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitor"
         },
@@ -34384,6 +36762,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "tracer_user-alerts_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UserAlertMonitor"
         },
@@ -34399,6 +36779,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "tracer_user-alerts_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34411,6 +36793,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/{id}/details/": {
       "get": {
         "operationId": "tracer_user-alerts_monitor_details",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34426,6 +36810,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/user-alerts/{id}/graph/": {
       "get": {
         "operationId": "tracer_user-alerts_graph_data",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34441,6 +36827,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/users/": {
       "get": {
         "operationId": "tracer_users_list",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "project_id": {
@@ -34507,6 +36895,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/users/get_code_example/": {
       "get": {
         "operationId": "tracer_users_get_code_example_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34528,6 +36918,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/v1/health": {
       "get": {
         "operationId": "tracer_v1_health_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -34546,6 +36938,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/v1/traces": {
       "post": {
         "operationId": "tracer_v1_traces_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "OpenTelemetry ExportTraceServiceRequest. JSON payloads use the OTLP HTTP JSON mapping; protobuf payloads use application/x-protobuf.",
           "type": "object"
@@ -34576,6 +36970,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/v1/traces/": {
       "post": {
         "operationId": "tracer_v1_traces_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "OpenTelemetry ExportTraceServiceRequest. JSON payloads use the OTLP HTTP JSON mapping; protobuf payloads use application/x-protobuf.",
           "type": "object"
@@ -34606,6 +37002,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/tracer/webhook/": {
       "post": {
         "operationId": "tracer_webhook_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/WebhookRequest"
         },
@@ -34629,6 +37027,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/admin/custom-plan/": {
       "get": {
         "operationId": "usage_admin_custom-plan_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "organization_id": {
@@ -34668,6 +37068,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_admin_custom-plan_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminCustomPlanRequest"
         },
@@ -34701,6 +37103,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_admin_custom-plan_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminCustomPlanRequest"
         },
@@ -34736,6 +37140,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/admin/entitlements/": {
       "get": {
         "operationId": "usage_admin_entitlements_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "organization_id": {
@@ -34775,6 +37181,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_admin_entitlements_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminEntitlementMutationRequest"
         },
@@ -34808,6 +37216,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_admin_entitlements_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "organization_id": {
@@ -34849,6 +37259,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/admin/invoice/generate/": {
       "post": {
         "operationId": "usage_admin_invoice_generate_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminInvoiceRequest"
         },
@@ -34884,6 +37296,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/admin/invoice/preview/": {
       "post": {
         "operationId": "usage_admin_invoice_preview_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminInvoiceRequest"
         },
@@ -34919,6 +37333,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/admin/pricing/": {
       "get": {
         "operationId": "usage_admin_pricing_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "organization_id": {
@@ -34958,6 +37374,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_admin_pricing_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AdminPricingMutationRequest"
         },
@@ -34991,6 +37409,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_admin_pricing_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "organization_id": {
@@ -35032,6 +37452,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/api-call-count/": {
       "get": {
         "operationId": "usage_api-call-count_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "year": {
@@ -35087,6 +37509,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/api-call-type/": {
       "get": {
         "operationId": "usage_api-call-type_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35120,6 +37544,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/cancel-subscription/": {
       "post": {
         "operationId": "usage_cancel-subscription_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -35155,6 +37581,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/create-auto-recharge-session/": {
       "post": {
         "operationId": "usage_create-auto-recharge-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -35190,6 +37618,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/create-billing-portal-session/": {
       "post": {
         "operationId": "usage_create-billing-portal-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -35225,6 +37655,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/create-checkout-session/": {
       "post": {
         "operationId": "usage_create-checkout-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CheckoutSessionRequest"
         },
@@ -35260,6 +37692,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/create-custom-payment-checkout-session/": {
       "post": {
         "operationId": "usage_create-custom-payment-checkout-session_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/CustomPaymentCheckoutRequest"
         },
@@ -35295,6 +37729,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/download-invoice/": {
       "post": {
         "operationId": "usage_download-invoice_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/DownloadInvoiceRequest"
         },
@@ -35330,6 +37766,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/ee/licenses/": {
       "get": {
         "operationId": "usage_ee_licenses_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35343,6 +37781,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_ee_licenses_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EELicenseCreateRequest"
         },
@@ -35360,6 +37800,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/ee/licenses/{grant_id}/revoke/": {
       "post": {
         "operationId": "usage_ee_licenses_revoke_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/EELicenseRevokeRequest"
         },
@@ -35377,6 +37819,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get-auto-reload-settings/": {
       "get": {
         "operationId": "usage_get-auto-reload-settings_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35410,6 +37854,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get-billing-details/": {
       "get": {
         "operationId": "usage_get-billing-details_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35443,6 +37889,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get-customer-invoices/": {
       "get": {
         "operationId": "usage_get-customer-invoices_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35476,6 +37924,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get-last-four-digits/": {
       "get": {
         "operationId": "usage_get-last-four-digits_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35509,6 +37959,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get-wallet-balance/": {
       "get": {
         "operationId": "usage_get-wallet-balance_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35542,6 +37994,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/get_latest_prices/": {
       "get": {
         "operationId": "usage_get_latest_prices_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35575,6 +38029,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organization-billing/": {
       "get": {
         "operationId": "usage_organization-billing_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35606,6 +38062,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_organization-billing_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationBilling"
         },
@@ -35641,6 +38099,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organization-billing/{billing_id}/": {
       "get": {
         "operationId": "usage_organization-billing_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35672,6 +38132,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_organization-billing_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationBilling"
         },
@@ -35707,6 +38169,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organization-filter/": {
       "get": {
         "operationId": "usage_organization-filter_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35740,6 +38204,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organization-subscription/": {
       "get": {
         "operationId": "usage_organization-subscription_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35771,6 +38237,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_organization-subscription_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
         },
@@ -35804,6 +38272,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_organization-subscription_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
         },
@@ -35837,6 +38307,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_organization-subscription_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35870,6 +38342,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organization-subscription/{organization_subscription_id}/": {
       "get": {
         "operationId": "usage_organization-subscription_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -35901,6 +38375,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_organization-subscription_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
         },
@@ -35934,6 +38410,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_organization-subscription_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageOrganizationSubscriptionCreate"
         },
@@ -35967,6 +38445,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_organization-subscription_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36000,6 +38480,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/organizations/": {
       "get": {
         "operationId": "usage_organizations_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36033,6 +38515,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/pricing-card-details/": {
       "post": {
         "operationId": "usage_pricing-card-details_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -36068,6 +38552,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/pricing/": {
       "get": {
         "operationId": "usage_pricing_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36099,6 +38585,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_pricing_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsagePricingCreate"
         },
@@ -36132,6 +38620,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_pricing_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsagePricingCreate"
         },
@@ -36165,6 +38655,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_pricing_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36198,6 +38690,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/pricing/{pricing_id}/": {
       "get": {
         "operationId": "usage_pricing_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36229,6 +38723,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_pricing_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsagePricingCreate"
         },
@@ -36262,6 +38758,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_pricing_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsagePricingCreate"
         },
@@ -36295,6 +38793,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_pricing_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36328,6 +38828,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/rate-limits/": {
       "get": {
         "operationId": "usage_rate-limits_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36359,6 +38861,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_rate-limits_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageRateLimitCreate"
         },
@@ -36392,6 +38896,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_rate-limits_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageRateLimitCreate"
         },
@@ -36425,6 +38931,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_rate-limits_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36458,6 +38966,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/rate-limits/{rate_limit_id}/": {
       "get": {
         "operationId": "usage_rate-limits_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36489,6 +38999,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_rate-limits_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageRateLimitCreate"
         },
@@ -36522,6 +39034,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_rate-limits_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageRateLimitCreate"
         },
@@ -36555,6 +39069,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_rate-limits_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36588,6 +39104,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/resource-limits/": {
       "get": {
         "operationId": "usage_resource-limits_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36619,6 +39137,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_resource-limits_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageResourceLimitCreate"
         },
@@ -36652,6 +39172,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_resource-limits_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageResourceLimitCreate"
         },
@@ -36685,6 +39207,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_resource-limits_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36718,6 +39242,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/resource-limits/{resource_limit_id}/": {
       "get": {
         "operationId": "usage_resource-limits_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36749,6 +39275,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_resource-limits_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageResourceLimitCreate"
         },
@@ -36782,6 +39310,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_resource-limits_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageResourceLimitCreate"
         },
@@ -36815,6 +39345,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_resource-limits_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36848,6 +39380,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/resource-type/": {
       "get": {
         "operationId": "usage_resource-type_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36881,6 +39415,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/subscription-plans/": {
       "get": {
         "operationId": "usage_subscription-plans_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36914,6 +39450,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/subscription-status/": {
       "get": {
         "operationId": "usage_subscription-status_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36947,6 +39485,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/subscription-tier/": {
       "get": {
         "operationId": "usage_subscription-tier_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -36978,6 +39518,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_subscription-tier_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageSubscriptionTier"
         },
@@ -37011,6 +39553,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_subscription-tier_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageSubscriptionTier"
         },
@@ -37044,6 +39588,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_subscription-tier_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37077,6 +39623,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/subscription-tier/{subscription_id}/": {
       "get": {
         "operationId": "usage_subscription-tier_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37108,6 +39656,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_subscription-tier_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageSubscriptionTier"
         },
@@ -37141,6 +39691,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "patch": {
         "operationId": "usage_subscription-tier_partial_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageSubscriptionTier"
         },
@@ -37174,6 +39726,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_subscription-tier_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37207,6 +39761,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/update-auto-reload-settings/": {
       "post": {
         "operationId": "usage_update-auto-reload-settings_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/AutoReloadSettingsRequest"
         },
@@ -37242,6 +39798,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/update-billing-details/": {
       "post": {
         "operationId": "usage_update-billing-details_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UpdateOrganizationBillingRequest"
         },
@@ -37277,6 +39835,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/usage-summary/": {
       "get": {
         "operationId": "usage_usage-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "month": {
@@ -37325,6 +39885,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/add-addon/": {
       "post": {
         "operationId": "usage_v2_add-addon_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddonRequest"
         },
@@ -37358,6 +39920,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_add-addon_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37391,6 +39955,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_add-addon_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37424,6 +39990,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/addon/": {
       "post": {
         "operationId": "usage_v2_addon_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddonRequest"
         },
@@ -37457,6 +40025,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_addon_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37490,6 +40060,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_addon_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37523,6 +40095,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/billing-overview/": {
       "get": {
         "operationId": "usage_v2_billing-overview_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37556,6 +40130,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/budgets/": {
       "get": {
         "operationId": "usage_v2_budgets_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37587,6 +40163,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_v2_budgets_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageBudgetMutationRequest"
         },
@@ -37622,6 +40200,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/budgets/{budget_id}/": {
       "put": {
         "operationId": "usage_v2_budgets_update",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageBudgetMutationRequest"
         },
@@ -37655,6 +40235,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_budgets_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37690,6 +40272,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/downgrade-to-free/": {
       "post": {
         "operationId": "usage_v2_downgrade-to-free_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37725,6 +40309,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/invoices/": {
       "get": {
         "operationId": "usage_v2_invoices_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37758,6 +40344,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/invoices/{invoice_id}/": {
       "get": {
         "operationId": "usage_v2_invoices_read",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37791,6 +40379,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/notifications/": {
       "get": {
         "operationId": "usage_v2_notifications_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37824,6 +40414,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/payment-methods/": {
       "get": {
         "operationId": "usage_v2_payment-methods_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37855,6 +40447,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_v2_payment-methods_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37888,6 +40482,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_payment-methods_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SetupIntentConfirmRequest"
         },
@@ -37923,6 +40519,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/payment-methods/setup-intent/": {
       "get": {
         "operationId": "usage_v2_payment-methods_setup-intent_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -37954,6 +40552,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "usage_v2_payment-methods_setup-intent_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -37987,6 +40587,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_payment-methods_setup-intent_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/SetupIntentConfirmRequest"
         },
@@ -38022,6 +40624,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/payment-methods/{pm_id}/": {
       "post": {
         "operationId": "usage_v2_payment-methods_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -38055,6 +40659,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_payment-methods_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38088,6 +40694,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/payment-methods/{pm_id}/default/": {
       "post": {
         "operationId": "usage_v2_payment-methods_default_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -38121,6 +40729,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_payment-methods_default_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38154,6 +40764,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/plans-and-addons/": {
       "get": {
         "operationId": "usage_v2_plans-and-addons_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38187,6 +40799,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/reinstate-addon/": {
       "post": {
         "operationId": "usage_v2_reinstate-addon_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddonRequest"
         },
@@ -38220,6 +40834,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_reinstate-addon_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -38253,6 +40869,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_reinstate-addon_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38286,6 +40904,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/remove-addon/": {
       "post": {
         "operationId": "usage_v2_remove-addon_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/AddonRequest"
         },
@@ -38319,6 +40939,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_remove-addon_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -38352,6 +40974,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "delete": {
         "operationId": "usage_v2_remove-addon_delete",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38385,6 +41009,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/stripe-webhook/": {
       "post": {
         "operationId": "usage_v2_stripe-webhook_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/StripeWebhookRequest"
         },
@@ -38420,6 +41046,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/upgrade-to-payg/": {
       "post": {
         "operationId": "usage_v2_upgrade-to-payg_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UsageEmptyRequest"
         },
@@ -38453,6 +41081,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "usage_v2_upgrade-to-payg_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/UpgradeToPaygConfirmRequest"
         },
@@ -38488,6 +41118,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/usage-overview/": {
       "get": {
         "operationId": "usage_v2_usage-overview_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "period": {
@@ -38543,6 +41175,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/usage-time-series/": {
       "get": {
         "operationId": "usage_v2_usage-time-series_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "dimension": {
@@ -38598,6 +41232,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/v2/usage-workspace-breakdown/": {
       "get": {
         "operationId": "usage_v2_usage-workspace-breakdown_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "dimension": {
@@ -38653,6 +41289,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/webhook/": {
       "post": {
         "operationId": "usage_webhook_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "$ref": "#/definitions/StripeWebhookRequest"
         },
@@ -38688,6 +41326,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/workspace-eval-summary/": {
       "get": {
         "operationId": "usage_workspace-eval-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "month": {
@@ -38743,6 +41383,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/usage/workspace-usage-summary/": {
       "get": {
         "operationId": "usage_workspace-usage-summary_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
           "month": {
@@ -38791,6 +41433,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/v1/health": {
       "get": {
         "operationId": "v1_health_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
         "responses": {
@@ -38809,6 +41453,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/v1/traces/": {
       "post": {
         "operationId": "v1_traces_create",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
         "requestBody": {
           "description": "OpenTelemetry ExportTraceServiceRequest. JSON payloads use the OTLP HTTP JSON mapping; protobuf payloads use application/x-protobuf.",
           "type": "object"
@@ -39156,6 +41802,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Status",
           "type": "boolean"
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -39171,17 +41847,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "x-nullable": true
         },
-        "detail": {
-          "title": "Detail",
+        "attr": {
+          "title": "Attr",
           "type": "string",
           "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
-    },
-    "AccountsJSONRequest": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": true
     },
     "AccountsMessageResponse": {
       "required": [
@@ -43519,10 +46201,72 @@ export const OPENAPI_CONTRACT = Object.freeze({
       ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
         "detail": {
           "title": "Detail",
+          "type": "string"
+        },
+        "result": {
+          "title": "Result",
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -43533,6 +46277,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Status",
           "type": "boolean",
           "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
         },
         "result": {
           "title": "Result",
@@ -43549,8 +46323,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "x-nullable": true
         },
-        "detail": {
-          "title": "Detail",
+        "attr": {
+          "title": "Attr",
           "type": "string",
           "x-nullable": true
         },
@@ -43575,6 +46349,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -43590,7 +46394,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1,
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
           "x-nullable": true
         },
         "details": {
@@ -43667,15 +46475,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "minLength": 1,
           "x-nullable": true
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "selection_too_large"
+          ]
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "default": "selection_too_large",
+          "minLength": 1
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "minLength": 1
+        },
         "message": {
           "title": "Message",
           "type": "string",
           "minLength": 1
-        },
-        "code": {
-          "title": "Code",
-          "type": "integer",
-          "default": 400
         },
         "error": {
           "$ref": "#/definitions/ApiSelectionTooLargeDetail"
@@ -43690,6 +46511,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -43701,6 +46552,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "minLength": 1,
           "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -44955,20 +47827,73 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "CallExecutionErrorResponse": {
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "readOnly": true,
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
         },
         "details": {
           "title": "Details",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "readOnly": true
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -45100,6 +48025,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -45109,6 +48064,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Message",
           "type": "string",
           "minLength": 1
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -45302,6 +48278,107 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "new_column_name": {
           "title": "New column name",
           "type": "string"
+        }
+      }
+    },
+    "ClickHouseHealthErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "health_status": {
+          "title": "Health status",
+          "type": "string",
+          "enum": [
+            "healthy",
+            "degraded",
+            "unhealthy",
+            "disabled"
+          ]
+        },
+        "clickhouse_connected": {
+          "title": "Clickhouse connected",
+          "type": "boolean"
+        },
+        "cdc_lag": {
+          "title": "Cdc lag",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "routing": {
+          "title": "Routing",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
         }
       }
     },
@@ -45616,6 +48693,79 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "type": "string",
             "format": "uuid"
           }
+        }
+      }
+    },
+    "CompareExperimentEvalRequest": {
+      "required": [
+        "name",
+        "template_id",
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "maxLength": 100
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string"
+        },
+        "run": {
+          "title": "Run",
+          "type": "boolean",
+          "default": false
+        },
+        "save_as_template": {
+          "title": "Save as template",
+          "type": "boolean",
+          "default": false
+        },
+        "experiment_id": {
+          "title": "Experiment id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "composite_weight_overrides": {
+          "title": "Composite weight overrides",
+          "type": "object",
+          "x-nullable": true
+        },
+        "dataset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
         }
       }
     },
@@ -47292,6 +50442,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Widgets",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "DashboardMetricsCatalogResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/DashboardMetricsCatalogResult"
         }
       }
     },
@@ -49236,15 +52402,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "additionalProperties": false
     },
     "ErrorResponse": {
-      "required": [
-        "error"
-      ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -49412,22 +52638,74 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "EvalErrorResponse": {
-      "required": [
-        "error"
-      ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
         },
         "details": {
           "title": "Details",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }
@@ -51759,23 +55037,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "properties": {}
     },
     "FalconErrorResponse": {
-      "required": [
-        "status"
-      ],
       "type": "object",
       "properties": {
         "status": {
           "title": "Status",
-          "type": "boolean"
+          "type": "boolean",
+          "default": false
         },
-        "error": {
-          "title": "Error",
-          "type": "string"
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
         },
         "result": {
           "title": "Result",
           "type": "string",
+          "minLength": 1,
           "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -53303,18 +56633,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "GroundTruthUploadRequest": {
-      "required": [
-        "name",
-        "columns",
-        "data"
-      ],
       "type": "object",
       "properties": {
+        "file": {
+          "title": "File",
+          "type": "string",
+          "readOnly": true,
+          "format": "uri"
+        },
         "name": {
           "title": "Name",
           "type": "string",
-          "maxLength": 255,
-          "minLength": 1
+          "maxLength": 255
         },
         "description": {
           "title": "Description",
@@ -53342,12 +56672,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "variable_mapping": {
           "title": "Variable mapping",
           "type": "object",
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         },
         "role_mapping": {
           "title": "Role mapping",
           "type": "object",
-          "x-nullable": true
+          "x-nullable": true,
+          "additionalProperties": true
         }
       }
     },
@@ -53916,11 +57248,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "List of {\"workspace_id\": \"<uuid>\", \"level\": <int>}.",
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "$ref": "#/definitions/WorkspaceAccessInput"
           },
           "default": []
         }
@@ -54665,15 +57993,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "LiveKitErrorResponse": {
-      "required": [
-        "error"
-      ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -54856,6 +58244,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "recaptcha_response": {
           "title": "Recaptcha response",
+          "type": "string"
+        }
+      }
+    },
+    "LogoutRequest": {
+      "type": "object",
+      "properties": {
+        "refresh": {
+          "title": "Refresh",
           "type": "string"
         }
       }
@@ -55166,9 +58563,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "MCPErrorResponse": {
-      "required": [
-        "error"
-      ],
       "type": "object",
       "properties": {
         "status": {
@@ -55176,10 +58570,66 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
         "retry_after": {
           "title": "Retry after",
@@ -55554,6 +59004,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -55569,14 +59049,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "x-nullable": true
         },
-        "detail": {
-          "title": "Detail",
+        "attr": {
+          "title": "Attr",
           "type": "string",
           "x-nullable": true
-        },
-        "code": {
-          "title": "Code",
-          "type": "integer"
         },
         "details": {
           "title": "Details",
@@ -55704,11 +59180,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "List of {workspace_id, level} for explicit workspace grants on demotion.",
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "$ref": "#/definitions/WorkspaceAccessInput"
           },
           "default": []
         }
@@ -55870,6 +59342,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Status",
           "type": "boolean"
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -55885,10 +59387,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "x-nullable": true
         },
-        "detail": {
-          "title": "Detail",
+        "attr": {
+          "title": "Attr",
           "type": "string",
           "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -56031,6 +59544,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean",
           "default": false
         },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
         "result": {
           "title": "Result",
           "type": "string",
@@ -56046,10 +59589,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "x-nullable": true
         },
-        "detail": {
-          "title": "Detail",
+        "attr": {
+          "title": "Attr",
           "type": "string",
           "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -56296,15 +59850,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "OTLPHTTPErrorResponse": {
-      "required": [
-        "detail"
-      ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
         "detail": {
           "title": "Detail",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -56409,6 +60023,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "ObservationAttributeListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -56765,6 +60399,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "type"
           ],
           "additionalProperties": false
+        }
+      }
+    },
+    "ObserveGraphDataResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/ObserveGraphDataResult"
         }
       }
     },
@@ -57769,6 +61419,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "credential": {
           "title": "Credential",
           "type": "object"
+        },
+        "session_id": {
+          "title": "Session id",
+          "type": "string"
         },
         "name": {
           "title": "Name",
@@ -59362,6 +63016,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "source": {
           "title": "Source",
           "type": "string"
+        },
+        "protect_flash": {
+          "title": "Protect flash",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -59567,7 +63226,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "config": {
           "title": "Config",
           "type": "object",
-          "x-nullable": true
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "source": {
           "title": "Source",
@@ -59581,11 +63242,48 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "session_config": {
           "title": "Session config",
           "type": "object",
-          "x-nullable": true
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "tags": {
           "title": "Tags",
-          "type": "object"
+          "type": "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
+        }
+      }
+    },
+    "ProjectDetailResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/ProjectDetailResult"
+        }
+      }
+    },
+    "ProjectIdListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/ProjectIdListResult"
         }
       }
     },
@@ -61946,20 +65644,73 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "RunTestErrorResponse": {
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "readOnly": true,
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
         },
         "details": {
           "title": "Details",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "readOnly": true
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -62855,86 +66606,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
-    "SavedViewDetail": {
+    "SavedViewDetailResponse": {
       "required": [
-        "name",
-        "tab_type"
+        "result"
       ],
       "type": "object",
       "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string",
-          "format": "uuid",
-          "readOnly": true
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
         },
-        "name": {
-          "title": "Name",
-          "type": "string",
-          "maxLength": 255,
-          "minLength": 1
-        },
-        "tab_type": {
-          "title": "Tab type",
-          "type": "string",
-          "enum": [
-            "traces",
-            "spans",
-            "voice",
-            "imagine",
-            "users",
-            "user_detail",
-            "sessions"
-          ]
-        },
-        "visibility": {
-          "title": "Visibility",
-          "type": "string",
-          "enum": [
-            "personal",
-            "project"
-          ]
-        },
-        "position": {
-          "title": "Position",
-          "type": "integer",
-          "maximum": 2147483647,
-          "minimum": -2147483648
-        },
-        "icon": {
-          "title": "Icon",
-          "type": "string",
-          "maxLength": 50,
-          "x-nullable": true
-        },
-        "config": {
-          "title": "Config",
-          "type": "object"
-        },
-        "project": {
-          "title": "Project",
-          "type": "string",
-          "format": "uuid",
-          "readOnly": true,
-          "x-nullable": true
-        },
-        "created_by": {
-          "$ref": "#/definitions/SavedViewCreator"
-        },
-        "updated_by": {
-          "$ref": "#/definitions/SavedViewCreator"
-        },
-        "created_at": {
-          "title": "Created at",
-          "type": "string",
-          "format": "date-time",
-          "readOnly": true
-        },
-        "updated_at": {
-          "title": "Updated at",
-          "type": "string",
-          "format": "date-time",
-          "readOnly": true
+        "result": {
+          "$ref": "#/definitions/SavedViewDetail"
         }
       }
     },
@@ -63008,6 +66692,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "readOnly": true
+        }
+      }
+    },
+    "SavedViewListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/SavedViewListResult"
+        }
+      }
+    },
+    "SavedViewMessageResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/SavedViewMessageResult"
         }
       }
     },
@@ -63502,20 +67218,73 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "ScenarioErrorResponse": {
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "readOnly": true,
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
         },
         "details": {
           "title": "Details",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "readOnly": true
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -64087,15 +67856,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
       }
     },
     "SharedLinkResolveError": {
-      "required": [
-        "error"
-      ],
       "type": "object",
       "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "validation_error",
+            "authentication_error",
+            "payment_required",
+            "entitlement_error",
+            "permission_error",
+            "not_found",
+            "conflict",
+            "client_error",
+            "rate_limit",
+            "server_error",
+            "service_unavailable",
+            "timeout",
+            "api_error"
+          ],
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
         "error": {
           "title": "Error",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "attr": {
+          "title": "Attr",
+          "type": "string",
+          "x-nullable": true
+        },
+        "details": {
+          "title": "Details",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -64134,6 +67963,43 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "data": {
           "$ref": "#/definitions/SharedLinkResolvedData"
+        }
+      }
+    },
+    "SignupRequest": {
+      "required": [
+        "email",
+        "full_name"
+      ],
+      "type": "object",
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "minLength": 1
+        },
+        "full_name": {
+          "title": "Full name",
+          "type": "string",
+          "minLength": 1
+        },
+        "company_name": {
+          "title": "Company name",
+          "type": "string"
+        },
+        "password": {
+          "title": "Password",
+          "type": "string"
+        },
+        "allow_email": {
+          "title": "Allow email",
+          "type": "boolean",
+          "default": false
+        },
+        "recaptcha_response": {
+          "title": "Recaptcha response",
+          "type": "string"
         }
       }
     },
@@ -64997,6 +68863,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "uuid",
           "x-nullable": true
+        },
+        "regenerate": {
+          "title": "Regenerate",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -65373,6 +69244,70 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "maxLength": 100,
           "x-nullable": true
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "reason_column": {
+          "title": "Reason column",
+          "type": "boolean",
+          "default": false
+        },
+        "optional_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "variable_keys": {
+          "title": "Variable keys",
+          "type": "object",
+          "default": []
+        },
+        "run_prompt_column": {
+          "title": "Run prompt column",
+          "type": "boolean",
+          "default": false
+        },
+        "template_name": {
+          "title": "Template name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "mapping": {
+          "title": "Mapping",
+          "type": "object",
+          "default": {}
+        },
+        "output": {
+          "title": "Output",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config_params_desc": {
+          "title": "Config params desc",
+          "type": "object",
+          "default": {}
+        },
+        "config_params_option": {
+          "title": "Config params option",
+          "type": "object",
+          "default": {}
         }
       }
     },
@@ -66803,6 +70738,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "minLength": 1
           },
           "default": []
+        },
+        "eval_type_id": {
+          "title": "Eval type id",
+          "type": "string",
+          "maxLength": 100,
+          "x-nullable": true
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error_localizer_enabled": {
+          "title": "Error localizer enabled",
+          "type": "boolean",
+          "x-nullable": true
         }
       }
     },
@@ -68229,6 +72180,71 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Model",
           "type": "string",
           "maxLength": 100
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string"
+        },
+        "run": {
+          "title": "Run",
+          "type": "boolean",
+          "default": false
+        },
+        "save_as_template": {
+          "title": "Save as template",
+          "type": "boolean",
+          "default": false
+        },
+        "experiment_id": {
+          "title": "Experiment id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "composite_weight_overrides": {
+          "title": "Composite weight overrides",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "UserEvalUpdateRequest": {
+      "required": [
+        "config"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 50
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "maxLength": 500
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "maxLength": 100
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string"
         },
         "run": {
           "title": "Run",
@@ -72697,6 +76713,20 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "DashboardMetricsCatalogResult": {
+      "required": [
+        "metrics"
+      ],
+      "type": "object",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DashboardMetricCatalogItem"
+          }
+        }
+      }
+    },
     "DashboardBreakdown": {
       "required": [
         "name"
@@ -73629,11 +77659,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "synthetic_dataset_percentage": {
           "title": "Synthetic dataset percentage",
-          "type": "object"
+          "type": "number",
+          "x-nullable": true
         },
         "synthetic_regenerate": {
           "title": "Synthetic regenerate",
-          "type": "object"
+          "type": "boolean"
         },
         "is_processing_data": {
           "title": "Is processing data",
@@ -76917,6 +80948,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "WorkspaceAccessInput": {
+      "description": "List of {\"workspace_id\": \"<uuid>\", \"level\": <int>}.",
+      "required": [
+        "workspace_id"
+      ],
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "title": "Workspace id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer",
+          "enum": [
+            8,
+            3,
+            1
+          ]
+        }
+      }
+    },
     "InviteCreateResult": {
       "required": [
         "invited"
@@ -78673,6 +82727,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ObserveGraphDataResult": {
+      "required": [
+        "metric_name",
+        "data"
+      ],
+      "type": "object",
+      "properties": {
+        "metric_name": {
+          "title": "Metric name",
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ObserveGraphDataPoint"
+          }
+        }
+      }
+    },
     "OperationConfigResult": {
       "required": [
         "column_id",
@@ -79849,6 +83922,134 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "uuid",
           "x-nullable": true
+        }
+      }
+    },
+    "ProjectDetailResult": {
+      "required": [
+        "model_type",
+        "name",
+        "trace_type",
+        "sampling_rate"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "model_type": {
+          "title": "Model type",
+          "type": "string",
+          "enum": [
+            "Numeric",
+            "ScoreCategorical",
+            "Ranking",
+            "BinaryClassification",
+            "Regression",
+            "ObjectDetection",
+            "Segmentation",
+            "GenerativeLLM",
+            "GenerativeImage",
+            "GenerativeVideo",
+            "TTS",
+            "STT",
+            "MultiModal"
+          ]
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "trace_type": {
+          "title": "Trace type",
+          "type": "string",
+          "enum": [
+            "experiment",
+            "observe"
+          ]
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object",
+          "x-nullable": true
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "workspace": {
+          "title": "Workspace",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "enum": [
+            "demo",
+            "prototype",
+            "simulator"
+          ]
+        },
+        "session_config": {
+          "title": "Session config",
+          "type": "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
+        },
+        "tags": {
+          "title": "Tags",
+          "type": "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
+        },
+        "sampling_rate": {
+          "title": "Sampling rate",
+          "type": "number"
+        }
+      }
+    },
+    "ProjectIdListResult": {
+      "required": [
+        "projects"
+      ],
+      "type": "object",
+      "properties": {
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProjectIdListItem"
+          }
         }
       }
     },
@@ -81844,6 +86045,89 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SavedViewDetail": {
+      "required": [
+        "name",
+        "tab_type"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "tab_type": {
+          "title": "Tab type",
+          "type": "string",
+          "enum": [
+            "traces",
+            "spans",
+            "voice",
+            "imagine",
+            "users",
+            "user_detail",
+            "sessions"
+          ]
+        },
+        "visibility": {
+          "title": "Visibility",
+          "type": "string",
+          "enum": [
+            "personal",
+            "project"
+          ]
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": -2147483648
+        },
+        "icon": {
+          "title": "Icon",
+          "type": "string",
+          "maxLength": 50,
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "project": {
+          "title": "Project",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "created_by": {
+          "$ref": "#/definitions/SavedViewCreator"
+        },
+        "updated_by": {
+          "$ref": "#/definitions/SavedViewCreator"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
     "SavedViewCreator": {
       "type": "object",
       "properties": {
@@ -81864,6 +86148,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "email",
           "readOnly": true,
+          "minLength": 1
+        }
+      }
+    },
+    "SavedViewListResult": {
+      "required": [
+        "default_tabs",
+        "custom_views"
+      ],
+      "type": "object",
+      "properties": {
+        "default_tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SavedViewDefaultTab"
+          }
+        },
+        "custom_views": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SavedViewList"
+          }
+        }
+      }
+    },
+    "SavedViewMessageResult": {
+      "required": [
+        "message"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
           "minLength": 1
         }
       }
@@ -85464,6 +89782,69 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "DashboardMetricCatalogItem": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string"
+        },
+        "category": {
+          "title": "Category",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-json-value": true,
+            "description": "Any valid JSON value."
+          }
+        },
+        "allowed_aggregations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "data_type": {
+          "title": "Data type",
+          "type": "string"
+        }
+      }
+    },
     "DashboardQueryMetricResult": {
       "required": [
         "id",
@@ -88814,6 +93195,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ObserveGraphDataPoint": {
+      "required": [
+        "timestamp",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "number",
+          "x-nullable": true
+        },
+        "primary_traffic": {
+          "title": "Primary traffic",
+          "type": "number",
+          "x-nullable": true
+        }
+      }
+    },
     "MetricSerializerNameAndId": {
       "required": [
         "name"
@@ -89091,6 +93496,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Details",
           "type": "object",
           "x-nullable": true
+        }
+      }
+    },
+    "ProjectIdListItem": {
+      "required": [
+        "id",
+        "name",
+        "trace_type"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "trace_type": {
+          "title": "Trace type",
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -90043,6 +94473,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Eval results",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "SavedViewDefaultTab": {
+      "required": [
+        "key",
+        "label",
+        "tab_type"
+      ],
+      "type": "object",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "title": "Label",
+          "type": "string",
+          "minLength": 1
+        },
+        "tab_type": {
+          "title": "Tab type",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

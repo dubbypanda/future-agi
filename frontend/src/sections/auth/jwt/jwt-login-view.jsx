@@ -201,7 +201,7 @@ export default function JwtLoginView() {
         email: data.email,
         password: data.password,
         remember_me: data.rememberMe,
-        "recaptcha-response": token,
+        recaptcha_response: token,
       });
       // trackEvent(Events.loginCompleted);
 

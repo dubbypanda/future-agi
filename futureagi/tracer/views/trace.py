@@ -56,7 +56,10 @@ from tracer.models.observation_span import EndUser, EvalLogger, ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
-from tracer.serializers.filters import ObserveGraphDataRequestSerializer
+from tracer.serializers.filters import (
+    ObserveGraphDataRequestSerializer,
+    ObserveGraphDataResponseSerializer,
+)
 from tracer.serializers.observation_span import (
     ObservationSpanSerializer,
 )
@@ -1929,7 +1932,10 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 f"error fetching the traces list {get_error_message('ERROR_GETTING_TRACE_LIST')}"
             )
 
-    @validated_request(request_serializer=ObserveGraphDataRequestSerializer)
+    @validated_request(
+        request_serializer=ObserveGraphDataRequestSerializer,
+        responses={200: ObserveGraphDataResponseSerializer},
+    )
     @action(detail=False, methods=["post"])
     def get_graph_methods(self, request, *args, **kwargs):
         """

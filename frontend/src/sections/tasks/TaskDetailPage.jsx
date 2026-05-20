@@ -1,10 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Tab, Tabs } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import axios, { endpoints } from "src/utils/axios";
 import { enqueueSnackbar } from "src/components/snackbar";
 import Iconify from "src/components/iconify";
@@ -23,6 +31,13 @@ import {
 } from "./schema";
 import TaskConfirmDialog from "src/sections/common/EvalsTasks/EditTaskDrawer/TaskConfirmBox";
 
+const getTaskDetailsErrorMessage = (error) =>
+  error?.result ||
+  error?.message ||
+  error?.response?.data?.result ||
+  error?.response?.data?.message ||
+  "Task details could not be loaded.";
+
 const TAB_OPTIONS = [
   { label: "Details", value: "details", icon: "solar:settings-linear" },
   { label: "Logs", value: "logs", icon: "solar:notebook-linear" },
@@ -31,6 +46,7 @@ const TAB_OPTIONS = [
 
 const TaskDetailPage = () => {
   const { taskId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("details");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -45,7 +61,12 @@ const TaskDetailPage = () => {
     setTestState(next);
   }, []);
 
-  const { data: taskDetails, isLoading } = useGetTaskData(taskId, {
+  const {
+    data: taskDetails,
+    isLoading,
+    isError,
+    error,
+  } = useGetTaskData(taskId, {
     enabled: !!taskId,
   });
 
@@ -165,7 +186,7 @@ const TaskDetailPage = () => {
     [formValues, updateTask],
   );
 
-  if (isLoading || !taskDetails) {
+  if (isLoading) {
     return (
       <Box
         sx={{
@@ -176,6 +197,51 @@ const TaskDetailPage = () => {
         }}
       >
         <CircularProgress size={28} />
+      </Box>
+    );
+  }
+
+  if (isError || !taskDetails) {
+    const message = getTaskDetailsErrorMessage(error);
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100%",
+          px: 3,
+        }}
+      >
+        <Stack
+          spacing={2}
+          alignItems="center"
+          sx={{ maxWidth: 420, textAlign: "center" }}
+        >
+          <Iconify
+            icon="solar:clipboard-remove-linear"
+            width={42}
+            sx={{ color: "text.disabled" }}
+          />
+          <Box>
+            <Typography variant="h6">Task not available</Typography>
+            <Typography
+              variant="body2"
+              sx={{ mt: 0.75, color: "text.secondary" }}
+            >
+              {message}
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => navigate("/dashboard/tasks")}
+            startIcon={<Iconify icon="solar:arrow-left-linear" width={14} />}
+            sx={{ textTransform: "none" }}
+          >
+            Back to Tasks
+          </Button>
+        </Stack>
       </Box>
     );
   }

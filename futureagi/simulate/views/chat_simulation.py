@@ -3,9 +3,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from pydantic import ValidationError
-from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models.user import OrgApiKey
@@ -121,10 +119,7 @@ class RunTestChatExecutionView(APIView):
             )
 
             if not user_organization:
-                return Response(
-                    {"error": "Organization not found for the user."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                return self.gm.not_found("Organization not found for the user.")
 
             # Get the run test
             run_test = get_object_or_404(

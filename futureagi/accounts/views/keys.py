@@ -36,6 +36,7 @@ from tfc.utils.general_methods import GeneralMethods
 
 class GetKeysView(APIView):
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         responses={200: SecretKeysResponseSerializer, **ACCOUNTS_ERROR_RESPONSES}
@@ -64,9 +65,8 @@ class GetKeysView(APIView):
 
         except Exception:
             traceback.print_exc()
-            return Response(
-                {"status": "error", "message": "Failed to retrieve API keys"},
-                status=500,
+            return self._gm.internal_server_error_response(
+                "Failed to retrieve API keys"
             )
 
 

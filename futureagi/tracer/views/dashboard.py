@@ -18,6 +18,7 @@ from tracer.serializers.dashboard import (
     DashboardCreateUpdateSerializer,
     DashboardDetailSerializer,
     DashboardFilterValuesQuerySerializer,
+    DashboardMetricsCatalogResponseSerializer,
     DashboardQueryApiResponseSerializer,
     DashboardPreviewQuerySerializer,
     DashboardQuerySerializer,
@@ -557,6 +558,12 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
     # Unified metrics endpoint — all sources, no workflow selector
     # ------------------------------------------------------------------
 
+    @validated_request(
+        responses={
+            200: DashboardMetricsCatalogResponseSerializer,
+            400: ApiErrorResponseSerializer,
+        },
+    )
     @action(detail=False, methods=["get"])
     def metrics(self, request):
         """Return all available metrics across traces and datasets.

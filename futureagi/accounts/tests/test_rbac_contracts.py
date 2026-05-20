@@ -6,6 +6,7 @@ from accounts.serializers.rbac import (
     InviteCreateSerializer,
     MemberListRequestSerializer,
     MemberRoleUpdateSerializer,
+    WorkspaceMemberListRequestSerializer,
 )
 from tfc.constants.levels import Level
 
@@ -36,6 +37,34 @@ def test_member_list_filters_reject_json_encoded_list_values():
 
     assert not serializer.is_valid()
     assert "filter_status" in serializer.errors
+
+
+def test_member_list_sort_fields_are_backend_columns():
+    serializer = MemberListRequestSerializer(data=_query_data({"sort": "-org_level"}))
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["sort"] == "-org_level"
+
+    serializer = MemberListRequestSerializer(data=_query_data({"sort": "orgRole"}))
+
+    assert not serializer.is_valid()
+    assert "sort" in serializer.errors
+
+
+def test_workspace_member_list_sort_fields_are_backend_columns():
+    serializer = WorkspaceMemberListRequestSerializer(
+        data=_query_data({"sort": "ws_level"})
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["sort"] == "ws_level"
+
+    serializer = WorkspaceMemberListRequestSerializer(
+        data=_query_data({"sort": "wsRole"})
+    )
+
+    assert not serializer.is_valid()
+    assert "sort" in serializer.errors
 
 
 def test_invite_workspace_access_rejects_unknown_nested_fields():

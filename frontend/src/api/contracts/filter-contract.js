@@ -17,6 +17,20 @@ const MULTI_VALUE_TYPES = new Set([
   "thumbs",
   "annotator",
 ]);
+const API_FILTER_ITEM_KEYS = new Set([
+  "column_id",
+  "display_name",
+  "source",
+  "output_type",
+  "filter_config",
+]);
+const UI_FILTER_ITEM_KEYS = new Set(["id", "_meta", "col_type"]);
+const API_FILTER_CONFIG_KEYS = new Set([
+  "filter_type",
+  "filter_op",
+  "filter_value",
+  "col_type",
+]);
 
 export const normalizeFilterType = (rawType) => {
   if (!rawType) return "text";
@@ -125,3 +139,87 @@ export const buildApiFilterFromPanelRow = (row) => {
     },
   };
 };
+
+const isEmptyFilterDraft = (filter) => {
+  const config = filter?.filter_config || {};
+  return (
+    !filter?.column_id &&
+    !config.filter_type &&
+    !config.filter_op &&
+    (config.filter_value === "" ||
+      config.filter_value === undefined ||
+      config.filter_value === null)
+  );
+};
+
+export const serializeFilterForApi = (filter) => {
+  if (!filter || typeof filter !== "object") {
+    throw new Error("API filters must be objects.");
+  }
+
+  const unknownItemKeys = Object.keys(filter).filter(
+    (key) => !API_FILTER_ITEM_KEYS.has(key) && !UI_FILTER_ITEM_KEYS.has(key),
+  );
+  if (unknownItemKeys.length) {
+    throw new Error(`Unknown API filter keys: ${unknownItemKeys.join(", ")}`);
+  }
+
+  const columnId = filter.column_id;
+  const config = filter.filter_config;
+  if (!columnId || !config || typeof config !== "object") {
+    throw new Error("API filters require column_id and filter_config.");
+  }
+
+  const unknownConfigKeys = Object.keys(config).filter(
+    (key) => !API_FILTER_CONFIG_KEYS.has(key),
+  );
+  if (unknownConfigKeys.length) {
+    throw new Error(
+      `Unknown API filter_config keys: ${unknownConfigKeys.join(", ")}`,
+    );
+  }
+
+  const filterType = normalizeFilterType(config.filter_type);
+  const filterOp = normalizeFilterOperator(config.filter_op, {
+    filterType,
+    value: config.filter_value,
+  });
+  if (!isAllowedFilterOperator(filterType, filterOp)) {
+    throw new Error(
+      `Unsupported filter operator "${filterOp}" for type "${filterType}".`,
+    );
+  }
+
+  const filterValue = coerceFilterValue(
+    config.filter_value,
+    filterOp,
+    filterType,
+  );
+  if (
+    filterOp !== "is_null" &&
+    filterOp !== "is_not_null" &&
+    (filterValue === "" ||
+      filterValue === undefined ||
+      (Array.isArray(filterValue) && filterValue.length === 0))
+  ) {
+    throw new Error(
+      `Filter "${columnId}" requires a value for operator "${filterOp}".`,
+    );
+  }
+
+  return {
+    column_id: columnId,
+    ...(filter.display_name && { display_name: filter.display_name }),
+    ...(filter.source && { source: filter.source }),
+    ...(filter.output_type && { output_type: filter.output_type }),
+    filter_config: {
+      filter_type: filterType,
+      filter_op: filterOp,
+      filter_value: filterValue,
+      ...(config.col_type && { col_type: normalizeColumnType(config.col_type) }),
+    },
+  };
+};
+
+export const serializeFilterListForApi = (filters = []) =>
+  filters.filter((filter) => !isEmptyFilterDraft(filter)).map(serializeFilterForApi);

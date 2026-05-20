@@ -687,7 +687,6 @@ describe("Annotation Queues API", () => {
             .data.result.item.assigned_users,
         ).toEqual([
           {
-            user_id: "user-1",
             id: "user-1",
             name: "Kartik",
             email: "kartik.nvj@futureagi.com",
@@ -712,7 +711,6 @@ describe("Annotation Queues API", () => {
               assigned_users: [
                 {
                   id: "user-2",
-                  user_id: "user-2",
                   name: "Nikhil",
                   email: "nikhil@example.com",
                 },
@@ -748,7 +746,6 @@ describe("Annotation Queues API", () => {
         ).toEqual([
           {
             id: "user-2",
-            user_id: "user-2",
             name: "Nikhil",
             email: "nikhil@example.com",
           },

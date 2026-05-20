@@ -3,6 +3,17 @@ from rest_framework import serializers
 from model_hub.serializers.develop_dataset import ColumnSerializer, DatasetSerializer
 
 
+class _StrictSerializer(serializers.Serializer):
+    def to_internal_value(self, data):
+        if hasattr(data, "keys"):
+            unknown = sorted(set(data.keys()) - set(self.fields.keys()))
+            if unknown:
+                raise serializers.ValidationError(
+                    {key: ["Unknown field."] for key in unknown}
+                )
+        return super().to_internal_value(data)
+
+
 class DevelopDatasetMessageResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField()
     result = serializers.CharField()
@@ -42,6 +53,28 @@ class DatasetListItemSerializer(serializers.Serializer):
     dataset_type = serializers.CharField()
 
 
+class DatasetListQuerySerializer(_StrictSerializer):
+    search_text = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default="",
+    )
+    page = serializers.IntegerField(required=False, min_value=0, default=0)
+    page_size = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=100,
+        default=10,
+    )
+    sort = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default=None,
+    )
+
+
 class DatasetListResultSerializer(serializers.Serializer):
     datasets = DatasetListItemSerializer(many=True)
     total_pages = serializers.IntegerField()
@@ -69,8 +102,11 @@ class DatasetTableResultSerializer(serializers.Serializer):
     table = serializers.ListField(child=serializers.JSONField(), required=False)
     dataset_config = serializers.JSONField(required=False)
     synthetic_dataset = serializers.BooleanField(required=False)
-    synthetic_dataset_percentage = serializers.JSONField(required=False)
-    synthetic_regenerate = serializers.JSONField(required=False)
+    synthetic_dataset_percentage = serializers.FloatField(
+        required=False,
+        allow_null=True,
+    )
+    synthetic_regenerate = serializers.BooleanField(required=False)
     is_processing_data = serializers.BooleanField(required=False)
 
 

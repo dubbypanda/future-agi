@@ -283,11 +283,11 @@ const TaskListView = ({
     ],
     queryFn: async () => {
       const params = {
-        page: page + 1,
+        page_number: page,
         page_size: pageSize,
       };
       if (observeId) params.project_id = observeId;
-      if (debouncedSearch) params.search = debouncedSearch;
+      if (debouncedSearch) params.name = debouncedSearch;
 
       // Map tanstack column IDs (camelCase) → backend column IDs (snake_case).
       // Backend expects snake_case sort keys; the DataTable column IDs are camelCase
@@ -303,8 +303,9 @@ const TaskListView = ({
       const rawSortId = sorting[0]?.id || "created_at";
       const sortField = SORT_FIELD_MAP[rawSortId] || rawSortId;
       const sortDir = sorting[0]?.desc ? "desc" : "asc";
-      params.sort_by = sortField;
-      params.sort_order = sortDir;
+      params.sort_params = JSON.stringify([
+        { column_id: sortField, direction: sortDir },
+      ]);
 
       const { data: resp } = await axios.get(apiEndpoint(), { params });
       return resp?.result;

@@ -63,7 +63,7 @@ const getSpanListColumnDefs = (col) => {
       ? { colId: col.id, minWidth: 180, flex: 1 }
       : { field: col.id }),
     hide: !col?.isVisible,
-    col,
+    context: { sourceColumn: col },
     // Custom columns use valueGetter to handle dot-notation attribute keys
     ...(isCustomColumn
       ? (() => {
@@ -113,7 +113,7 @@ const getSpanListColumnDefs = (col) => {
         // No renderer for empty values
         return null;
       }
-      const column = params?.colDef?.col;
+      const column = params?.colDef?.context?.sourceColumn;
       const colId = column?.id;
 
       if (RENDERER_CONFIG.nameColumns.includes(colId)) {
@@ -561,19 +561,17 @@ const SpanGrid = React.forwardRef(
           ref={gridRef}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          rowSelection={{ mode: "multiRow" }}
+          rowSelection={{ mode: "multiRow", enableClickSelection: false }}
           pagination={false}
           cacheBlockSize={ROWS_LIMIT}
           maxBlocksInCache={undefined}
           rowBuffer={10}
-          suppressRowClickSelection={true}
           rowModelType="serverSide"
           tooltipShowDelay={0}
           tooltipHideDelay={2000}
           tooltipInteraction={true}
           serverSideDatasource={dataSource}
           suppressServerSideFullWidthLoadingRow={true}
-          serverSideInitialRowCount={ROWS_LIMIT}
           onCellClicked={handleCellClick}
           onSelectionChanged={onSelectionChanged}
           // onGridReady={(params) => {
@@ -625,7 +623,7 @@ SpanGrid.propTypes = {
   filters: PropTypes.array,
   extraFilters: PropTypes.array,
   setFilters: PropTypes.func,
-  setFilterOpen: PropTypes.bool,
+  setFilterOpen: PropTypes.func,
   setLoading: PropTypes.func,
   setPageMap: PropTypes.func,
   compareType: PropTypes.string,

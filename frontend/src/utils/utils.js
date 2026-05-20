@@ -766,10 +766,11 @@ export function mergeRefs(...refs) {
 // ---------------------------------------------------------------------------
 // canonicalKeys / canonicalEntries / canonicalValues
 //
-// Legacy cached objects and older call sites can still contain both a
-// snake_case key and a camelCase alias for the same value. Those aliases are
-// plain enumerable own-properties, so `Object.keys(obj)` returns both keys and
-// dynamic UI lists can render duplicate fields.
+// Some client-side objects can contain both a snake_case key and a camelCase
+// key for the same value, especially data built outside generated contracts
+// (for example imported JSON, local cache, or developer tooling payloads).
+// Those duplicate keys are plain enumerable own-properties, so `Object.keys`
+// returns both and dynamic UI lists can render duplicate fields.
 //
 // These helpers only de-dupe an object that already has both keys. They do
 // not add aliases or mutate response payloads.
@@ -827,8 +828,10 @@ export const paramsSerializer = () => {
 
       Object.entries(params).forEach(([key, value]) => {
         if (Array.isArray(value)) {
-          value.forEach((v) => searchParams.append(key, v));
-        } else if (value !== undefined) {
+          value
+            .filter((v) => v !== undefined && v !== null)
+            .forEach((v) => searchParams.append(key, v));
+        } else if (value !== undefined && value !== null) {
           searchParams.append(key, value);
         }
       });

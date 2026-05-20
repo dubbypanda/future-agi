@@ -1248,18 +1248,6 @@ def _normalize_query_filter_value(filter_value):
     return normalized
 
 
-def _normalize_repeated_query_filter_values(query_params, key):
-    values = []
-    for raw_value in query_params.getlist(key):
-        if raw_value is None:
-            continue
-        for part in str(raw_value).split(","):
-            normalized = _normalize_query_filter_value(part)
-            if normalized and normalized not in values:
-                values.append(normalized)
-    return values
-
-
 def _scores_for_queue_items(items, queue_label_ids):
     """Bulk variant of ``_scores_for_queue_item`` — same per-queue scoping.
 
@@ -2710,7 +2698,10 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
 
         return queryset.order_by("-created_at")
 
-    @validated_request(query_serializer=AnnotationQueueListQuerySerializer)
+    @validated_request(
+        query_serializer=AnnotationQueueListQuerySerializer,
+        framework_query_params=("page", "limit"),
+    )
     def list(self, request, *args, **kwargs):
         self._validated_queue_list_query = request.validated_query_data
         return super().list(request, *args, **kwargs)
@@ -4199,13 +4190,9 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             ):
                 queryset = _scope_targeted_rework_items(queryset, self.request.user)
 
-        statuses = _normalize_repeated_query_filter_values(
-            self.request.query_params, "status"
-        )
-        source_types = _normalize_repeated_query_filter_values(
-            self.request.query_params, "source_type"
-        )
         query_params = getattr(self, "_validated_queue_item_list_query", {})
+        statuses = query_params.get("status") or []
+        source_types = query_params.get("source_type") or []
         assigned_to = query_params.get("assigned_to")
 
         if statuses:
@@ -4266,7 +4253,10 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             *queue_item_ordering.get(ordering, queue_item_ordering["-created_at"])
         )
 
-    @validated_request(query_serializer=QueueItemListQuerySerializer)
+    @validated_request(
+        query_serializer=QueueItemListQuerySerializer,
+        framework_query_params=("page", "limit"),
+    )
     def list(self, request, *args, **kwargs):
         self._validated_queue_item_list_query = request.validated_query_data
         return super().list(request, *args, **kwargs)
@@ -4451,8 +4441,10 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 {
                     "status": False,
                     "result": None,
+                    "type": "selection_too_large",
+                    "code": "selection_too_large",
+                    "detail": message,
                     "message": message,
-                    "code": 400,
                     "error": {
                         "type": "selection_too_large",
                         "message": message,

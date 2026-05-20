@@ -751,7 +751,7 @@ class TestRunAdditionalEvaluationsView:
         )
 
         payload = {
-            "eval_ids": [str(eval_metric.id)],
+            "eval_template_ids": [str(eval_metric.id)],
         }
 
         with patch(
@@ -820,11 +820,7 @@ class TestRunAdditionalEvaluationsView:
     def test_run_additional_evaluations_unauthenticated(
         self, experiment, experiment_dataset
     ):
-        """Test that unauthenticated users can still access this endpoint.
-
-        Note: RunAdditionalEvaluationsView does not have permission_classes set,
-        so unauthenticated requests are allowed.
-        """
+        """Test that unauthenticated users cannot run additional evaluations."""
         client = APIClient()
 
         with patch("model_hub.views.experiments.ExperimentRunner") as mock_runner:
@@ -836,12 +832,9 @@ class TestRunAdditionalEvaluationsView:
                 format="json",
             )
 
-        # The API doesn't require authentication for this endpoint
         assert response.status_code in [
-            status.HTTP_200_OK,
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
         ]
 
 

@@ -21,6 +21,7 @@ from model_hub.serializers.kb import (
     KnowledgeBaseCreateSerializer,
     KnowledgeBaseSerializer,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
@@ -56,11 +57,12 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
             return KnowledgeBaseCreateSerializer
         return KnowledgeBaseSerializer
 
-    @swagger_auto_schema(
+    @validated_request(
         operation_description="Create a new knowledge base.",
         operation_summary="Create a new knowledge base.",
-        request_body=KnowledgeBaseCreateSerializer,
+        request_serializer=KnowledgeBaseCreateSerializer,
         responses={201: KnowledgeBaseResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         from tfc.ee_gating import EEFeature, check_ee_feature
@@ -69,7 +71,7 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
         check_ee_feature(EEFeature.KNOWLEDGE_BASE, org_id=str(org.id))
 
         try:
-            serializer = self.get_serializer(data=request.data)
+            serializer = self.get_serializer(data=request.validated_data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             return self._gm.success_response(serializer.data, status=201)
@@ -112,11 +114,12 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
                 f"Failed to retrieve knowledge base: {get_error_message('FAILED_TO_GET_KB')}"
             )
 
-    @swagger_auto_schema(
+    @validated_request(
         operation_description="Update a knowledge base.",
         operation_summary="Update a knowledge base.",
-        request_body=KnowledgeBaseSerializer,
+        request_serializer=KnowledgeBaseSerializer,
         responses={200: KnowledgeBaseResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:

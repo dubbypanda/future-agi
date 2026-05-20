@@ -92,6 +92,7 @@ def _resolve_input_variables(custom_eval_config, obs_span):
 
 logger = structlog.get_logger(__name__)
 from tfc.utils.base_viewset import BaseModelViewSetMixin
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
 from tracer.models.custom_eval_config import CustomEvalConfig
@@ -164,16 +165,14 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             traceback.print_exc()
             return self._gm.bad_request(str(e))
 
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=["get"], pagination_class=None)
+    @validated_request(query_serializer=EvalTaskListQuerySerializer)
     def list_eval_tasks(self, request, *args, **kwargs):
         """
         List Eval Tasks filtered
         """
         try:
-            query_serializer = EvalTaskListQuerySerializer(data=request.query_params)
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            query_data = query_serializer.validated_data
+            query_data = request.validated_query_data
 
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
@@ -874,18 +873,14 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             traceback.print_exc()
             return self._gm.bad_request(str(e))
 
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=["get"], pagination_class=None)
+    @validated_request(query_serializer=EvalTaskListWithProjectNameQuerySerializer)
     def list_eval_tasks_with_project_name(self, request, *args, **kwargs):
         """
         List Eval Tasks filtered
         """
         try:
-            query_serializer = EvalTaskListWithProjectNameQuerySerializer(
-                data=request.query_params
-            )
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            query_data = query_serializer.validated_data
+            query_data = request.validated_query_data
 
             queryset = self.get_queryset()
 
@@ -1314,6 +1309,8 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
     def get_eval_details(self, request, *args, **kwargs):
         try:
             eval_id = self.request.query_params.get("eval_id")
+            if not eval_id:
+                return self._gm.bad_request("eval_id is required")
 
             queryset = (
                 EvalTask.objects.select_related("project")
@@ -1324,9 +1321,6 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                     or request.user.organization,
                 )
             )
-
-            if not queryset:
-                return self._gm.bad_request("Eval task not found")
 
             # Build rich eval objects so the frontend can render eval cards
             # with name, mapping, model, template info — not just bare UUIDs.
@@ -1371,6 +1365,8 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
 
             return self._gm.success_response(result)
 
+        except EvalTask.DoesNotExist:
+            return self._gm.not_found("Eval task not found")
         except Exception as e:
             traceback.print_exc()
             return self._gm.bad_request(f"Error fetching eval task details {str(e)}")

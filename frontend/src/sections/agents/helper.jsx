@@ -815,18 +815,19 @@ export const useCallLogs = ({
   params,
   enabled = true,
 }) => {
-  let endpoint = endpoints.agentDefinitions.getCallLogs(id, version);
-  let condition = !!id && !!version;
-  let queryKey = ["callLogs", module, id, version, pageLimit, params, page];
-  if (module === "project") {
-    endpoint = endpoints.project.getCallLogs;
-    condition = !!id;
-    queryKey = ["callLogs", module, id, pageLimit, params, page];
-  }
+  const isProjectModule = module === "project";
+  const condition = isProjectModule ? !!id : !!id && !!version;
+  const queryKey = isProjectModule
+    ? ["callLogs", module, id, pageLimit, params, page]
+    : ["callLogs", module, id, version, pageLimit, params, page];
+  const getEndpoint = () =>
+    isProjectModule
+      ? endpoints.project.getCallLogs
+      : endpoints.agentDefinitions.getCallLogs(id, version);
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: () =>
-      axios.get(endpoint, {
+      axios.get(getEndpoint(), {
         params: { page, page_size: pageLimit, ...params },
       }),
     enabled: condition && enabled,
@@ -839,12 +840,17 @@ export const prefetchCallLogs = (
   queryClient,
   { module, id, version, page, pageLimit, params },
 ) => {
-  let endpoint = endpoints.agentDefinitions.getCallLogs(id, version);
-  let queryKey = ["callLogs", module, id, version, pageLimit, params, page];
-  if (module === "project") {
-    endpoint = endpoints.project.getCallLogs;
-    queryKey = ["callLogs", module, id, pageLimit, params, page];
+  const isProjectModule = module === "project";
+  const condition = isProjectModule ? !!id : !!id && !!version;
+  if (!condition) {
+    return;
   }
+  const endpoint = isProjectModule
+    ? endpoints.project.getCallLogs
+    : endpoints.agentDefinitions.getCallLogs(id, version);
+  const queryKey = isProjectModule
+    ? ["callLogs", module, id, pageLimit, params, page]
+    : ["callLogs", module, id, version, pageLimit, params, page];
   queryClient.prefetchQuery({
     queryKey,
     queryFn: () =>

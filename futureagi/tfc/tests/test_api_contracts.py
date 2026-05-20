@@ -1,12 +1,15 @@
 from pathlib import Path
+from types import SimpleNamespace
 
-from rest_framework.decorators import api_view
 from rest_framework import serializers
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 
 from tfc.utils.api_contracts import validated_api_request, validated_request
+from tfc.utils.api_errors import build_error_envelope
+from tfc.utils.general_methods import GeneralMethods
 
 
 class _DemoRequestSerializer(serializers.Serializer):
@@ -19,6 +22,10 @@ class _DemoResultSerializer(serializers.Serializer):
 
 class _DemoQuerySerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1)
+
+
+class _FrameworkQuerySerializer(serializers.Serializer):
+    status = serializers.CharField(required=False, allow_blank=True)
 
 
 class _DemoResponseSerializer(serializers.Serializer):
@@ -94,6 +101,16 @@ class _QueryView(APIView):
     @validated_request(query_serializer=_DemoQuerySerializer)
     def get(self, request):
         return Response({"page": request.validated_query_data["page"]})
+
+
+class _FrameworkQueryView(APIView):
+    @validated_request(
+        query_serializer=_FrameworkQuerySerializer,
+        reject_unknown_fields=True,
+        framework_query_params=("page", "limit"),
+    )
+    def get(self, request):
+        return Response(request.validated_query_data)
 
 
 class _BadListResponseView(APIView):
@@ -254,6 +271,22 @@ def test_validated_request_rejects_invalid_query_with_error_envelope():
     assert response.data["details"] == {"page": ["A valid integer is required."]}
 
 
+def test_validated_request_allows_declared_framework_query_params():
+    factory = APIRequestFactory()
+
+    response = _FrameworkQueryView.as_view()(
+        factory.get("/", {"status": "active", "page": "1", "limit": "10"})
+    )
+    unknown_response = _FrameworkQueryView.as_view()(
+        factory.get("/", {"status": "active", "legacyStatus": "active"})
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"status": "active"}
+    assert unknown_response.status_code == 400
+    assert unknown_response.data["details"] == {"legacyStatus": ["Unknown field."]}
+
+
 def test_validated_request_supports_function_based_views():
     factory = APIRequestFactory()
 
@@ -312,7 +345,76 @@ def test_validated_request_rejects_invalid_many_responses():
     response = _BadListResponseView.as_view()(factory.get("/"))
 
     assert response.status_code == 400
-    assert "name" in response.data[0]
+    assert response.data["status"] is False
+    assert response.data["code"] == "required"
+    assert response.data["type"] == "validation_error"
+    assert response.data["attr"] == "0.name"
+    assert response.data["detail"] == "name: This field is required."
+    assert response.data["message"] == "name: This field is required."
+    assert response.data["details"] == {"0.name": ["This field is required."]}
+
+
+def test_error_envelope_preserves_display_alias_and_extra_context():
+    response = build_error_envelope(
+        "Too many requests",
+        status_code=429,
+        extra={"retry_after": 30},
+    )
+
+    assert response["status"] is False
+    assert response["type"] == "rate_limit"
+    assert response["code"] == "rate_limited"
+    assert response["detail"] == "Too many requests"
+    assert response["message"] == "Too many requests"
+    assert response["error"] == "Too many requests"
+    assert response["result"] == "Too many requests"
+    assert response["retry_after"] == 30
+
+
+def test_error_envelope_preserves_details_attr_and_extra_metadata():
+    response = build_error_envelope(
+        {"field": ["Invalid value."]},
+        status_code=400,
+        details={"field": ["Invalid value."]},
+        extra={"request_id": "req_123"},
+    )
+
+    assert response["status"] is False
+    assert response["type"] == "validation_error"
+    assert response["code"] == "invalid"
+    assert response["detail"] == "field: Invalid value."
+    assert response["message"] == "field: Invalid value."
+    assert response["error"] == "field: Invalid value."
+    assert response["result"] == "field: Invalid value."
+    assert response["attr"] == "field"
+    assert response["details"] == {"field": ["Invalid value."]}
+    assert response["request_id"] == "req_123"
+
+
+def test_usage_limit_response_uses_common_error_envelope():
+    response = GeneralMethods().usage_limit_response(
+        SimpleNamespace(
+            reason="AI credit limit reached",
+            error_code="AI_CREDIT_LIMIT",
+            dimension="ai_credits",
+            current_usage=101,
+            limit=100,
+            upgrade_cta=None,
+        )
+    )
+
+    assert response.status_code == 402
+    assert response.data["status"] is False
+    assert response.data["type"] == "payment_required"
+    assert response.data["code"] == "AI_CREDIT_LIMIT"
+    assert response.data["detail"] == "AI credit limit reached"
+    assert response.data["message"] == "AI credit limit reached"
+    assert response.data["error"] == "AI credit limit reached"
+    assert response.data["result"] == "AI credit limit reached"
+    assert response.data["error_code"] == "AI_CREDIT_LIMIT"
+    assert response.data["dimension"] == "ai_credits"
+    assert response.data["current_usage"] == 101
+    assert response.data["limit"] == 100
 
 
 def test_core_management_endpoints_have_runtime_backed_contracts():

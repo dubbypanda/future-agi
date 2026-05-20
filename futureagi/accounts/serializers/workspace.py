@@ -206,9 +206,7 @@ class PaginationSerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1, default=1)
     limit = serializers.IntegerField(min_value=1, max_value=100, default=10)
     search = serializers.CharField(required=False, allow_blank=True, default="")
-    sort = serializers.ListField(
-        child=serializers.CharField(), required=False, default=list
-    )
+    sort = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class WorkspaceListRequestSerializer(PaginationSerializer):
@@ -220,9 +218,18 @@ class WorkspaceListRequestSerializer(PaginationSerializer):
 class UserListRequestSerializer(PaginationSerializer):
     """Serializer for user list request with additional filters"""
 
+    workspace_id = serializers.UUIDField(required=False)
     filter_status = serializers.ListField(
         child=serializers.ChoiceField(
-            choices=["Active", "Inactive", "Request Pending", "Request Expired"]
+            choices=[
+                "All status",
+                "Active",
+                "Inactive",
+                "Pending",
+                "Expired",
+                "Request Pending",
+                "Request Expired",
+            ]
         ),
         required=False,
         default=list,

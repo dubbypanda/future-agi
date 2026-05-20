@@ -28,6 +28,7 @@ from mcp_server.serializers.contracts import (
     MCPOAuthApproveRequestSerializer,
     MCPOAuthRedirectResponseSerializer,
 )
+from tfc.utils.api_errors import build_error_envelope
 
 logger = structlog.get_logger(__name__)
 
@@ -52,14 +53,17 @@ class MCPOAuthApproveInfoView(APIView):
         request_id = request.query_params.get("request_id")
         if not request_id:
             return Response(
-                {"status": False, "error": "Missing request_id"},
+                build_error_envelope("Missing request_id", status_code=400),
                 status=400,
             )
 
         data = cache.get(f"{APPROVE_PREFIX}{request_id}")
         if data is None:
             return Response(
-                {"status": False, "error": "Approval request not found or expired"},
+                build_error_envelope(
+                    "Approval request not found or expired",
+                    status_code=404,
+                ),
                 status=404,
             )
 
@@ -125,20 +129,23 @@ class MCPOAuthApproveView(APIView):
 
         if not request_id:
             return Response(
-                {"status": False, "error": "Missing request_id"},
+                build_error_envelope("Missing request_id", status_code=400),
                 status=400,
             )
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"},
+                build_error_envelope("No organization context", status_code=403),
                 status=403,
             )
 
         data = cache.get(f"{APPROVE_PREFIX}{request_id}")
         if data is None:
             return Response(
-                {"status": False, "error": "Approval request not found or expired"},
+                build_error_envelope(
+                    "Approval request not found or expired",
+                    status_code=404,
+                ),
                 status=404,
             )
 

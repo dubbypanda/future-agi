@@ -2,6 +2,7 @@ import json
 import uuid
 from pathlib import Path
 
+from django.http import QueryDict
 from django.urls import reverse
 
 from model_hub.models.choices import AnnotatorRole
@@ -13,6 +14,7 @@ from model_hub.serializers.annotation_queues import (
     DiscussionCommentRequestSerializer,
     DiscussionReactionRequestSerializer,
     QueueForSourceQuerySerializer,
+    QueueItemListQuerySerializer,
     ReviewItemRequestSerializer,
     SelectionSerializer,
     SubmitAnnotationsSerializer,
@@ -363,6 +365,27 @@ class TestAnnotationApiContract:
             _query_params("/model-hub/scores/for-source/", "get")
         )
 
+    def test_queue_item_list_query_preserves_repeated_multi_select_filters(self):
+        query = QueryDict(
+            "status=pending&status=completed&status=pending"
+            "&source_type=trace,dataset_row&source_type=trace&assigned_to=me"
+        )
+
+        serializer = QueueItemListQuerySerializer(data=query)
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["status"] == ["pending", "completed"]
+        assert serializer.validated_data["source_type"] == ["trace", "dataset_row"]
+        assert serializer.validated_data["assigned_to"] == "me"
+
+    def test_queue_item_list_query_rejects_unknown_legacy_params(self):
+        serializer = QueueItemListQuerySerializer(
+            data=QueryDict("sourceType=trace&status=pending")
+        )
+
+        assert not serializer.is_valid()
+        assert "sourceType" in serializer.errors
+
     def test_general_methods_error_envelope_is_uniform(self):
         gm = GeneralMethods()
 
@@ -370,12 +393,21 @@ class TestAnnotationApiContract:
         assert bad_request.data["status"] is False
         assert bad_request.data["result"] == "Bad input"
         assert bad_request.data["message"] == "Bad input"
+        assert bad_request.data["detail"] == "Bad input"
+        assert bad_request.data["error"] == "Bad input"
+        assert bad_request.data["type"] == "validation_error"
+        assert bad_request.data["code"] == "invalid"
         assert "details" not in bad_request.data
 
         validation_error = gm.bad_request({"name": ["This field is required."]})
         assert validation_error.data["status"] is False
         assert validation_error.data["result"] == "name: This field is required."
         assert validation_error.data["message"] == "name: This field is required."
+        assert validation_error.data["detail"] == "name: This field is required."
+        assert validation_error.data["error"] == "name: This field is required."
+        assert validation_error.data["type"] == "validation_error"
+        assert validation_error.data["code"] == "invalid"
+        assert validation_error.data["attr"] == "name"
         assert validation_error.data["details"] == {
             "name": ["This field is required."]
         }
@@ -384,12 +416,20 @@ class TestAnnotationApiContract:
         assert custom_error.data["status"] is False
         assert custom_error.data["result"] == "Already running"
         assert custom_error.data["message"] == "Already running"
+        assert custom_error.data["detail"] == "Already running"
+        assert custom_error.data["error"] == "Already running"
+        assert custom_error.data["type"] == "conflict"
+        assert custom_error.data["code"] == "conflict"
 
         custom_validation_error = gm.custom_error_response(
             409, {"error": "Already running"}
         )
         assert custom_validation_error.data["result"] == "Already running"
         assert custom_validation_error.data["message"] == "Already running"
+        assert custom_validation_error.data["detail"] == "Already running"
+        assert custom_validation_error.data["error"] == "Already running"
+        assert custom_validation_error.data["type"] == "conflict"
+        assert custom_validation_error.data["code"] == "conflict"
         assert custom_validation_error.data["details"] == {
             "error": ["Already running"]
         }

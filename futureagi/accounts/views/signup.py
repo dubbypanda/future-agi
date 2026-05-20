@@ -131,16 +131,14 @@ def verify_recaptcha(token):
 def user_signup(request):
     try:
         data = request.validated_data
-        recaptcha_token = request.data.get("recaptcha-response") or data.get(
-            "recaptcha_response"
-        )
+        recaptcha_token = data.get("recaptcha_response", "")
         logger.info(
             "signup_request",
             host=request.get_host(),
             payload={
                 k: v
                 for k, v in request.data.items()
-                if k not in ("password", "recaptcha-response")
+                if k not in ("password", "recaptcha_response")
             },
         )
 
@@ -163,10 +161,7 @@ def user_signup(request):
         if not is_local:
             if not verify_recaptcha(recaptcha_token):
                 logger.error("recaptcha verification failed")
-                return Response(
-                    {"error": "reCAPTCHA verification failed"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return _gm.bad_request("reCAPTCHA verification failed")
             else:
                 logger.info("recaptcha verification passed")
         else:
@@ -181,17 +176,9 @@ def user_signup(request):
             "email",
             "full_name",
             "company_name",
-            "recaptcha-response",
             "allow_email",
         }
-        sanitized_data = {
-            k: v
-            for k, v in {
-                **data,
-                "recaptcha-response": recaptcha_token,
-            }.items()
-            if k in allowed_fields
-        }
+        sanitized_data = {k: v for k, v in data.items() if k in allowed_fields}
         first_signup(sanitized_data)
 
         return _gm.success_response(
@@ -250,9 +237,8 @@ def activate_account(request, uidb64, token):
     rate_key = f"activate_account_rate:{ip}"
     attempts = cache.get(rate_key, 0)
     if attempts >= 10:
-        return Response(
-            {"error": "Too many activation attempts. Please try again later."},
-            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        return _gm.too_many_requests(
+            "Too many activation attempts. Please try again later."
         )
     cache.set(rate_key, attempts + 1, timeout=60)
 
@@ -313,21 +299,14 @@ def activate_account(request, uidb64, token):
                 status=status.HTTP_200_OK,
             )
         else:
-            return Response(
-                {"error": "Activation link is invalid or has expired."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Activation link is invalid or has expired.")
 
     except User.DoesNotExist:
-        return Response(
-            {"error": "User does not exist."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return _gm.bad_request("User does not exist.")
     except Exception:
         logger.exception("Error during account activation")
-        return Response(
-            {"error": "An error occurred during account activation."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        return _gm.internal_server_error_response(
+            "An error occurred during account activation."
         )
 
 
@@ -557,10 +536,7 @@ def accept_invitation_mail(request, uidb64, token):
         user = User.objects.select_related("organization").get(pk=uid)
 
         if not default_token_generator.check_token(user, token):
-            return Response(
-                {"error": "Invitation link is invalid or has expired."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Invitation link is invalid or has expired.")
 
         # ------------------------------------------------------------------
         # Check if invite was cancelled - OrganizationInvite must be pending
@@ -569,10 +545,7 @@ def accept_invitation_mail(request, uidb64, token):
 
         org = user.organization
         if not org:
-            return Response(
-                {"error": "Invitation link is invalid or has expired."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Invitation link is invalid or has expired.")
 
         invite_exists = OrganizationInvite.objects.filter(
             target_email__iexact=user.email,
@@ -581,10 +554,7 @@ def accept_invitation_mail(request, uidb64, token):
         ).exists()
 
         if not invite_exists:
-            return Response(
-                {"error": "This invitation has been cancelled or expired."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("This invitation has been cancelled or expired.")
 
         # ------------------------------------------------------------------
         # Security check: If another user is logged in, reject the request.
@@ -597,12 +567,10 @@ def accept_invitation_mail(request, uidb64, token):
                 token_data = decrypt_message(access_token)
                 authenticated_user_id = token_data.get("user_id")
                 if authenticated_user_id and str(authenticated_user_id) != str(user.id):
-                    return Response(
-                        {
-                            "code": "authenticated_user_mismatch",
-                            "error": "You are logged in as a different user. Please logout first to use this invitation link.",
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
+                    return _gm.custom_error_response(
+                        status.HTTP_403_FORBIDDEN,
+                        "You are logged in as a different user. Please logout first to use this invitation link.",
+                        code="authenticated_user_mismatch",
                     )
             except Exception:
                 # Token decryption failed - ignore and continue (treat as unauthenticated)
@@ -632,24 +600,15 @@ def accept_invitation_mail(request, uidb64, token):
         repeat_password = request.validated_data.get("repeat_password")
 
         if not new_password or not repeat_password:
-            return Response(
-                {"error": "Both password fields are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Both password fields are required.")
 
         if new_password != repeat_password:
-            return Response(
-                {"error": "Passwords do not match."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Passwords do not match.")
 
         try:
             validate_password(new_password)
         except ValidationError as e:
-            return Response(
-                {"error": "\n".join(e.messages)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("\n".join(e.messages))
 
         user.password = make_password(new_password)
         user.is_active = True
@@ -731,17 +690,13 @@ def accept_invitation_mail(request, uidb64, token):
         )
 
     except User.DoesNotExist:
-        return Response(
-            {
-                "error": "An Error Occured! Please ask your Administrator to Resend Invitation Link"
-            },
-            status=status.HTTP_400_BAD_REQUEST,
+        return _gm.bad_request(
+            "An Error Occured! Please ask your Administrator to Resend Invitation Link"
         )
     except Exception:
         logger.exception("Error processing invitation acceptance")
-        return Response(
-            {"error": "An error occurred while processing the invitation."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        return _gm.internal_server_error_response(
+            "An error occurred while processing the invitation."
         )
 
 
@@ -848,10 +803,7 @@ def delete_users(request):
     # Validate that user is not trying to delete themselves
     for user_id in user_ids:
         if user_id == str(request.user.id):
-            return Response(
-                {"error": "Cannot delete your own account. Please try again."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("Cannot delete your own account. Please try again.")
 
     organization = getattr(request, "organization", None) or request.user.organization
     actor_membership = get_org_membership(request.user)
@@ -1011,9 +963,7 @@ def update_user_full_name(request):
     try:
         user = User.objects.get(pk=request.user.id)
     except User.DoesNotExist:
-        return Response(
-            {"error": "User does not exist."}, status=status.HTTP_404_NOT_FOUND
-        )
+        return _gm.not_found("User does not exist.")
 
     # Extract data from the request
     name = request.validated_data.get("name")
@@ -1051,13 +1001,9 @@ def get_user_profile_details(request):
             status=status.HTTP_200_OK,
         )
     except User.DoesNotExist:
-        return Response(
-            {"error": "User does not exist."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return _gm.not_found("User does not exist.")
     except Exception:
         logger.exception("Error retrieving user profile")
-        return Response(
-            {"error": "An error occurred while retrieving profile."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        return _gm.internal_server_error_response(
+            "An error occurred while retrieving profile."
         )

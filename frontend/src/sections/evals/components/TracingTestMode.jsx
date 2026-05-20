@@ -208,6 +208,16 @@ const normalizeRowType = (value) => {
   return "Span";
 };
 
+export const buildTracingPreviewListParams = ({
+  selectedProjectId,
+  effectiveFilters,
+}) => ({
+  project_id: selectedProjectId,
+  page_number: 0,
+  page_size: 50,
+  filters: JSON.stringify(effectiveFilters || []),
+});
+
 const TracingTestMode = React.forwardRef(
   (
     {
@@ -475,13 +485,10 @@ const TracingTestMode = React.forwardRef(
           }
 
           let endpoint;
-          const params = {
-            project_id: selectedProjectId,
-            page_number: 0,
-            page_size: 50,
-            filters: JSON.stringify(effectiveFilters || []),
-            interval: "year",
-          };
+          const params = buildTracingPreviewListParams({
+            selectedProjectId,
+            effectiveFilters,
+          });
 
           if (rowType === "Span") {
             endpoint = endpoints.project.getSpansForObserveProject();
@@ -711,7 +718,7 @@ const TracingTestMode = React.forwardRef(
       if (!currentRow) return [];
       if (!columns.length) {
         // No column config — use all row keys directly. canonicalEntries
-        // drops the camelCase aliases the axios interceptor attaches so
+        // drops legacy camelCase aliases attaches so
         // each backend field only appears once.
         return canonicalEntries(currentRow).map(([key, val]) => ({
           key,
@@ -1497,8 +1504,7 @@ const TracingTestMode = React.forwardRef(
             {/* Rows — iterate span detail keys, flatten span_attributes */}
             <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
               {(() => {
-                // canonicalEntries skips the camelCase aliases the axios
-                // interceptor adds — otherwise every field shows up twice
+                // canonicalEntries skips the camelCase aliases that may exist in legacy objects — otherwise every field shows up twice
                 // in the span detail table.
                 const raw = canonicalEntries(spanDetail).filter(
                   ([key]) => key !== "spans",

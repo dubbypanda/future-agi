@@ -232,8 +232,8 @@ export const formatTaskFilters = (filters_applied) => {
   // row per value. The backend contract only accepts task-scoping keys such
   // as observation_type; span attributes stay in `span_attributes_filters`.
   //
-  // canonicalEntries (not Object.entries) drops the camelCase aliases the
-  // axios interceptor auto-attaches alongside every snake_case key.
+  // canonicalEntries (not Object.entries) drops legacy camelCase aliases
+  // that may exist beside snake_case keys.
   const systemFilters = [];
   canonicalEntries(filters_applied).forEach(([key, vals]) => {
     if (RESERVED_FILTER_KEYS.has(key)) return;
@@ -317,5 +317,10 @@ export const useGetTaskData = (taskId, options) => {
     queryKey: ["taskDetails", taskId],
     queryFn: () => axios.get(endpoints.project.getEvalTaskDetails(taskId)),
     select: (d) => d?.data?.result,
+    retry: (failureCount, error) => {
+      const status = error?.statusCode || error?.response?.status;
+      if (status === 400 || status === 404) return false;
+      return failureCount < 1;
+    },
   });
 };

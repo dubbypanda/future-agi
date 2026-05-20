@@ -17,6 +17,7 @@ from mcp_server.serializers.contracts import (
     MCPAnalyticsToolsResponseSerializer,
     MCPErrorResponseSerializer,
 )
+from tfc.utils.api_errors import build_error_envelope
 
 
 class MCPAnalyticsSummaryView(APIView):
@@ -34,7 +35,8 @@ class MCPAnalyticsSummaryView(APIView):
         )
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         days = int(request.query_params.get("days", 7))
@@ -93,7 +95,8 @@ class MCPAnalyticsToolsView(APIView):
         )
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         days = int(request.query_params.get("days", 7))
@@ -145,7 +148,8 @@ class MCPAnalyticsTimelineView(APIView):
         )
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         days = int(request.query_params.get("days", 7))

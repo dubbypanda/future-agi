@@ -381,6 +381,26 @@ class TestListItems:
             str(item.id) for item in created_items
         ]
 
+    def test_list_items_accepts_pagination_with_ordering(
+        self, auth_client, queue, dataset_with_rows
+    ):
+        """DRF owns page/limit while the query serializer owns business params."""
+        _, rows = dataset_with_rows
+        self._add_rows(auth_client, queue, rows)
+
+        resp = auth_client.get(
+            items_url(queue),
+            {
+                "ordering": "-created_at",
+                "page": 1,
+                "limit": 2,
+            },
+        )
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["count"] == 3
+        assert len(resp.data["results"]) == 2
+
 
 # ---------------------------------------------------------------------------
 # 2A.3 – Remove Items

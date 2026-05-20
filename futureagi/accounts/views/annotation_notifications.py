@@ -34,6 +34,7 @@ from accounts.serializers.contracts import (
     TimezoneResponseSerializer,
 )
 from tfc.utils.api_contracts import validated_request
+from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
 
@@ -59,6 +60,7 @@ class UserTimezoneView(APIView):
     """Capture the browser's IANA timezone for the authenticated user."""
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @validated_request(
         request_serializer=TimezoneRequestSerializer,
@@ -68,10 +70,7 @@ class UserTimezoneView(APIView):
     def post(self, request):
         tz_name = request.validated_data["timezone"]
         if not _is_valid_iana_tz(tz_name):
-            return Response(
-                {"detail": "Invalid timezone."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._gm.bad_request("Invalid timezone.")
         user = request.user
         if getattr(user, "last_timezone", None) != tz_name:
             user.last_timezone = tz_name

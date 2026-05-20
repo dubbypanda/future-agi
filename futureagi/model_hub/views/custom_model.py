@@ -19,10 +19,10 @@ from model_hub.serializers.contracts import (
     CustomAIModelBaselineRequestSerializer,
     CustomAIModelCreateRequestSerializer,
     CustomAIModelCreateResponseSerializer,
-    CustomAIModelDeleteRequestSerializer,
     CustomAIModelDefaultMetricRequestSerializer,
-    CustomAIModelEditResponseSerializer,
+    CustomAIModelDeleteRequestSerializer,
     CustomAIModelEditRequestSerializer,
+    CustomAIModelEditResponseSerializer,
     CustomAIModelUpdateRequestSerializer,
     ModelHubPaginatedResponseSerializer,
     ModelHubStatusMessageResponseSerializer,
@@ -35,8 +35,9 @@ from model_hub.serializers.custom_models import (
 from model_hub.utils.azure_endpoints import normalize_azure_custom_model_config
 from model_hub.utils.clickhouse import get_model_volume
 from model_hub.utils.utils import validate_model_working
-from tfc.utils.error_codes import get_error_message
 from tfc.utils.api_contracts import validated_request
+from tfc.utils.api_errors import build_error_envelope
+from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
 
@@ -265,9 +266,7 @@ class CustomAIModelDetailsView(APIView):
             organization=user_organization, id=id
         ).first()
         if not ai_model:
-            return Response(
-                {"status": "error", "message": "Custom AI model not found"}, status=404
-            )
+            return self._gm.not_found("Custom AI model not found")
         ai_model_serializer = CustomAIModelSerializer(ai_model)
         # meta_properties = get_model_details(ai_model, user_organization)
         return Response({**ai_model_serializer.data})
@@ -288,10 +287,7 @@ class CustomAIModelDetailsView(APIView):
                 organization=user_organization, id=id
             ).first()
             if not ai_model:
-                return Response(
-                    {"status": "error", "message": "Custom AI model not found"},
-                    status=404,
-                )
+                return self._gm.not_found("Custom AI model not found")
             new_model_name = data.get("model_name")
             if (
                 new_model_name
@@ -316,7 +312,7 @@ class CustomAIModelDetailsView(APIView):
             return Response({**ai_model_serializer.data}, status=200)
 
         except Exception as e:
-            return Response({"detail": str(e)}, status=400)
+            return Response(build_error_envelope(str(e), status_code=400), status=400)
 
 
 class UpdateMetricCustomAIModelView(APIView):
@@ -354,9 +350,7 @@ class UpdateMetricCustomAIModelView(APIView):
             )
 
         except CustomAIModel.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Custom AI model not found"}, status=404
-            )
+            return GeneralMethods().not_found("Custom AI model not found")
 
 
 class UpdateBaselineDatasetCustomAIModelView(APIView):
@@ -394,9 +388,7 @@ class UpdateBaselineDatasetCustomAIModelView(APIView):
             )
 
         except CustomAIModel.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "AI model not found"}, status=404
-            )
+            return GeneralMethods().not_found("AI model not found")
 
 
 class CustomAIModelListView(APIView):

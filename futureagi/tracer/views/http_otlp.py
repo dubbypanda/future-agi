@@ -10,7 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.authentication import APIKeyAuthentication, LangfuseBasicAuthentication
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tfc.utils.error_codes import get_error_message
+from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.payload_storage import PAYLOAD_DEFAULT_TTL, payload_storage
 from tracer.utils.parsers import ProtobufParser
 from tracer.utils.trace_ingestion import bulk_create_observation_span_task
@@ -30,8 +32,8 @@ class OTLPHTTPTraceResponseSerializer(serializers.Serializer):
     pass
 
 
-class OTLPHTTPErrorResponseSerializer(serializers.Serializer):
-    detail = serializers.CharField()
+class OTLPHTTPErrorResponseSerializer(ApiTextErrorResponseSerializer):
+    pass
 
 
 class OTLPTraceHTTPView(APIView):
@@ -45,9 +47,13 @@ class OTLPTraceHTTPView(APIView):
     parser_classes = [ProtobufParser, JSONParser]
     authentication_classes = [LangfuseBasicAuthentication, APIKeyAuthentication]
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         request_body=OTLP_HTTP_REQUEST_SCHEMA,
+        # This compatibility endpoint accepts OTLP JSON and protobuf payloads.
+        # Runtime validation is handled by the configured protocol parsers.
+        runtime_request_validation=True,
         responses={
             200: OTLPHTTPTraceResponseSerializer,
             403: OTLPHTTPErrorResponseSerializer,
@@ -61,10 +67,7 @@ class OTLPTraceHTTPView(APIView):
         try:
             user = request.user
             if not hasattr(user, "organization") or not user.organization:
-                return Response(
-                    {"detail": "User has no organization."},
-                    status=403,
-                )
+                return self._gm.forbidden_response("User has no organization.")
 
             organization_id = (
                 getattr(request, "organization", None) or user.organization
@@ -91,7 +94,6 @@ class OTLPTraceHTTPView(APIView):
 
         except Exception as e:
             logger.exception(f"Error in creating observation span (HTTP): {str(e)}")
-            return Response(
-                {"detail": get_error_message("FAILED_CREATION_OBSERVATION_SPAN")},
-                status=500,
+            return self._gm.internal_server_error_response(
+                get_error_message("FAILED_CREATION_OBSERVATION_SPAN")
             )

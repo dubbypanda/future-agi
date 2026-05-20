@@ -177,7 +177,6 @@ const DatasetOptimizationRunList = ({
       filter: false,
       resizable: true,
       suppressMenu: true,
-      suppressMultiSort: true,
       cellStyle: {
         display: "flex",
         justifyContent: "flex-start",

@@ -39,17 +39,12 @@ def observe_project(db, organization, workspace):
 
 
 @pytest.fixture
-def active_queue(db, auth_client):
-    resp = auth_client.post(
-        "/model-hub/annotation-queues/",
-        {"name": "Bulk Test Queue"},
-        format="json",
+def active_queue(db, organization, workspace):
+    return AnnotationQueue.objects.create(
+        name="Bulk Test Queue",
+        organization=organization,
+        workspace=workspace,
     )
-    assert resp.status_code == 201, resp.data
-    # Some endpoints wrap the body in {"result": {...}}, others return the
-    # object directly — handle both.
-    body = resp.data.get("result", resp.data) if isinstance(resp.data, dict) else resp.data
-    return AnnotationQueue.objects.get(id=body["id"])
 
 
 def _add_items_url(queue_id):
@@ -221,6 +216,9 @@ class TestAddItemsFilterMode:
             views_mod.MAX_SELECTION_CAP = original_cap
 
         assert resp.status_code == 400, resp.data
+        assert resp.data.get("type") == "selection_too_large"
+        assert resp.data.get("code") == "selection_too_large"
+        assert resp.data.get("detail")
         err = resp.data.get("error") or {}
         assert err.get("type") == "selection_too_large"
         assert err.get("total_matching") == 3
@@ -502,6 +500,8 @@ class TestAddItemsFilterModeSpan:
             views_mod.MAX_SELECTION_CAP = original_cap
 
         assert resp.status_code == 400, resp.data
+        assert resp.data.get("type") == "selection_too_large"
+        assert resp.data.get("code") == "selection_too_large"
         err = resp.data.get("error") or {}
         assert err.get("type") == "selection_too_large"
         assert err.get("total_matching") == 3
@@ -677,6 +677,8 @@ class TestAddItemsFilterModeSession:
         finally:
             views_mod.MAX_SELECTION_CAP = original_cap
         assert resp.status_code == 400, resp.data
+        assert resp.data.get("type") == "selection_too_large"
+        assert resp.data.get("code") == "selection_too_large"
         err = resp.data.get("error") or {}
         assert err.get("type") == "selection_too_large"
         assert err.get("total_matching") == 3
@@ -783,6 +785,8 @@ class TestAddItemsFilterModeCallExecution:
         finally:
             views_mod.MAX_SELECTION_CAP = original_cap
         assert resp.status_code == 400, resp.data
+        assert resp.data.get("type") == "selection_too_large"
+        assert resp.data.get("code") == "selection_too_large"
         err = resp.data.get("error") or {}
         assert err.get("type") == "selection_too_large"
         assert err.get("total_matching") == 3

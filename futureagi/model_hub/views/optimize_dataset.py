@@ -28,8 +28,8 @@ from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
     ModelHubEmptyRequestSerializer,
     OptimizeDatasetColumnConfigResponseSerializer,
-    OptimizeDatasetColumnConfigUpdateResponseSerializer,
     OptimizeDatasetColumnConfigUpdateRequestSerializer,
+    OptimizeDatasetColumnConfigUpdateResponseSerializer,
     OptimizeDatasetCreateResponseSerializer,
     OptimizeDatasetDetailResponseSerializer,
     OptimizeDatasetKnowledgeBaseCreateResponseSerializer,
@@ -149,19 +149,12 @@ class OptimizedDatasetView(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         except AIModel.DoesNotExist:
-            raise NotFound("AI model not found.")
+            raise NotFound("AI model not found.") from None
         except NotFound:
             raise
         except Exception as e:
             logger.error(e)
-            return Response(
-                {
-                    "status": "Failed",
-                    "message": str(e),
-                    "data": None,
-                },
-                status=500,
-            )
+            return GeneralMethods().internal_server_error_response(str(e))
 
     @validated_request(
         request_serializer=OptimizeDatasetMutationRequestSerializer,
@@ -285,14 +278,7 @@ class OptimizedDatasetView(APIView):
             )
         except Exception as e:
             logger.error(e)
-            return Response(
-                {
-                    "status": "Failed",
-                    "message": str(e),
-                    "data": None,
-                },
-                status=500,
-            )
+            return GeneralMethods().internal_server_error_response(str(e))
 
 
 class OptimizeDetailView(APIView):
@@ -342,14 +328,7 @@ class KOptimizedPromptTemplateView(APIView):
             )
 
         except Exception as e:
-            return Response(
-                {
-                    "status": "Failed",
-                    "message": str(e),
-                    "data": None,
-                },
-                status=500,
-            )
+            return GeneralMethods().internal_server_error_response(str(e))
 
 
 class RightAnswerResultsView(APIView):
@@ -838,14 +817,7 @@ class TemplateResultsView(APIView):
                 status=200,
             )
         except Exception as e:
-            return Response(
-                {
-                    "status": "Failed",
-                    "message": str(e),
-                    "data": None,
-                },
-                status=500,
-            )
+            return GeneralMethods().internal_server_error_response(str(e))
 
 
 class TemplateExploreView(APIView):

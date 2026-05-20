@@ -111,6 +111,9 @@ class OTLPTraceView(APIView):
 
     @swagger_auto_schema(
         request_body=OTLP_TRACE_REQUEST_SCHEMA,
+        # OTLP accepts JSON, gzip, and binary protobuf. Request validation is
+        # implemented by _parse_request instead of DRF serializer binding.
+        runtime_request_validation=True,
         responses={
             200: OTLPTraceResponseSerializer,
             400: OTLPTraceResponseSerializer,

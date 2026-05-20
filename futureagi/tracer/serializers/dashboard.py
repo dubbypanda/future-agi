@@ -2,7 +2,11 @@ from rest_framework import serializers
 
 from accounts.serializers.user import UserSerializer
 from tracer.models.dashboard import Dashboard, DashboardWidget
-from tracer.serializers.filters import StrictInputSerializer, filter_list_field
+from tracer.serializers.filters import (
+    JsonValueField,
+    StrictInputSerializer,
+    filter_list_field,
+)
 
 
 DASHBOARD_METRIC_TYPES = (
@@ -346,6 +350,35 @@ class DashboardQueryResultSerializer(serializers.Serializer):
 class DashboardQueryApiResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(default=True)
     result = DashboardQueryResultSerializer()
+
+
+class DashboardMetricCatalogItemSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    display_name = serializers.CharField(required=False, allow_blank=True)
+    category = serializers.CharField(required=False, allow_blank=True)
+    source = serializers.CharField(required=False, allow_blank=True)
+    sources = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    type = serializers.CharField(required=False, allow_blank=True)
+    unit = serializers.CharField(required=False, allow_blank=True)
+    output_type = serializers.CharField(required=False, allow_blank=True)
+    choices = serializers.ListField(
+        child=JsonValueField(), required=False, allow_empty=True
+    )
+    allowed_aggregations = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    data_type = serializers.CharField(required=False, allow_blank=True)
+
+
+class DashboardMetricsCatalogResultSerializer(serializers.Serializer):
+    metrics = DashboardMetricCatalogItemSerializer(many=True)
+
+
+class DashboardMetricsCatalogResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = DashboardMetricsCatalogResultSerializer()
 
 
 class CommaSeparatedListField(serializers.Field):

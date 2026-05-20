@@ -46,10 +46,7 @@ class AllMetricApiView(APIView):
         try:
             AIModel.objects.get(id=model_id, organization=organization)
         except AIModel.DoesNotExist:
-            return Response(
-                {"error": "Model with given id not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return GeneralMethods().not_found("Model with given id not found.")
 
         all_metrics = (
             Metric.objects.filter(model=model_id)
@@ -103,10 +100,7 @@ class MetricApiView(APIView):
         try:
             AIModel.objects.get(id=model_id, organization=organization)
         except AIModel.DoesNotExist:
-            return Response(
-                {"error": "Model with given id not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return GeneralMethods().not_found("Model with given id not found.")
 
         # Add default ordering to the queryset
         all_metrics = Metric.objects.filter(model=model_id).order_by("-created_at")
@@ -211,9 +205,7 @@ class CreateMetricApiView(APIView):
             return Response({"status": "success"})
 
         except AIModel.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "AI model not found"}, status=404
-            )
+            return GeneralMethods().not_found("AI model not found")
 
 
 class EditMetricApiView(APIView):
@@ -313,9 +305,7 @@ class EditMetricApiView(APIView):
             return Response({"status": "success"})
 
         except Metric.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "Metric not found"}, status=404
-            )
+            return GeneralMethods().not_found("Metric not found")
 
 
 class GetMetricTagOptions(APIView):
@@ -328,9 +318,7 @@ class GetMetricTagOptions(APIView):
         metric = Metric.objects.filter(id=metric_id).values("tags")
 
         if metric[0] is None:
-            return Response(
-                {"status": "error", "message": "Metric not found"}, status=404
-            )
+            return GeneralMethods().not_found("Metric not found")
 
         tags = sorted(
             [{"label": tag, "value": tag} for tag in metric[0]["tags"]],
@@ -408,6 +396,4 @@ class TestMetric(APIView):
             return Response({"status": "success", "prompts": ai_prompt})
 
         except AIModel.DoesNotExist:
-            return Response(
-                {"status": "error", "message": "AI model not found"}, status=404
-            )
+            return GeneralMethods().not_found("AI model not found")

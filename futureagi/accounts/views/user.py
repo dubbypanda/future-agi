@@ -56,7 +56,8 @@ from model_hub.models.develop_dataset import Dataset
 from model_hub.models.evals_metric import UserEvalMetric
 from model_hub.models.experiments import ExperimentsTable
 from tfc.settings import settings
-from tfc.utils.api_contracts import validated_api_request
+from tfc.utils.api_contracts import validated_api_request, validated_request
+from tfc.utils.api_errors import build_error_envelope
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.project import Project
@@ -134,14 +135,16 @@ def manage_redis_key(request):
 class CustomTokenObtainPairView(TokenObtainPairView):
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=LoginRequestSerializer,
+    @validated_request(
+        request_serializer=LoginRequestSerializer,
         responses={200: AccountsTokenPairResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
         try:
-            email = request.data.get("email", "").lower()
-            remember_me = request.data.get("remember_me", False)
+            validated_data = request.validated_data
+            email = validated_data["email"].lower()
+            remember_me = validated_data.get("remember_me", False)
             client_ip, _ = get_client_ip(request)
 
             # Check if user is blocked
@@ -166,7 +169,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             failed_attempts = cache.get(attempts_key, 0)
 
             # Recaptcha verification
-            recaptcha_token = request.data.get("recaptcha-response")
+            recaptcha_token = validated_data.get("recaptcha_response", "")
             is_localhost = "localhost" in request.get_host()
             is_special_email = "futureagi" in email or "oodles" in email
 
@@ -182,8 +185,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 logger.info(
                     "recaptcha verification bypassed for localhost or special email"
                 )
-
-            request.data["email"] = email
 
             try:
                 # Query without is_active filter so we can distinguish
@@ -222,7 +223,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 logger.exception("login_config_save_failed", email=email)
 
             # --- Password check (must come before any token issuance) ---
-            password_entered = request.data.get("password")
+            password_entered = validated_data["password"]
             if password_entered and not check_password(password_entered, user.password):
                 failed_attempts += 1
                 cache.set(
@@ -445,21 +446,23 @@ class CustomTokenRefreshView(APIView):
     _gm = GeneralMethods()
     permission_classes = [AllowAny]
 
-    @swagger_auto_schema(
-        request_body=TokenRefreshRequestSerializer,
+    @validated_request(
+        request_serializer=TokenRefreshRequestSerializer,
         responses={
             200: AccountsAccessTokenResponseSerializer,
             **ACCOUNTS_ERROR_RESPONSES,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
         try:
+            validated_data = request.validated_data
             # Recaptcha verification
-            recaptcha_token = request.data.get("recaptcha-response")
+            recaptcha_token = validated_data.get("recaptcha_response", "")
             is_localhost = "localhost" in request.get_host()
             # Only allow localhost_bypass in DEBUG mode (security fix)
             localhost_bypass = (
-                request.data.get("localhost_bypass", False) and settings.DEBUG
+                validated_data.get("localhost_bypass", False) and settings.DEBUG
             )
 
             if not (is_localhost or localhost_bypass):
@@ -473,7 +476,7 @@ class CustomTokenRefreshView(APIView):
                     "Refresh recaptcha verification bypassed for localhost or special email"
                 )
 
-            encrypted_refresh_token = request.data.get("refresh")
+            encrypted_refresh_token = validated_data["refresh"]
             if not encrypted_refresh_token:
                 return self._gm.bad_request("Refresh token is required.")
 
@@ -564,7 +567,13 @@ def get_user_info(request):
         # Use select_related to avoid N+1 queries when accessing user.organization
         user = User.objects.select_related("organization").get(id=request.user.id)
     except User.DoesNotExist:
-        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            build_error_envelope(
+                "User not found.",
+                status_code=status.HTTP_404_NOT_FOUND,
+            ),
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     remember_me = user.config.get("remember_me", False)
     user_serializer = UserSerializer(user)

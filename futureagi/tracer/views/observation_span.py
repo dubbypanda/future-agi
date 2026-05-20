@@ -73,8 +73,12 @@ from tracer.models.project_version import ProjectVersion
 from tracer.models.span_notes import SpanNotes
 from tracer.models.trace import Trace
 from tracer.models.trace_session import TraceSession
-from tracer.serializers.filters import ObserveGraphDataRequestSerializer
+from tracer.serializers.filters import (
+    ObserveGraphDataRequestSerializer,
+    ObserveGraphDataResponseSerializer,
+)
 from tracer.serializers.observation_span import (
+    ObservationAttributeListResponseSerializer,
     ObservationAttributeListQuerySerializer,
     ObservationSpanSerializer,
     SpanExportQuerySerializer,
@@ -2439,7 +2443,10 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
 
         return self._gm.success_response(response)
 
-    @validated_request(request_serializer=ObserveGraphDataRequestSerializer)
+    @validated_request(
+        request_serializer=ObserveGraphDataRequestSerializer,
+        responses={200: ObserveGraphDataResponseSerializer},
+    )
     @action(detail=False, methods=["post"])
     def get_graph_methods(self, request, *args, **kwargs):
         """
@@ -2808,7 +2815,10 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             logger.exception(f"Error in fetching graph data: {str(e)}")
             return self._gm.bad_request(f"Error fetching graph data: {str(e)}")
 
-    @validated_request(query_serializer=ObservationAttributeListQuerySerializer)
+    @validated_request(
+        query_serializer=ObservationAttributeListQuerySerializer,
+        responses={200: ObservationAttributeListResponseSerializer},
+    )
     @action(detail=False, methods=["get"])
     def get_span_attributes_list(self, request, *args, **kwargs):
         """Distinct span_attributes keys for a project (spans surface).
@@ -2831,7 +2841,10 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 f"error fetching the span attributes list {str(e)}"
             )
 
-    @validated_request(query_serializer=ObservationAttributeListQuerySerializer)
+    @validated_request(
+        query_serializer=ObservationAttributeListQuerySerializer,
+        responses={200: ObservationAttributeListResponseSerializer},
+    )
     @action(detail=False, methods=["get"])
     def get_eval_attributes_list(self, request, *args, **kwargs):
         """Attribute paths the EvalPicker exposes per row_type.

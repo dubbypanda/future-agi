@@ -25,6 +25,7 @@ from mcp_server.usage_helpers import (
     record_usage,
     update_session_counters,
 )
+from tfc.utils.api_errors import build_error_envelope
 
 logger = structlog.get_logger(__name__)
 
@@ -50,7 +51,7 @@ class MCPToolCallView(APIView):
 
         if not tool_name:
             return Response(
-                {"status": False, "error": "tool_name is required"},
+                build_error_envelope("tool_name is required", status_code=400),
                 status=400,
             )
 
@@ -62,7 +63,7 @@ class MCPToolCallView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"},
+                build_error_envelope("No organization context", status_code=403),
                 status=403,
             )
 
@@ -70,7 +71,7 @@ class MCPToolCallView(APIView):
         tool = registry.get(tool_name)
         if not tool:
             return Response(
-                {"status": False, "error": f"Tool not found: {tool_name}"},
+                build_error_envelope(f"Tool not found: {tool_name}", status_code=404),
                 status=404,
             )
 
@@ -84,7 +85,11 @@ class MCPToolCallView(APIView):
             check_rate_limit(str(organization.id), tier)
         except RateLimitExceededError as e:
             return Response(
-                {"status": False, "error": str(e), "retry_after": e.retry_after},
+                build_error_envelope(
+                    str(e),
+                    status_code=429,
+                    extra={"retry_after": e.retry_after},
+                ),
                 status=429,
                 headers={"Retry-After": str(e.retry_after)},
             )
@@ -93,7 +98,10 @@ class MCPToolCallView(APIView):
         enabled_tools = get_enabled_tools(connection)
         if tool_name not in enabled_tools:
             return Response(
-                {"status": False, "error": f"Tool is disabled: {tool_name}"},
+                build_error_envelope(
+                    f"Tool is disabled: {tool_name}",
+                    status_code=403,
+                ),
                 status=403,
             )
 
@@ -154,7 +162,7 @@ class MCPToolCallView(APIView):
             )
 
             return Response(
-                {"status": False, "error": str(e)},
+                build_error_envelope(str(e), status_code=500),
                 status=500,
             )
 
@@ -177,7 +185,7 @@ class MCPToolListView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"},
+                build_error_envelope("No organization context", status_code=403),
                 status=403,
             )
 

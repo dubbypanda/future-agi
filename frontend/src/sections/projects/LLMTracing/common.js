@@ -569,7 +569,7 @@ export const getTraceListColumnDefs = (col) => {
     headerName: COLUMN_NAME_OVERRIDES[colId] || col.name,
     ...(isCustomColumn ? { colId: col.id } : { field: col.id }),
     hide: !col?.isVisible,
-    col,
+    context: { sourceColumn: col },
     minWidth: defaultMinWidth,
     flex: 1,
     resizable: true,
@@ -623,7 +623,7 @@ export const getTraceListColumnDefs = (col) => {
         // No renderer for empty values
         return null;
       }
-      const column = params?.colDef?.col;
+      const column = params?.colDef?.context?.sourceColumn;
       const colId = column?.id;
 
       if (RENDERER_CONFIG.nameColumns.includes(colId)) {

@@ -138,6 +138,26 @@ function normalizeGeneratedFileEndings() {
   }
 }
 
+function normalizeGeneratedQueryParamSerialization() {
+  if (!fs.existsSync(apiOutputPath)) return;
+  const content = fs.readFileSync(apiOutputPath, "utf8");
+  fs.writeFileSync(
+    apiOutputPath,
+    content.replaceAll(
+      `if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }`,
+      `if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }`,
+    ),
+  );
+}
+
 async function runGeneration(schemaPath) {
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
@@ -194,6 +214,7 @@ async function runGeneration(schemaPath) {
     },
   });
 
+  normalizeGeneratedQueryParamSerialization();
   normalizeGeneratedFileEndings();
 }
 

@@ -1065,7 +1065,7 @@ function DatasetRowContent({ content }) {
   const fieldTypes = content?.field_types || {};
   const datasetName = content?.dataset_name;
   const rowOrder = content?.row_order;
-  // canonicalKeys strips the camelCase aliases the axios interceptor
+  // canonicalKeys strips legacy camelCase aliases
   // adds next to any user-authored snake_case column names so a column
   // like `user_email` doesn't render twice in the annotation panel.
   const keys = canonicalKeys(fields);

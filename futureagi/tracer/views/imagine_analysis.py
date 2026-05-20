@@ -6,13 +6,14 @@ GET  /tracer/imagine-analysis/  — poll for results
 """
 
 import structlog
-from rest_framework import serializers, status
+from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiErrorResponseSerializer
+from tfc.utils.general_methods import GeneralMethods
 from tracer.models.imagine_analysis import ImagineAnalysis
 from tracer.models.saved_view import SavedView
 
@@ -62,6 +63,7 @@ class ImagineAnalysisResponseSerializer(serializers.Serializer):
 
 class ImagineAnalysisView(APIView):
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @validated_request(
         request_serializer=TriggerAnalysisSerializer,
@@ -79,10 +81,7 @@ class ImagineAnalysisView(APIView):
                 project_id=data["project_id"],
             )
         except SavedView.DoesNotExist:
-            return Response(
-                {"status": False, "error": "Saved view not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Saved view not found")
 
         results = []
         for widget in data["widgets"]:

@@ -91,9 +91,7 @@ const ConfigureProviders = () => {
   );
 
   const filteredData = data?.filter((d) =>
-    (d.display_name ?? d.displayName ?? "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase()),
+    (d.display_name ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const containerStyles = useMemo(

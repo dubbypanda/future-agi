@@ -420,7 +420,7 @@ export const useAddQueueItems = () => {
     onError: (error) => {
       // Filter-mode bulk add can exceed the backend cap; surface the
       // structured error so the user sees the exact count and limit.
-      const structured = error?.response?.data?.error;
+      const structured = error?.error || error?.response?.data?.error;
       if (structured?.type === "selection_too_large") {
         enqueueSnackbar(structured.message, { variant: "error" });
         return;
@@ -488,25 +488,21 @@ export const useQueueProgress = (queueId, options = {}) => {
   });
 };
 
-const getAssignmentUserId = (user) => user?.id ?? user?.user_id ?? user?.userId;
+const getAssignmentUserId = (user) => user?.id ?? user?.user_id;
 
 const normalizeAssignmentUser = (user, fallbackId) => {
   const id = String(getAssignmentUserId(user) ?? fallbackId ?? "");
   if (!id) return null;
+  const { user_id: _userId, ...assignmentUser } = user || {};
   return {
-    ...(user || {}),
+    ...assignmentUser,
     id,
-    user_id: user?.user_id ?? id,
     name: user?.name || user?.email || id,
   };
 };
 
 const optimisticAssignmentUsers = (variables, assignedUsers = []) => {
-  const ids = (
-    variables.userIds || (variables.userId ? [variables.userId] : [])
-  )
-    .map((id) => String(id))
-    .filter(Boolean);
+  const ids = (variables.userIds || []).map((id) => String(id)).filter(Boolean);
   const assignees = [...(variables.assignees || []), ...assignedUsers];
 
   return ids
@@ -615,12 +611,12 @@ const patchAssignmentCacheValue = (value, variables) => {
 export const useAssignQueueItems = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ queueId, itemIds, userId, userIds, action }) => {
-      const normalizedUserIds = userIds ?? (userId ? [userId] : []);
+    mutationFn: ({ queueId, itemIds, userIds, action }) => {
+      const normalizedUserIds = userIds ?? [];
       return axios.post(annotationQueueEndpoints.assignItems(queueId), {
         item_ids: itemIds,
         user_ids: normalizedUserIds,
-        action: action || (userIds ? "add" : "set"),
+        action: action || "add",
       });
     },
     onMutate: async (variables) => {

@@ -583,8 +583,7 @@ class MemberListAPIView(APIView):
         ALLOWED_SORT_FIELDS = {
             "name",
             "email",
-            "role",
-            "level",
+            "org_level",
             "status",
             "type",
             "date_joined",
@@ -595,7 +594,10 @@ class MemberListAPIView(APIView):
         sort_key = sort_field.lstrip("-")
         if sort_key not in ALLOWED_SORT_FIELDS:
             sort_key = "name"
-        combined.sort(key=lambda r: r.get(sort_key, ""), reverse=reverse)
+        combined.sort(
+            key=lambda r: (r.get(sort_key) is None, r.get(sort_key) or ""),
+            reverse=reverse,
+        )
 
         # Paginate
         page = params.get("page", 1)
@@ -1388,8 +1390,7 @@ class WorkspaceMemberListAPIView(APIView):
         ALLOWED_SORT_FIELDS = {
             "name",
             "email",
-            "role",
-            "level",
+            "ws_level",
             "status",
             "type",
             "date_joined",
@@ -1400,7 +1401,10 @@ class WorkspaceMemberListAPIView(APIView):
         sort_key = sort_field.lstrip("-")
         if sort_key not in ALLOWED_SORT_FIELDS:
             sort_key = "name"
-        results.sort(key=lambda r: r.get(sort_key, ""), reverse=reverse)
+        results.sort(
+            key=lambda r: (r.get(sort_key) is None, r.get(sort_key) or ""),
+            reverse=reverse,
+        )
 
         # Paginate
         page = params.get("page", 1)

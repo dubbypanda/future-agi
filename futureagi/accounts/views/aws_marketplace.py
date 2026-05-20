@@ -15,11 +15,11 @@ from accounts.aws_marketplace_utils import (
 )
 from accounts.serializers.contracts import (
     ACCOUNTS_ERROR_RESPONSES,
-    AWSMarketplaceLaunchRequestSerializer,
     AWSMarketplaceSignupRequestSerializer,
     AWSMarketplaceSignupResponseSerializer,
 )
 from accounts.services.aws_marketplace import AWSMarketplaceService
+from tfc.utils.api_contracts import validated_api_request
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -135,8 +135,16 @@ def aws_marketplace_verify_token(request):
     method="post",
     request_body=AWSMarketplaceSignupRequestSerializer,
     responses={200: AWSMarketplaceSignupResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+    runtime_request_validation=True,
+    runtime_response_validation=True,
 )
 @api_view(["POST"])
+@validated_api_request(
+    request_serializer=AWSMarketplaceSignupRequestSerializer,
+    responses={200: AWSMarketplaceSignupResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+    reject_unknown_fields=True,
+    document=False,
+)
 def aws_marketplace_signup(request):
     """
     Complete AWS Marketplace customer signup
@@ -145,14 +153,10 @@ def aws_marketplace_signup(request):
     for an AWS Marketplace customer.
     """
     try:
-        onboarding_token = request.data.get("onboarding_token")
-        email = request.data.get("email", None)
-        full_name = request.data.get("full_name", None)
-
-        if not all([email, full_name, onboarding_token]):
-            return _gm.bad_request(
-                "Email, full name, and onboarding token are required"
-            )
+        data = request.validated_data
+        onboarding_token = data["onboarding_token"]
+        email = data["email"]
+        full_name = data["full_name"]
 
         user_email = process_aws_onboarding(onboarding_token, email, full_name)
 
@@ -169,7 +173,7 @@ def aws_marketplace_signup(request):
 
 @swagger_auto_schema(
     method="post",
-    request_body=AWSMarketplaceLaunchRequestSerializer,
+    manual_parameters=AWS_MARKETPLACE_TOKEN_FORM_PARAMS,
     responses={
         200: "Successful requests redirect to the Future AGI frontend.",
         302: "Redirects to the Future AGI frontend.",
@@ -177,6 +181,7 @@ def aws_marketplace_signup(request):
     },
 )
 @api_view(["POST"])
+@parser_classes([FormParser])
 def aws_marketplace_launch_software(request):
     """
     Handle "Launch Software" action from AWS Marketplace

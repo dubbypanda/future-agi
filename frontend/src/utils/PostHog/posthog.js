@@ -73,9 +73,9 @@ export const identifyPostHogUser = (userData = {}) => {
     email,
     name,
     organization,
-    defaultWorkspaceId,
-    defaultWorkspaceRole,
-    organizationRole,
+    default_workspace_id,
+    default_workspace_role,
+    organization_role,
   } = userData;
   if (!id) return;
 
@@ -105,9 +105,9 @@ export const identifyPostHogUser = (userData = {}) => {
       {
         email,
         name,
-        workspace_id: defaultWorkspaceId,
-        workspace_role: defaultWorkspaceRole,
-        organization_role: organizationRole,
+        workspace_id: default_workspace_id,
+        workspace_role: default_workspace_role,
+        organization_role,
       },
       Object.keys(setOnce).length ? setOnce : undefined,
     );
@@ -120,8 +120,8 @@ export const identifyPostHogUser = (userData = {}) => {
     }
 
     // Group: Workspace (type 1)
-    if (defaultWorkspaceId) {
-      posthog.group("workspace", defaultWorkspaceId, {
+    if (default_workspace_id) {
+      posthog.group("workspace", default_workspace_id, {
         organization_id: organization?.id,
       });
     }

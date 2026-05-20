@@ -5,6 +5,8 @@ from django.db import connections
 from django.db.utils import OperationalError
 from django.http import JsonResponse
 
+from tfc.utils.api_errors import build_error_envelope
+
 logger = structlog.get_logger(__name__)
 
 
@@ -29,7 +31,11 @@ def db_connection_required(view_func):
     def wrapper(request, *args, **kwargs):
         if not check_db_connection():
             return JsonResponse(
-                {"error": "Database connection error", "status": "service_unavailable"},
+                build_error_envelope(
+                    "Database connection error",
+                    status_code=503,
+                    code="service_unavailable",
+                ),
                 status=503,
             )
         return view_func(request, *args, **kwargs)

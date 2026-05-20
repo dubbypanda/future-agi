@@ -15,6 +15,7 @@ from tracer.serializers.filters import (
     json_object_query_param_field,
     parse_filter_list_payload,
 )
+from tfc.utils.api_errors import API_ERROR_TYPE_CHOICES
 
 
 class ModelHubEmptyRequestSerializer(StrictInputSerializer):
@@ -39,18 +40,44 @@ class ModelHubPaginatedResponseSerializer(serializers.Serializer):
 
 class ModelHubErrorResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(required=False)
+    type = serializers.ChoiceField(
+        choices=API_ERROR_TYPE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    attr = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    details = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class ModelHubTextErrorResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(default=False)
+    type = serializers.ChoiceField(
+        choices=API_ERROR_TYPE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    attr = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    details = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class JsonObjectRequestField(serializers.JSONField):

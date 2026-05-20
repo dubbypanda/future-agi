@@ -18,6 +18,7 @@ from mcp_server.serializers.contracts import (
     MCPToolGroupsResponseSerializer,
 )
 from mcp_server.serializers.tool_config import MCPToolGroupConfigUpdateSerializer
+from tfc.utils.api_errors import build_error_envelope
 
 
 class MCPConfigView(APIView):
@@ -43,7 +44,8 @@ class MCPConfigView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         try:
@@ -81,7 +83,8 @@ class MCPConfigView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         try:
@@ -92,7 +95,8 @@ class MCPConfigView(APIView):
             )
         except MCPConnection.DoesNotExist:
             return Response(
-                {"status": False, "error": "No MCP connection found"}, status=404
+                build_error_envelope("No MCP connection found", status_code=404),
+                status=404,
             )
 
         serializer = MCPConnectionUpdateSerializer(
@@ -166,7 +170,8 @@ class MCPToolGroupsView(APIView):
 
         if not organization:
             return Response(
-                {"status": False, "error": "No organization context"}, status=403
+                build_error_envelope("No organization context", status_code=403),
+                status=403,
             )
 
         serializer = MCPToolGroupConfigUpdateSerializer(data=request.data)

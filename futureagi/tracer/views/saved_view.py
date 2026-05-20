@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.project import Project
@@ -11,7 +12,10 @@ from tracer.models.saved_view import SavedView
 from tracer.serializers.saved_view import (
     SavedViewCreateSerializer,
     SavedViewDetailSerializer,
+    SavedViewDetailResponseSerializer,
     SavedViewListSerializer,
+    SavedViewListResponseSerializer,
+    SavedViewMessageResponseSerializer,
     SavedViewReorderSerializer,
     SavedViewUpdateSerializer,
 )
@@ -66,6 +70,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # LIST — returns default tabs + custom views
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewListResponseSerializer})
     def list(self, request, *args, **kwargs):
         try:
             project_id = request.query_params.get("project_id")
@@ -95,6 +100,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # RETRIEVE
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewDetailResponseSerializer})
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -112,6 +118,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # CREATE
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewDetailResponseSerializer})
     def create(self, request, *args, **kwargs):
         try:
             serializer = SavedViewCreateSerializer(data=request.data)
@@ -188,6 +195,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # UPDATE / PARTIAL UPDATE
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewDetailResponseSerializer})
     def update(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -210,6 +218,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
             logger.error(f"Failed to update saved view: {e}", exc_info=True)
             return self._gm.bad_request("Failed to update saved view.")
 
+    @validated_request(responses={200: SavedViewDetailResponseSerializer})
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
@@ -218,6 +227,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # DESTROY (soft delete)
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewMessageResponseSerializer})
     def destroy(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -231,6 +241,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # DUPLICATE
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewDetailResponseSerializer})
     @action(detail=True, methods=["post"], url_path="duplicate")
     def duplicate(self, request, *args, **kwargs):
         try:
@@ -274,6 +285,7 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
     # REORDER
     # ------------------------------------------------------------------
 
+    @validated_request(responses={200: SavedViewMessageResponseSerializer})
     @action(detail=False, methods=["post"], url_path="reorder")
     def reorder(self, request, *args, **kwargs):
         try:

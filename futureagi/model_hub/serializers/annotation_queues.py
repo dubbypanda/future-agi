@@ -3,6 +3,7 @@ import uuid
 
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 from accounts.models.user import User
 from model_hub.models.annotation_queues import (
@@ -679,9 +680,43 @@ class QueueForSourceQuerySerializer(StrictInputSerializer):
         return attrs
 
 
+class RepeatedStringQueryParamField(serializers.ListField):
+    child = serializers.CharField(allow_blank=False)
+
+    class Meta:
+        swagger_schema_fields = {
+            "type": "array",
+            "items": {"type": "string"},
+        }
+
+    def get_value(self, dictionary):
+        if hasattr(dictionary, "getlist"):
+            values = dictionary.getlist(self.field_name)
+            return values if values else empty
+        return dictionary.get(self.field_name, empty)
+
+    def to_internal_value(self, data):
+        if data in (None, ""):
+            return []
+
+        raw_values = data if isinstance(data, (list, tuple)) else [data]
+        values = []
+        for raw_value in raw_values:
+            if raw_value is None:
+                continue
+            for part in str(raw_value).split(","):
+                value = part.strip()
+                if not value or value.lower() == "all":
+                    continue
+                if value not in values:
+                    values.append(value)
+
+        return super().to_internal_value(values)
+
+
 class QueueItemListQuerySerializer(StrictInputSerializer):
-    status = serializers.CharField(required=False, allow_blank=True)
-    source_type = serializers.CharField(required=False, allow_blank=True)
+    status = RepeatedStringQueryParamField(required=False)
+    source_type = RepeatedStringQueryParamField(required=False)
     assigned_to = serializers.CharField(required=False, allow_blank=True)
     review_status = serializers.CharField(required=False, allow_blank=True)
     ordering = serializers.ChoiceField(

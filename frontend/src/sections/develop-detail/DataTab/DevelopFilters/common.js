@@ -1,5 +1,9 @@
 import { format, isValid } from "date-fns";
 import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
+import {
+  LIST_FILTER_OPS,
+  NO_VALUE_FILTER_OPS,
+} from "src/api/contracts/filter-contract.generated";
 
 export const DefaultFilter = {
   columnId: "",
@@ -26,10 +30,17 @@ export const validateFilter = (filter) => {
   const filterValue = filter.filterConfig.filterValue;
   const filterOp = filter.filterConfig.filterOp;
   const filterType = filter.filterConfig.filterType;
+  const requiresNoValue = NO_VALUE_FILTER_OPS.includes(filterOp);
+  const requiresListValue = LIST_FILTER_OPS.includes(filterOp);
+  const hasValue =
+    requiresNoValue ||
+    (requiresListValue
+      ? Array.isArray(filterValue) && filterValue.length > 0
+      : filterValue !== "");
 
   return (
     filter.columnId.length > 0 &&
-    filterValue !== "" &&
+    hasValue &&
     filterOp !== "" &&
     filterType !== "" &&
     (filterType === "datetime"

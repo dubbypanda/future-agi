@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 from tracer.models.shared_link import (
     AccessType,
     ResourceType,
@@ -134,5 +135,5 @@ class SharedLinkResolveResponseSerializer(serializers.Serializer):
     data = SharedLinkResolvedDataSerializer()
 
 
-class SharedLinkResolveErrorSerializer(serializers.Serializer):
-    error = serializers.CharField()
+class SharedLinkResolveErrorSerializer(ApiTextErrorResponseSerializer):
+    pass

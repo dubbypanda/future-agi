@@ -5,7 +5,6 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
@@ -219,9 +218,7 @@ class TwoFactorVerifyTOTPView(APIView):
         # Validate challenge
         challenge_data = validate_challenge(challenge_id)
         if not challenge_data:
-            return self._gm.bad_request(
-                {"error": "Invalid or expired verification session."}
-            )
+            return self._gm.bad_request("Invalid or expired verification session.")
 
         # Get the user
         try:
@@ -261,9 +258,7 @@ class TwoFactorVerifyRecoveryView(APIView):
 
         challenge_data = validate_challenge(challenge_id)
         if not challenge_data:
-            return self._gm.bad_request(
-                {"error": "Invalid or expired verification session."}
-            )
+            return self._gm.bad_request("Invalid or expired verification session.")
 
         try:
             user = User.objects.get(id=challenge_data["user_id"])
@@ -271,9 +266,7 @@ class TwoFactorVerifyRecoveryView(APIView):
             return self._gm.bad_request("Invalid verification session.")
 
         if not verify_recovery_code(user, code):
-            return self._gm.bad_request(
-                {"error": "Invalid or already used recovery code."}
-            )
+            return self._gm.bad_request("Invalid or already used recovery code.")
 
         consume_challenge(challenge_id)
         tokens = issue_tokens(user)
@@ -306,9 +299,7 @@ class TwoFactorVerifyPasskeyOptionsView(APIView):
 
         challenge_data = validate_challenge(challenge_id, count_attempt=False)
         if not challenge_data:
-            return self._gm.bad_request(
-                {"error": "Invalid or expired verification session."}
-            )
+            return self._gm.bad_request("Invalid or expired verification session.")
 
         try:
             user = User.objects.get(id=challenge_data["user_id"])
@@ -341,9 +332,7 @@ class TwoFactorVerifyPasskeyView(APIView):
 
         challenge_data = validate_challenge(challenge_id)
         if not challenge_data:
-            return self._gm.bad_request(
-                {"error": "Invalid or expired verification session."}
-            )
+            return self._gm.bad_request("Invalid or expired verification session.")
 
         try:
             user = User.objects.get(id=challenge_data["user_id"])
@@ -436,18 +425,18 @@ class RecoveryCodesRegenerateView(APIView):
             # User has TOTP — require code verification
             if not code:
                 return self._gm.bad_request(
-                    {"error": "Authenticator or recovery code is required."}
+                    "Authenticator or recovery code is required."
                 )
             if not (verify_totp_code(user, code) or verify_recovery_code(user, code)):
-                return self._gm.bad_request({"error": "Invalid code."})
+                return self._gm.bad_request("Invalid code.")
         else:
             # Passkey-only user — require password verification
             if not password:
                 return self._gm.bad_request(
-                    {"error": "Password is required to regenerate recovery codes."}
+                    "Password is required to regenerate recovery codes."
                 )
             if not user.check_password(password):
-                return self._gm.bad_request({"error": "Invalid password."})
+                return self._gm.bad_request("Invalid password.")
 
         recovery_codes = generate_recovery_codes(user)
         return Response({"recovery_codes": recovery_codes})
@@ -501,20 +490,16 @@ class OrgTwoFactorPolicyView(APIView):
 
         user_level = request.user.get_membership_level(org)
         if user_level is None or user_level < Level.ADMIN:
-            return Response(
-                {"error": "Only organization owners and admins can update 2FA policy."},
-                status=status.HTTP_403_FORBIDDEN,
+            return self._gm.forbidden_response(
+                "Only organization owners and admins can update 2FA policy."
             )
 
         require_2fa = request.validated_data["require_2fa"]
 
         # Cannot enforce 2FA for the org unless your own 2FA is enabled
         if require_2fa and not request.user.has_2fa_enabled:
-            return Response(
-                {
-                    "error": "You must enable two-factor authentication on your own account before requiring it for the organization."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            return self._gm.bad_request(
+                "You must enable two-factor authentication on your own account before requiring it for the organization."
             )
         grace_days = request.validated_data.get("require_2fa_grace_period_days")
 

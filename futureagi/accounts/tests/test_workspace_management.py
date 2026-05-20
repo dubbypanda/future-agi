@@ -173,7 +173,7 @@ class TestWorkspaceListAPIView:
     def test_list_workspaces_with_pagination(self, auth_client, workspace):
         """Pagination parameters work correctly."""
         response = auth_client.get(
-            "/accounts/workspace/list/", {"page": 1, "page_size": 10}
+            "/accounts/workspace/list/", {"page": 1, "limit": 10}
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -364,22 +364,20 @@ class TestUserListAPIView:
 
     def test_list_users_with_status_filter(self, auth_client):
         """Can filter users by status."""
-        response = auth_client.get(
-            "/accounts/user/list/", {"filter_status": '["Active"]'}
-        )
+        response = auth_client.get("/accounts/user/list/", {"filter_status": ["Active"]})
         assert response.status_code == status.HTTP_200_OK
 
     def test_list_users_with_role_filter(self, auth_client):
         """Can filter users by role."""
         response = auth_client.get(
             "/accounts/user/list/",
-            {"filter_role": f'["{OrganizationRoles.WORKSPACE_ADMIN}"]'},
+            {"filter_role": [OrganizationRoles.WORKSPACE_ADMIN]},
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_list_users_with_pagination(self, auth_client):
         """Pagination parameters work correctly."""
-        response = auth_client.get("/accounts/user/list/", {"page": 1, "page_size": 10})
+        response = auth_client.get("/accounts/user/list/", {"page": 1, "limit": 10})
         assert response.status_code == status.HTTP_200_OK
 
 

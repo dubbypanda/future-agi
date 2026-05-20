@@ -52,7 +52,7 @@ const UserDetailTabBar = ({ activeTab, onTabChange }) => {
   const { data: savedViewsData } =
     useGetWorkspaceSavedViews(USER_DETAIL_TAB_TYPE);
   const customViews = useMemo(
-    () => savedViewsData?.customViews ?? savedViewsData?.custom_views ?? [],
+    () => savedViewsData?.custom_views ?? [],
     [savedViewsData],
   );
 
@@ -149,14 +149,12 @@ const UserDetailTabBar = ({ activeTab, onTabChange }) => {
       lastAppliedTabRef.current = activeTab;
       return;
     }
-    const cached = queryClient.getQueryData([
+    const cachedResult = queryClient.getQueryData([
       SAVED_VIEWS_KEY,
       "workspace",
       USER_DETAIL_TAB_TYPE,
     ]);
-    const cachedResult = cached?.data?.result;
-    const cachedList =
-      cachedResult?.customViews ?? cachedResult?.custom_views ?? [];
+    const cachedList = cachedResult?.custom_views ?? [];
     const view =
       cachedList.find((v) => v.id === id) ??
       customViews.find((v) => v.id === id);

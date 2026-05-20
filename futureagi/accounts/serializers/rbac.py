@@ -220,6 +220,23 @@ class MemberUserMutationResponseSerializer(serializers.Serializer):
 class MemberListRequestSerializer(serializers.Serializer):
     """GET /accounts/organization/members/ query params."""
 
+    SORT_CHOICES = [
+        "name",
+        "-name",
+        "email",
+        "-email",
+        "status",
+        "-status",
+        "type",
+        "-type",
+        "date_joined",
+        "-date_joined",
+        "created_at",
+        "-created_at",
+        "org_level",
+        "-org_level",
+    ]
+
     page = serializers.IntegerField(min_value=1, default=1)
     limit = serializers.IntegerField(min_value=1, max_value=100, default=20)
     search = serializers.CharField(required=False, allow_blank=True, default="")
@@ -235,7 +252,11 @@ class MemberListRequestSerializer(serializers.Serializer):
         required=False,
         default=list,
     )
-    sort = serializers.CharField(required=False, default="-created_at")
+    sort = serializers.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        default="-created_at",
+    )
 
 
 # ── Workspace-scoped member endpoints ──
@@ -243,6 +264,23 @@ class MemberListRequestSerializer(serializers.Serializer):
 
 class WorkspaceMemberListRequestSerializer(serializers.Serializer):
     """GET /accounts/workspace/<uuid>/members/ query params."""
+
+    SORT_CHOICES = [
+        "name",
+        "-name",
+        "email",
+        "-email",
+        "status",
+        "-status",
+        "type",
+        "-type",
+        "date_joined",
+        "-date_joined",
+        "created_at",
+        "-created_at",
+        "ws_level",
+        "-ws_level",
+    ]
 
     page = serializers.IntegerField(min_value=1, default=1)
     limit = serializers.IntegerField(min_value=1, max_value=100, default=20)
@@ -257,7 +295,11 @@ class WorkspaceMemberListRequestSerializer(serializers.Serializer):
         required=False,
         default=list,
     )
-    sort = serializers.CharField(required=False, default="-created_at")
+    sort = serializers.ChoiceField(
+        choices=SORT_CHOICES,
+        required=False,
+        default="-created_at",
+    )
 
 
 class WorkspaceMemberRoleUpdateSerializer(serializers.Serializer):

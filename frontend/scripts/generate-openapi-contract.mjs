@@ -96,6 +96,12 @@ Object.keys(swagger.paths || {})
 
       methods[method] = {
         operationId: operation.operationId || null,
+        runtimeRequestValidation: Boolean(
+          operation["x-runtime-request-validation"],
+        ),
+        runtimeResponseValidation: Boolean(
+          operation["x-runtime-response-validation"],
+        ),
         requestBody: bodyParameter?.schema || null,
         queryParameters,
         responses,

@@ -51,6 +51,11 @@ class ObservationAttributeListQuerySerializer(serializers.Serializer):
     )
 
 
+class ObservationAttributeListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = serializers.ListField(child=serializers.CharField())
+
+
 class ObservationSpanSerializer(serializers.ModelSerializer):
     project = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.all(), many=False

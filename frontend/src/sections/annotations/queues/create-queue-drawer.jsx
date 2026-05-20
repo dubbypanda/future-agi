@@ -167,7 +167,7 @@ export default function CreateQueueDrawer({
       setAdvancedOpen(false);
     } else if (open) {
       // Pre-select the current user as manager for new queues
-      const currentUserId = user?.id || user?.pk;
+      const currentUserId = user?.id;
       reset({
         ...DEFAULT_VALUES,
         annotators: currentUserId
@@ -367,7 +367,7 @@ export default function CreateQueueDrawer({
                   creatorId={
                     isEdit
                       ? editQueue?.created_by
-                      : String(user?.id || user?.pk || "")
+                      : String(user?.id || "")
                   }
                   isManager
                 />

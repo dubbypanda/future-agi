@@ -25,7 +25,7 @@ from model_hub.services.derived_variable_service import (
     get_derived_variable_schema,
     update_prompt_version_derived_variables,
 )
-from tfc.utils.api_contracts import validated_request
+from tfc.utils.api_contracts import validated_api_request
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -176,15 +176,26 @@ def get_derived_variable_schema_view(request, prompt_id, column_name):
         )
 
 
+@swagger_auto_schema(
+    method="post",
+    request_body=DerivedVariableExtractRequestSerializer,
+    responses={
+        200: DerivedVariableDetailResponseSerializer,
+        **MODEL_HUB_ERROR_RESPONSES,
+    },
+    runtime_request_validation=True,
+    runtime_response_validation=True,
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@validated_request(
+@validated_api_request(
     request_serializer=DerivedVariableExtractRequestSerializer,
     responses={
         200: DerivedVariableDetailResponseSerializer,
         **MODEL_HUB_ERROR_RESPONSES,
     },
     reject_unknown_fields=True,
+    document=False,
 )
 def extract_derived_variables(request, prompt_id):
     """
@@ -246,15 +257,26 @@ def extract_derived_variables(request, prompt_id):
         return _gm.internal_server_error_response("Failed to extract derived variables")
 
 
+@swagger_auto_schema(
+    method="post",
+    request_body=DerivedVariablePreviewRequestSerializer,
+    responses={
+        200: DerivedVariableDetailResponseSerializer,
+        **MODEL_HUB_ERROR_RESPONSES,
+    },
+    runtime_request_validation=True,
+    runtime_response_validation=True,
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@validated_request(
+@validated_api_request(
     request_serializer=DerivedVariablePreviewRequestSerializer,
     responses={
         200: DerivedVariableDetailResponseSerializer,
         **MODEL_HUB_ERROR_RESPONSES,
     },
     reject_unknown_fields=True,
+    document=False,
 )
 def preview_derived_variables(request):
     """

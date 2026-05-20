@@ -299,14 +299,14 @@ export default function Issues() {
       resizable: true,
       suppressHeaderMenuButton: true,
       suppressHeaderContextMenu: true,
-      suppressMultiSort: true,
     }),
     [],
   );
 
   const gridOptions = {
     pagination: false,
-    rowSelection: { mode: "multiRow" },
+    rowSelection: { mode: "multiRow", enableClickSelection: false },
+    suppressMultiSort: true,
   };
 
   const refreshRowsManual = useCallback(async () => {

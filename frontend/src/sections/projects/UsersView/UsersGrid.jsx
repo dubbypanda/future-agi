@@ -10,9 +10,9 @@ import axios, { endpoints } from "src/utils/axios";
 import { useNavigate, useParams } from "react-router";
 import { useDebounce } from "src/hooks/use-debounce";
 import PropTypes from "prop-types";
-import { getRandomId } from "src/utils/utils";
 import NoRowsOverlay from "src/sections/project-detail/CompareDrawer/NoRowsOverlay";
 import { APP_CONSTANTS } from "src/utils/constants";
+import { serializeFilterListForApi } from "src/api/contracts/filter-contract";
 
 const USERS_GRID_THEME_PARAMS = {
   columnBorder: false,
@@ -65,8 +65,6 @@ const UsersGrid = React.memo(
     const updatedObserveId = selectedProjectId || observeId;
     const debouncedSearchQuery = useDebounce(searchQuery.trim(), 500);
 
-    const projectFilterId = useMemo(() => getRandomId(), []);
-
     const projectFilter = useMemo(
       () => ({
         column_id: "created_at",
@@ -75,16 +73,12 @@ const UsersGrid = React.memo(
           filter_op: "between",
           filter_value: convertToISO([pastDate, today]),
         },
-        id: projectFilterId,
-        _meta: {
-          parentProperty: "",
-        },
       }),
-      [projectFilterId, selectedProjectDay],
+      [selectedProjectDay],
     );
 
     const validatedFilters = useMemo(() => {
-      return [...(filters || []), projectFilter];
+      return serializeFilterListForApi([...(filters || []), projectFilter]);
     }, [filters, projectFilter]);
 
     const navigate = useNavigate();
@@ -486,14 +480,13 @@ const UsersGrid = React.memo(
               headerHeight={40}
               rowHeight={userTraceRowHeightMapping[cellHeight]?.height ?? 40}
               theme={agTheme}
-              rowSelection={{ mode: "multiRow" }}
+              rowSelection={{ mode: "multiRow", enableClickSelection: false }}
               pagination={true}
               paginationPageSize={10}
               rowModelType="serverSide"
               paginationPageSizeSelector={false}
               defaultColDef={defaultColDef}
               onColumnHeaderClicked={onColumnHeaderClicked}
-              suppressRowClickSelection={true}
               rowStyle={{ cursor: "pointer" }}
               suppressSizeToFit={true}
               suppressAutoSize={true}

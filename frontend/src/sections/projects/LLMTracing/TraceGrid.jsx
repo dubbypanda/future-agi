@@ -524,14 +524,12 @@ const TraceGrid = React.forwardRef(
           tooltipShowDelay={0}
           tooltipHideDelay={2000}
           tooltipInteraction={true}
-          rowSelection={{ mode: "multiRow" }}
+          rowSelection={{ mode: "multiRow", enableClickSelection: false }}
           pagination={false}
           cacheBlockSize={ROWS_LIMIT}
           maxBlocksInCache={undefined}
           rowBuffer={10}
           suppressServerSideFullWidthLoadingRow={true}
-          serverSideInitialRowCount={ROWS_LIMIT}
-          suppressRowClickSelection={true}
           rowModelType="serverSide"
           serverSideDatasource={dataSource}
           noRowsOverlayComponent={() =>
@@ -598,7 +596,7 @@ TraceGrid.propTypes = {
   columns: PropTypes.array,
   setColumns: PropTypes.func,
   setFilters: PropTypes.func,
-  setFilterOpen: PropTypes.bool,
+  setFilterOpen: PropTypes.func,
   setLoading: PropTypes.func,
   compareType: PropTypes.string,
   projectId: PropTypes.string,

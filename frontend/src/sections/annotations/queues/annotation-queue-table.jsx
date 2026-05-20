@@ -536,9 +536,6 @@ export default function AnnotationQueueTable({
   const { user, role } = useAuthContext();
   const currentUserId =
     user?.id ||
-    user?.pk ||
-    user?.user_id ||
-    user?.userId ||
     (typeof window !== "undefined"
       ? window.sessionStorage.getItem("currentUserId")
       : "");

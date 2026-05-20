@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from tracer.models.project import Project
 from tracer.serializers.filters import (
+    JsonValueField,
     MetricSortParamListField,
     ObserveGraphMetricConfigField,
     StrictInputSerializer,
@@ -11,6 +12,10 @@ from tracer.serializers.filters import (
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    config = JsonValueField(required=False, allow_null=True)
+    session_config = JsonValueField(required=False, allow_null=True)
+    tags = JsonValueField(required=False, allow_null=True)
+
     class Meta:
         model = Project
         fields = [
@@ -29,6 +34,33 @@ class ProjectSerializer(serializers.ModelSerializer):
             "tags",
         ]
         read_only_fields = ["organization", "workspace"]
+
+
+class ProjectDetailResultSerializer(ProjectSerializer):
+    sampling_rate = serializers.FloatField()
+
+    class Meta(ProjectSerializer.Meta):
+        fields = ProjectSerializer.Meta.fields + ["sampling_rate"]
+
+
+class ProjectDetailResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = ProjectDetailResultSerializer()
+
+
+class ProjectIdListItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    trace_type = serializers.CharField()
+
+
+class ProjectIdListResultSerializer(serializers.Serializer):
+    projects = ProjectIdListItemSerializer(many=True)
+
+
+class ProjectIdListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = ProjectIdListResultSerializer()
 
 
 class ProjectNameUpdateSerializer(serializers.Serializer):

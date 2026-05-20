@@ -1,12 +1,104 @@
 import uuid
 
 import pytest
+from django.http import QueryDict
 from rest_framework import status
+
+from model_hub.serializers.contracts import DatasetTableQuerySerializer
+from model_hub.serializers.develop_dataset_contracts import DatasetListQuerySerializer
 
 
 def assert_unknown_field(response, field_name):
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()["details"][field_name] == ["Unknown field."]
+
+
+def _query_data(values):
+    query = QueryDict("", mutable=True)
+    for key, value in values.items():
+        if isinstance(value, list):
+            query.setlist(key, value)
+        else:
+            query[key] = value
+    return query
+
+
+def test_dataset_list_query_contract_matches_frontend_list_params():
+    serializer = DatasetListQuerySerializer(
+        data=_query_data(
+            {
+                "search_text": "eval",
+                "page": "0",
+                "page_size": "25",
+                "sort": '[{"column_id":"number_of_datapoints","type":"descending"}]',
+            }
+        )
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["page"] == 0
+    assert serializer.validated_data["page_size"] == 25
+
+
+def test_dataset_list_query_contract_rejects_unknown_params():
+    serializer = DatasetListQuerySerializer(data=_query_data({"pageSize": "25"}))
+
+    assert not serializer.is_valid()
+    assert "pageSize" in serializer.errors
+
+
+def test_dataset_table_query_contract_matches_frontend_grid_params():
+    serializer = DatasetTableQuerySerializer(
+        data=_query_data(
+            {
+                "current_page_index": "0",
+                "page_size": "100",
+                "filters": "[]",
+                "sort": '[{"column_id":"score","type":"descending"}]',
+                "column_config_only": "true",
+            }
+        )
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["sort"] == [
+        {"column_id": "score", "type": "descending"}
+    ]
+    assert serializer.validated_data["column_config_only"] is True
+
+
+def test_dataset_table_query_contract_rejects_legacy_camel_query_param_keys():
+    serializer = DatasetTableQuerySerializer(
+        data=_query_data(
+            {
+                "current_page_index": "0",
+                "page_size": "100",
+                "filters": "[]",
+                "sort": '[{"column_id":"score","type":"descending"}]',
+                "columnConfigOnly": "true",
+            }
+        )
+    )
+
+    assert not serializer.is_valid()
+    assert "columnConfigOnly" in serializer.errors
+
+
+def test_dataset_table_query_contract_rejects_legacy_camel_sort_keys():
+    serializer = DatasetTableQuerySerializer(
+        data=_query_data(
+            {
+                "current_page_index": "0",
+                "page_size": "100",
+                "filters": "[]",
+                "sort": '[{"columnId":"score","type":"descending"}]',
+                "column_config_only": "true",
+            }
+        )
+    )
+
+    assert not serializer.is_valid()
+    assert "sort" in serializer.errors
 
 
 @pytest.mark.django_db

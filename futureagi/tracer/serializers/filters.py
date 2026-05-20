@@ -2,6 +2,7 @@ import json
 
 from rest_framework import serializers
 
+from tfc.utils.serializer_fields import JSON_VALUE_SCHEMA, JsonValueField
 from tracer.utils.filter_operators import (
     FILTER_TYPE_ALLOWED_OPS,
     LIST_FILTER_OPS,
@@ -450,6 +451,22 @@ class ObserveGraphDataRequestSerializer(StrictInputSerializer):
         required=False, allow_blank=True, default="average"
     )
     req_data_config = ObserveGraphMetricConfigField()
+
+
+class ObserveGraphDataPointSerializer(serializers.Serializer):
+    timestamp = serializers.CharField()
+    value = serializers.FloatField(allow_null=True)
+    primary_traffic = serializers.FloatField(required=False, allow_null=True)
+
+
+class ObserveGraphDataResultSerializer(serializers.Serializer):
+    metric_name = serializers.CharField(allow_blank=True)
+    data = ObserveGraphDataPointSerializer(many=True)
+
+
+class ObserveGraphDataResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = ObserveGraphDataResultSerializer()
 
 
 class EvalTaskFiltersField(serializers.JSONField):

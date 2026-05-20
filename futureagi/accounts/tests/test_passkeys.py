@@ -330,6 +330,14 @@ class TestPasskeyDelete:
         fake_id = uuid.uuid4()
         response = auth_client.delete(f"/accounts/passkeys/{fake_id}/")
         assert response.status_code == 404
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "not_found"
+        assert data["code"] == "not_found"
+        assert data["detail"] == "Passkey not found."
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]
 
     def test_delete_passkey_cleans_up_recovery_codes_when_last_2fa(
         self, auth_client, user
@@ -389,6 +397,14 @@ class TestPasskeyRename:
             format="json",
         )
         assert response.status_code == 404
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "not_found"
+        assert data["code"] == "not_found"
+        assert data["detail"] == "Passkey not found."
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]
 
     def test_rename_rejects_unknown_request_fields(self, auth_client, user):
         """Passkey rename should reject fields outside the request serializer."""

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from simulate.serializers.run_test import SimulateEvalConfigSimpleSerializer
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
 
 
 class EvalConfigResponseSerializer(SimulateEvalConfigSimpleSerializer):
@@ -121,8 +122,5 @@ class RunNewEvalsResponseSerializer(serializers.Serializer):
     call_execution_count = serializers.IntegerField()
 
 
-class EvalErrorResponseSerializer(serializers.Serializer):
+class EvalErrorResponseSerializer(ApiTextErrorResponseSerializer):
     """Shared error response shape for all eval API endpoints."""
-
-    error = serializers.CharField()
-    details = serializers.DictField(required=False)

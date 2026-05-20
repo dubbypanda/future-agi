@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from tfc.utils.api_errors import API_ERROR_TYPE_CHOICES
+from tfc.utils.serializer_fields import JsonValueField
+
 
 class ApiSuccessResponseSerializer(serializers.Serializer):
     """Common GeneralMethods success response envelope."""
@@ -28,14 +31,34 @@ class EmptyRequestSerializer(serializers.Serializer):
         )
 
 
+class ApiErrorObjectSerializer(serializers.Serializer):
+    """Structured nested error object for errors that need extra context."""
+
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.DictField(
+        child=JsonValueField(),
+        required=False,
+        allow_empty=True,
+    )
+
+
 class ApiErrorResponseSerializer(serializers.Serializer):
     """Common GeneralMethods error response envelope."""
 
     status = serializers.BooleanField(default=False)
+    type = serializers.ChoiceField(
+        choices=API_ERROR_TYPE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    attr = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     details = serializers.DictField(
         child=serializers.ListField(child=serializers.CharField()),
         required=False,
@@ -47,14 +70,30 @@ class ApiTextErrorResponseSerializer(serializers.Serializer):
     """GeneralMethods error envelope for string-only failures."""
 
     status = serializers.BooleanField(default=False)
+    type = serializers.ChoiceField(
+        choices=API_ERROR_TYPE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     result = serializers.CharField(required=False, allow_null=True)
     message = serializers.CharField(required=False, allow_null=True)
+    error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    attr = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    details = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class ApiErrorWithDetailsResponseSerializer(ApiTextErrorResponseSerializer):
     """Typed mixed legacy error shape used while older endpoints are normalized."""
 
-    error = serializers.CharField(required=False, allow_null=True)
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     details = serializers.DictField(
         child=serializers.ListField(child=serializers.CharField()),
         required=False,
@@ -66,11 +105,18 @@ class ManagementAPIErrorResponseSerializer(serializers.Serializer):
     """Default typed error envelope for management API endpoints."""
 
     status = serializers.BooleanField(default=False, required=False)
+    type = serializers.ChoiceField(
+        choices=API_ERROR_TYPE_CHOICES,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    code = serializers.IntegerField(required=False)
+    attr = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     details = serializers.DictField(
         child=serializers.ListField(child=serializers.CharField()),
         required=False,
@@ -78,10 +124,10 @@ class ManagementAPIErrorResponseSerializer(serializers.Serializer):
     )
 
 
-class ApiDetailErrorResponseSerializer(serializers.Serializer):
+class ApiDetailErrorResponseSerializer(ApiTextErrorResponseSerializer):
     """DRF authentication/permission error envelope."""
 
-    detail = serializers.CharField()
+    detail = serializers.CharField(required=True, allow_blank=True)
 
 
 class ApiSelectionTooLargeDetailSerializer(serializers.Serializer):
@@ -96,8 +142,12 @@ class ApiSelectionTooLargeErrorSerializer(serializers.Serializer):
 
     status = serializers.BooleanField(default=False)
     result = serializers.CharField(required=False, allow_null=True)
+    type = serializers.ChoiceField(
+        choices=("selection_too_large",), required=False, allow_blank=True
+    )
+    code = serializers.CharField(required=False, default="selection_too_large")
+    detail = serializers.CharField(required=False)
     message = serializers.CharField()
-    code = serializers.IntegerField(default=400)
     error = ApiSelectionTooLargeDetailSerializer()
 
 
@@ -143,7 +193,7 @@ class CallWebsocketResponseSerializer(serializers.Serializer):
     result = serializers.CharField()
 
 
-class CallWebsocketErrorResponseSerializer(serializers.Serializer):
+class CallWebsocketErrorResponseSerializer(ApiTextErrorResponseSerializer):
     status = serializers.BooleanField(default=False)
     result = serializers.CharField()
     message = serializers.CharField()

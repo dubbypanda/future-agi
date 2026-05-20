@@ -9,11 +9,12 @@ from mcp_server.serializers.usage import (
     MCPUsageTimelineSerializer,
     MCPUsageToolBreakdownSerializer,
 )
+from tfc.utils.api_serializers import ApiErrorResponseSerializer
 
 
-class MCPErrorResponseSerializer(serializers.Serializer):
-    status = serializers.BooleanField(default=False)
-    error = serializers.CharField()
+class MCPErrorResponseSerializer(ApiErrorResponseSerializer):
+    """Dashboard MCP endpoints use the standard management API error envelope."""
+
     retry_after = serializers.IntegerField(required=False)
 
 

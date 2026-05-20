@@ -501,6 +501,21 @@ class TestSavedViewUpdate:
         assert response.status_code == 200
         assert response.json()["result"]["visibility"] == "project"
 
+    @pytest.mark.django_db
+    def test_update_rejects_create_only_fields(self, auth_client, saved_view):
+        response = auth_client.put(
+            _view_url(saved_view),
+            {
+                "name": "Critical Errors",
+                "tab_type": "spans",
+                "project_id": str(saved_view.project_id),
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "tab_type" in str(response.json())
+
 
 class TestSavedViewDelete:
     @pytest.mark.django_db

@@ -223,10 +223,6 @@ const CrossProjectUserDetailPage = lazyWithRetry(
     ),
 );
 
-const Alerts = lazyWithRetry(
-  () => import("src/sections/projects/Alerts/Alerts.jsx"),
-);
-
 const GetStarted = lazyWithRetry(
   () => import("src/pages/dashboard/get-started/GetStarted"),
 );
@@ -244,9 +240,6 @@ const TaskDetail = lazyWithRetry(
 );
 const UsersView = lazyWithRetry(
   () => import("src/sections/projects/UsersView/UsersView"),
-);
-const EvalsInside = lazyWithRetry(
-  () => import("src/pages/dashboard/projects/EvalsInside"),
 );
 const KnowledgeBase = lazyWithRetry(
   () => import("src/pages/dashboard/knowledge-base/KnowledgeBase"),
@@ -466,9 +459,8 @@ export const dashboardRoutes = (
   workspaceRole,
   { isOSS = false } = {},
 ) => {
-  const userOrgRole = user?.organization_role ?? user?.organizationRole;
-  const userDefaultWsRole =
-    user?.default_workspace_role ?? user?.defaultWorkspaceRole;
+  const userOrgRole = user?.organization_role;
+  const userDefaultWsRole = user?.default_workspace_role;
   const isOwner = user === null ? true : userOrgRole === "Owner";
   const effectiveWsRole = workspaceRole || userDefaultWsRole;
   const isAdmin =
@@ -706,7 +698,7 @@ export const dashboardRoutes = (
     );
   }
 
-  if (user === null || (user?.ws_enabled ?? user?.wsEnabled)) {
+  if (user === null || user?.ws_enabled) {
     settingsRoute.push({
       path: "workspace",
       children: [
@@ -1080,7 +1072,7 @@ export const dashboardRoutes = (
         },
         {
           path: "evals-tasks",
-          element: <EvalsInside />,
+          element: <Navigate to="../llm-tracing" replace />,
         },
         {
           path: "charts",
@@ -1088,7 +1080,7 @@ export const dashboardRoutes = (
         },
         {
           path: "alerts",
-          element: <Alerts />,
+          element: <Navigate to="../llm-tracing" replace />,
         },
         {
           path: "users",

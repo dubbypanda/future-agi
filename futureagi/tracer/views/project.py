@@ -31,7 +31,9 @@ from tracer.models.trace_scan import TraceScanConfig
 from tracer.models.trace_session import TraceSession
 from tracer.queries.error_analysis import TraceErrorAnalysisDB
 from tracer.serializers.project import (
+    ProjectDetailResponseSerializer,
     ProjectGraphDataQuerySerializer,
+    ProjectIdListResponseSerializer,
     ProjectNameUpdateSerializer,
     ProjectSerializer,
     ProjectUserGraphDataQuerySerializer,
@@ -174,6 +176,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"Error in creating the project: {str(e)}")
             return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_PROJECT"))
 
+    @validated_request(responses={200: ProjectDetailResponseSerializer})
     def retrieve(self, request, *args, **kwargs):
         """
         Get a single project by ID with sampling rate.
@@ -888,6 +891,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             logger.exception(f"ERROR IN RETRIEVING USER DATA GRAPH: {e}")
             return self._gm.internal_server_error_response()
 
+    @validated_request(responses={200: ProjectIdListResponseSerializer})
     @action(detail=False, methods=["get"])
     def list_project_ids(self, request, *args, **kwargs):
         """

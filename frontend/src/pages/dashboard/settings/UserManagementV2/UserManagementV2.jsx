@@ -30,6 +30,7 @@ import BackButton from "src/sections/develop-detail/Common/BackButton";
 import { LEVELS } from "./constant";
 import { useUserManagementStore } from "./UserManagementStore";
 import { endpoints } from "src/utils/axios";
+import { gridSortModelToMemberListSort } from "./memberListGridQuery";
 
 const UserManagementV2 = ({ workspaceScope = false }) => {
   const { workspaceId: workspaceIdParam } = useParams();
@@ -50,8 +51,7 @@ const UserManagementV2 = ({ workspaceScope = false }) => {
   workspaceId =
     workspaceId ??
     currentWorkspaceId ??
-    user?.default_workspace_id ??
-    user?.defaultWorkspaceId;
+    user?.default_workspace_id;
 
   // Use integer levels when available, fall back to string role check
   const canManageUsers =
@@ -75,6 +75,7 @@ const UserManagementV2 = ({ workspaceScope = false }) => {
       {
         headerName: "Organisation Role",
         field: "org_role",
+        colId: "org_level",
         flex: 1,
         cellRenderer: OrgRoleCell,
       },
@@ -83,7 +84,8 @@ const UserManagementV2 = ({ workspaceScope = false }) => {
         ? [
             {
               headerName: "Workspace Role",
-              field: "wsRole",
+              field: "ws_role",
+              colId: "ws_level",
               flex: 1,
               cellRenderer: WorkspaceRoleCell,
             },
@@ -149,10 +151,9 @@ const UserManagementV2 = ({ workspaceScope = false }) => {
       getRows: async (params) => {
         const { request } = params;
         const pageNumber = Math.floor(request.startRow / 20);
-        const sort = request?.sortModel?.map(({ colId, sort }) => ({
-          columnId: colId,
-          type: sort === "asc" ? "ascending" : "descending",
-        }));
+        const sort = gridSortModelToMemberListSort(request?.sortModel, {
+          workspaceScope,
+        });
         const search = searchQuery || "";
 
         if (overlayTimeoutRef.current) {

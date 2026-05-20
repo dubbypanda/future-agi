@@ -54,7 +54,7 @@ class PasskeyRegisterOptionsView(APIView):
         except Exception as e:
             logger.exception("passkey_register_options_failed", error=str(e))
             return self._gm.bad_request(
-                {"error": "Failed to generate registration options."}
+                "Failed to generate registration options."
             )
 
 
@@ -81,9 +81,7 @@ class PasskeyRegisterVerifyView(APIView):
             challenge_key = f"webauthn_reg_challenge:{request.user.id}"
             stored_challenge = cache.get(challenge_key)
             if not stored_challenge:
-                return self._gm.bad_request(
-                    {"error": "Registration challenge expired."}
-                )
+                return self._gm.bad_request("Registration challenge expired.")
 
             from webauthn.helpers import base64url_to_bytes
 
@@ -151,10 +149,7 @@ class PasskeyDetailView(APIView):
         try:
             passkey = WebAuthnCredential.objects.get(id=pk, user=request.user)
         except WebAuthnCredential.DoesNotExist:
-            return Response(
-                {"error": "Passkey not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Passkey not found.")
 
         passkey.name = request.validated_data["name"]
         passkey.save(update_fields=["name", "updated_at"])
@@ -166,10 +161,7 @@ class PasskeyDetailView(APIView):
         try:
             passkey = WebAuthnCredential.objects.get(id=pk, user=request.user)
         except WebAuthnCredential.DoesNotExist:
-            return Response(
-                {"error": "Passkey not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._gm.not_found("Passkey not found.")
 
         passkey.delete()
 
@@ -202,7 +194,7 @@ class PasskeyAuthenticateOptionsView(APIView):
         except Exception as e:
             logger.exception("passkey_auth_options_failed", error=str(e))
             return self._gm.bad_request(
-                {"error": "Failed to generate authentication options."}
+                "Failed to generate authentication options."
             )
 
 
@@ -240,9 +232,7 @@ class PasskeyAuthenticateVerifyView(APIView):
             ) or credential_response.pop("_session_id", "")
             raw_data = cache.get(f"webauthn_auth_challenge:{session_id}")
             if not raw_data:
-                return self._gm.bad_request(
-                    {"error": "Authentication challenge expired."}
-                )
+                return self._gm.bad_request("Authentication challenge expired.")
 
             challenge_data = json.loads(raw_data)
             from webauthn.helpers import base64url_to_bytes

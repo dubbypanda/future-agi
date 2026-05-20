@@ -127,9 +127,6 @@ export default function QueueDetailView() {
 
   const currentUserId = String(
     user?.id ||
-      user?.pk ||
-      user?.user_id ||
-      user?.userId ||
       (typeof window !== "undefined"
         ? window.sessionStorage.getItem("currentUserId")
         : "") ||
@@ -233,11 +230,10 @@ export default function QueueDetailView() {
   }, [queueId, selectedIds, bulkRemove, clearSelectedItems, isBulkRemoving]);
 
   const handleAssign = useCallback(
-    ({ itemIds, userId, userIds, action }) => {
+    ({ itemIds, userIds, action }) => {
       assignItems({
         queueId,
         itemIds,
-        userId,
         userIds,
         action,
         assignees: queueAnnotators,

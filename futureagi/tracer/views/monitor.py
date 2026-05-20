@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
 )
@@ -428,32 +429,30 @@ class UserAlertMonitorView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
         except Exception as e:
             return self._gm.internal_server_error_response(str(e))
 
-    @swagger_auto_schema(
-        request_body=UserAlertMonitorDuplicateSerializer,
+    @validated_request(
+        request_serializer=UserAlertMonitorDuplicateSerializer,
         responses={
             200: UserAlertMonitorDuplicateResponseSerializer,
             400: ApiErrorResponseSerializer,
             404: ApiErrorResponseSerializer,
             500: ApiErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     @action(detail=False, methods=["post"], url_path="duplicate")
     def duplicate(self, request, *args, **kwargs):
-        serializer = UserAlertMonitorDuplicateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return self._gm.bad_request(serializer.errors)
-
+        data = request.validated_data
         org = getattr(request, "organization", None) or request.user.organization
         try:
             monitor = UserAlertMonitor.objects.get(
-                id=serializer.validated_data["id"],
+                id=data["id"],
                 organization=org,
                 deleted=False,
             )
         except UserAlertMonitor.DoesNotExist:
             return self._gm.not_found(get_error_message("MONITOR_NOT_FOUND"))
 
-        new_name = serializer.validated_data["name"]
+        new_name = data["name"]
         if UserAlertMonitor.objects.filter(
             organization=org,
             project=monitor.project,

@@ -442,7 +442,7 @@ const SessionGrid = React.forwardRef(
                   userTraceRowHeightMapping.Short.height
                 }
                 statusBar={statusBar}
-                rowSelection={{ mode: "multiRow" }}
+                rowSelection={{ mode: "multiRow", enableClickSelection: false }}
                 className="clean-data-table"
                 theme={agTheme}
                 rowModelType="serverSide"
@@ -454,7 +454,6 @@ const SessionGrid = React.forwardRef(
                 suppressServerSideFullWidthLoadingRow={true}
                 serverSideInitialRowCount={DATASET_ROWS_LIMIT}
                 defaultColDef={defaultColDef}
-                suppressRowClickSelection={true}
                 rowStyle={{ cursor: "pointer" }}
                 onRowClicked={onRowClicked}
                 onColumnMoved={onColumnMoved}

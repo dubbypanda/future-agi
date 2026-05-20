@@ -39,7 +39,7 @@ export const shouldEnforceApiResponseContracts = () => {
   const value = envValue("VITE_API_CONTRACT_STRICT_RESPONSES");
   if (value === "true") return true;
   if (value === "false" || value === "off") return false;
-  return appMode() !== "production";
+  return false;
 };
 
 function pathTemplateToRegex(template) {
@@ -59,8 +59,31 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function pathSpecificity(template) {
+  const segments = template.split("/").filter(Boolean);
+  const paramCount = (template.match(PARAM_RE) || []).length;
+  return {
+    staticSegmentCount: segments.length - paramCount,
+    paramCount,
+    length: template.length,
+  };
+}
+
+function comparePathSpecificity(a, b) {
+  const left = pathSpecificity(a);
+  const right = pathSpecificity(b);
+
+  if (left.staticSegmentCount !== right.staticSegmentCount) {
+    return right.staticSegmentCount - left.staticSegmentCount;
+  }
+  if (left.paramCount !== right.paramCount) {
+    return left.paramCount - right.paramCount;
+  }
+  return right.length - left.length;
+}
+
 const endpointMatchersByGroup = Object.keys(OPENAPI_CONTRACT.endpoints)
-  .sort((a, b) => b.length - a.length)
+  .sort(comparePathSpecificity)
   .reduce((groups, template) => {
     const groupName = template.split("/").filter(Boolean)[0] || "root";
     groups[groupName] ||= [];
@@ -146,6 +169,10 @@ function enumSchema(values) {
 
 function schemaToZod(schema, options = {}) {
   if (!schema || typeof schema !== "object") return z.any();
+
+  if (schema["x-json-value"]) {
+    return nullableIfNeeded(z.any(), schema);
+  }
 
   if (schema.$ref) {
     const resolved = resolveRef(schema.$ref);
@@ -349,9 +376,26 @@ function normalizeQueryForContract(rawQuery, queryParameters) {
   );
 }
 
+function queryParamsForWire(params = {}) {
+  return Object.fromEntries(
+    Object.entries(params).flatMap(([name, value]) => {
+      if (value === null || value === undefined) return [];
+      if (Array.isArray(value)) {
+        const values = value.filter((item) => item !== null && item !== undefined);
+        return values.length ? [[name, values]] : [];
+      }
+      return [[name, value]];
+    }),
+  );
+}
+
 export function validateContractedRequestConfig(config) {
   const endpoint = findOpenApiEndpoint(config?.url, config?.method);
   if (!endpoint) return { ok: true, skipped: true };
+
+  if (!endpoint.contract.runtimeRequestValidation) {
+    return { ok: true, skipped: true, endpoint };
+  }
 
   const { requestBody, queryParameters } = endpoint.contract;
   if (requestBody) {
@@ -373,12 +417,9 @@ export function validateContractedRequestConfig(config) {
 
   const rawQuery = {
     ...parseUrlSearchParams(config?.url),
-    ...(config?.params || {}),
+    ...queryParamsForWire(config?.params || {}),
   };
-  if (
-    queryParameters &&
-    (Object.keys(queryParameters).length || Object.keys(rawQuery).length)
-  ) {
+  if (queryParameters && Object.keys(queryParameters).length) {
     const shape = Object.fromEntries(
       Object.entries(queryParameters).map(([name, parameter]) => {
         let schema = schemaToZod(parameter.schema, { coercePrimitives: true });

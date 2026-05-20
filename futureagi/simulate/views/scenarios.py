@@ -38,13 +38,11 @@ from model_hub.models.choices import (
     StatusType,
 )
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
-from model_hub.serializers.develop_dataset import ColumnSerializer
 
 try:
     from ee.voice.constants.voice_mapper import get_personas_by_language
 except ImportError:
     get_personas_by_language = None
-from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 from simulate.models import AgentDefinition, AgentVersion, Persona, Scenarios
@@ -73,7 +71,6 @@ from simulate.serializers.response.scenarios import (
     ScenarioResponseSerializer,
 )
 from simulate.utils.test_execution_utils import generate_simulator_agent_prompt
-from simulate.views import agent_definition
 from tfc.middleware.workspace_context import get_current_organization
 from tfc.temporal.simulate import (
     start_add_columns_workflow_sync,
@@ -81,7 +78,6 @@ from tfc.temporal.simulate import (
     start_create_dataset_scenario_workflow_sync,
     start_create_graph_scenario_workflow_sync,
     start_create_script_scenario_workflow_sync,
-    start_scenario_generation_workflow_sync,
 )
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -225,10 +221,7 @@ class ScenariosListView(APIView):
             )
 
             if not user_organization:
-                return Response(
-                    {"error": "Organization not found for the user."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                return self._gm.not_found("Organization not found for the user.")
 
             # Validate and parse query params
             filter_ser = ScenarioFilterSerializer(data=request.query_params)
@@ -297,9 +290,8 @@ class ScenariosListView(APIView):
         except NotFound:
             raise
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve scenarios: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to retrieve scenarios: {str(e)}"
             )
 
     @swagger_auto_schema(
@@ -369,9 +361,7 @@ class CreateScenarioView(APIView):
             )
 
             if not serializer.is_valid():
-                return self.gm.bad_request(
-                    {"error": "Invalid data", "details": serializer.errors}
-                )
+                return self.gm.bad_request(serializer.errors)
 
             validated_data = serializer.validated_data
             scenario_kind = validated_data.get("kind", Scenarios.ScenarioTypes.DATASET)
@@ -585,6 +575,7 @@ class ScenarioDetailView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         tags=["Scenarios"],
@@ -666,13 +657,10 @@ class ScenarioDetailView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self._gm.not_found("Scenario not found.")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to retrieve scenario: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to retrieve scenario: {str(e)}"
             )
 
     def _get_scenario_graph_data(self, scenario):
@@ -712,6 +700,7 @@ class DeleteScenarioView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
 
     @swagger_auto_schema(
         tags=["Scenarios"],
@@ -749,13 +738,10 @@ class DeleteScenarioView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self._gm.not_found("Scenario not found.")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to delete scenario: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self._gm.internal_server_error_response(
+                f"Failed to delete scenario: {str(e)}"
             )
 
 
@@ -853,13 +839,10 @@ class EditScenarioView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self.gm.not_found("Scenario not found.")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to update scenario: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self.gm.internal_server_error_response(
+                f"Failed to update scenario: {str(e)}"
             )
 
 
@@ -933,13 +916,10 @@ class EditScenarioPromptsView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self.gm.not_found("Scenario not found.")
         except Exception as e:
-            return Response(
-                {"error": f"Failed to update scenario prompts: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self.gm.internal_server_error_response(
+                f"Failed to update scenario prompts: {str(e)}"
             )
 
 
@@ -1084,16 +1064,13 @@ class AddScenarioRowsView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self.gm.not_found("Scenario not found.")
         except Exception as e:
             import traceback
 
             traceback.print_exc()
-            return Response(
-                {"error": f"Failed to add rows: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self.gm.internal_server_error_response(
+                f"Failed to add rows: {str(e)}"
             )
 
 
@@ -1217,7 +1194,7 @@ class AddScenarioColumnsView(APIView):
                 current_column_order = dataset.column_order or []
                 current_column_config = dataset.column_config or {}
 
-                for col_id, col_info in zip(new_column_ids, columns_info):
+                for col_id, col_info in zip(new_column_ids, columns_info, strict=False):
                     current_column_order.append(col_id)
                     current_column_config[col_id] = {
                         "name": col_info["name"],
@@ -1268,16 +1245,13 @@ class AddScenarioColumnsView(APIView):
             )
 
         except Http404:
-            return Response(
-                {"error": "Scenario not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return self.gm.not_found("Scenario not found.")
         except Exception as e:
             import traceback
 
             traceback.print_exc()
-            return Response(
-                {"error": f"Failed to add columns: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return self.gm.internal_server_error_response(
+                f"Failed to add columns: {str(e)}"
             )
 
 

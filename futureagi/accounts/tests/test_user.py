@@ -7,7 +7,6 @@ Tests for user authentication, token management, and user info endpoints.
 import pytest
 from django.core.cache import cache
 from rest_framework import status
-from rest_framework.test import APIClient
 
 
 def assert_unknown_field(response, field_name):

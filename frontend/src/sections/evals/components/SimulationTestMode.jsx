@@ -718,8 +718,7 @@ const SimulationTestMode = React.forwardRef(
         "providerCallData",
       ]);
       const walk = (obj, prefix) => {
-        // canonicalEntries filters out the camelCase aliases the axios
-        // interceptor adds alongside snake_case keys.
+        // canonicalEntries filters out the camelCase aliases that may exist in legacy objects alongside snake_case keys.
         const entries = canonicalEntries(obj);
         for (const [k, v] of entries) {
           const path = prefix ? `${prefix}.${k}` : k;

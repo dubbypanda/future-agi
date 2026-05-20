@@ -702,12 +702,9 @@ export const extractKpis = (data, agentType) => {
     : [...IGNORED_KEYS, ...AGENT_METRICS.VOICE, ...DETAILS_KEYS.VOICE];
   const detailsKeys = isVoice ? DETAILS_KEYS.VOICE : DETAILS_KEYS.CHAT;
 
-  // Process data keys. Iterate canonical snake_case keys only — the axios
-  // interceptor adds enumerable camelCase aliases on every response, and
-  // a plain `Object.keys` walk would double-count every metric AND slip
-  // alias keys past the snake_case filter lists (IGNORED_KEYS /
-  // AGENT_METRICS), causing entries like "scenarioGraphs" and "avgScore"
-  // to render as extra eval cards.
+  // Process data keys. Iterate canonical snake_case keys only so legacy
+  // objects carrying both snake_case and camelCase keys do not double-count
+  // metrics or slip alias keys past the snake_case filter lists.
   canonicalKeys(data || {}).forEach((key) => {
     // Categorize by key type
     if (relevantMetrics.includes(key)) {

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from tfc.utils.api_serializers import ApiTextErrorResponseSerializer
+
 
 class CallLogEntryResponseSerializer(serializers.Serializer):
     """Nested serializer for a single call log entry."""
@@ -74,8 +76,5 @@ class SessionComparisonResponseSerializer(serializers.Serializer):
     result = SessionComparisonResultSerializer()
 
 
-class CallExecutionErrorResponseSerializer(serializers.Serializer):
+class CallExecutionErrorResponseSerializer(ApiTextErrorResponseSerializer):
     """Standard error shape for call-execution endpoints."""
-
-    error = serializers.CharField(read_only=True)
-    details = serializers.DictField(required=False, read_only=True)

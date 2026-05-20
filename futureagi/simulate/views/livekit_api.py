@@ -42,8 +42,11 @@ LIVEKIT_WEBHOOK_REQUEST = openapi.Schema(
 )
 
 
-class LiveKitErrorResponseSerializer(serializers.Serializer):
-    error = serializers.CharField()
+class LiveKitErrorResponseSerializer(ApiTextErrorResponseSerializer):
+    pass
+
+
+_gm = GeneralMethods()
 
 
 class LiveKitOkResponseSerializer(serializers.Serializer):
@@ -227,10 +230,7 @@ class CallConfigView(InternalAPIView):
     async def get(self, request: Request, call_id: str) -> Response:
         config = await CallExecutionRepository.get_call_config(call_id)
         if config is None:
-            return Response(
-                {"error": "CallExecution not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return _gm.not_found("CallExecution not found")
         return Response(config)
 
 
@@ -257,27 +257,18 @@ class TranscriptsView(InternalAPIView):
         if "transcripts" in data:
             transcripts = data["transcripts"]
             if not isinstance(transcripts, list) or not transcripts:
-                return Response(
-                    {"error": "transcripts must be a non-empty list"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return _gm.bad_request("transcripts must be a non-empty list")
             try:
                 count = await CallTranscriptRepository.bulk_create(call_id, transcripts)
             except Exception:
                 logger.exception("livekit_api_bulk_transcript_failed", call_id=call_id)
-                return Response(
-                    {"error": "CallExecution not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+                return _gm.not_found("CallExecution not found")
             return Response({"created": count}, status=status.HTTP_201_CREATED)
 
         # Single mode: {role, content, start_time_ms}
         for field in ("role", "content", "start_time_ms"):
             if field not in data:
-                return Response(
-                    {"error": f"Missing required field: {field}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return _gm.bad_request(f"Missing required field: {field}")
         try:
             result = await CallTranscriptRepository.create(
                 call_id=call_id,
@@ -288,10 +279,7 @@ class TranscriptsView(InternalAPIView):
             )
         except Exception:
             logger.exception("livekit_api_transcript_failed", call_id=call_id)
-            return Response(
-                {"error": "CallExecution not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return _gm.not_found("CallExecution not found")
         return Response(result, status=status.HTTP_201_CREATED)
 
 
@@ -312,10 +300,7 @@ class PhoneResolutionView(InternalAPIView):
     async def get(self, request: Request, phone_number: str) -> Response:
         config = await PhoneNumberRepository.resolve_to_call_config(phone_number)
         if config is None:
-            return Response(
-                {"error": "No IN_USE phone number found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return _gm.not_found("No IN_USE phone number found")
         return Response(config)
 
 
@@ -348,17 +333,11 @@ class CallExecutionUpdateView(InternalAPIView):
         }
         kwargs = {k: v for k, v in data.items() if k in allowed_fields}
         if not kwargs:
-            return Response(
-                {"error": "No valid fields provided"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _gm.bad_request("No valid fields provided")
 
         updated = await CallExecutionRepository.update_lifecycle(call_id, **kwargs)
         if not updated:
-            return Response(
-                {"error": "CallExecution not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return _gm.not_found("CallExecution not found")
         return Response({"ok": True})
 
 
@@ -393,10 +372,7 @@ class TemporalSignalView(InternalAPIView):
             )
 
             if not call_id:
-                return Response(
-                    {"error": "workflow_id or call_id required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return _gm.bad_request("workflow_id or call_id required")
             workflow_id = f"{CALL_EXECUTION_WORKFLOW_ID_PREFIX}-{call_id}"
             logger.warning(
                 "livekit_api_signal_fallback_workflow_id",
@@ -425,10 +401,7 @@ class TemporalSignalView(InternalAPIView):
                 call_id=call_id,
                 workflow_id=workflow_id,
             )
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+            return _gm.custom_error_response(status.HTTP_502_BAD_GATEWAY, str(e))
 
 
 # ---------------------------------------------------------------------------
@@ -680,9 +653,10 @@ class LiveKitWebhookView(AsyncAPIView):
         elif auth_header:
             token = auth_header
         else:
-            return Response(
-                {"error": "Missing Authorization header"},
-                status=status.HTTP_401_UNAUTHORIZED,
+            return _gm.custom_error_response(
+                status.HTTP_401_UNAUTHORIZED,
+                "Missing Authorization header",
+                code="not_authenticated",
             )
 
         try:
@@ -703,9 +677,10 @@ class LiveKitWebhookView(AsyncAPIView):
                 error_type=type(exc).__name__,
                 error_msg=str(exc),
             )
-            return Response(
-                {"error": f"Webhook verification failed: {type(exc).__name__}: {exc}"},
-                status=status.HTTP_401_UNAUTHORIZED,
+            return _gm.custom_error_response(
+                status.HTTP_401_UNAUTHORIZED,
+                f"Webhook verification failed: {type(exc).__name__}: {exc}",
+                code="not_authenticated",
             )
 
         event_type = event.event

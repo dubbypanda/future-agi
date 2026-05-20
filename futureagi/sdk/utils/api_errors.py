@@ -3,6 +3,8 @@ from collections.abc import Mapping, Sequence
 from rest_framework import status
 from rest_framework.response import Response
 
+from tfc.utils.api_errors import build_error_envelope
+
 
 def _append_error(errors, key, value):
     field = key or "non_field_errors"
@@ -40,12 +42,17 @@ def _flatten_validation_errors(value, *, prefix="", errors=None):
 
 def sdk_validation_error_response(errors):
     """Return the SDK's typed validation-error envelope."""
+    flattened_errors = _flatten_validation_errors(errors)
     return Response(
         {
-            "status": False,
-            "result": "Validation failed",
-            "message": "Validation failed",
-            "errors": _flatten_validation_errors(errors),
+            **build_error_envelope(
+                "Validation failed",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="invalid",
+                error_type="validation_error",
+                details=flattened_errors,
+            ),
+            "errors": flattened_errors,
         },
         status=status.HTTP_400_BAD_REQUEST,
     )

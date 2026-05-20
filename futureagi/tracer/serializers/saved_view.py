@@ -67,6 +67,36 @@ class SavedViewDetailSerializer(serializers.ModelSerializer):
         ]
 
 
+class SavedViewDefaultTabSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    tab_type = serializers.CharField()
+
+
+class SavedViewListResultSerializer(serializers.Serializer):
+    default_tabs = SavedViewDefaultTabSerializer(many=True)
+    custom_views = SavedViewListSerializer(many=True)
+
+
+class SavedViewListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = SavedViewListResultSerializer()
+
+
+class SavedViewDetailResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = SavedViewDetailSerializer()
+
+
+class SavedViewMessageResultSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+
+class SavedViewMessageResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = SavedViewMessageResultSerializer()
+
+
 FILTER_CONFIG_KEYS = (
     "filters",
     "compare_filters",

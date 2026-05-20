@@ -25,7 +25,6 @@ import type {
   AccountsDirectMessageResponseApi,
   AccountsEmptyRequestApi,
   AccountsErrorResponseApi,
-  AccountsJSONRequestApi,
   AccountsMessageResponseApi,
   AccountsOrganizationMembersListParams,
   AccountsPaginatedUserResponseApi,
@@ -235,6 +234,7 @@ import type {
   CheckoutSessionRequestApi,
   CheckoutSessionResponseApi,
   ClassifyColumnRequestApi,
+  ClickHouseHealthErrorResponseApi,
   ClickHouseHealthResponseApi,
   CloneDatasetRequestApi,
   ColumnConfigResponseApi,
@@ -249,6 +249,7 @@ import type {
   CompareDatasetStatsResponseApi,
   CompareEvalListResponseApi,
   CompareEvalsListRequestApi,
+  CompareExperimentEvalRequestApi,
   ComparePreviewRunEvalRequestApi,
   CompareStartEvalsRequestApi,
   CompositeEvalAdhocExecuteRequestApi,
@@ -297,6 +298,7 @@ import type {
   CustomerInvoicesResponseApi,
   DashboardCreateUpdateApi,
   DashboardDetailApi,
+  DashboardMetricsCatalogResponseApi,
   DashboardPreviewQueryApi,
   DashboardQueryApi,
   DashboardQueryApiResponseApi,
@@ -583,6 +585,7 @@ import type {
   LiveKitTranscriptsRequestApi,
   LocalFileDatasetCreateStartedResponseApi,
   LoginRequestApi,
+  LogoutRequestApi,
   MCPAnalyticsSummaryResponseApi,
   MCPAnalyticsTimelineResponseApi,
   MCPAnalyticsToolsResponseApi,
@@ -648,6 +651,7 @@ import type {
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
   ModelHubDevelopsGetDatasetTableListParams,
+  ModelHubDevelopsGetDatasetsListParams,
   ModelHubDevelopsGetEvalStructureReadParams,
   ModelHubEmptyRequestApi,
   ModelHubErrorResponseApi,
@@ -734,8 +738,10 @@ import type {
   OTLPHealthResponseApi,
   OTLPTraceResponseApi,
   ObservabilityProviderApi,
+  ObservationAttributeListResponseApi,
   ObservationSpanApi,
   ObserveGraphDataRequestApi,
+  ObserveGraphDataResponseApi,
   OperationConfigResponseApi,
   OptimiserAnalysisRefreshResponseApi,
   OptimiserAnalysisResponseApi,
@@ -812,6 +818,8 @@ import type {
   PricingListResponseApi,
   PricingReadResponseApi,
   ProjectApi,
+  ProjectDetailResponseApi,
+  ProjectIdListResponseApi,
   ProjectUserGraphDataRequestApi,
   ProjectUserMetricsRequestApi,
   ProjectUsersAggregateGraphDataRequestApi,
@@ -938,8 +946,10 @@ import type {
   Saml2AuthMicrosoftCallbackListParams,
   Saml2AuthMicrosoftReadParams,
   Saml2AuthReadParams,
-  SavedViewDetailApi,
+  SavedViewDetailResponseApi,
   SavedViewListApi,
+  SavedViewListResponseApi,
+  SavedViewMessageResponseApi,
   ScenarioAddColumnsRequestApi,
   ScenarioAddColumnsResponseApi,
   ScenarioAddRowsRequestApi,
@@ -975,6 +985,7 @@ import type {
   SharedLinkListApi,
   SharedLinkResolveErrorApi,
   SharedLinkResolveResponseApi,
+  SignupRequestApi,
   SimulateAgentDefinitionsListParams,
   SimulateApiAgentDefinitionOperationsList200,
   SimulateApiAgentDefinitionOperationsListParams,
@@ -1083,7 +1094,6 @@ import type {
   TracerDashboardFilterValuesParams,
   TracerDashboardList200,
   TracerDashboardListParams,
-  TracerDashboardMetrics200,
   TracerDashboardMetricsParams,
   TracerDashboardSimulationAgents200,
   TracerDashboardSimulationAgentsParams,
@@ -1098,9 +1108,7 @@ import type {
   TracerEvalTaskGetUsage200,
   TracerEvalTaskGetUsageParams,
   TracerEvalTaskList200,
-  TracerEvalTaskListEvalTasks200,
   TracerEvalTaskListEvalTasksParams,
-  TracerEvalTaskListEvalTasksWithProjectName200,
   TracerEvalTaskListEvalTasksWithProjectNameParams,
   TracerEvalTaskListParams,
   TracerFeedIssuesListParams,
@@ -1114,13 +1122,11 @@ import type {
   TracerImagineAnalysisListParams,
   TracerObservabilityProviderList200,
   TracerObservabilityProviderListParams,
-  TracerObservationSpanGetEvalAttributesList200,
   TracerObservationSpanGetEvalAttributesListParams,
   TracerObservationSpanGetEvaluationDetails200,
   TracerObservationSpanGetEvaluationDetailsParams,
   TracerObservationSpanGetObservationSpanFields200,
   TracerObservationSpanGetObservationSpanFieldsParams,
-  TracerObservationSpanGetSpanAttributesList200,
   TracerObservationSpanGetSpanAttributesListParams,
   TracerObservationSpanGetSpansExportData200,
   TracerObservationSpanGetSpansExportDataParams,
@@ -1147,7 +1153,6 @@ import type {
   TracerProjectGetUserGraphDataParams,
   TracerProjectList200,
   TracerProjectListParams,
-  TracerProjectListProjectIds200,
   TracerProjectListProjectIdsParams,
   TracerProjectListProjects200,
   TracerProjectListProjectsParams,
@@ -1161,7 +1166,6 @@ import type {
   TracerProjectVersionListParams,
   TracerProjectVersionListRuns200,
   TracerProjectVersionListRunsParams,
-  TracerSavedViewsList200,
   TracerSavedViewsListParams,
   TracerSharedLinksList200,
   TracerSharedLinksListParams,
@@ -1273,6 +1277,7 @@ import type {
   UserCreateApi,
   UserEvalApi,
   UserEvalMutationRequestApi,
+  UserEvalUpdateRequestApi,
   UserFullNameUpdateRequestApi,
   UserIdsRequestApi,
   UserInfoResponseApi,
@@ -3464,7 +3469,7 @@ export const getAccountsLogoutCreateUrl = () => {
   return `/accounts/logout/`
 }
 
-export const accountsLogoutCreate = async (accountsJSONRequestApi: AccountsJSONRequestApi, options?: RequestInit): Promise<accountsLogoutCreateResponse> => {
+export const accountsLogoutCreate = async (logoutRequestApi: LogoutRequestApi, options?: RequestInit): Promise<accountsLogoutCreateResponse> => {
 
   return apiMutator<accountsLogoutCreateResponse>(getAccountsLogoutCreateUrl(),
   {
@@ -3472,7 +3477,7 @@ export const accountsLogoutCreate = async (accountsJSONRequestApi: AccountsJSONR
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      accountsJSONRequestApi,)
+      logoutRequestApi,)
   }
 );}
 
@@ -4223,8 +4228,12 @@ export const getAccountsOrganizationMembersListUrl = (params?: AccountsOrganizat
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -5823,7 +5832,7 @@ export const getAccountsSignupCreateUrl = () => {
   return `/accounts/signup/`
 }
 
-export const accountsSignupCreate = async (accountsJSONRequestApi: AccountsJSONRequestApi, options?: RequestInit): Promise<accountsSignupCreateResponse> => {
+export const accountsSignupCreate = async (signupRequestApi: SignupRequestApi, options?: RequestInit): Promise<accountsSignupCreateResponse> => {
 
   return apiMutator<accountsSignupCreateResponse>(getAccountsSignupCreateUrl(),
   {
@@ -5831,7 +5840,7 @@ export const accountsSignupCreate = async (accountsJSONRequestApi: AccountsJSONR
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      accountsJSONRequestApi,)
+      signupRequestApi,)
   }
 );}
 
@@ -6615,8 +6624,12 @@ export const getAccountsUserListListUrl = (params?: AccountsUserListListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -6897,8 +6910,12 @@ export const getAccountsWorkspaceListListUrl = (params?: AccountsWorkspaceListLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -7042,8 +7059,12 @@ export const getAccountsWorkspaceMembersListUrl = (workspaceId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -7932,8 +7953,12 @@ export const getAgentPlaygroundGraphsListUrl = (params?: AgentPlaygroundGraphsLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -8472,8 +8497,12 @@ export const getAgentPlaygroundGraphsExecutionsListUrl = (graphId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -8896,8 +8925,12 @@ export const getAgentPlaygroundGraphsVersionsReadUrl = (id: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -9654,8 +9687,12 @@ export const getAgentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsUrl = (id:
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -9789,8 +9826,12 @@ export const getAgentPlaygroundNodeTemplatesListUrl = (params?: AgentPlaygroundN
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -9900,8 +9941,12 @@ export const getAgentccAnalyticsCostBreakdownUrl = (params?: AgentccAnalyticsCos
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -9950,8 +9995,12 @@ export const getAgentccAnalyticsErrorBreakdownUrl = (params?: AgentccAnalyticsEr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10000,8 +10049,12 @@ export const getAgentccAnalyticsGuardrailOverviewUrl = (params?: AgentccAnalytic
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10050,8 +10103,12 @@ export const getAgentccAnalyticsGuardrailRulesUrl = (params?: AgentccAnalyticsGu
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10100,8 +10157,12 @@ export const getAgentccAnalyticsGuardrailTrendsUrl = (params?: AgentccAnalyticsG
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10150,8 +10211,12 @@ export const getAgentccAnalyticsLatencyStatsUrl = (params?: AgentccAnalyticsLate
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10200,8 +10265,12 @@ export const getAgentccAnalyticsModelComparisonUrl = (params?: AgentccAnalyticsM
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10250,8 +10319,12 @@ export const getAgentccAnalyticsOverviewUrl = (params?: AgentccAnalyticsOverview
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10300,8 +10373,12 @@ export const getAgentccAnalyticsUsageTimeseriesUrl = (params?: AgentccAnalyticsU
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10350,8 +10427,12 @@ export const getAgentccApiKeysListUrl = (params?: AgentccApiKeysListParams,) => 
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -10737,8 +10818,12 @@ export const getAgentccBlocklistsListUrl = (params?: AgentccBlocklistsListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -11097,8 +11182,12 @@ export const getAgentccCustomPropertiesListUrl = (params?: AgentccCustomProperti
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -11411,8 +11500,12 @@ export const getAgentccEmailAlertsListUrl = (params?: AgentccEmailAlertsListPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13030,8 +13123,12 @@ export const getAgentccGuardrailConfigsPiiEntitiesUrl = (params?: AgentccGuardra
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13080,8 +13177,12 @@ export const getAgentccGuardrailConfigsTopicsUrl = (params?: AgentccGuardrailCon
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13179,8 +13280,12 @@ export const getAgentccGuardrailFeedbackListUrl = (params?: AgentccGuardrailFeed
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13273,8 +13378,12 @@ export const getAgentccGuardrailFeedbackSummaryUrl = (params?: AgentccGuardrailF
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13499,8 +13608,12 @@ export const getAgentccGuardrailPoliciesListUrl = (params?: AgentccGuardrailPoli
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13858,8 +13971,12 @@ export const getAgentccOrgConfigsListUrl = (params?: AgentccOrgConfigsListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -13952,8 +14069,12 @@ export const getAgentccOrgConfigsActiveUrl = (params?: AgentccOrgConfigsActivePa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14316,8 +14437,12 @@ export const getAgentccProviderCredentialsListUrl = (params?: AgentccProviderCre
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14660,8 +14785,12 @@ export const getAgentccRequestLogsListUrl = (params?: AgentccRequestLogsListPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14707,8 +14836,12 @@ export const getAgentccRequestLogsExportUrl = (params?: AgentccRequestLogsExport
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14757,8 +14890,12 @@ export const getAgentccRequestLogsSearchUrl = (params?: AgentccRequestLogsSearch
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14807,8 +14944,12 @@ export const getAgentccRequestLogsSessionsUrl = (params?: AgentccRequestLogsSess
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14858,8 +14999,12 @@ export const getAgentccRequestLogsSessionDetailUrl = (sessionId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -14949,8 +15094,12 @@ export const getAgentccRoutingPoliciesListUrl = (params?: AgentccRoutingPolicies
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -15308,8 +15457,12 @@ export const getAgentccSessionsListUrl = (params?: AgentccSessionsListParams,) =
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -15666,8 +15819,12 @@ export const getAgentccShadowExperimentsListUrl = (params?: AgentccShadowExperim
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -16114,8 +16271,12 @@ export const getAgentccShadowResultsListUrl = (params?: AgentccShadowResultsList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -16212,8 +16373,12 @@ export const getAgentccSpendSummaryListUrl = (params?: AgentccSpendSummaryListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -16265,8 +16430,12 @@ export const getAgentccWebhookEventsListUrl = (params?: AgentccWebhookEventsList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -16499,8 +16668,12 @@ export const getAgentccWebhooksListUrl = (params?: AgentccWebhooksListParams,) =
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -16898,7 +17071,7 @@ export type apiHealthClickhouseListResponse200 = {
 }
 
 export type apiHealthClickhouseListResponse503 = {
-  data: ClickHouseHealthResponseApi
+  data: ClickHouseHealthErrorResponseApi
   status: 503
 }
 
@@ -17225,8 +17398,12 @@ export const getApiTracesSpanAttributeDetailListUrl = (params: ApiTracesSpanAttr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -17302,8 +17479,12 @@ export const getApiTracesSpanAttributeKeysListUrl = (params: ApiTracesSpanAttrib
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -17376,8 +17557,12 @@ export const getApiTracesSpanAttributeValuesListUrl = (params: ApiTracesSpanAttr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -18241,8 +18426,12 @@ export const getFalconAiMcpConnectorsOauthCallbackListUrl = (connectorId: string
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -19011,8 +19200,12 @@ export const getIntegrationsConnectionsListUrl = (params?: IntegrationsConnectio
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -19615,8 +19808,12 @@ export const getIntegrationsSyncLogsListUrl = (params?: IntegrationsSyncLogsList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -20751,8 +20948,12 @@ export const getModelHubAnnotationQueuesListUrl = (params?: ModelHubAnnotationQu
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -20864,8 +21065,12 @@ export const getModelHubAnnotationQueuesForSourceUrl = (params?: ModelHubAnnotat
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -21545,8 +21750,12 @@ export const getModelHubAnnotationQueuesExportAnnotationsUrl = (id: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -21941,8 +22150,12 @@ export const getModelHubAnnotationQueuesAutomationRulesListUrl = (queueId: strin
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -22361,8 +22574,12 @@ export const getModelHubAnnotationQueuesItemsListUrl = (queueId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -22671,8 +22888,12 @@ export const getModelHubAnnotationQueuesItemsNextItemUrl = (queueId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -22927,8 +23148,12 @@ export const getModelHubAnnotationQueuesItemsAnnotateDetailUrl = (queueId: strin
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -23839,8 +24064,12 @@ export const getModelHubAnnotationTasksListUrl = (params?: ModelHubAnnotationTas
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -23941,8 +24170,12 @@ export const getModelHubAnnotationsLabelsListUrl = (params?: ModelHubAnnotations
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -24256,8 +24489,12 @@ export const getModelHubAnnotationsListUrl = (params?: ModelHubAnnotationsListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -24628,8 +24865,12 @@ export const getModelHubAnnotationsAnnotateRowUrl = (id: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -24793,8 +25034,12 @@ export const getModelHubApiKeysListUrl = (params?: ModelHubApiKeysListParams,) =
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -26744,8 +26989,12 @@ export const getModelHubDatasetOptimizationListUrl = (params?: ModelHubDatasetOp
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -28669,7 +28918,7 @@ export const getModelHubDatasetsCompareDatasetsAddEvalCreateUrl = (datasetId: st
 }
 
 export const modelHubDatasetsCompareDatasetsAddEvalCreate = async (datasetId: string,
-    userEvalApi: UserEvalApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsAddEvalCreateResponse> => {
+    compareExperimentEvalRequestApi: CompareExperimentEvalRequestApi, options?: RequestInit): Promise<modelHubDatasetsCompareDatasetsAddEvalCreateResponse> => {
 
   return apiMutator<modelHubDatasetsCompareDatasetsAddEvalCreateResponse>(getModelHubDatasetsCompareDatasetsAddEvalCreateUrl(datasetId),
   {
@@ -28677,7 +28926,7 @@ export const modelHubDatasetsCompareDatasetsAddEvalCreate = async (datasetId: st
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      userEvalApi,)
+      compareExperimentEvalRequestApi,)
   }
 );}
 
@@ -30438,17 +30687,28 @@ export type modelHubDevelopsGetDatasetsListResponseError = (modelHubDevelopsGetD
 
 export type modelHubDevelopsGetDatasetsListResponse = (modelHubDevelopsGetDatasetsListResponseSuccess | modelHubDevelopsGetDatasetsListResponseError)
 
-export const getModelHubDevelopsGetDatasetsListUrl = () => {
+export const getModelHubDevelopsGetDatasetsListUrl = (params?: ModelHubDevelopsGetDatasetsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/develops/get-datasets/`
+  return stringifiedParams.length > 0 ? `/model-hub/develops/get-datasets/?${stringifiedParams}` : `/model-hub/develops/get-datasets/`
 }
 
-export const modelHubDevelopsGetDatasetsList = async ( options?: RequestInit): Promise<modelHubDevelopsGetDatasetsListResponse> => {
+export const modelHubDevelopsGetDatasetsList = async (params?: ModelHubDevelopsGetDatasetsListParams, options?: RequestInit): Promise<modelHubDevelopsGetDatasetsListResponse> => {
 
-  return apiMutator<modelHubDevelopsGetDatasetsListResponse>(getModelHubDevelopsGetDatasetsListUrl(),
+  return apiMutator<modelHubDevelopsGetDatasetsListResponse>(getModelHubDevelopsGetDatasetsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -31956,7 +32216,7 @@ export const getModelHubDevelopsEditAndRunUserEvalCreateUrl = (datasetId: string
 
 export const modelHubDevelopsEditAndRunUserEvalCreate = async (datasetId: string,
     evalId: string,
-    userEvalMutationRequestApi: UserEvalMutationRequestApi, options?: RequestInit): Promise<modelHubDevelopsEditAndRunUserEvalCreateResponse> => {
+    userEvalUpdateRequestApi: UserEvalUpdateRequestApi, options?: RequestInit): Promise<modelHubDevelopsEditAndRunUserEvalCreateResponse> => {
 
   return apiMutator<modelHubDevelopsEditAndRunUserEvalCreateResponse>(getModelHubDevelopsEditAndRunUserEvalCreateUrl(datasetId,evalId),
   {
@@ -31964,7 +32224,7 @@ export const modelHubDevelopsEditAndRunUserEvalCreate = async (datasetId: string
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      userEvalMutationRequestApi,)
+      userEvalUpdateRequestApi,)
   }
 );}
 
@@ -32154,8 +32414,12 @@ export const getModelHubDevelopsGetDatasetTableListUrl = (datasetId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -32296,8 +32560,12 @@ export const getModelHubDevelopsGetEvalStructureReadUrl = (datasetId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -33286,8 +33554,12 @@ export const getModelHubEvalGroupsListUrl = (params?: ModelHubEvalGroupsListPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -35201,7 +35473,7 @@ export const getModelHubEvalTemplatesGroundTruthUploadCreateUrl = (templateId: s
  * @summary POST /model-hub/eval-templates/<id>/ground-truth/upload/
  */
 export const modelHubEvalTemplatesGroundTruthUploadCreate = async (templateId: string,
-    groundTruthUploadRequestApi: GroundTruthUploadRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthUploadCreateResponse> => {
+    groundTruthUploadRequestApi: NonReadonly<GroundTruthUploadRequestApi>, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthUploadCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesGroundTruthUploadCreateResponse>(getModelHubEvalTemplatesGroundTruthUploadCreateUrl(templateId),
   {
@@ -35799,8 +36071,12 @@ export const getModelHubExperimentDetailListUrl = (params?: ModelHubExperimentDe
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -36043,8 +36319,12 @@ export const getModelHubExperimentsDataListUrl = (params?: ModelHubExperimentsDa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -36305,8 +36585,12 @@ export const getModelHubExperimentsV2ListListUrl = (params?: ModelHubExperiments
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -38335,8 +38619,12 @@ export const getModelHubFeedbackListUrl = (params?: ModelHubFeedbackListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -38423,8 +38711,12 @@ export const getModelHubFeedbackGetFeedbackDetailsUrl = (params?: ModelHubFeedba
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -38473,8 +38765,12 @@ export const getModelHubFeedbackGetFeedbackSummaryUrl = (params?: ModelHubFeedba
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -38523,8 +38819,12 @@ export const getModelHubFeedbackGetTemplateUrl = (params?: ModelHubFeedbackGetTe
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -38872,8 +39172,12 @@ export const getModelHubGetEvalConfigListUrl = (params: ModelHubGetEvalConfigLis
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -39115,8 +39419,12 @@ export const getModelHubGetEvalLogsDetailsListUrl = (params: ModelHubGetEvalLogs
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -39187,8 +39495,12 @@ export const getModelHubGetEvalMetricsListUrl = (params: ModelHubGetEvalMetricsL
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -39941,8 +40253,12 @@ export const getModelHubKbListUrl = (params?: ModelHubKbListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -40087,8 +40403,12 @@ export const getModelHubKbSupportedEmbeddingModelsUrl = (params?: ModelHubKbSupp
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -40930,8 +41250,12 @@ export const getModelHubOptimisationListUrl = (params?: ModelHubOptimisationList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -41323,8 +41647,12 @@ export const getModelHubOptimizeDatasetListUrl = (params?: ModelHubOptimizeDatas
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -42247,8 +42575,12 @@ export const getModelHubOrganizationsUsersListUrl = (organizationId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43106,8 +43438,12 @@ export const getModelHubPromptBaseTemplatesListUrl = (params?: ModelHubPromptBas
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43200,8 +43536,12 @@ export const getModelHubPromptBaseTemplatesGetAllCategoriesUrl = (params?: Model
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43426,8 +43766,12 @@ export const getModelHubPromptExecutionsListUrl = (params?: ModelHubPromptExecut
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43513,8 +43857,12 @@ export const getModelHubPromptFoldersListUrl = (params?: ModelHubPromptFoldersLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43783,8 +44131,12 @@ export const getModelHubPromptHistoryExecutionsListUrl = (params?: ModelHubPromp
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43831,8 +44183,12 @@ export const getModelHubPromptHistoryExecutionsGetExecutionDetailsUrl = (executi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -43947,8 +44303,12 @@ export const getModelHubPromptLabelsListUrl = (params?: ModelHubPromptLabelsList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -44220,8 +44580,12 @@ export const getModelHubPromptLabelsGetByNameUrl = (params?: ModelHubPromptLabel
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -44437,8 +44801,12 @@ export const getModelHubPromptLabelsTemplateLabelsUrl = (params?: ModelHubPrompt
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -44823,8 +45191,12 @@ export const getModelHubPromptTemplatesListUrl = (params?: ModelHubPromptTemplat
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -45207,8 +45579,12 @@ export const getModelHubPromptTemplatesGetTemplateByNameUrl = (params?: ModelHub
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -46504,8 +46880,12 @@ export const getModelHubPromptMetricsListUrl = (params: ModelHubPromptMetricsLis
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -46641,8 +47021,12 @@ export const getModelHubPromptSpanMetricsListUrl = (params: ModelHubPromptSpanMe
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -46688,8 +47072,12 @@ export const getModelHubResponseSchemaListUrl = (params?: ModelHubResponseSchema
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -47072,8 +47460,12 @@ export const getModelHubScoresListUrl = (params?: ModelHubScoresListParams,) => 
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -47289,8 +47681,12 @@ export const getModelHubScoresForSourceUrl = (params: ModelHubScoresForSourcePar
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -47555,8 +47951,12 @@ export const getModelHubSecretsListUrl = (params?: ModelHubSecretsListParams,) =
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -47897,8 +48297,12 @@ export const getModelHubToolsListUrl = (params?: ModelHubToolsListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48149,8 +48553,12 @@ export const getModelHubTtsVoicesListUrl = (params?: ModelHubTtsVoicesListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48580,8 +48988,12 @@ export const getSaml2AuthAuthCallbackListUrl = (params?: Saml2AuthAuthCallbackLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48631,8 +49043,12 @@ export const getSaml2AuthAuthReadUrl = (format: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48682,8 +49098,12 @@ export const getSaml2AuthGithubCallbackListUrl = (params?: Saml2AuthGithubCallba
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48733,8 +49153,12 @@ export const getSaml2AuthGithubReadUrl = (format: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48786,8 +49210,12 @@ export const getSaml2AuthIdpLoginListUrl = (params: Saml2AuthIdpLoginListParams,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -48843,8 +49271,12 @@ export const getSaml2AuthIdpUploadsListUrl = (params?: Saml2AuthIdpUploadsListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49098,8 +49530,12 @@ export const getSaml2AuthLoginListUrl = (params: Saml2AuthLoginListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49151,8 +49587,12 @@ export const getSaml2AuthReadUrl = (format: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49202,8 +49642,12 @@ export const getSaml2AuthMicrosoftCallbackListUrl = (params?: Saml2AuthMicrosoft
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49253,8 +49697,12 @@ export const getSaml2AuthMicrosoftReadUrl = (format: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49463,8 +49911,12 @@ export const getSdkApiV1EvaluatePipelineListUrl = (params: SdkApiV1EvaluatePipel
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49616,8 +50068,12 @@ export const getSdkApiV1NewEvalListUrl = (params: SdkApiV1NewEvalListParams,) =>
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49729,8 +50185,12 @@ export const getSdkApiV1SimulationAnalyticsListUrl = (params?: SdkApiV1Simulatio
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49796,8 +50256,12 @@ export const getSdkApiV1SimulationMetricsListUrl = (params?: SdkApiV1SimulationM
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49862,8 +50326,12 @@ export const getSdkApiV1SimulationRunsListUrl = (params?: SdkApiV1SimulationRuns
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -49928,8 +50396,12 @@ export const getSimulateAgentDefinitionsListUrl = (params?: SimulateAgentDefinit
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -50724,8 +51196,12 @@ export const getSimulateApiAgentDefinitionOperationsListUrl = (params?: Simulate
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -51106,8 +51582,12 @@ export const getSimulateApiAgentPromptOptimiserListUrl = (params?: SimulateApiAg
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -51747,8 +52227,12 @@ export const getSimulateApiCallExecutionsListUrl = (params?: SimulateApiCallExec
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -52243,8 +52727,12 @@ export const getSimulateApiPersonasListUrl = (params?: SimulateApiPersonasListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -52402,8 +52890,12 @@ export const getSimulateApiPersonasFieldOptionsUrl = (params?: SimulateApiPerson
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -52457,8 +52949,12 @@ export const getSimulateApiPersonasSystemPersonasUrl = (params?: SimulateApiPers
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -52517,8 +53013,12 @@ export const getSimulateApiPersonasWorkspacePersonasUrl = (params?: SimulateApiP
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -52878,8 +53378,12 @@ export const getSimulateApiRunTestsListUrl = (params?: SimulateApiRunTestsListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -53547,8 +54051,12 @@ export const getSimulateExportReadUrl = (itemId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -54031,8 +54539,12 @@ export const getSimulateRunTestsListUrl = (params?: SimulateRunTestsListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -55045,8 +55557,12 @@ export const getSimulateRunTestsEvalSummaryComparisonListUrl = (runTestId: strin
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -55113,8 +55629,12 @@ export const getSimulateRunTestsEvalSummaryListUrl = (runTestId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -55583,8 +56103,12 @@ export const getSimulateScenariosListUrl = (params?: SimulateScenariosListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -55699,8 +56223,12 @@ export const getSimulateScenariosGetColumnsListUrl = (params?: SimulateScenarios
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -56371,8 +56899,12 @@ export const getSimulateTestExecutionsReadUrl = (testExecutionId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -57217,8 +57749,12 @@ export const getTracerChartsListUrl = (params?: TracerChartsListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -57305,8 +57841,12 @@ export const getTracerChartsFetchGraphUrl = (params?: TracerChartsFetchGraphPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -57531,8 +58071,12 @@ export const getTracerCustomEvalConfigListUrl = (params?: TracerCustomEvalConfig
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -57701,8 +58245,12 @@ export const getTracerCustomEvalConfigListCustomEvalConfigsUrl = (params?: Trace
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -57956,8 +58504,12 @@ export const getTracerDashboardListUrl = (params?: TracerDashboardListParams,) =
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -58044,8 +58596,12 @@ export const getTracerDashboardFilterValuesUrl = (params?: TracerDashboardFilter
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -58071,19 +58627,24 @@ export const tracerDashboardFilterValues = async (params?: TracerDashboardFilter
 
 
 export type tracerDashboardMetricsResponse200 = {
-  data: TracerDashboardMetrics200
+  data: DashboardMetricsCatalogResponseApi
   status: 200
+}
+
+export type tracerDashboardMetricsResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
 }
 
 export type tracerDashboardMetricsResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400>
 }
 
 export type tracerDashboardMetricsResponseSuccess = (tracerDashboardMetricsResponse200) & {
   headers: Headers;
 };
-export type tracerDashboardMetricsResponseError = (tracerDashboardMetricsResponseDefault) & {
+export type tracerDashboardMetricsResponseError = (tracerDashboardMetricsResponse400 | tracerDashboardMetricsResponseDefault) & {
   headers: Headers;
 };
 
@@ -58094,8 +58655,12 @@ export const getTracerDashboardMetricsUrl = (params?: TracerDashboardMetricsPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -58201,8 +58766,12 @@ export const getTracerDashboardSimulationAgentsUrl = (params?: TracerDashboardSi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -58252,8 +58821,12 @@ export const getTracerDashboardWidgetsListUrl = (dashboardPk: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -58872,8 +59445,12 @@ export const getTracerDatasetListUrl = (params?: TracerDatasetListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59206,8 +59783,12 @@ export const getTracerEvalTaskListUrl = (params?: TracerEvalTaskListParams,) => 
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59294,8 +59875,12 @@ export const getTracerEvalTaskGetEvalDetailsUrl = (params?: TracerEvalTaskGetEva
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59341,8 +59926,12 @@ export const getTracerEvalTaskGetEvalTaskLogsUrl = (params?: TracerEvalTaskGetEv
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59388,8 +59977,12 @@ export const getTracerEvalTaskGetUsageUrl = (params?: TracerEvalTaskGetUsagePara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59412,7 +60005,7 @@ export const tracerEvalTaskGetUsage = async (params?: TracerEvalTaskGetUsagePara
 
 
 export type tracerEvalTaskListEvalTasksResponse200 = {
-  data: TracerEvalTaskListEvalTasks200
+  data: EvalTaskApi[]
   status: 200
 }
 
@@ -59435,8 +60028,12 @@ export const getTracerEvalTaskListEvalTasksUrl = (params?: TracerEvalTaskListEva
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59462,7 +60059,7 @@ export const tracerEvalTaskListEvalTasks = async (params?: TracerEvalTaskListEva
 
 
 export type tracerEvalTaskListEvalTasksWithProjectNameResponse200 = {
-  data: TracerEvalTaskListEvalTasksWithProjectName200
+  data: EvalTaskApi[]
   status: 200
 }
 
@@ -59485,8 +60082,12 @@ export const getTracerEvalTaskListEvalTasksWithProjectNameUrl = (params?: Tracer
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -59953,8 +60554,12 @@ export const getTracerFeedIssuesListUrl = (params?: TracerFeedIssuesListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60023,8 +60628,12 @@ export const getTracerFeedIssuesStatsListUrl = (params?: TracerFeedIssuesStatsLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60094,8 +60703,12 @@ export const getTracerFeedIssuesReadUrl = (clusterId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60424,8 +61037,12 @@ export const getTracerFeedIssuesRootCauseListUrl = (clusterId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60500,8 +61117,12 @@ export const getTracerFeedIssuesSidebarListUrl = (clusterId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60576,8 +61197,12 @@ export const getTracerFeedIssuesTracesListUrl = (clusterId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60648,8 +61273,12 @@ export const getTracerFeedIssuesTrendsListUrl = (clusterId: string,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60709,8 +61338,12 @@ export const getTracerGetAnnotationLabelsListUrl = (params?: TracerGetAnnotation
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60776,8 +61409,12 @@ export const getTracerImagineAnalysisListUrl = (params: TracerImagineAnalysisLis
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -60890,8 +61527,12 @@ export const getTracerObservabilityProviderListUrl = (params?: TracerObservabili
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61248,8 +61889,12 @@ export const getTracerObservationSpanListUrl = (params?: TracerObservationSpanLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61476,7 +62121,7 @@ export const tracerObservationSpanDeleteAnnotationLabel = async ( options?: Requ
 
 
 export type tracerObservationSpanGetEvalAttributesListResponse200 = {
-  data: TracerObservationSpanGetEvalAttributesList200
+  data: ObservationAttributeListResponseApi
   status: 200
 }
 
@@ -61499,8 +62144,12 @@ export const getTracerObservationSpanGetEvalAttributesListUrl = (params: TracerO
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61553,8 +62202,12 @@ export const getTracerObservationSpanGetEvaluationDetailsUrl = (params?: TracerO
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61576,17 +62229,17 @@ export const tracerObservationSpanGetEvaluationDetails = async (params?: TracerO
 
 
 
-export type tracerObservationSpanGetGraphMethodsResponse201 = {
-  data: ObserveGraphDataRequestApi
-  status: 201
+export type tracerObservationSpanGetGraphMethodsResponse200 = {
+  data: ObserveGraphDataResponseApi
+  status: 200
 }
 
 export type tracerObservationSpanGetGraphMethodsResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerObservationSpanGetGraphMethodsResponseSuccess = (tracerObservationSpanGetGraphMethodsResponse201) & {
+export type tracerObservationSpanGetGraphMethodsResponseSuccess = (tracerObservationSpanGetGraphMethodsResponse200) & {
   headers: Headers;
 };
 export type tracerObservationSpanGetGraphMethodsResponseError = (tracerObservationSpanGetGraphMethodsResponseDefault) & {
@@ -61644,8 +62297,12 @@ export const getTracerObservationSpanGetObservationSpanFieldsUrl = (params?: Tra
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61668,7 +62325,7 @@ export const tracerObservationSpanGetObservationSpanFields = async (params?: Tra
 
 
 export type tracerObservationSpanGetSpanAttributesListResponse200 = {
-  data: TracerObservationSpanGetSpanAttributesList200
+  data: ObservationAttributeListResponseApi
   status: 200
 }
 
@@ -61691,8 +62348,12 @@ export const getTracerObservationSpanGetSpanAttributesListUrl = (params: TracerO
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61743,8 +62404,12 @@ export const getTracerObservationSpanGetSpansExportDataUrl = (params?: TracerObs
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61790,8 +62455,12 @@ export const getTracerObservationSpanGetTraceIdByIndexSpansAsBaseUrl = (params: 
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61841,8 +62510,12 @@ export const getTracerObservationSpanGetTraceIdByIndexSpansAsObserveUrl = (param
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61892,8 +62565,12 @@ export const getTracerObservationSpanListSpansUrl = (params?: TracerObservationS
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61942,8 +62619,12 @@ export const getTracerObservationSpanListSpansObserveUrl = (params: TracerObserv
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -61989,8 +62670,12 @@ export const getTracerObservationSpanRetrieveLoadingUrl = (params?: TracerObserv
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -62036,8 +62721,12 @@ export const getTracerObservationSpanRootSpansUrl = (params?: TracerObservationS
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -62433,8 +63122,12 @@ export const getTracerProjectVersionListUrl = (params?: TracerProjectVersionList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -62647,8 +63340,12 @@ export const getTracerProjectVersionGetProjectVersionIdsUrl = (params?: TracerPr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -62694,8 +63391,12 @@ export const getTracerProjectVersionGetRunInsightsUrl = (params?: TracerProjectV
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -62741,8 +63442,12 @@ export const getTracerProjectVersionListRunsUrl = (params?: TracerProjectVersion
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63037,8 +63742,12 @@ export const getTracerProjectListUrl = (params?: TracerProjectListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63131,8 +63840,12 @@ export const getTracerProjectFetchSystemMetricsUrl = (params?: TracerProjectFetc
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63178,8 +63891,12 @@ export const getTracerProjectGetGraphDataUrl = (params: TracerProjectGetGraphDat
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63225,8 +63942,12 @@ export const getTracerProjectGetUserGraphDataUrl = (params: TracerProjectGetUser
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63338,7 +64059,7 @@ export const tracerProjectGetUsersAggregateGraphData = async (projectUsersAggreg
 
 
 export type tracerProjectListProjectIdsResponse200 = {
-  data: TracerProjectListProjectIds200
+  data: ProjectIdListResponseApi
   status: 200
 }
 
@@ -63361,8 +64082,12 @@ export const getTracerProjectListProjectIdsUrl = (params?: TracerProjectListProj
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63411,8 +64136,12 @@ export const getTracerProjectListProjectsUrl = (params?: TracerProjectListProjec
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63463,8 +64192,12 @@ export const getTracerProjectProjectSdkCodeUrl = (params?: TracerProjectProjectS
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -63610,7 +64343,7 @@ export const tracerProjectUpdateProjectSessionConfig = async (projectApi: NonRea
 
 
 export type tracerProjectReadResponse200 = {
-  data: ProjectApi
+  data: ProjectDetailResponseApi
   status: 200
 }
 
@@ -64067,7 +64800,7 @@ export const tracerReplaySessionGenerateScenario = async (id: string,
 
 
 export type tracerSavedViewsListResponse200 = {
-  data: TracerSavedViewsList200
+  data: SavedViewListResponseApi
   status: 200
 }
 
@@ -64090,8 +64823,12 @@ export const getTracerSavedViewsListUrl = (params?: TracerSavedViewsListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -64113,17 +64850,17 @@ export const tracerSavedViewsList = async (params?: TracerSavedViewsListParams, 
 
 
 
-export type tracerSavedViewsCreateResponse201 = {
-  data: SavedViewListApi
-  status: 201
+export type tracerSavedViewsCreateResponse200 = {
+  data: SavedViewDetailResponseApi
+  status: 200
 }
 
 export type tracerSavedViewsCreateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerSavedViewsCreateResponseSuccess = (tracerSavedViewsCreateResponse201) & {
+export type tracerSavedViewsCreateResponseSuccess = (tracerSavedViewsCreateResponse200) & {
   headers: Headers;
 };
 export type tracerSavedViewsCreateResponseError = (tracerSavedViewsCreateResponseDefault) & {
@@ -64154,17 +64891,17 @@ export const tracerSavedViewsCreate = async (savedViewListApi: NonReadonly<Saved
 
 
 
-export type tracerSavedViewsReorderResponse201 = {
-  data: SavedViewListApi
-  status: 201
+export type tracerSavedViewsReorderResponse200 = {
+  data: SavedViewMessageResponseApi
+  status: 200
 }
 
 export type tracerSavedViewsReorderResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerSavedViewsReorderResponseSuccess = (tracerSavedViewsReorderResponse201) & {
+export type tracerSavedViewsReorderResponseSuccess = (tracerSavedViewsReorderResponse200) & {
   headers: Headers;
 };
 export type tracerSavedViewsReorderResponseError = (tracerSavedViewsReorderResponseDefault) & {
@@ -64196,7 +64933,7 @@ export const tracerSavedViewsReorder = async (savedViewListApi: NonReadonly<Save
 
 
 export type tracerSavedViewsReadResponse200 = {
-  data: SavedViewDetailApi
+  data: SavedViewDetailResponseApi
   status: 200
 }
 
@@ -64236,7 +64973,7 @@ export const tracerSavedViewsRead = async (id: string, options?: RequestInit): P
 
 
 export type tracerSavedViewsUpdateResponse200 = {
-  data: SavedViewListApi
+  data: SavedViewDetailResponseApi
   status: 200
 }
 
@@ -64278,7 +65015,7 @@ export const tracerSavedViewsUpdate = async (id: string,
 
 
 export type tracerSavedViewsPartialUpdateResponse200 = {
-  data: SavedViewListApi
+  data: SavedViewDetailResponseApi
   status: 200
 }
 
@@ -64319,17 +65056,17 @@ export const tracerSavedViewsPartialUpdate = async (id: string,
 
 
 
-export type tracerSavedViewsDeleteResponse204 = {
-  data: void
-  status: 204
+export type tracerSavedViewsDeleteResponse200 = {
+  data: SavedViewMessageResponseApi
+  status: 200
 }
 
 export type tracerSavedViewsDeleteResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 204>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerSavedViewsDeleteResponseSuccess = (tracerSavedViewsDeleteResponse204) & {
+export type tracerSavedViewsDeleteResponseSuccess = (tracerSavedViewsDeleteResponse200) & {
   headers: Headers;
 };
 export type tracerSavedViewsDeleteResponseError = (tracerSavedViewsDeleteResponseDefault) & {
@@ -64359,17 +65096,17 @@ export const tracerSavedViewsDelete = async (id: string, options?: RequestInit):
 
 
 
-export type tracerSavedViewsDuplicateResponse201 = {
-  data: SavedViewListApi
-  status: 201
+export type tracerSavedViewsDuplicateResponse200 = {
+  data: SavedViewDetailResponseApi
+  status: 200
 }
 
 export type tracerSavedViewsDuplicateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerSavedViewsDuplicateResponseSuccess = (tracerSavedViewsDuplicateResponse201) & {
+export type tracerSavedViewsDuplicateResponseSuccess = (tracerSavedViewsDuplicateResponse200) & {
   headers: Headers;
 };
 export type tracerSavedViewsDuplicateResponseError = (tracerSavedViewsDuplicateResponseDefault) & {
@@ -64425,8 +65162,12 @@ export const getTracerSharedLinksListUrl = (params?: TracerSharedLinksListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -64850,8 +65591,12 @@ export const getTracerTraceAnnotationListUrl = (params?: TracerTraceAnnotationLi
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -64948,8 +65693,12 @@ export const getTracerTraceAnnotationGetAnnotationValuesUrl = (params?: TracerTr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65358,8 +66107,12 @@ export const getTracerTraceSessionListUrl = (params?: TracerTraceSessionListPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65446,8 +66199,12 @@ export const getTracerTraceSessionGetSessionFilterValuesUrl = (params?: TracerTr
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65556,8 +66313,12 @@ export const getTracerTraceSessionGetTraceSessionExportDataUrl = (params?: Trace
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65606,8 +66367,12 @@ export const getTracerTraceSessionListSessionsUrl = (params?: TracerTraceSession
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65870,8 +66635,12 @@ export const getTracerTraceListUrl = (params?: TracerTraceListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -65958,8 +66727,12 @@ export const getTracerTraceAgentGraphUrl = (params: TracerTraceAgentGraphParams,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66095,8 +66868,12 @@ export const getTracerTraceGetEvalNamesUrl = (params?: TracerTraceGetEvalNamesPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66121,17 +66898,17 @@ export const tracerTraceGetEvalNames = async (params?: TracerTraceGetEvalNamesPa
 
 
 
-export type tracerTraceGetGraphMethodsResponse201 = {
-  data: ObserveGraphDataRequestApi
-  status: 201
+export type tracerTraceGetGraphMethodsResponse200 = {
+  data: ObserveGraphDataResponseApi
+  status: 200
 }
 
 export type tracerTraceGetGraphMethodsResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type tracerTraceGetGraphMethodsResponseSuccess = (tracerTraceGetGraphMethodsResponse201) & {
+export type tracerTraceGetGraphMethodsResponseSuccess = (tracerTraceGetGraphMethodsResponse200) & {
   headers: Headers;
 };
 export type tracerTraceGetGraphMethodsResponseError = (tracerTraceGetGraphMethodsResponseDefault) & {
@@ -66189,8 +66966,12 @@ export const getTracerTraceGetPropertiesUrl = (params?: TracerTraceGetProperties
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66239,8 +67020,12 @@ export const getTracerTraceGetTraceExportDataUrl = (params?: TracerTraceGetTrace
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66290,8 +67075,12 @@ export const getTracerTraceGetTraceIdByIndexUrl = (params: TracerTraceGetTraceId
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66340,8 +67129,12 @@ export const getTracerTraceGetTraceIdByIndexObserveUrl = (params: TracerTraceGet
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66390,8 +67183,12 @@ export const getTracerTraceListTracesUrl = (params: TracerTraceListTracesParams,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66440,8 +67237,12 @@ export const getTracerTraceListTracesOfSessionUrl = (params?: TracerTraceListTra
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66490,8 +67291,12 @@ export const getTracerTraceListVoiceCallsUrl = (params?: TracerTraceListVoiceCal
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66546,8 +67351,12 @@ export const getTracerTraceVoiceCallDetailUrl = (params?: TracerTraceVoiceCallDe
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66810,8 +67619,12 @@ export const getTracerUserAlertLogsListUrl = (params?: TracerUserAlertLogsListPa
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -66898,8 +67711,12 @@ export const getTracerUserAlertLogsListAllUrl = (params?: TracerUserAlertLogsLis
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -67190,8 +68007,12 @@ export const getTracerUserAlertsListUrl = (params?: TracerUserAlertsListParams,)
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -67375,8 +68196,12 @@ export const getTracerUserAlertsListMonitorsUrl = (params?: TracerUserAlertsList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -67437,8 +68262,12 @@ export const getTracerUserAlertsMetricOptionsUrl = (params?: TracerUserAlertsMet
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -67788,8 +68617,12 @@ export const getTracerUsersListUrl = (params?: TracerUsersListParams,) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68081,8 +68914,12 @@ export const getUsageAdminCustomPlanListUrl = (params: UsageAdminCustomPlanListP
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68321,8 +69158,12 @@ export const getUsageAdminEntitlementsListUrl = (params: UsageAdminEntitlementsL
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68475,8 +69316,12 @@ export const getUsageAdminEntitlementsDeleteUrl = (params: UsageAdminEntitlement
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68703,8 +69548,12 @@ export const getUsageAdminPricingListUrl = (params: UsageAdminPricingListParams,
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68857,8 +69706,12 @@ export const getUsageAdminPricingDeleteUrl = (params: UsageAdminPricingDeletePar
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -68937,8 +69790,12 @@ export const getUsageApiCallCountListUrl = (params?: UsageApiCallCountListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -72607,8 +73464,12 @@ export const getUsageUsageSummaryListUrl = (params?: UsageUsageSummaryListParams
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -75205,8 +76066,12 @@ export const getUsageV2UsageOverviewListUrl = (params?: UsageV2UsageOverviewList
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -75291,8 +76156,12 @@ export const getUsageV2UsageTimeSeriesListUrl = (params: UsageV2UsageTimeSeriesL
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -75375,8 +76244,12 @@ export const getUsageV2UsageWorkspaceBreakdownListUrl = (params: UsageV2UsageWor
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -75530,8 +76403,12 @@ export const getUsageWorkspaceEvalSummaryListUrl = (params: UsageWorkspaceEvalSu
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 
@@ -75607,8 +76484,12 @@ export const getUsageWorkspaceUsageSummaryListUrl = (params?: UsageWorkspaceUsag
 
   Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
     }
   });
 

@@ -48,6 +48,7 @@ from model_hub.serializers.contracts import (
     ExperimentComparisonWeightsRequestSerializer,
     ExperimentRerunRequestSerializer,
     ModelHubEmptyRequestSerializer,
+    UserEvalMutationRequestSerializer,
 )
 from model_hub.serializers.experiment_contracts import (
     ExperimentAddEvalResponseSerializer,
@@ -71,12 +72,12 @@ from model_hub.serializers.experiment_contracts import (
 from model_hub.serializers.experiments import (
     ExperimentCreateV2Serializer,
     ExperimentDetailV2Serializer,
-    ExperimentIdListSerializer,
     ExperimentListSerializer,
     ExperimentListV2Serializer,
     ExperimentRerunCellsSerializer,
     ExperimentsTableGetSerializer,
     ExperimentsTableSerializer,
+    ExperimentsTableUpdateSerializer,
     ExperimentUpdateV2Serializer,
 )
 from model_hub.services.dataset_snapshot import create_dataset_snapshot
@@ -88,14 +89,13 @@ from model_hub.utils.function_eval_params import (
 )
 from model_hub.utils.SQL_queries import SQLQueryHandler
 from model_hub.utils.utils import get_diff
-from model_hub.views.develop_dataset import UserEvalSerializer
 from model_hub.views.experiment_runner import ExperimentRunner
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.functions import calculate_column_average
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
-from tfc.utils.parse_errors import parse_serialized_errors
 
 logger = structlog.get_logger(__name__)
 
@@ -384,38 +384,91 @@ class ExperimentsTableView(APIView):
         except Exception:
             return self._gm.bad_request("Invalid experiment ID")
 
-    @swagger_auto_schema(
-        request_body=ExperimentsTableSerializer,
+    @validated_request(
+        request_serializer=ExperimentsTableSerializer,
         responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            serializer = ExperimentsTableSerializer(data=request.data)
-            if serializer.is_valid():
-                validated_data = serializer.validated_data
+            validated_data = request.validated_data
 
-                if experiment_name_exists(
-                    validated_data["name"], validated_data["dataset"]
-                ):
-                    return self._gm.bad_request(
-                        get_error_message("EXPERIMENT_NAME_EXISTS")
-                    )
-
-                experiment = ExperimentsTable.objects.create(
-                    name=validated_data["name"],
-                    dataset=validated_data["dataset"],
-                    column=validated_data["column"],
-                    prompt_config=validated_data["prompt_config"],
-                    user=request.user,
+            if experiment_name_exists(validated_data["name"], validated_data["dataset"]):
+                return self._gm.bad_request(
+                    get_error_message("EXPERIMENT_NAME_EXISTS")
                 )
-                if "user_eval_template_ids" in validated_data:
-                    experiment.user_eval_template_ids.set(
-                        validated_data["user_eval_template_ids"]
-                    )
 
-                # Start Temporal workflow immediately (don't wait for periodic task)
+            experiment = ExperimentsTable.objects.create(
+                name=validated_data["name"],
+                dataset=validated_data["dataset"],
+                column=validated_data["column"],
+                prompt_config=validated_data["prompt_config"],
+                user=request.user,
+            )
+            if "user_eval_template_ids" in validated_data:
+                experiment.user_eval_template_ids.set(
+                    validated_data["user_eval_template_ids"]
+                )
+
+            # Start Temporal workflow immediately (don't wait for periodic task)
+            try:
+                from tfc.temporal.experiments import start_experiment_workflow
+
+                workflow_id = start_experiment_workflow(
+                    experiment_id=str(experiment.id),
+                    max_concurrent_rows=10,
+                )
+                logger.info(
+                    f"Started Temporal workflow {workflow_id} for new experiment {experiment.id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to start Temporal workflow for experiment {experiment.id}: {e}. "
+                    "Will be picked up by periodic task."
+                )
+
+            return self._gm.success_response("Experiment created successfully.")
+        except Exception as e:
+            logger.exception(f"Error in creating experiment: {str(e)}")
+            return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_EXP"))
+
+    @validated_request(
+        request_serializer=ExperimentsTableUpdateSerializer,
+        responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
+    )
+    def put(self, request):
+        try:
+            validated_data = request.validated_data
+            pk = str(validated_data["experiment_id"])
+            re_run = validated_data.get("re_run", False)
+            experiment = get_object_or_404(ExperimentsTable, pk=pk)
+            if experiment_name_exists(
+                validated_data["name"], validated_data["dataset"], exclude_id=pk
+            ):
+                return self._gm.bad_request(get_error_message("EXPERIMENT_NAME_EXISTS"))
+
+            ExperimentsTable.objects.filter(id=pk).update(
+                name=validated_data.get("name", experiment.name),
+                dataset=validated_data.get("dataset", experiment.dataset),
+                column=validated_data.get("column", experiment.column),
+                prompt_config=validated_data.get(
+                    "prompt_config", experiment.prompt_config
+                ),
+            )
+            if "user_eval_template_ids" in validated_data:
+                experiment.user_eval_template_ids.set(
+                    validated_data["user_eval_template_ids"]
+                )
+
+            if re_run:
                 try:
                     from tfc.temporal.experiments import start_experiment_workflow
+
+                    experiment_dataset_table = experiment.experiments_datasets
+
+                    if experiment_dataset_table.exists():
+                        experiment_dataset_table.update(deleted=True)
 
                     workflow_id = start_experiment_workflow(
                         experiment_id=str(experiment.id),
@@ -430,71 +483,7 @@ class ExperimentsTableView(APIView):
                         "Will be picked up by periodic task."
                     )
 
-                return self._gm.success_response("Experiment created successfully.")
-            return self._gm.bad_request(parse_serialized_errors(serializer))
-        except Exception as e:
-            logger.exception(f"Error in creating experiment: {str(e)}")
-            return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_EXP"))
-
-    @swagger_auto_schema(
-        request_body=ExperimentsTableSerializer,
-        responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
-    )
-    def put(self, request):
-        try:
-            data = request.data
-            pk = data.get("experiment_id")
-            re_run = data.get("re_run")
-            experiment = get_object_or_404(ExperimentsTable, pk=pk)
-            serializer = ExperimentsTableSerializer(
-                experiment, data=request.data, partial=True
-            )
-            if serializer.is_valid():
-                validated_data = serializer.validated_data
-                if experiment_name_exists(
-                    validated_data["name"], validated_data["dataset"], exclude_id=pk
-                ):
-                    return self._gm.bad_request(
-                        get_error_message("EXPERIMENT_NAME_EXISTS")
-                    )
-
-                ExperimentsTable.objects.filter(id=pk).update(
-                    name=validated_data.get("name", experiment.name),
-                    dataset=validated_data.get("dataset", experiment.dataset),
-                    column=validated_data.get("column", experiment.column),
-                    prompt_config=validated_data.get(
-                        "prompt_config", experiment.prompt_config
-                    ),
-                )
-                if "user_eval_template_ids" in validated_data:
-                    experiment.user_eval_template_ids.set(
-                        validated_data["user_eval_template_ids"]
-                    )
-
-                if re_run:
-                    try:
-                        from tfc.temporal.experiments import start_experiment_workflow
-
-                        experiment_dataset_table = experiment.experiments_datasets
-
-                        if experiment_dataset_table.exists():
-                            experiment_dataset_table.update(deleted=True)
-
-                        workflow_id = start_experiment_workflow(
-                            experiment_id=str(experiment.id),
-                            max_concurrent_rows=10,
-                        )
-                        logger.info(
-                            f"Started Temporal workflow {workflow_id} for new experiment {experiment.id}"
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to start Temporal workflow for experiment {experiment.id}: {e}. "
-                            "Will be picked up by periodic task."
-                        )
-
-                return self._gm.success_response("Experiment updated successfully.")
-            return self._gm.bad_request(parse_serialized_errors(serializer))
+            return self._gm.success_response("Experiment updated successfully.")
         except Exception as e:
             logger.exception(f"Error in updating experiment: {str(e)}")
             return self._gm.bad_request(get_error_message("FAILED_TO_UPDATE_EXP"))
@@ -1413,16 +1402,20 @@ class GetRowDiffView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=DatasetRowDiffRequestSerializer,
+    @validated_request(
+        request_serializer=DatasetRowDiffRequestSerializer,
         responses={200: ExperimentRowDiffResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            experiment_id = request.data.get("experiment_id")
-            all_column_ids = request.data.get("column_ids", [])
-            row_ids = request.data.get("row_ids", [])
-            compare_column_ids = request.data.get("compare_column_ids", [])
+            data = request.validated_data
+            experiment_id = str(data["experiment_id"])
+            all_column_ids = [str(column_id) for column_id in data["column_ids"]]
+            row_ids = [str(row_id) for row_id in data["row_ids"]]
+            compare_column_ids = [
+                str(column_id) for column_id in data["compare_column_ids"]
+            ]
 
             experiment = get_object_or_404(
                 ExperimentsTable, id=experiment_id, deleted=False
@@ -1491,16 +1484,20 @@ class GetRowDiffV2View(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=DatasetRowDiffRequestSerializer,
+    @validated_request(
+        request_serializer=DatasetRowDiffRequestSerializer,
         responses={200: ExperimentRowDiffResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            experiment_id = request.data.get("experiment_id")
-            all_column_ids = request.data.get("column_ids", [])
-            row_ids = request.data.get("row_ids", [])
-            compare_column_ids = request.data.get("compare_column_ids", [])
+            data = request.validated_data
+            experiment_id = str(data["experiment_id"])
+            all_column_ids = [str(column_id) for column_id in data["column_ids"]]
+            row_ids = [str(row_id) for row_id in data["row_ids"]]
+            compare_column_ids = [
+                str(column_id) for column_id in data["compare_column_ids"]
+            ]
 
             experiment = get_object_or_404(
                 ExperimentsTable, id=experiment_id, deleted=False
@@ -2627,18 +2624,15 @@ class ExperimentDatasetComparisonView(APIView):
             "columns": eval_column_metrics,
         }
 
-    @swagger_auto_schema(
-        request_body=ExperimentComparisonWeightsRequestSerializer,
+    @validated_request(
+        request_serializer=ExperimentComparisonWeightsRequestSerializer,
         responses={200: ExperimentDatasetComparisonResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id):
         try:
-            # Get evaluation-specific weights
-            self.weights = {
-                key: value
-                for key, value in request.data.items()
-                if key != "eval_template_ids"
-            }
+            # Get evaluation-specific weights.
+            self.weights = request.validated_data.get("weights", {})
 
             experiment = ExperimentsTable.objects.prefetch_related(
                 "dataset",
@@ -2849,17 +2843,14 @@ class ExperimentDatasetComparisonV2View(APIView):
             "columns": eval_column_metrics,
         }
 
-    @swagger_auto_schema(
-        request_body=ExperimentComparisonWeightsRequestSerializer,
+    @validated_request(
+        request_serializer=ExperimentComparisonWeightsRequestSerializer,
         responses={200: ExperimentDatasetComparisonResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id):
         try:
-            self.weights = {
-                key: value
-                for key, value in request.data.items()
-                if key != "eval_template_ids"
-            }
+            self.weights = request.validated_data.get("weights", {})
 
             experiment = ExperimentsTable.objects.prefetch_related(
                 "experiment_datasets",
@@ -2944,10 +2935,12 @@ class ExperimentDatasetComparisonV2View(APIView):
 
 class RunAdditionalEvaluationsView(APIView):
     _gm = GeneralMethods()
+    permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ExperimentAdditionalEvaluationsRequestSerializer,
+    @validated_request(
+        request_serializer=ExperimentAdditionalEvaluationsRequestSerializer,
         responses={200: ExperimentMessageResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id):
         """
@@ -2964,7 +2957,9 @@ class RunAdditionalEvaluationsView(APIView):
                 id=experiment_id,
                 deleted=False,
             )
-            eval_template_ids = request.data.get("eval_template_ids", [])
+            eval_template_ids = [
+                str(eval_id) for eval_id in request.validated_data["eval_template_ids"]
+            ]
             UserEvalMetric.objects.filter(id__in=eval_template_ids).update(
                 source_id=experiment.id
             )
@@ -3013,155 +3008,143 @@ class AddExperimentEvalView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=UserEvalSerializer,
+    @validated_request(
+        request_serializer=UserEvalMutationRequestSerializer,
         responses={200: ExperimentAddEvalResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id, *args, **kwargs):
         try:
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
-            serializer = UserEvalSerializer(data=request.data)
-            save_as_template = request.data.get("save_as_template", False)
-            run = request.data.get("run", False)
+            validated_data = request.validated_data
+            save_as_template = validated_data.get("save_as_template", False)
+            run = validated_data.get("run", False)
+            experiment = get_object_or_404(ExperimentsTable, id=experiment_id)
 
-            if serializer.is_valid():
-                validated_data = serializer.validated_data
-                experiment = get_object_or_404(ExperimentsTable, id=experiment_id)
+            template_id = validated_data.get("template_id")
+            # Save as template if requested
+            if UserEvalMetric.objects.filter(
+                name=validated_data.get("name"),
+                organization=organization,
+                dataset_id=experiment.dataset.id,
+                deleted=False,
+            ).exists():
+                return self._gm.bad_request(get_error_message("EVAL_NAME_EXISTS"))
 
-                template_id = validated_data.get("template_id")
-                # Save as template if requested
-                if UserEvalMetric.objects.filter(
-                    name=validated_data.get("name"),
-                    organization=organization,
-                    dataset_id=experiment.dataset.id,
-                    deleted=False,
-                ).exists():
+            if save_as_template:
+                template = EvalTemplate.no_workspace_objects.get(
+                    id=validated_data.get("template_id")
+                )
+                if (
+                    EvalTemplate.objects.filter(
+                        name=validated_data.get("name"),
+                        organization=organization,
+                        deleted=False,
+                    ).exists()
+                    or EvalTemplate.no_workspace_objects.filter(
+                        name=validated_data.get("name"),
+                        owner=OwnerChoices.SYSTEM.value,
+                        deleted=False,
+                    ).exists()
+                ):
                     return self._gm.bad_request(get_error_message("EVAL_NAME_EXISTS"))
 
-                if save_as_template:
-                    template = EvalTemplate.no_workspace_objects.get(
-                        id=validated_data.get("template_id")
-                    )
-                    if (
-                        EvalTemplate.objects.filter(
-                            name=validated_data.get("name"),
-                            organization=organization,
-                            deleted=False,
-                        ).exists()
-                        or EvalTemplate.no_workspace_objects.filter(
-                            name=validated_data.get("name"),
-                            owner=OwnerChoices.SYSTEM.value,
-                            deleted=False,
-                        ).exists()
-                    ):
-                        return self._gm.bad_request(
-                            get_error_message("EVAL_NAME_EXISTS")
-                        )
-
-                    new_template = EvalTemplate(
-                        name=validated_data.get("name"),
-                        description=template.description,
-                        config=template.config,
-                        eval_tags=template.eval_tags,
-                        criteria=template.criteria,
-                        choices=template.choices,
-                        multi_choice=template.multi_choice,
-                        organization=organization,
-                        owner=OwnerChoices.USER.value,
-                    )
-                    new_config = template.config
-                    runtime_config = normalize_eval_runtime_config(
-                        template.config, validated_data.get("config", {})
-                    )
-                    input_config = runtime_config.get("config", {})
-                    input_params = runtime_config.get("params", {})
-                    for key in input_config:
-                        if key in new_config.get("config", {}):
-                            new_config["config"][key]["default"] = input_config[key]
-                    if has_function_params_schema(new_config):
-                        for key, value in input_params.items():
-                            if key in new_config.get("function_params_schema", {}):
-                                new_config["function_params_schema"][key][
-                                    "default"
-                                ] = value
-                    new_template.config = new_config
-                    new_template.save()
-                    template_id = new_template.id
-
-                logger.info(f"CONFIG: {validated_data.get('config')}")
-                selected_template = EvalTemplate.no_workspace_objects.get(
-                    id=template_id
-                )
-                normalized_config = normalize_eval_runtime_config(
-                    selected_template.config, validated_data.get("config", {})
-                )
-                # Create UserEvalMetric
-                # V2 experiments use snapshot_dataset for eval execution
-                eval_dataset = experiment.snapshot_dataset or experiment.dataset
-                user_eval_metric = UserEvalMetric.objects.create(
+                new_template = EvalTemplate(
                     name=validated_data.get("name"),
+                    description=template.description,
+                    config=template.config,
+                    eval_tags=template.eval_tags,
+                    criteria=template.criteria,
+                    choices=template.choices,
+                    multi_choice=template.multi_choice,
                     organization=organization,
-                    dataset_id=eval_dataset.id,
-                    template_id=template_id,
-                    config=normalized_config,
-                    status=StatusType.EXPERIMENT_EVALUATION.value,
-                    source_id=experiment.id,
-                    user=request.user,
-                    model=validated_data.get("model", ModelChoices.TURING_LARGE.value),
-                    composite_weight_overrides=validated_data.get(
-                        "composite_weight_overrides"
-                    ),
+                    owner=OwnerChoices.USER.value,
                 )
+                new_config = template.config
+                runtime_config = normalize_eval_runtime_config(
+                    template.config, validated_data.get("config", {})
+                )
+                input_config = runtime_config.get("config", {})
+                input_params = runtime_config.get("params", {})
+                for key in input_config:
+                    if key in new_config.get("config", {}):
+                        new_config["config"][key]["default"] = input_config[key]
+                if has_function_params_schema(new_config):
+                    for key, value in input_params.items():
+                        if key in new_config.get("function_params_schema", {}):
+                            new_config["function_params_schema"][key]["default"] = value
+                new_template.config = new_config
+                new_template.save()
+                template_id = new_template.id
 
-                experiment.user_eval_template_ids.add(user_eval_metric)
+            logger.info(f"CONFIG: {validated_data.get('config')}")
+            selected_template = EvalTemplate.no_workspace_objects.get(id=template_id)
+            normalized_config = normalize_eval_runtime_config(
+                selected_template.config, validated_data.get("config", {})
+            )
+            # Create UserEvalMetric
+            # V2 experiments use snapshot_dataset for eval execution
+            eval_dataset = experiment.snapshot_dataset or experiment.dataset
+            user_eval_metric = UserEvalMetric.objects.create(
+                name=validated_data.get("name"),
+                organization=organization,
+                dataset_id=eval_dataset.id,
+                template_id=template_id,
+                config=normalized_config,
+                status=StatusType.EXPERIMENT_EVALUATION.value,
+                source_id=experiment.id,
+                user=request.user,
+                model=validated_data.get("model", ModelChoices.TURING_LARGE.value),
+                composite_weight_overrides=validated_data.get(
+                    "composite_weight_overrides"
+                ),
+            )
 
-                if run:
-                    experiment.status = StatusType.RUNNING.value
-                    experiment.save(update_fields=["status"])
-                    experiment_runner = ExperimentRunner(experiment_id=experiment.id)
-                    experiment_runner.load_experiment()
-                    experiment_runner.empty_or_create_evals_column(
-                        eval_template_ids=[str(user_eval_metric.id)]
+            experiment.user_eval_template_ids.add(user_eval_metric)
+
+            if run:
+                experiment.status = StatusType.RUNNING.value
+                experiment.save(update_fields=["status"])
+                experiment_runner = ExperimentRunner(experiment_id=experiment.id)
+                experiment_runner.load_experiment()
+                experiment_runner.empty_or_create_evals_column(
+                    eval_template_ids=[str(user_eval_metric.id)]
+                )
+                experiment.user_eval_template_ids.all().filter(
+                    id__in=[str(user_eval_metric.id)]
+                ).update(status=StatusType.EXPERIMENT_EVALUATION.value)
+
+                # Mirror dataset parity: make the newly-created per-EDT
+                # eval (+ reason) columns visible in the grid immediately
+                # instead of waiting for a rerun to rebuild column_order.
+                if experiment.snapshot_dataset_id:
+                    _build_and_save_v2_column_order(
+                        experiment, experiment.snapshot_dataset
                     )
-                    experiment.user_eval_template_ids.all().filter(
-                        id__in=[str(user_eval_metric.id)]
-                    ).update(status=StatusType.EXPERIMENT_EVALUATION.value)
 
-                    # Mirror dataset parity: make the newly-created per-EDT
-                    # eval (+ reason) columns visible in the grid immediately
-                    # instead of waiting for a rerun to rebuild column_order.
-                    if experiment.snapshot_dataset_id:
-                        _build_and_save_v2_column_order(
-                            experiment, experiment.snapshot_dataset
-                        )
+                # Start V2 Temporal workflow to actually execute the eval
+                try:
+                    from tfc.temporal.experiments import start_experiment_v2_workflow
 
-                    # Start V2 Temporal workflow to actually execute the eval
-                    try:
-                        from tfc.temporal.experiments import (
-                            start_experiment_v2_workflow,
-                        )
+                    start_experiment_v2_workflow(
+                        experiment_id=str(experiment.id),
+                        rerun_eval_template_ids=[str(user_eval_metric.id)],
+                    )
+                except Exception as wf_err:
+                    logger.warning(
+                        "Failed to start eval workflow for add-eval",
+                        experiment_id=str(experiment.id),
+                        error=str(wf_err),
+                    )
 
-                        start_experiment_v2_workflow(
-                            experiment_id=str(experiment.id),
-                            rerun_eval_template_ids=[str(user_eval_metric.id)],
-                        )
-                    except Exception as wf_err:
-                        logger.warning(
-                            "Failed to start eval workflow for add-eval",
-                            experiment_id=str(experiment.id),
-                            error=str(wf_err),
-                        )
-
-                return self._gm.success_response(
-                    {
-                        "message": "Evaluation added successfully",
-                        "eval_id": str(user_eval_metric.id),
-                    }
-                )
-
-            return self._gm.bad_request(parse_serialized_errors(serializer))
+            return self._gm.success_response(
+                {
+                    "message": "Evaluation added successfully",
+                    "eval_id": str(user_eval_metric.id),
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error in adding additional eval: {str(e)}")
@@ -3276,19 +3259,19 @@ class ExperimentRerunView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ExperimentRerunRequestSerializer,
+    @validated_request(
+        request_serializer=ExperimentRerunRequestSerializer,
         responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            serializer = ExperimentIdListSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(parse_serialized_errors(serializer))
-
-            experiment_ids = serializer.validated_data["experiment_ids"]
-            use_temporal = request.data.get("use_temporal", True)  # Default to Temporal
-            max_concurrent_rows = request.data.get("max_concurrent_rows", 10)
+            data = request.validated_data
+            experiment_ids = [
+                str(experiment_id) for experiment_id in data["experiment_ids"]
+            ]
+            use_temporal = data.get("use_temporal", True)
+            max_concurrent_rows = data.get("max_concurrent_rows", 10)
 
             if use_temporal:
                 # Use Temporal workflows
@@ -3512,16 +3495,13 @@ class ExperimentsTableV2View(APIView):
         )
         return self._gm.success_response(serializer.data)
 
-    @swagger_auto_schema(
-        request_body=ExperimentCreateV2Serializer,
+    @validated_request(
+        request_serializer=ExperimentCreateV2Serializer,
         responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
-        serializer = ExperimentCreateV2Serializer(data=request.data)
-        if not serializer.is_valid():
-            return self._gm.bad_request(parse_serialized_errors(serializer))
-
-        data = serializer.validated_data
+        data = request.validated_data
         organization = getattr(request, "organization", None) or request.user.organization
 
         try:
@@ -3827,9 +3807,10 @@ class ExperimentsTableV2View(APIView):
             logger.exception(f"Error creating V2 experiment: {str(e)}")
             return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_EXP"))
 
-    @swagger_auto_schema(
-        request_body=ExperimentUpdateV2Serializer,
+    @validated_request(
+        request_serializer=ExperimentUpdateV2Serializer,
         responses={200: ExperimentV2DetailResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def put(self, request, experiment_id):
         """Update a V2 experiment with diff-based selective re-run.
@@ -3841,11 +3822,7 @@ class ExperimentsTableV2View(APIView):
         - column_id changed → delete old base eval columns, re-run base evals
         - If FE sends unchanged data, diffs return empty → no re-run
         """
-        serializer = ExperimentUpdateV2Serializer(data=request.data)
-        if not serializer.is_valid():
-            return self._gm.bad_request(parse_serialized_errors(serializer))
-
-        data = serializer.validated_data
+        data = request.validated_data
         organization = getattr(request, "organization", None) or request.user.organization
 
         try:
@@ -5030,18 +5007,18 @@ class ExperimentRerunV2View(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ExperimentRerunRequestSerializer,
+    @validated_request(
+        request_serializer=ExperimentRerunRequestSerializer,
         responses={200: ExperimentStringResultResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request):
         try:
-            serializer = ExperimentIdListSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(parse_serialized_errors(serializer))
-
-            experiment_ids = serializer.validated_data["experiment_ids"]
-            max_concurrent_rows = request.data.get("max_concurrent_rows", 10)
+            data = request.validated_data
+            experiment_ids = [
+                str(experiment_id) for experiment_id in data["experiment_ids"]
+            ]
+            max_concurrent_rows = data.get("max_concurrent_rows", 10)
             organization = getattr(request, "organization", None) or request.user.organization
 
             experiments = ExperimentsTable.objects.filter(
@@ -5086,16 +5063,13 @@ class ExperimentRerunCellsV2View(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ExperimentRerunCellsSerializer,
+    @validated_request(
+        request_serializer=ExperimentRerunCellsSerializer,
         responses={200: ExperimentWorkflowResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id):
         try:
-            serializer = ExperimentRerunCellsSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(parse_serialized_errors(serializer))
-
             organization = getattr(request, "organization", None) or request.user.organization
             experiment = ExperimentsTable.objects.filter(
                 id=experiment_id,
@@ -5108,12 +5082,19 @@ class ExperimentRerunCellsV2View(APIView):
             if not experiment.snapshot_dataset_id:
                 return self._gm.bad_request("Experiment has no snapshot dataset.")
 
-            source_ids = serializer.validated_data.get("source_ids", [])
-            cells = serializer.validated_data.get("cells", [])
-            user_eval_metric_ids = serializer.validated_data.get(
-                "user_eval_metric_ids", []
-            )
-            failed_only = serializer.validated_data.get("failed_only", False)
+            data = request.validated_data
+            source_ids = [str(source_id) for source_id in data.get("source_ids", [])]
+            cells = [
+                {
+                    "column_id": str(cell["column_id"]),
+                    "row_id": str(cell["row_id"]),
+                }
+                for cell in data.get("cells", [])
+            ]
+            user_eval_metric_ids = [
+                str(metric_id) for metric_id in data.get("user_eval_metric_ids", [])
+            ]
+            failed_only = data.get("failed_only", False)
 
             snapshot_dataset_id = str(experiment.snapshot_dataset_id)
 
@@ -5627,9 +5608,10 @@ class ExperimentStopV2View(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ModelHubEmptyRequestSerializer,
+    @validated_request(
+        request_serializer=ModelHubEmptyRequestSerializer,
         responses={200: ExperimentStopResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        reject_unknown_fields=True,
     )
     def post(self, request, experiment_id):
         try:
