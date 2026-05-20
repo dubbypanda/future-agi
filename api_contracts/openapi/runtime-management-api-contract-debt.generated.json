@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 396,
-    "direct_swagger_auto_schema_decorators": 361,
-    "doc_only_input_contract_decorators": 79,
+    "runtime_backed_validated_request_decorators": 397,
+    "direct_swagger_auto_schema_decorators": 360,
+    "doc_only_input_contract_decorators": 78,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -465,15 +465,6 @@
       "function": "post",
       "serializers": [
         "MCPOAuthTokenRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/chat_simulation.py",
-      "line": 475,
-      "class": "ChatSendMessageView",
-      "function": "post",
-      "serializers": [
-        "SendChatRequestSerializer"
       ]
     },
     {

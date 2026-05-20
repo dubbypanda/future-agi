@@ -472,13 +472,14 @@ class ChatSendMessageView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=SendChatRequestSerializer,
+    @validated_request(
+        request_serializer=SendChatRequestSerializer,
         responses={
             200: ChatSendMessageResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             500: ApiTextErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, call_execution_id, *args, **kwargs):
         """Send a message to a chat execution"""
@@ -493,7 +494,7 @@ class ChatSendMessageView(APIView):
             ):
                 return self.gm.bad_request("Call execution is not a chat execution")
 
-            request_data = request.data
+            request_data = request.validated_data
 
             if (
                 request_data is None
