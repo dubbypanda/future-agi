@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 394,
-    "direct_swagger_auto_schema_decorators": 363,
-    "doc_only_input_contract_decorators": 81,
+    "runtime_backed_validated_request_decorators": 396,
+    "direct_swagger_auto_schema_decorators": 361,
+    "doc_only_input_contract_decorators": 79,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -523,29 +523,11 @@
     },
     {
       "path": "futureagi/simulate/views/prompt_simulation.py",
-      "line": 132,
+      "line": 133,
       "class": "PromptSimulationListCreateView",
       "function": "post",
       "serializers": [
         "CreatePromptSimulationSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/prompt_simulation.py",
-      "line": 333,
-      "class": "PromptSimulationDetailView",
-      "function": "patch",
-      "serializers": [
-        "PromptSimulationUpdateRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/prompt_simulation.py",
-      "line": 475,
-      "class": "ExecutePromptSimulationView",
-      "function": "post",
-      "serializers": [
-        "ExecutePromptSimulationRequestSerializer"
       ]
     },
     {
