@@ -18,6 +18,7 @@ from mcp_server.serializers.contracts import (
     MCPToolGroupsResponseSerializer,
 )
 from mcp_server.serializers.tool_config import MCPToolGroupConfigUpdateSerializer
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_errors import build_error_envelope
 
 
@@ -68,13 +69,15 @@ class MCPConfigView(APIView):
         result["mcp_url"] = self._get_mcp_url()
         return Response({"status": True, "result": result})
 
-    @swagger_auto_schema(
-        request_body=MCPConnectionUpdateSerializer,
+    @validated_request(
+        request_serializer=MCPConnectionUpdateSerializer,
         responses={
             200: MCPConnectionResponseSerializer,
             403: MCPErrorResponseSerializer,
             404: MCPErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        partial_request_validation=True,
     )
     def put(self, request):
         user = request.user
@@ -100,7 +103,7 @@ class MCPConfigView(APIView):
             )
 
         serializer = MCPConnectionUpdateSerializer(
-            connection, data=request.data, partial=True
+            connection, data=request.validated_data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -156,12 +159,13 @@ class MCPToolGroupsView(APIView):
         serializer = MCPToolGroupConfigSerializer(config)
         return Response({"status": True, "result": serializer.data})
 
-    @swagger_auto_schema(
-        request_body=MCPToolGroupConfigUpdateSerializer,
+    @validated_request(
+        request_serializer=MCPToolGroupConfigUpdateSerializer,
         responses={
             200: MCPToolGroupsResponseSerializer,
             403: MCPErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def put(self, request):
         user = request.user
@@ -173,9 +177,6 @@ class MCPToolGroupsView(APIView):
                 build_error_envelope("No organization context", status_code=403),
                 status=403,
             )
-
-        serializer = MCPToolGroupConfigUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
         try:
             connection = MCPConnection.no_workspace_objects.get(
@@ -195,10 +196,10 @@ class MCPToolGroupsView(APIView):
             connection=connection,
         )
 
-        if "enabled_groups" in serializer.validated_data:
-            config.enabled_groups = serializer.validated_data["enabled_groups"]
-        if "disabled_tools" in serializer.validated_data:
-            config.disabled_tools = serializer.validated_data["disabled_tools"]
+        if "enabled_groups" in request.validated_data:
+            config.enabled_groups = request.validated_data["enabled_groups"]
+        if "disabled_tools" in request.validated_data:
+            config.disabled_tools = request.validated_data["disabled_tools"]
         config.save()
 
         from mcp_server.serializers.tool_config import MCPToolGroupConfigSerializer

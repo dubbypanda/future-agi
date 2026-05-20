@@ -14,15 +14,31 @@ const outputPath = path.join(
   "runtime-management-api-contract-debt.generated.json",
 );
 
-const FOCUS_DIRS = [
+const STRICT_VIEW_TARGETS = [
   path.join(repoRoot, "futureagi", "accounts", "views"),
   path.join(repoRoot, "futureagi", "model_hub", "views"),
   path.join(repoRoot, "futureagi", "tracer", "views"),
 ];
+const PRODUCT_VIEW_TARGETS = [
+  path.join(repoRoot, "futureagi", "accounts", "views"),
+  path.join(repoRoot, "futureagi", "agent_playground", "views"),
+  path.join(repoRoot, "futureagi", "agentcc", "views"),
+  path.join(repoRoot, "futureagi", "ee", "usage", "views"),
+  path.join(repoRoot, "futureagi", "integrations", "views"),
+  path.join(repoRoot, "futureagi", "mcp_server", "views"),
+  path.join(repoRoot, "futureagi", "model_hub", "views"),
+  path.join(repoRoot, "futureagi", "sdk", "views"),
+  path.join(repoRoot, "futureagi", "simulate", "views"),
+  path.join(repoRoot, "futureagi", "tfc", "views"),
+  path.join(repoRoot, "futureagi", "tracer", "views"),
+  path.join(repoRoot, "futureagi", "ai_tools", "views.py"),
+  path.join(repoRoot, "futureagi", "ee", "falcon_ai", "views.py"),
+  path.join(repoRoot, "futureagi", "saml2_auth", "views.py"),
+].filter((target) => fs.existsSync(target));
 const HTTP_DECORATOR_RE =
   /^\s*@(swagger_auto_schema|validated_request|validated_api_request)\s*\((?<inline>.*)$/;
 const DEF_RE = /^\s*def\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(/;
-const CLASS_RE = /^\s*class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*[\(:]/;
+const CLASS_RE = /^\s*class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*[(:]/;
 const BROAD_REQUEST_SERIALIZERS = new Set(["AccountsJSONRequestSerializer"]);
 
 function walkPythonFiles(dir) {
@@ -37,6 +53,13 @@ function walkPythonFiles(dir) {
     }
   }
   return files;
+}
+
+function walkPythonTarget(target) {
+  const stat = fs.statSync(target);
+  if (stat.isDirectory()) return walkPythonFiles(target);
+  if (stat.isFile() && target.endsWith(".py")) return [target];
+  return [];
 }
 
 function countParenDelta(value) {
@@ -190,56 +213,87 @@ function analyzeFile(filePath) {
   return decorators;
 }
 
-const decorators = FOCUS_DIRS.flatMap((dir) =>
-  walkPythonFiles(dir).flatMap(analyzeFile),
-);
-const validated = decorators.filter(decoratorUsesRuntimeValidation);
-const directSwagger = decorators.filter(
-  (record) =>
-    record.decorator === "swagger_auto_schema" &&
-    !swaggerDecoratorHasRuntimeValidation(record),
-);
-const runtimeInputContractKeys = new Set(
-  validated
-    .filter(decoratorHasInputContract)
-    .map(
-      (record) =>
+function analyzeTargets(targets) {
+  const decorators = targets.flatMap((target) =>
+    walkPythonTarget(target).flatMap(analyzeFile),
+  );
+  const validated = decorators.filter(decoratorUsesRuntimeValidation);
+  const directSwagger = decorators.filter(
+    (record) =>
+      record.decorator === "swagger_auto_schema" &&
+      !swaggerDecoratorHasRuntimeValidation(record),
+  );
+  const runtimeInputContractKeys = new Set(
+    validated
+      .filter(decoratorHasInputContract)
+      .map(
+        (record) =>
+          `${record.rel}:${record.className || ""}.${record.functionName || ""}`,
+      ),
+  );
+  const docOnlyInputContracts = directSwagger.filter(
+    (record) =>
+      decoratorHasInputContract(record) &&
+      !runtimeInputContractKeys.has(
         `${record.rel}:${record.className || ""}.${record.functionName || ""}`,
-    ),
-);
-const docOnlyInputContracts = directSwagger.filter(
-  (record) =>
-    decoratorHasInputContract(record) &&
-    !runtimeInputContractKeys.has(
-      `${record.rel}:${record.className || ""}.${record.functionName || ""}`,
-    ),
-);
-const broadRequestContracts = decorators.filter((record) =>
-  record.serializers.some((name) => BROAD_REQUEST_SERIALIZERS.has(name)),
-);
+      ),
+  );
+  const broadRequestContracts = decorators.filter((record) =>
+    record.serializers.some((name) => BROAD_REQUEST_SERIALIZERS.has(name)),
+  );
+
+  return {
+    decorators,
+    validated,
+    directSwagger,
+    docOnlyInputContracts,
+    broadRequestContracts,
+  };
+}
+
+function formatDecorators(records) {
+  return records.map((record) => ({
+    path: record.rel,
+    line: record.startLine,
+    class: record.className,
+    function: record.functionName,
+    serializers: record.serializers,
+  }));
+}
+
+function formatSummary(result) {
+  return {
+    runtime_backed_validated_request_decorators: result.validated.length,
+    direct_swagger_auto_schema_decorators: result.directSwagger.length,
+    doc_only_input_contract_decorators: result.docOnlyInputContracts.length,
+    broad_request_contract_decorators: result.broadRequestContracts.length,
+  };
+}
+
+const strictResult = analyzeTargets(STRICT_VIEW_TARGETS);
+const appWideResult = analyzeTargets(PRODUCT_VIEW_TARGETS);
 
 const report = {
-  generated_from: FOCUS_DIRS.map((dir) => path.relative(repoRoot, dir)),
-  summary: {
-    runtime_backed_validated_request_decorators: validated.length,
-    direct_swagger_auto_schema_decorators: directSwagger.length,
-    doc_only_input_contract_decorators: docOnlyInputContracts.length,
-    broad_request_contract_decorators: broadRequestContracts.length,
-  },
-  doc_only_input_contract_decorators: docOnlyInputContracts.map((record) => ({
-    path: record.rel,
-    line: record.startLine,
-    class: record.className,
-    function: record.functionName,
-    serializers: record.serializers,
-  })),
-  broad_request_contract_decorators: broadRequestContracts.map((record) => ({
-    path: record.rel,
-    line: record.startLine,
-    class: record.className,
-    function: record.functionName,
-    serializers: record.serializers,
-  })),
+  generated_from: STRICT_VIEW_TARGETS.map((target) =>
+    path.relative(repoRoot, target),
+  ),
+  app_wide_generated_from: PRODUCT_VIEW_TARGETS.map((target) =>
+    path.relative(repoRoot, target),
+  ),
+  summary: formatSummary(strictResult),
+  app_wide_summary: formatSummary(appWideResult),
+  doc_only_input_contract_decorators: formatDecorators(
+    strictResult.docOnlyInputContracts,
+  ),
+  broad_request_contract_decorators: formatDecorators(
+    strictResult.broadRequestContracts,
+  ),
+  app_wide_doc_only_input_contract_decorators: formatDecorators(
+    appWideResult.docOnlyInputContracts,
+  ),
+  app_wide_broad_request_contract_decorators: formatDecorators(
+    appWideResult.broadRequestContracts,
+  ),
 };
 
 const nextJson = `${JSON.stringify(report, null, 2)}\n`;

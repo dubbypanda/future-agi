@@ -4,12 +4,1279 @@
     "futureagi/model_hub/views",
     "futureagi/tracer/views"
   ],
+  "app_wide_generated_from": [
+    "futureagi/accounts/views",
+    "futureagi/agent_playground/views",
+    "futureagi/agentcc/views",
+    "futureagi/ee/usage/views",
+    "futureagi/integrations/views",
+    "futureagi/mcp_server/views",
+    "futureagi/model_hub/views",
+    "futureagi/sdk/views",
+    "futureagi/simulate/views",
+    "futureagi/tfc/views",
+    "futureagi/tracer/views",
+    "futureagi/ai_tools/views.py",
+    "futureagi/ee/falcon_ai/views.py",
+    "futureagi/saml2_auth/views.py"
+  ],
   "summary": {
     "runtime_backed_validated_request_decorators": 317,
     "direct_swagger_auto_schema_decorators": 137,
     "doc_only_input_contract_decorators": 0,
     "broad_request_contract_decorators": 0
   },
+  "app_wide_summary": {
+    "runtime_backed_validated_request_decorators": 337,
+    "direct_swagger_auto_schema_decorators": 420,
+    "doc_only_input_contract_decorators": 138,
+    "broad_request_contract_decorators": 0
+  },
   "doc_only_input_contract_decorators": [],
-  "broad_request_contract_decorators": []
+  "broad_request_contract_decorators": [],
+  "app_wide_doc_only_input_contract_decorators": [
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 222,
+      "class": "AgentccGatewayViewSet",
+      "function": "health_check",
+      "serializers": [
+        "AgentccEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 363,
+      "class": "AgentccGatewayViewSet",
+      "function": "reload",
+      "serializers": [
+        "AgentccEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 384,
+      "class": "AgentccGatewayViewSet",
+      "function": "update_config",
+      "serializers": [
+        "GatewayConfigPatchRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 461,
+      "class": "AgentccGatewayViewSet",
+      "function": "update_provider",
+      "serializers": [
+        "GatewayProviderUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 580,
+      "class": "AgentccGatewayViewSet",
+      "function": "remove_provider",
+      "serializers": [
+        "GatewayNameRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 624,
+      "class": "AgentccGatewayViewSet",
+      "function": "toggle_guardrail",
+      "serializers": [
+        "GatewayToggleGuardrailRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 738,
+      "class": "AgentccGatewayViewSet",
+      "function": "update_guardrail",
+      "serializers": [
+        "GatewayNamedConfigRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 791,
+      "class": "AgentccGatewayViewSet",
+      "function": "test_playground",
+      "serializers": [
+        "GatewayPlaygroundTestRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 934,
+      "class": "AgentccGatewayViewSet",
+      "function": "set_budget",
+      "serializers": [
+        "GatewayBudgetSetRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 976,
+      "class": "AgentccGatewayViewSet",
+      "function": "remove_budget",
+      "serializers": [
+        "GatewayBudgetRemoveRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1015,
+      "class": "AgentccGatewayViewSet",
+      "function": "submit_batch",
+      "serializers": [
+        "GatewayBatchSubmitRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1067,
+      "class": "AgentccGatewayViewSet",
+      "function": "cancel_batch",
+      "serializers": [
+        "GatewayBatchRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1290,
+      "class": "AgentccGatewayViewSet",
+      "function": "update_mcp_server",
+      "serializers": [
+        "GatewayMCPServerUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1332,
+      "class": "AgentccGatewayViewSet",
+      "function": "remove_mcp_server",
+      "serializers": [
+        "GatewayMCPServerRemoveRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1379,
+      "class": "AgentccGatewayViewSet",
+      "function": "update_mcp_guardrails",
+      "serializers": [
+        "GatewayMCPGuardrailsUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/gateway.py",
+      "line": 1417,
+      "class": "AgentccGatewayViewSet",
+      "function": "test_mcp_tool",
+      "serializers": [
+        "GatewayMCPToolTestRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/shadow_webhook.py",
+      "line": 34,
+      "class": "ShadowResultWebhookView",
+      "function": "post",
+      "serializers": [
+        "ShadowResultsWebhookRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/agentcc/views/webhook.py",
+      "line": 27,
+      "class": "GatewayWebhookView",
+      "function": "post",
+      "serializers": [
+        "WebhookLogsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_invoice.py",
+      "line": 39,
+      "class": "AdminInvoicePreviewView",
+      "function": "post",
+      "serializers": [
+        "AdminInvoiceRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_invoice.py",
+      "line": 160,
+      "class": "AdminInvoiceGenerateView",
+      "function": "post",
+      "serializers": [
+        "AdminInvoiceRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 120,
+      "class": "AdminEntitlementsView",
+      "function": "get",
+      "serializers": [
+        "AdminEntitlementsQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 138,
+      "class": "AdminEntitlementsView",
+      "function": "post",
+      "serializers": [
+        "AdminEntitlementMutationRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 185,
+      "class": "AdminEntitlementsView",
+      "function": "delete",
+      "serializers": [
+        "AdminEntitlementsQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 215,
+      "class": "AdminPricingView",
+      "function": "get",
+      "serializers": [
+        "AdminPricingQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 240,
+      "class": "AdminPricingView",
+      "function": "post",
+      "serializers": [
+        "AdminPricingMutationRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 286,
+      "class": "AdminPricingView",
+      "function": "delete",
+      "serializers": [
+        "AdminPricingQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 314,
+      "class": "AdminCustomPlanView",
+      "function": "get",
+      "serializers": [
+        "AdminPricingQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 382,
+      "class": "AdminCustomPlanView",
+      "function": "post",
+      "serializers": [
+        "AdminCustomPlanRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/admin_pricing.py",
+      "line": 566,
+      "class": "AdminCustomPlanView",
+      "function": "put",
+      "serializers": [
+        "AdminCustomPlanRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 69,
+      "class": "SubscriptionTierView",
+      "function": "post",
+      "serializers": [
+        "SubscriptionTierSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 115,
+      "class": "SubscriptionTierView",
+      "function": "patch",
+      "serializers": [
+        "SubscriptionTierSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 191,
+      "class": "OrganizationBillingView",
+      "function": "patch",
+      "serializers": [
+        "OrganizationBillingSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 273,
+      "class": "OrganizationSubscriptionView",
+      "function": "patch",
+      "serializers": [
+        "OrganizationSubscriptionCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 325,
+      "class": "OrganizationSubscriptionView",
+      "function": "post",
+      "serializers": [
+        "OrganizationSubscriptionCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 539,
+      "class": "PricingView",
+      "function": "post",
+      "serializers": [
+        "PricingCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 585,
+      "class": "PricingView",
+      "function": "patch",
+      "serializers": [
+        "PricingCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 753,
+      "class": "ResourceLimitsView",
+      "function": "post",
+      "serializers": [
+        "ResourceLimitCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 783,
+      "class": "ResourceLimitsView",
+      "function": "patch",
+      "serializers": [
+        "ResourceLimitCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 931,
+      "class": "RateLimitView",
+      "function": "post",
+      "serializers": [
+        "RateLimitCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/appsmith.py",
+      "line": 961,
+      "class": "RateLimitView",
+      "function": "patch",
+      "serializers": [
+        "RateLimitCreateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 68,
+      "class": null,
+      "function": "usage_overview",
+      "serializers": [
+        "UsagePeriodQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 226,
+      "class": null,
+      "function": "usage_time_series",
+      "serializers": [
+        "UsageDimensionPeriodQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 308,
+      "class": null,
+      "function": "usage_workspace_breakdown",
+      "serializers": [
+        "UsageDimensionPeriodQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 715,
+      "class": null,
+      "function": "budgets",
+      "serializers": [
+        "UsageBudgetMutationRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 792,
+      "class": null,
+      "function": "budget_detail",
+      "serializers": [
+        "UsageBudgetMutationRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 797,
+      "class": null,
+      "function": "budget_detail",
+      "serializers": [
+        "UsageEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/billing_api.py",
+      "line": 1144,
+      "class": "StripeWebhookView2",
+      "function": "post",
+      "serializers": [
+        "StripeWebhookRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/license_portal.py",
+      "line": 88,
+      "class": null,
+      "function": "licenses",
+      "serializers": [
+        "EELicenseCreateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/license_portal.py",
+      "line": 152,
+      "class": null,
+      "function": "revoke_license",
+      "serializers": [
+        "EELicenseRevokeRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 956,
+      "class": "CreateSubscriptionCheckoutSessionView",
+      "function": "post",
+      "serializers": [
+        "CheckoutSessionRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1097,
+      "class": "CreateCustomPaymentCheckoutSessionView",
+      "function": "post",
+      "serializers": [
+        "CustomPaymentCheckoutRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1172,
+      "class": "CreateBillingPortalSessionView",
+      "function": "post",
+      "serializers": [
+        "UsageEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1199,
+      "class": "CreateAutoRechargeSessionView",
+      "function": "post",
+      "serializers": [
+        "UsageEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1255,
+      "class": "StripeWebhookView",
+      "function": "post",
+      "serializers": [
+        "StripeWebhookRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1462,
+      "class": "CancelSubscriptionView",
+      "function": "post",
+      "serializers": [
+        "UsageEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1545,
+      "class": "UpdateAutoReloadSettingsView",
+      "function": "post",
+      "serializers": [
+        "AutoReloadSettingsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1729,
+      "class": "PricingCardDetailsView",
+      "function": "post",
+      "serializers": [
+        "UsageEmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 1927,
+      "class": "DownloadInvoiceView",
+      "function": "post",
+      "serializers": [
+        "DownloadInvoiceRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 2031,
+      "class": "UpdateOrganizationBillingView",
+      "function": "post",
+      "serializers": [
+        "UpdateOrganizationBillingRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage.py",
+      "line": 2106,
+      "class": "APICallCountView",
+      "function": "get",
+      "serializers": [
+        "APICallCountQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage_summary.py",
+      "line": 30,
+      "class": "UsageSummaryView",
+      "function": "get",
+      "serializers": [
+        "MonthYearQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage_summary.py",
+      "line": 67,
+      "class": "WorkspaceUsageSummaryView",
+      "function": "get",
+      "serializers": [
+        "MonthYearQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/usage/views/usage_summary.py",
+      "line": 114,
+      "class": "WorkspaceUsagePerEvalView",
+      "function": "get",
+      "serializers": [
+        "WorkspaceUsageEvalQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/mcp_server/views/oauth.py",
+      "line": 112,
+      "class": "MCPOAuthConsentView",
+      "function": "post",
+      "serializers": [
+        "MCPOAuthConsentRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/mcp_server/views/oauth.py",
+      "line": 204,
+      "class": "MCPOAuthTokenView",
+      "function": "post",
+      "serializers": [
+        "MCPOAuthTokenRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/mcp_server/views/oauth_approve.py",
+      "line": 108,
+      "class": "MCPOAuthApproveView",
+      "function": "post",
+      "serializers": [
+        "MCPOAuthApproveRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/mcp_server/views/transport.py",
+      "line": 36,
+      "class": "MCPToolCallView",
+      "function": "post",
+      "serializers": [
+        "MCPToolCallRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/analytics.py",
+      "line": 85,
+      "class": "SimulationMetricsView",
+      "function": "get",
+      "serializers": [
+        "SimulationQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/analytics.py",
+      "line": 268,
+      "class": "SimulationRunsView",
+      "function": "get",
+      "serializers": [
+        "SimulationRunsQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/analytics.py",
+      "line": 466,
+      "class": "SimulationAnalyticsView",
+      "function": "get",
+      "serializers": [
+        "SimulationAnalyticsQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/eval_ci_cd.py",
+      "line": 37,
+      "class": "CICDEvaluationsView",
+      "function": "post",
+      "serializers": [
+        "CICDJobSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/eval_ci_cd.py",
+      "line": 71,
+      "class": "CICDEvaluationsView",
+      "function": "get",
+      "serializers": [
+        "CICDEvaluationRunsQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/evaluations.py",
+      "line": 151,
+      "class": "StandaloneEvalView",
+      "function": "post",
+      "serializers": [
+        "SDKStandaloneEvalRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/evaluations.py",
+      "line": 231,
+      "class": "StandaloneEvalView_v2",
+      "function": "get",
+      "serializers": [
+        "SDKStandaloneEvalV2QuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/evaluations.py",
+      "line": 304,
+      "class": "StandaloneEvalView_v2",
+      "function": "post",
+      "serializers": [
+        "SDKStandaloneEvalV2RequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/sdk/views/evaluations.py",
+      "line": 501,
+      "class": "ConfigureEvaluationsView",
+      "function": "post",
+      "serializers": [
+        "ConfigureEvaluationsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_definition.py",
+      "line": 68,
+      "class": "AgentDefinitionView",
+      "function": "get",
+      "serializers": [
+        "AgentDefinitionFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_definition.py",
+      "line": 170,
+      "class": "AgentDefinitionView",
+      "function": "delete",
+      "serializers": [
+        "AgentDefinitionBulkDeleteRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_definition.py",
+      "line": 225,
+      "class": "CreateAgentDefinitionView",
+      "function": "post",
+      "serializers": [
+        "AgentDefinitionCreateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_definition.py",
+      "line": 479,
+      "class": "AgentDefinitionOperationsViewSet",
+      "function": "fetch_assistant_from_provider",
+      "serializers": [
+        "FetchAssistantRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_definition.py",
+      "line": 571,
+      "class": "EditAgentDefinitionView",
+      "function": "put",
+      "serializers": [
+        "AgentDefinitionEditRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_version.py",
+      "line": 107,
+      "class": "CreateAgentVersionView",
+      "function": "post",
+      "serializers": [
+        "AgentVersionCreateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_version.py",
+      "line": 319,
+      "class": "ActivateAgentVersionView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/agent_version.py",
+      "line": 429,
+      "class": "RestoreAgentVersionView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/call_transcript.py",
+      "line": 259,
+      "class": "CallBranchAnalysisView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/chat_simulation.py",
+      "line": 104,
+      "class": "RunTestChatExecutionView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/chat_simulation.py",
+      "line": 187,
+      "class": "TestExecutionChatBatchView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/chat_simulation.py",
+      "line": 472,
+      "class": "ChatSendMessageView",
+      "function": "post",
+      "serializers": [
+        "SendChatRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/livekit_api.py",
+      "line": 245,
+      "class": null,
+      "function": null,
+      "serializers": [
+        "LiveKitTranscriptsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/livekit_api.py",
+      "line": 315,
+      "class": null,
+      "function": null,
+      "serializers": [
+        "LiveKitCallExecutionUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/livekit_api.py",
+      "line": 352,
+      "class": null,
+      "function": null,
+      "serializers": [
+        "LiveKitTemporalSignalRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/livekit_api.py",
+      "line": 516,
+      "class": "ValidateLiveKitCredentialsView",
+      "function": "post",
+      "serializers": [
+        "ValidateLiveKitCredentialsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/livekit_api.py",
+      "line": 635,
+      "class": null,
+      "function": null,
+      "serializers": [
+        "LIVEKIT_WEBHOOK_REQUEST"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/persona.py",
+      "line": 356,
+      "class": "PersonaViewSet",
+      "function": "duplicate",
+      "serializers": [
+        "PersonaDuplicateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/persona.py",
+      "line": 448,
+      "class": "PersonaDuplicateView",
+      "function": "post",
+      "serializers": [
+        "PersonaDuplicateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/prompt_simulation.py",
+      "line": 132,
+      "class": "PromptSimulationListCreateView",
+      "function": "post",
+      "serializers": [
+        "CreatePromptSimulationSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/prompt_simulation.py",
+      "line": 333,
+      "class": "PromptSimulationDetailView",
+      "function": "patch",
+      "serializers": [
+        "PromptSimulationUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/prompt_simulation.py",
+      "line": 475,
+      "class": "ExecutePromptSimulationView",
+      "function": "post",
+      "serializers": [
+        "ExecutePromptSimulationRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 247,
+      "class": "RunTestListView",
+      "function": "get",
+      "serializers": [
+        "RunTestFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 363,
+      "class": "CreateRunTestView",
+      "function": "post",
+      "serializers": [
+        "CreateRunTestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 552,
+      "class": "RunTestDetailView",
+      "function": "patch",
+      "serializers": [
+        "UpdateRunTestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 689,
+      "class": "RunTestExecutionView",
+      "function": "post",
+      "serializers": [
+        "ExecuteRunTestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 914,
+      "class": "TestExecutionCancelView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 1103,
+      "class": "RunTestAPIView",
+      "function": "get",
+      "serializers": [
+        "RunTestFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 1256,
+      "class": "CallExecutionAPIView",
+      "function": "get",
+      "serializers": [
+        "CallExecutionFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 1921,
+      "class": "TestExecutionDetailView",
+      "function": "get",
+      "serializers": [
+        "ExecutionDetailQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 3251,
+      "class": "CallExecutionDetailView",
+      "function": "patch",
+      "serializers": [
+        "CallExecutionStatusUpdateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 3579,
+      "class": "TestExecutionColumnOrderView",
+      "function": "put",
+      "serializers": [
+        "TestExecutionColumnOrderSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 3704,
+      "class": "TestExecutionBulkDeleteView",
+      "function": "post",
+      "serializers": [
+        "TestExecutionBulkDeleteSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 3927,
+      "class": "RunTestComponentsUpdateView",
+      "function": "patch",
+      "serializers": [
+        "RunTestComponentsUpdateSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 4320,
+      "class": "AddEvalConfigView",
+      "function": "post",
+      "serializers": [
+        "AddEvalConfigsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 4657,
+      "class": "UpdateEvalConfigView",
+      "function": "post",
+      "serializers": [
+        "EvalConfigUpdateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 5481,
+      "class": "RunTestEvalSummaryView",
+      "function": "get",
+      "serializers": [
+        "EvalSummaryFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 5532,
+      "class": "RunTestEvalSummaryComparisonView",
+      "function": "get",
+      "serializers": [
+        "EvalSummaryComparisonFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 5652,
+      "class": "RunTestEvalExplanationSummaryRefreshView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 5746,
+      "class": "TestExecutionOptimiserAnalysisRefreshView",
+      "function": "post",
+      "serializers": [
+        "EmptyRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 6029,
+      "class": "CallExecutionRerunView",
+      "function": "post",
+      "serializers": [
+        "CallExecutionRerunSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 6518,
+      "class": "TestExecutionRerunView",
+      "function": "post",
+      "serializers": [
+        "TestExecutionRerunSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/run_test.py",
+      "line": 6714,
+      "class": "RunNewEvalsOnTestExecutionView",
+      "function": "post",
+      "serializers": [
+        "RunNewEvalsOnTestExecutionSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 198,
+      "class": "ScenariosListView",
+      "function": "get",
+      "serializers": [
+        "ScenarioFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 297,
+      "class": "ScenariosListView",
+      "function": "get_multi_datasets_column_configs",
+      "serializers": [
+        "ScenarioMultiDatasetFilterSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 338,
+      "class": "CreateScenarioView",
+      "function": "post",
+      "serializers": [
+        "ScenarioCreateRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 759,
+      "class": "EditScenarioView",
+      "function": "put",
+      "serializers": [
+        "ScenarioEditRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 860,
+      "class": "EditScenarioPromptsView",
+      "function": "put",
+      "serializers": [
+        "ScenarioEditPromptsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 937,
+      "class": "AddScenarioRowsView",
+      "function": "post",
+      "serializers": [
+        "ScenarioAddRowsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/scenarios.py",
+      "line": 1088,
+      "class": "AddScenarioColumnsView",
+      "function": "post",
+      "serializers": [
+        "ScenarioAddColumnsRequestSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/simulator_agent.py",
+      "line": 73,
+      "class": "CreateSimulatorAgentView",
+      "function": "post",
+      "serializers": [
+        "SimulatorAgentSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/simulate/views/simulator_agent.py",
+      "line": 125,
+      "class": "EditSimulatorAgentView",
+      "function": "put",
+      "serializers": [
+        "SimulatorAgentSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/falcon_ai/views.py",
+      "line": 266,
+      "class": "MessageFeedbackView",
+      "function": "post",
+      "serializers": [
+        "MessageFeedbackSerializer"
+      ]
+    },
+    {
+      "path": "futureagi/ee/falcon_ai/views.py",
+      "line": 328,
+      "class": "FileUploadView",
+      "function": "post",
+      "serializers": [
+        "no_body"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 238,
+      "class": "ACSView",
+      "function": "post",
+      "serializers": [
+        "no_body"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 366,
+      "class": "IDPLoginView",
+      "function": "get",
+      "serializers": [
+        "SAMLIDPLoginQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 547,
+      "class": "IDPUploadViews",
+      "function": "create",
+      "serializers": [
+        "no_body"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 604,
+      "class": "IDPUploadViews",
+      "function": "update",
+      "serializers": [
+        "no_body"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 652,
+      "class": "Auth0LoginView",
+      "function": "get",
+      "serializers": [
+        "SAMLAuthLoginQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 706,
+      "class": "Auth0CallbackView",
+      "function": "get",
+      "serializers": [
+        "SAMLOAuthCallbackQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 827,
+      "class": "GithubCallbackView",
+      "function": "get",
+      "serializers": [
+        "SAMLOAuthCallbackQuerySerializer"
+      ]
+    },
+    {
+      "path": "futureagi/saml2_auth/views.py",
+      "line": 966,
+      "class": "MicrosoftCallbackView",
+      "function": "get",
+      "serializers": [
+        "SAMLOAuthCallbackQuerySerializer"
+      ]
+    }
+  ],
+  "app_wide_broad_request_contract_decorators": []
 }

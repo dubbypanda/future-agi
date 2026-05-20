@@ -13,6 +13,7 @@ from agentcc.serializers.contracts import (
     ValidateCELRequestSerializer,
     ValidateCELResponseSerializer,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.general_methods import GeneralMethods
 
@@ -125,19 +126,18 @@ class AgentccGuardrailConfigViewSet(BaseModelViewSetMixinWithUserOrg, GenericVie
         """List topic restriction categories."""
         return self._gm.success_response(TOPIC_CATEGORIES)
 
-    @swagger_auto_schema(
-        request_body=ValidateCELRequestSerializer,
+    @validated_request(
+        request_serializer=ValidateCELRequestSerializer,
         responses={
             200: ValidateCELResponseSerializer,
             400: AgentccErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     @action(detail=False, methods=["post"], url_path="validate-cel")
     def validate_cel(self, request):
         """Validate a CEL expression syntax."""
-        expression = request.data.get("expression", "")
-        if not expression:
-            return self._gm.bad_request("expression is required")
+        expression = request.validated_data["expression"]
 
         valid, error = _validate_cel_syntax(expression)
         return self._gm.success_response(

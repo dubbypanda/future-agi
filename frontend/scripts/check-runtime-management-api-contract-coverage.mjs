@@ -18,9 +18,14 @@ const MIN_RUNTIME_BACKED_VALIDATED_REQUEST_DECORATORS = 274;
 const MAX_DIRECT_SWAGGER_AUTO_SCHEMA_DECORATORS = 169;
 const MAX_DOC_ONLY_INPUT_CONTRACT_DECORATORS = 32;
 const MAX_BROAD_REQUEST_CONTRACT_DECORATORS = 0;
+const MIN_APP_WIDE_RUNTIME_BACKED_VALIDATED_REQUEST_DECORATORS = 337;
+const MAX_APP_WIDE_DIRECT_SWAGGER_AUTO_SCHEMA_DECORATORS = 420;
+const MAX_APP_WIDE_DOC_ONLY_INPUT_CONTRACT_DECORATORS = 138;
+const MAX_APP_WIDE_BROAD_REQUEST_CONTRACT_DECORATORS = 0;
 
 const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
 const summary = report.summary || {};
+const appWideSummary = report.app_wide_summary || {};
 const failures = [];
 
 function assertAtMost(name, actual, max) {
@@ -55,6 +60,26 @@ assertAtMost(
   summary.broad_request_contract_decorators || 0,
   MAX_BROAD_REQUEST_CONTRACT_DECORATORS,
 );
+assertAtLeast(
+  "app-wide runtime-backed validated_request decorators",
+  appWideSummary.runtime_backed_validated_request_decorators || 0,
+  MIN_APP_WIDE_RUNTIME_BACKED_VALIDATED_REQUEST_DECORATORS,
+);
+assertAtMost(
+  "app-wide direct swagger_auto_schema decorators",
+  appWideSummary.direct_swagger_auto_schema_decorators || 0,
+  MAX_APP_WIDE_DIRECT_SWAGGER_AUTO_SCHEMA_DECORATORS,
+);
+assertAtMost(
+  "app-wide doc-only input contract decorators",
+  appWideSummary.doc_only_input_contract_decorators || 0,
+  MAX_APP_WIDE_DOC_ONLY_INPUT_CONTRACT_DECORATORS,
+);
+assertAtMost(
+  "app-wide broad request contract decorators",
+  appWideSummary.broad_request_contract_decorators || 0,
+  MAX_APP_WIDE_BROAD_REQUEST_CONTRACT_DECORATORS,
+);
 
 console.log(
   [
@@ -63,6 +88,11 @@ console.log(
     `  direct swagger_auto_schema decorators: ${summary.direct_swagger_auto_schema_decorators}/${MAX_DIRECT_SWAGGER_AUTO_SCHEMA_DECORATORS} maximum`,
     `  doc-only input contract decorators: ${summary.doc_only_input_contract_decorators}/${MAX_DOC_ONLY_INPUT_CONTRACT_DECORATORS} maximum`,
     `  broad request contract decorators: ${summary.broad_request_contract_decorators}/${MAX_BROAD_REQUEST_CONTRACT_DECORATORS} maximum`,
+    "Runtime Product API contract coverage:",
+    `  runtime-backed validated_request decorators: ${appWideSummary.runtime_backed_validated_request_decorators}/${MIN_APP_WIDE_RUNTIME_BACKED_VALIDATED_REQUEST_DECORATORS} minimum`,
+    `  direct swagger_auto_schema decorators: ${appWideSummary.direct_swagger_auto_schema_decorators}/${MAX_APP_WIDE_DIRECT_SWAGGER_AUTO_SCHEMA_DECORATORS} maximum`,
+    `  doc-only input contract decorators: ${appWideSummary.doc_only_input_contract_decorators}/${MAX_APP_WIDE_DOC_ONLY_INPUT_CONTRACT_DECORATORS} maximum`,
+    `  broad request contract decorators: ${appWideSummary.broad_request_contract_decorators}/${MAX_APP_WIDE_BROAD_REQUEST_CONTRACT_DECORATORS} maximum`,
   ].join("\n"),
 );
 

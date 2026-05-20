@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 import structlog
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
@@ -14,6 +13,7 @@ from agentcc.serializers.contracts import (
     SpendSummaryQuerySerializer,
     SpendSummaryResponseSerializer,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -66,16 +66,17 @@ class SpendSummaryView(APIView):
     renderer_classes = [JSONRenderer]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SpendSummaryQuerySerializer,
         responses={
             200: SpendSummaryResponseSerializer,
             500: AgentccErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def get(self, request):
         try:
-            period = request.query_params.get("period", "monthly")
+            period = request.validated_query_data.get("period", "monthly")
             start = _period_start(period)
 
             logs = AgentccRequestLog.no_workspace_objects.filter(
