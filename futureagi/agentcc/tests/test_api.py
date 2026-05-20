@@ -128,7 +128,9 @@ class TestAgentccGatewayAPI:
         response = auth_client.post(f"/agentcc/gateways/{gateway_id}/health_check/")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        assert data["result"]["status"] == "unreachable"
+        assert data["status"] is False
+        assert data["details"]["status"] == ["unreachable"]
+        assert "Connection refused" in data["detail"]
 
     @patch("agentcc.views.gateway.get_gateway_client")
     def test_get_config(self, mock_get_client, auth_client, gateway_id):
@@ -721,7 +723,7 @@ class TestRequestLogExport:
         assert response.status_code == status.HTTP_200_OK
         assert "ndjson" in response["Content-Type"]
         content = b"".join(response.streaming_content).decode()
-        lines = [l for l in content.strip().split("\n") if l]
+        lines = [line for line in content.strip().split("\n") if line]
         assert len(lines) == 4  # 4 data rows (no header in JSON)
 
     def test_export_with_filters(self, auth_client, sample_logs):
@@ -940,7 +942,9 @@ class TestAnalyticsUsageTimeseries:
         assert total == 10
 
     def test_usage_grouped_by_model(self, auth_client, analytics_logs):
-        response = auth_client.get("/agentcc/analytics/usage-timeseries/?group_by=model")
+        response = auth_client.get(
+            "/agentcc/analytics/usage-timeseries/?group_by=model"
+        )
         assert response.status_code == status.HTTP_200_OK
         result = response.json()["result"]
         assert result["group_by"] == "model"
@@ -958,7 +962,9 @@ class TestAnalyticsUsageTimeseries:
         assert "anthropic" in result["groups"]
 
     def test_usage_with_granularity(self, auth_client, analytics_logs):
-        response = auth_client.get("/agentcc/analytics/usage-timeseries/?granularity=day")
+        response = auth_client.get(
+            "/agentcc/analytics/usage-timeseries/?granularity=day"
+        )
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["result"]["granularity"] == "day"
 
@@ -997,7 +1003,9 @@ class TestAnalyticsCostBreakdown:
             assert field in item, f"Missing field: {field}"
 
     def test_cost_by_provider(self, auth_client, analytics_logs):
-        response = auth_client.get("/agentcc/analytics/cost-breakdown/?group_by=provider")
+        response = auth_client.get(
+            "/agentcc/analytics/cost-breakdown/?group_by=provider"
+        )
         assert response.status_code == status.HTTP_200_OK
         result = response.json()["result"]
         assert result["group_by"] == "provider"
@@ -1006,7 +1014,9 @@ class TestAnalyticsCostBreakdown:
         assert "anthropic" in names
 
     def test_cost_by_user(self, auth_client, analytics_logs):
-        response = auth_client.get("/agentcc/analytics/cost-breakdown/?group_by=user_id")
+        response = auth_client.get(
+            "/agentcc/analytics/cost-breakdown/?group_by=user_id"
+        )
         assert response.status_code == status.HTTP_200_OK
         result = response.json()["result"]
         assert len(result["breakdown"]) == 3  # user-1, user-2, user-3
