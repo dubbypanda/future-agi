@@ -41,6 +41,9 @@ IP_BLOCK_DURATION: int = getattr(settings, "IP_BLOCK_DURATION", 3600)
 
 
 class APIKeyAuthentication(BaseAuthentication):
+    def authenticate_header(self, request):
+        return "ApiKey"
+
     def _bind_user_context(self, user):
         """Bind user context to structlog for all subsequent logs in this request."""
         structlog.contextvars.bind_contextvars(user_id=str(user.id))

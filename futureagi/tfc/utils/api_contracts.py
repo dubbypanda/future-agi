@@ -178,6 +178,7 @@ def validated_request(
     strict_response_validation=False,
     partial_request_validation=False,
     reject_unknown_fields=False,
+    validation_error_response=None,
     framework_query_params=(),
     **swagger_kwargs,
 ):
@@ -225,16 +226,15 @@ def validated_request(
                     reject_unknown_fields=reject_unknown_fields,
                 )
                 if not is_valid:
+                    if validation_error_response is not None:
+                        return validation_error_response(errors)
                     return gm.bad_request(errors)
                 request.validated_query_data = serializer.validated_data
                 request.validated_query_serializer = serializer
 
-            should_validate_body = (
-                request_serializer is not None
-                and (
-                    request_method_set is None
-                    or request.method.upper() in request_method_set
-                )
+            should_validate_body = request_serializer is not None and (
+                request_method_set is None
+                or request.method.upper() in request_method_set
             )
             if should_validate_body:
                 serializer, errors, is_valid = _validate_serializer(
@@ -245,6 +245,8 @@ def validated_request(
                 )
                 if not is_valid:
                     if strict_request_validation:
+                        if validation_error_response is not None:
+                            return validation_error_response(errors)
                         return gm.bad_request(errors)
                     if settings.DEBUG:
                         logger.warning(
@@ -304,6 +306,7 @@ def validated_api_request(
     strict_response_validation=False,
     partial_request_validation=False,
     reject_unknown_fields=False,
+    validation_error_response=None,
     framework_query_params=(),
     **swagger_kwargs,
 ):
@@ -348,16 +351,15 @@ def validated_api_request(
                     reject_unknown_fields=reject_unknown_fields,
                 )
                 if not is_valid:
+                    if validation_error_response is not None:
+                        return validation_error_response(errors)
                     return gm.bad_request(errors)
                 request.validated_query_data = serializer.validated_data
                 request.validated_query_serializer = serializer
 
-            should_validate_body = (
-                request_serializer is not None
-                and (
-                    request_method_set is None
-                    or request.method.upper() in request_method_set
-                )
+            should_validate_body = request_serializer is not None and (
+                request_method_set is None
+                or request.method.upper() in request_method_set
             )
             if should_validate_body:
                 serializer, errors, is_valid = _validate_serializer(
@@ -368,6 +370,8 @@ def validated_api_request(
                 )
                 if not is_valid:
                     if strict_request_validation:
+                        if validation_error_response is not None:
+                            return validation_error_response(errors)
                         return gm.bad_request(errors)
                     if settings.DEBUG:
                         logger.warning(

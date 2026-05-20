@@ -1,7 +1,7 @@
 import structlog
 from django.db import connection
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
@@ -33,6 +33,7 @@ from simulate.utils.eval_summary import (
     _get_eval_configs_with_template,
 )
 from simulate.utils.sql_query import get_kpi_eval_metrics_query, get_kpi_metrics_query
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
@@ -79,10 +80,11 @@ class SimulationMetricsView(APIView):
 
     _gm = GeneralMethods()
     authentication_classes = [APIKeyAuthentication]
+    permission_classes = [IsAuthenticated]
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SimulationQuerySerializer,
         responses={
             200: SDKSimulationMetricsResponseSerializer,
@@ -90,6 +92,9 @@ class SimulationMetricsView(APIView):
             404: SDKErrorResponseSerializer,
             500: SDKErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        validation_error_response=sdk_validation_error_response,
+        framework_query_params=("page", "limit"),
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -101,11 +106,7 @@ class SimulationMetricsView(APIView):
                     get_error_message("USER_ORGANIZATION_CONNECTION_ERROR")
                 )
 
-            serializer = SimulationQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return sdk_validation_error_response(serializer.errors)
-
-            data = serializer.validated_data
+            data = request.validated_query_data
             run_test_name = data.get("run_test_name")
             execution_id = data.get("execution_id")
             call_execution_id = data.get("call_execution_id")
@@ -262,10 +263,11 @@ class SimulationRunsView(APIView):
 
     _gm = GeneralMethods()
     authentication_classes = [APIKeyAuthentication]
+    permission_classes = [IsAuthenticated]
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SimulationRunsQuerySerializer,
         responses={
             200: SDKSimulationRunsResponseSerializer,
@@ -273,6 +275,9 @@ class SimulationRunsView(APIView):
             404: SDKErrorResponseSerializer,
             500: SDKErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        validation_error_response=sdk_validation_error_response,
+        framework_query_params=("page", "limit"),
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -284,11 +289,7 @@ class SimulationRunsView(APIView):
                     get_error_message("USER_ORGANIZATION_CONNECTION_ERROR")
                 )
 
-            serializer = SimulationRunsQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return sdk_validation_error_response(serializer.errors)
-
-            data = serializer.validated_data
+            data = request.validated_query_data
             run_test_name = data.get("run_test_name")
             execution_id = data.get("execution_id")
             call_execution_id = data.get("call_execution_id")
@@ -460,10 +461,11 @@ class SimulationAnalyticsView(APIView):
 
     _gm = GeneralMethods()
     authentication_classes = [APIKeyAuthentication]
+    permission_classes = [IsAuthenticated]
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SimulationAnalyticsQuerySerializer,
         responses={
             200: SDKSimulationAnalyticsResponseSerializer,
@@ -471,6 +473,8 @@ class SimulationAnalyticsView(APIView):
             404: SDKErrorResponseSerializer,
             500: SDKErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        validation_error_response=sdk_validation_error_response,
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -482,11 +486,7 @@ class SimulationAnalyticsView(APIView):
                     get_error_message("USER_ORGANIZATION_CONNECTION_ERROR")
                 )
 
-            serializer = SimulationAnalyticsQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return sdk_validation_error_response(serializer.errors)
-
-            data = serializer.validated_data
+            data = request.validated_query_data
             run_test_name = data.get("run_test_name")
             execution_id = data.get("execution_id")
             eval_names = data.get("eval_name")
