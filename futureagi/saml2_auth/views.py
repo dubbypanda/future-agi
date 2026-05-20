@@ -76,6 +76,7 @@ from tfc.settings.settings import (
     get_name_id_format,
     get_started_url,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
@@ -238,6 +239,7 @@ class ACSView(APIView):
     @swagger_auto_schema(
         request_body=no_body,
         manual_parameters=SAML_ACS_FORM_PARAMETERS,
+        runtime_request_validation=True,
         responses={
             **SAML_REDIRECT_RESPONSES,
         },
@@ -363,18 +365,19 @@ class IDPLoginView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SAMLIDPLoginQuerySerializer,
         responses={
             200: SAMLUrlResponseSerializer,
             400: SAMLErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def get(self, request, *args, **kwargs):
         msg = "SSO is not enabled for your organisation. Please contact to your administration."
         try:
             # provider = request.GET.get('provider')
-            work_email = request.GET.get("email")
+            work_email = request.validated_query_data.get("email")
             if not work_email:
                 return self._gm.bad_request("Email is required")
 
@@ -547,6 +550,7 @@ class IDPUploadViews(viewsets.ModelViewSet):
     @swagger_auto_schema(
         request_body=no_body,
         manual_parameters=SAML_IDP_UPLOAD_FORM_PARAMETERS,
+        runtime_request_validation=True,
         responses={
             200: SAMLStringResponseSerializer,
             400: SAMLErrorResponseSerializer,
@@ -604,6 +608,7 @@ class IDPUploadViews(viewsets.ModelViewSet):
     @swagger_auto_schema(
         request_body=no_body,
         manual_parameters=SAML_IDP_UPLOAD_FORM_PARAMETERS,
+        runtime_request_validation=True,
         responses={
             200: SAMLStringResponseSerializer,
             400: SAMLErrorResponseSerializer,
@@ -649,15 +654,16 @@ class Auth0LoginView(APIView):
     permission_classes = (AllowAny,)
     authentication_classes = []
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SAMLAuthLoginQuerySerializer,
         responses={
             200: SAMLUrlResponseSerializer,
             400: SAMLErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def get(self, request):
-        provider = request.GET.get("provider", None)
+        provider = request.validated_query_data.get("provider", None)
         if not provider:
             return self._gm.bad_request("Provider is required")
 
@@ -703,14 +709,14 @@ class Auth0CallbackView(APIView):
     authentication_classes = []
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SAMLOAuthCallbackQuerySerializer,
         responses=SAML_REDIRECT_RESPONSES,
     )
     def get(self, request):
         try:
             new_org = "false"
-            code = request.GET.get("code")
+            code = request.validated_query_data.get("code")
             logger.info(f"CODE: {code}")
 
             # Exchange code for access token
@@ -799,8 +805,7 @@ class Auth0CallbackView(APIView):
                 )
 
                 next_url += (
-                    f"?sso_token={str(access_token_encrypted)}"
-                    f"&is_new_user={new_org}"
+                    f"?sso_token={str(access_token_encrypted)}&is_new_user={new_org}"
                 )
                 login_next_url = request.session.get("login_next_url", None)
                 if login_next_url:
@@ -824,14 +829,14 @@ class Auth0CallbackView(APIView):
 class GithubCallbackView(APIView):
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SAMLOAuthCallbackQuerySerializer,
         responses=SAML_REDIRECT_RESPONSES,
     )
     def get(self, request):
         try:
             new_org = "false"
-            code = request.GET.get("code")
+            code = request.validated_query_data.get("code")
             if not code:
                 logger.error("No code provided in callback.")
                 # return self._gm.error_response("Authorization code not provided.", status=400)
@@ -941,8 +946,7 @@ class GithubCallbackView(APIView):
             )
 
             next_url += (
-                f"?sso_token={str(access_token_encrypted)}"
-                f"&is_new_user={new_org}"
+                f"?sso_token={str(access_token_encrypted)}&is_new_user={new_org}"
             )
             login_next_url = request.session.get("login_next_url", None)
             if login_next_url:
@@ -963,14 +967,14 @@ class GithubCallbackView(APIView):
 class MicrosoftCallbackView(APIView):
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=SAMLOAuthCallbackQuerySerializer,
         responses=SAML_REDIRECT_RESPONSES,
     )
     def get(self, request):
         try:
             new_org = "false"
-            code = request.GET.get("code")
+            code = request.validated_query_data.get("code")
             if not code:
                 logger.error("No code provided in callback.")
                 raise Exception("Authorization code not provided.")
@@ -1068,8 +1072,7 @@ class MicrosoftCallbackView(APIView):
             )
 
             next_url += (
-                f"?sso_token={str(access_token_encrypted)}"
-                f"&is_new_user={new_org}"
+                f"?sso_token={str(access_token_encrypted)}&is_new_user={new_org}"
             )
             login_next_url = request.session.get("login_next_url", None)
             if login_next_url:

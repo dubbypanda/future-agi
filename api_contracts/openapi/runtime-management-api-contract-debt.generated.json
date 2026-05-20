@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 420,
-    "direct_swagger_auto_schema_decorators": 335,
-    "doc_only_input_contract_decorators": 53,
+    "runtime_backed_validated_request_decorators": 425,
+    "direct_swagger_auto_schema_decorators": 327,
+    "doc_only_input_contract_decorators": 45,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -438,78 +438,6 @@
       "function": "get",
       "serializers": [
         "WorkspaceUsageEvalQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 238,
-      "class": "ACSView",
-      "function": "post",
-      "serializers": [
-        "no_body"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 366,
-      "class": "IDPLoginView",
-      "function": "get",
-      "serializers": [
-        "SAMLIDPLoginQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 547,
-      "class": "IDPUploadViews",
-      "function": "create",
-      "serializers": [
-        "no_body"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 604,
-      "class": "IDPUploadViews",
-      "function": "update",
-      "serializers": [
-        "no_body"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 652,
-      "class": "Auth0LoginView",
-      "function": "get",
-      "serializers": [
-        "SAMLAuthLoginQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 706,
-      "class": "Auth0CallbackView",
-      "function": "get",
-      "serializers": [
-        "SAMLOAuthCallbackQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 827,
-      "class": "GithubCallbackView",
-      "function": "get",
-      "serializers": [
-        "SAMLOAuthCallbackQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/saml2_auth/views.py",
-      "line": 966,
-      "class": "MicrosoftCallbackView",
-      "function": "get",
-      "serializers": [
-        "SAMLOAuthCallbackQuerySerializer"
       ]
     }
   ],

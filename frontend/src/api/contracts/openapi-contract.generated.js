@@ -25433,7 +25433,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/acs/": {
       "post": {
         "operationId": "saml2_auth_acs_create",
-        "runtimeRequestValidation": false,
+        "runtimeRequestValidation": true,
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
@@ -25450,8 +25450,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/auth/callback/": {
       "get": {
         "operationId": "saml2_auth_auth_callback_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -25474,8 +25474,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/auth/callback{format}": {
       "get": {
         "operationId": "saml2_auth_auth_read",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -25498,8 +25498,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/github/callback/": {
       "get": {
         "operationId": "saml2_auth_github_callback_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -25522,8 +25522,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/github/callback{format}": {
       "get": {
         "operationId": "saml2_auth_github_read",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -25546,8 +25546,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/idp-login/": {
       "get": {
         "operationId": "saml2_auth_idp-login_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "email": {
@@ -25615,7 +25615,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "post": {
         "operationId": "saml2_auth_idp-uploads_create",
-        "runtimeRequestValidation": false,
+        "runtimeRequestValidation": true,
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
@@ -25659,7 +25659,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "put": {
         "operationId": "saml2_auth_idp-uploads_update",
-        "runtimeRequestValidation": false,
+        "runtimeRequestValidation": true,
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {},
@@ -25703,8 +25703,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/login/": {
       "get": {
         "operationId": "saml2_auth_login_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "provider": {
@@ -25735,8 +25735,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/login{format}": {
       "get": {
         "operationId": "saml2_auth_read",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "provider": {
@@ -25767,8 +25767,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/microsoft/callback/": {
       "get": {
         "operationId": "saml2_auth_microsoft_callback_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {
@@ -25791,8 +25791,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/saml2_auth/microsoft/callback{format}": {
       "get": {
         "operationId": "saml2_auth_microsoft_read",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
         "queryParameters": {
           "code": {

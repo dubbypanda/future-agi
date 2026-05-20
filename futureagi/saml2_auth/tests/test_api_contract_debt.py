@@ -119,3 +119,23 @@ def test_saml_oauth_callbacks_are_documented_as_redirects():
             "400",
             "default",
         }
+
+
+def test_saml_idp_login_rejects_unknown_query_param(api_client):
+    response = api_client.get(
+        "/saml2_auth/idp-login/",
+        {"email": "person@example.com", "legacy": "1"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["details"]["legacy"] == ["Unknown field."]
+
+
+def test_saml_social_login_rejects_unknown_query_param(api_client):
+    response = api_client.get(
+        "/saml2_auth/login/",
+        {"provider": "google", "legacy": "1"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["details"]["legacy"] == ["Unknown field."]
