@@ -1006,6 +1006,31 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     except EndUser.DoesNotExist:
                         raise Exception("User not found")  # noqa: B904
 
+            # In org-scoped mode with a user filter, narrow session_ids
+            # to only those that have spans for this user BEFORE the
+            # heavy aggregation. Without this, the aggregation scans
+            # ALL sessions across ALL projects and times out.
+            if org_scope and end_user_filter:
+                user_session_ids = list(
+                    ObservationSpan.objects.filter(
+                        trace__session_id__in=session_ids,
+                        **end_user_filter,
+                    )
+                    .values_list("trace__session_id", flat=True)
+                    .distinct()[:1000]
+                )
+                if not user_session_ids:
+                    return self._gm.success_response(
+                        {
+                            "metadata": {"total_rows": 0},
+                            "table": [],
+                            "config": get_default_project_session_config(),
+                        }
+                    )
+                session_ids = TraceSession.objects.filter(
+                    id__in=user_session_ids
+                ).values("id")
+
             fm_lm_columns = {"first_message", "last_message"}
             needs_first_last = any(
                 f.get("column_id") in fm_lm_columns for f in remaining_filters
@@ -1504,6 +1529,26 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     entry["session_name"] = _name_map.get(_UUID(sid))
                 except (ValueError, TypeError):
                     entry["session_name"] = None
+
+        # Inject user info when a user_id filter is active — avoids a
+        # separate PG query since we already resolved the EndUser during
+        # filter extraction.
+        if user_id_raw and formatted:
+            org = getattr(request, "organization", None) or request.user.organization
+            _eu_qs = (
+                EndUser.objects.filter(
+                    user_id=user_id_raw,
+                    organization=org,
+                    deleted=False,
+                )
+                .values("user_id", "user_id_type", "user_id_hash")
+                .first()
+            )
+            if _eu_qs:
+                for entry in formatted:
+                    entry["user_id"] = _eu_qs["user_id"]
+                    entry["user_id_type"] = _eu_qs["user_id_type"]
+                    entry["user_id_hash"] = _eu_qs["user_id_hash"]
 
         # Phase 2: Aggregated span attributes for custom columns
         _SKIP_ATTR_PREFIXES = (
