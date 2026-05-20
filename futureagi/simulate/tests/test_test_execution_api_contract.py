@@ -21,6 +21,16 @@ def _debt_report():
         return json.load(f)
 
 
+def _runtime_debt_report():
+    with (
+        _repo_root()
+        / "api_contracts"
+        / "openapi"
+        / "runtime-management-api-contract-debt.generated.json"
+    ).open() as f:
+        return json.load(f)
+
+
 def _operation(path, method):
     return _swagger()["paths"][path][method.lower()]
 
@@ -144,3 +154,37 @@ def test_test_execution_contract_debt_stays_burned_down():
 
     assert body_debt.isdisjoint(covered_paths)
     assert response_debt.isdisjoint(covered_paths)
+
+
+def test_test_execution_action_contracts_are_runtime_validated():
+    migrated_views = {
+        ("futureagi/simulate/views/run_test.py", "TestExecutionCancelView", "post"),
+        (
+            "futureagi/simulate/views/run_test.py",
+            "RunTestEvalExplanationSummaryRefreshView",
+            "post",
+        ),
+        (
+            "futureagi/simulate/views/run_test.py",
+            "TestExecutionOptimiserAnalysisRefreshView",
+            "post",
+        ),
+        ("futureagi/simulate/views/run_test.py", "CallExecutionRerunView", "post"),
+        ("futureagi/simulate/views/run_test.py", "TestExecutionRerunView", "post"),
+        (
+            "futureagi/simulate/views/run_test.py",
+            "RunNewEvalsOnTestExecutionView",
+            "post",
+        ),
+    }
+    report = _runtime_debt_report()
+    doc_only_views = {
+        (item["path"], item.get("class", ""), item["function"])
+        for item in report["app_wide_doc_only_input_contract_decorators"]
+    }
+
+    assert doc_only_views.isdisjoint(migrated_views)
+    assert (
+        report["app_wide_summary"]["runtime_backed_validated_request_decorators"] >= 376
+    )
+    assert report["app_wide_summary"]["doc_only_input_contract_decorators"] <= 99

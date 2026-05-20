@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from tfc.utils.api_contracts import validated_api_request, validated_request
 from tfc.utils.api_errors import build_error_envelope
+from tfc.utils.api_serializers import EmptyRequestSerializer
 from tfc.utils.general_methods import GeneralMethods
 
 
@@ -48,6 +49,15 @@ class _DemoView(APIView):
 class _StrictRequestView(APIView):
     @validated_request(
         request_serializer=_DemoRequestSerializer,
+        reject_unknown_fields=True,
+    )
+    def post(self, request):
+        return Response({"status": True, "result": request.validated_data})
+
+
+class _StrictEmptyRequestView(APIView):
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         reject_unknown_fields=True,
     )
     def post(self, request):
@@ -214,6 +224,21 @@ def test_validated_request_can_reject_unknown_body_fields():
     assert response.data["status"] is False
     assert response.data["message"] == "displayName: Unknown field."
     assert response.data["details"] == {"displayName": ["Unknown field."]}
+
+
+def test_validated_request_rejects_non_empty_empty_request_serializer():
+    factory = APIRequestFactory()
+
+    response = _StrictEmptyRequestView.as_view()(
+        factory.post("/", {"legacy_extra": "Future AGI"}, format="json")
+    )
+
+    assert response.status_code == 400
+    assert response.data["status"] is False
+    assert response.data["details"] == {
+        "non_field_errors": ["This endpoint does not accept a request body."],
+        "legacy_extra": ["Unknown field."],
+    }
 
 
 def test_validated_request_exposes_validated_serializers_to_views():

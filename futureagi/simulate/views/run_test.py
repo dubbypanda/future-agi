@@ -166,6 +166,7 @@ from simulate.utils.test_execution_utils import TestExecutionUtils
 from tfc.ee_gates import strip_turing_from_config_options
 from tfc.settings import settings as app_settings
 from tfc.settings.settings import VAPI_INDIAN_PHONE_NUMBER_ID
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_errors import build_error_envelope
 from tfc.utils.api_serializers import (
     ApiTextErrorResponseSerializer,
@@ -911,14 +912,15 @@ class TestExecutionCancelView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=EmptyRequestSerializer,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={
             200: CancelTestExecutionResponseSerializer,
             400: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, run_test_id=None, test_execution_id=None, *args, **kwargs):
         """Cancel a test execution"""
@@ -5649,13 +5651,14 @@ class RunTestEvalExplanationSummaryRefreshView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=EmptyRequestSerializer,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={
             200: EvalExplanationSummaryRefreshResponseSerializer,
             404: ApiTextErrorResponseSerializer,
             500: ApiTextErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, test_execution_id, *args, **kwargs):
         """
@@ -5743,14 +5746,15 @@ class TestExecutionOptimiserAnalysisRefreshView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=EmptyRequestSerializer,
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
         responses={
             200: OptimiserAnalysisRefreshResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             404: ApiTextErrorResponseSerializer,
             500: ApiTextErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, test_execution_id, *args, **kwargs):
         """
@@ -6026,14 +6030,15 @@ class CallExecutionRerunView(APIView):
         super().__init__(**kwargs)
         self._gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=CallExecutionRerunSerializer,
+    @validated_request(
+        request_serializer=CallExecutionRerunSerializer,
         responses={
             200: RerunCallsResponseSerializer,
             400: ErrorResponseSerializer,
             404: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, test_execution_id):
         """
@@ -6069,14 +6074,9 @@ class CallExecutionRerunView(APIView):
                     "Wait for it to complete or cancel it first."
                 )
 
-            # Validate request data
-            serializer = CallExecutionRerunSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request("Invalid request data")
-
-            rerun_type = serializer.validated_data["rerun_type"]
-            select_all = serializer.validated_data.get("select_all", False)
-            call_execution_ids = serializer.validated_data.get("call_execution_ids", [])
+            rerun_type = request.validated_data["rerun_type"]
+            select_all = request.validated_data.get("select_all", False)
+            call_execution_ids = request.validated_data.get("call_execution_ids", [])
 
             # Validate CHAT/TEXT agents can only use eval_only rerun type
             if rerun_type != "eval_only" and test_execution.run_test.agent_definition:
@@ -6515,14 +6515,15 @@ class TestExecutionRerunView(APIView):
 
         return successful_reruns, failed_reruns
 
-    @swagger_auto_schema(
-        request_body=TestExecutionRerunSerializer,
+    @validated_request(
+        request_serializer=TestExecutionRerunSerializer,
         responses={
             200: TestExecutionRerunResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             404: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, run_test_id):
         """
@@ -6546,13 +6547,9 @@ class TestExecutionRerunView(APIView):
                 organization=user_organization,
             )
 
-            serializer = TestExecutionRerunSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            rerun_type = serializer.validated_data["rerun_type"]
-            select_all = serializer.validated_data.get("select_all", False)
-            test_execution_ids = serializer.validated_data.get("test_execution_ids", [])
+            rerun_type = request.validated_data["rerun_type"]
+            select_all = request.validated_data.get("select_all", False)
+            test_execution_ids = request.validated_data.get("test_execution_ids", [])
 
             # Validate CHAT/TEXT agents can only use eval_only rerun type
             if rerun_type != "eval_only" and run_test.agent_definition:
@@ -6711,14 +6708,14 @@ class RunNewEvalsOnTestExecutionView(APIView):
         super().__init__(**kwargs)
         self._gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         tags=["Run Tests - Eval Configs"],
         operation_summary="Run new evaluations on test executions",
         operation_description=(
             "Runs new evaluations on completed test executions. "
             "Either test_execution_ids or select_all=true must be provided."
         ),
-        request_body=RunNewEvalsOnTestExecutionSerializer,
+        request_serializer=RunNewEvalsOnTestExecutionSerializer,
         responses={
             200: RunNewEvalsResponseSerializer,
             400: EvalErrorResponseSerializer,
@@ -6726,6 +6723,7 @@ class RunNewEvalsOnTestExecutionView(APIView):
             404: EvalErrorResponseSerializer,
             500: EvalErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, run_test_id):
         """
@@ -6745,15 +6743,10 @@ class RunNewEvalsOnTestExecutionView(APIView):
                 RunTest, id=run_test_id, organization=user_organization, deleted=False
             )
 
-            # Validate request data
-            serializer = RunNewEvalsOnTestExecutionSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            select_all = serializer.validated_data.get("select_all", False)
-            test_execution_ids = serializer.validated_data.get("test_execution_ids", [])
-            eval_config_ids = serializer.validated_data.get("eval_config_ids", [])
-            enable_tool_evaluation = serializer.validated_data.get(
+            select_all = request.validated_data.get("select_all", False)
+            test_execution_ids = request.validated_data.get("test_execution_ids", [])
+            eval_config_ids = request.validated_data.get("eval_config_ids", [])
+            enable_tool_evaluation = request.validated_data.get(
                 "enable_tool_evaluation"
             )
 

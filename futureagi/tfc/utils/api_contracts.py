@@ -93,6 +93,23 @@ def _unknown_fields(data, serializer):
     return sorted(set(data.keys()) - set(serializer.fields.keys()))
 
 
+def _as_error_dict(errors):
+    if not errors:
+        return {}
+    if isinstance(errors, dict):
+        return dict(errors)
+    if isinstance(errors, list):
+        return {"non_field_errors": errors}
+    return {"non_field_errors": [errors]}
+
+
+def _serializer_errors(serializer):
+    try:
+        return _as_error_dict(serializer.errors)
+    except ValueError:
+        return _as_error_dict(getattr(serializer, "_errors", None))
+
+
 def _validate_serializer(
     serializer_class,
     data,
@@ -109,11 +126,11 @@ def _validate_serializer(
         unknown = _unknown_fields(data, serializer)
         if unknown:
             serializer.is_valid()
-            errors = dict(serializer.errors)
+            errors = _serializer_errors(serializer)
             errors.update({key: ["Unknown field."] for key in unknown})
             return serializer, errors, False
     is_valid = serializer.is_valid()
-    return serializer, serializer.errors, is_valid
+    return serializer, _serializer_errors(serializer), is_valid
 
 
 def _query_params_without_framework_params(query_params, framework_query_params):

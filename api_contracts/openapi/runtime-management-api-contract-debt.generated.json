@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 370,
-    "direct_swagger_auto_schema_decorators": 387,
-    "doc_only_input_contract_decorators": 105,
+    "runtime_backed_validated_request_decorators": 376,
+    "direct_swagger_auto_schema_decorators": 381,
+    "doc_only_input_contract_decorators": 99,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -622,7 +622,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 247,
+      "line": 248,
       "class": "RunTestListView",
       "function": "get",
       "serializers": [
@@ -631,7 +631,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 363,
+      "line": 364,
       "class": "CreateRunTestView",
       "function": "post",
       "serializers": [
@@ -640,7 +640,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 552,
+      "line": 553,
       "class": "RunTestDetailView",
       "function": "patch",
       "serializers": [
@@ -649,7 +649,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 689,
+      "line": 690,
       "class": "RunTestExecutionView",
       "function": "post",
       "serializers": [
@@ -658,16 +658,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 914,
-      "class": "TestExecutionCancelView",
-      "function": "post",
-      "serializers": [
-        "EmptyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 1103,
+      "line": 1105,
       "class": "RunTestAPIView",
       "function": "get",
       "serializers": [
@@ -676,7 +667,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 1256,
+      "line": 1258,
       "class": "CallExecutionAPIView",
       "function": "get",
       "serializers": [
@@ -685,7 +676,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 1921,
+      "line": 1923,
       "class": "TestExecutionDetailView",
       "function": "get",
       "serializers": [
@@ -694,7 +685,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 3251,
+      "line": 3253,
       "class": "CallExecutionDetailView",
       "function": "patch",
       "serializers": [
@@ -703,7 +694,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 3579,
+      "line": 3581,
       "class": "TestExecutionColumnOrderView",
       "function": "put",
       "serializers": [
@@ -712,7 +703,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 3704,
+      "line": 3706,
       "class": "TestExecutionBulkDeleteView",
       "function": "post",
       "serializers": [
@@ -721,7 +712,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 3927,
+      "line": 3929,
       "class": "RunTestComponentsUpdateView",
       "function": "patch",
       "serializers": [
@@ -730,7 +721,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 4320,
+      "line": 4322,
       "class": "AddEvalConfigView",
       "function": "post",
       "serializers": [
@@ -739,7 +730,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 4657,
+      "line": 4659,
       "class": "UpdateEvalConfigView",
       "function": "post",
       "serializers": [
@@ -748,7 +739,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 5481,
+      "line": 5483,
       "class": "RunTestEvalSummaryView",
       "function": "get",
       "serializers": [
@@ -757,56 +748,11 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 5532,
+      "line": 5534,
       "class": "RunTestEvalSummaryComparisonView",
       "function": "get",
       "serializers": [
         "EvalSummaryComparisonFilterSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 5652,
-      "class": "RunTestEvalExplanationSummaryRefreshView",
-      "function": "post",
-      "serializers": [
-        "EmptyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 5746,
-      "class": "TestExecutionOptimiserAnalysisRefreshView",
-      "function": "post",
-      "serializers": [
-        "EmptyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 6029,
-      "class": "CallExecutionRerunView",
-      "function": "post",
-      "serializers": [
-        "CallExecutionRerunSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 6518,
-      "class": "TestExecutionRerunView",
-      "function": "post",
-      "serializers": [
-        "TestExecutionRerunSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 6714,
-      "class": "RunNewEvalsOnTestExecutionView",
-      "function": "post",
-      "serializers": [
-        "RunNewEvalsOnTestExecutionSerializer"
       ]
     },
     {
