@@ -1,6 +1,6 @@
 import structlog
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
@@ -20,6 +20,7 @@ from sdk.utils.cicd_evaluations import (
     create_evaluation_run,
     get_evaluation_runs_summaries,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
@@ -31,28 +32,24 @@ class CICDEvaluationsView(APIView):
     authentication_classes = [
         APIKeyAuthentication,
     ]
+    permission_classes = [IsAuthenticated]
     parser_classes = (JSONParser,)
     renderer_classes = (JSONRenderer,)
 
-    @swagger_auto_schema(
-        request_body=CICDJobSerializer,
+    @validated_request(
+        request_serializer=CICDJobSerializer,
         responses={
             200: SDKCICDEvaluationRunAcceptedResponseSerializer,
             400: SDKErrorResponseSerializer,
             500: SDKErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        validation_error_response=sdk_validation_error_response,
+        serializer_context=lambda request: {"request": request},
     )
     def post(self, request, *args, **kwargs):
         try:
-            serializer = CICDJobSerializer(
-                data=request.data, context={"request": request}
-            )
-            if not serializer.is_valid():
-                return sdk_validation_error_response(serializer.errors)
-
-            evaluation_run = create_evaluation_run(
-                serializer.validated_data, request.user
-            )
+            evaluation_run = create_evaluation_run(request.validated_data, request.user)
 
             return self._gm.success_response(
                 {
@@ -68,28 +65,20 @@ class CICDEvaluationsView(APIView):
                 get_error_message("FAILED_TO_CREATE_EVALUATION_RUN")
             )
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=CICDEvaluationRunsQuerySerializer,
         responses={
             200: SDKCICDEvaluationRunsResponseSerializer,
             400: SDKErrorResponseSerializer,
             500: SDKErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        validation_error_response=sdk_validation_error_response,
+        serializer_context=lambda request: {"request": request},
     )
     def get(self, request, *args, **kwargs):
         try:
-            query_data = {
-                "project_name": request.query_params.get("project_name"),
-                "versions": request.query_params.get("versions"),
-            }
-
-            serializer = CICDEvaluationRunsQuerySerializer(
-                data=query_data, context={"request": request}
-            )
-            if not serializer.is_valid():
-                return sdk_validation_error_response(serializer.errors)
-
-            validated_data = serializer.validated_data
+            validated_data = request.validated_query_data
             evaluation_runs = validated_data["evaluation_runs"]
 
             evaluation_runs_processing = are_evaluation_runs_processing(evaluation_runs)

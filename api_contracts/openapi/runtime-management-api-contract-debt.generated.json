@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 359,
-    "direct_swagger_auto_schema_decorators": 398,
-    "doc_only_input_contract_decorators": 116,
+    "runtime_backed_validated_request_decorators": 361,
+    "direct_swagger_auto_schema_decorators": 396,
+    "doc_only_input_contract_decorators": 114,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -465,24 +465,6 @@
       "function": "post",
       "serializers": [
         "MCPOAuthTokenRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/eval_ci_cd.py",
-      "line": 37,
-      "class": "CICDEvaluationsView",
-      "function": "post",
-      "serializers": [
-        "CICDJobSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/eval_ci_cd.py",
-      "line": 71,
-      "class": "CICDEvaluationsView",
-      "function": "get",
-      "serializers": [
-        "CICDEvaluationRunsQuerySerializer"
       ]
     },
     {

@@ -99,8 +99,12 @@ def _validate_serializer(
     *,
     reject_unknown_fields=False,
     partial=False,
+    context=None,
 ):
-    serializer = serializer_class(data=data, partial=partial)
+    serializer_kwargs = {"data": data, "partial": partial}
+    if context is not None:
+        serializer_kwargs["context"] = context
+    serializer = serializer_class(**serializer_kwargs)
     if reject_unknown_fields:
         unknown = _unknown_fields(data, serializer)
         if unknown:
@@ -168,6 +172,14 @@ def _request_from_call(args):
     raise TypeError("validated_request could not locate a DRF request argument.")
 
 
+def _serializer_context(serializer_context, request):
+    if serializer_context is None:
+        return None
+    if callable(serializer_context):
+        return serializer_context(request)
+    return serializer_context
+
+
 def validated_request(
     request_serializer=None,
     *,
@@ -179,6 +191,7 @@ def validated_request(
     partial_request_validation=False,
     reject_unknown_fields=False,
     validation_error_response=None,
+    serializer_context=None,
     framework_query_params=(),
     **swagger_kwargs,
 ):
@@ -214,6 +227,7 @@ def validated_request(
             request.validated_serializer = None
             request.validated_query_serializer = None
             gm = GeneralMethods(request=request)
+            context = _serializer_context(serializer_context, request)
 
             if query_serializer is not None:
                 query_data = _query_params_without_framework_params(
@@ -224,6 +238,7 @@ def validated_request(
                     query_serializer,
                     query_data,
                     reject_unknown_fields=reject_unknown_fields,
+                    context=context,
                 )
                 if not is_valid:
                     if validation_error_response is not None:
@@ -242,6 +257,7 @@ def validated_request(
                     request.data,
                     reject_unknown_fields=reject_unknown_fields,
                     partial=partial_request_validation,
+                    context=context,
                 )
                 if not is_valid:
                     if strict_request_validation:
@@ -307,6 +323,7 @@ def validated_api_request(
     partial_request_validation=False,
     reject_unknown_fields=False,
     validation_error_response=None,
+    serializer_context=None,
     framework_query_params=(),
     **swagger_kwargs,
 ):
@@ -339,6 +356,7 @@ def validated_api_request(
             request.validated_serializer = None
             request.validated_query_serializer = None
             gm = GeneralMethods(request=request)
+            context = _serializer_context(serializer_context, request)
 
             if query_serializer is not None:
                 query_data = _query_params_without_framework_params(
@@ -349,6 +367,7 @@ def validated_api_request(
                     query_serializer,
                     query_data,
                     reject_unknown_fields=reject_unknown_fields,
+                    context=context,
                 )
                 if not is_valid:
                     if validation_error_response is not None:
@@ -367,6 +386,7 @@ def validated_api_request(
                     request.data,
                     reject_unknown_fields=reject_unknown_fields,
                     partial=partial_request_validation,
+                    context=context,
                 )
                 if not is_valid:
                     if strict_request_validation:
