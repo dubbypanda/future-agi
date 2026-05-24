@@ -2041,8 +2041,20 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             )
 
     def _list_spans_clickhouse(self, request, project_id, validated_data, analytics):
-        """List spans using ClickHouse backend."""
+        """List spans using ClickHouse backend.
+
+        Builder class is resolved via the v1↔v2 dispatch — set
+        CH25_QUERY_TYPES_V2_PRIMARY=SPAN_LIST (or V2_ONLY) to flip this
+        endpoint to the CH 25.3 schema. Defaults to v1 (CH 24.10) until
+        flipped. See tracer/services/clickhouse/v2/dispatch.py.
+        """
         from tracer.services.clickhouse.query_builders import SpanListQueryBuilder
+        from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
+
+        BuilderCls = get_query_builder_class("SPAN_LIST")  # noqa: N806
+        # The v2 builder is a subclass of the v1 builder, so the pivot
+        # helpers below (called as classmethods on the v1 name) work for
+        # both — keep the v1 import for those static calls.
 
         filters = validated_data.get("filters", [])
         page_number = validated_data["page_number"]
@@ -2089,7 +2101,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         annotation_label_ids = [str(l.id) for l in annotation_labels]
         label_types = {str(l.id): l.type for l in annotation_labels}
 
-        builder = SpanListQueryBuilder(
+        builder = BuilderCls(
             project_id=str(project_id),
             filters=filters,
             page_number=page_number,
@@ -2321,8 +2333,15 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
     def _list_spans_non_observe_clickhouse(
         self, request, project_version_id, project_version, analytics, validated_data
     ):
-        """List spans (non-observe, prompt version/eval task views) using ClickHouse backend."""
+        """List spans (non-observe, prompt version/eval task views) using ClickHouse backend.
+
+        Same v1↔v2 dispatch as `_list_spans_clickhouse` — flips together via
+        CH25_QUERY_TYPES_V2_PRIMARY=SPAN_LIST.
+        """
         from tracer.services.clickhouse.query_builders import SpanListQueryBuilder
+        from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
+
+        BuilderCls = get_query_builder_class("SPAN_LIST")  # noqa: N806
 
         filters = validated_data.get("filters", [])
         page_number = validated_data.get("page_number", 0)
@@ -2348,7 +2367,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         annotation_label_ids = [str(l.id) for l in annotation_labels]
         label_types = {str(l.id): l.type for l in annotation_labels}
 
-        builder = SpanListQueryBuilder(
+        builder = BuilderCls(
             project_id=project_id,
             filters=filters,
             page_number=page_number,
