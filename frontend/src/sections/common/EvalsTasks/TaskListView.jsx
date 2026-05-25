@@ -5,7 +5,6 @@ import {
   Chip,
   IconButton,
   Popover,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { formatDistanceToNow } from "date-fns";
@@ -229,6 +228,17 @@ const buildFilterChips = (filtersApplied) => {
   if (filtersApplied.project_id) {
     chips.push(`Project: ${filtersApplied.project_id.slice(0, 8)}…`);
   }
+  [
+    ["trace_id", "Trace"],
+    ["span_id", "Span"],
+    ["session_id", "Session"],
+  ].forEach(([key, label]) => {
+    const values = filtersApplied[key];
+    const arr = Array.isArray(values) ? values : values ? [values] : [];
+    arr.forEach((value) => {
+      chips.push(`${label}: ${String(value).slice(0, 8)}…`);
+    });
+  });
   return chips;
 };
 

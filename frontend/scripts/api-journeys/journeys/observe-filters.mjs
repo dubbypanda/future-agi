@@ -4975,6 +4975,148 @@ export const observeFilterJourneys = [
     },
   },
   {
+    id: "TSK-API-003",
+    title: "Observe task linked trace source stores direct id filters",
+    tags: ["observe", "tasks", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+
+      const { seed, seedEval, projectId, trace, traceDetail } =
+        await resolveEvalTaskSeedWithTrace(client, evidence);
+      const traceId = trace.trace_id || trace.id;
+      assert(isUuid(traceId), "Linked-source trace row omitted trace_id.");
+
+      const taskName = `api journey linked trace task ${runId}`;
+      const created = await client.post(apiPath("/tracer/eval-task/"), {
+        project: projectId,
+        name: taskName,
+        run_type: "continuous",
+        sampling_rate: 100,
+        row_type: "traces",
+        filters: {
+          project_id: projectId,
+          trace_id: [traceId],
+        },
+        evals: [seedEval.id],
+      });
+      assert(isUuid(created?.id), "Linked-source task create returned no id.");
+      const createdTaskId = created.id;
+
+      cleanup.defer("hard cleanup TSK-API-003 linked task artifacts", () =>
+        deleteEvalTaskDbArtifacts({ taskId: createdTaskId }),
+      );
+
+      const taskDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
+      assert(taskDetail?.id === createdTaskId, "Linked task detail id mismatch.");
+      assert(taskDetail?.project_id === projectId, "Linked task project mismatch.");
+      assert(
+        asArray(taskDetail?.filters_applied?.trace_id).includes(traceId),
+        "Linked task detail did not preserve the trace_id filter.",
+      );
+      assert(
+        asArray(taskDetail.evals_applied).some(
+          (evalItem) => evalItem.id === seedEval.id,
+        ),
+        "Linked task detail did not include the selected eval config.",
+      );
+
+      const sourceDetail = await client.get(
+        apiPath("/tracer/trace/{id}/", { id: traceId }),
+      );
+      const detailTraceId =
+        sourceDetail?.trace_id || sourceDetail?.id || sourceDetail?.trace?.id;
+      assert(
+        detailTraceId === traceId,
+        "Linked source trace detail did not return the selected trace.",
+      );
+
+      const filteredTraces = await client.get(
+        queryWithFilters(
+          apiPath("/tracer/trace/list_traces_of_session/"),
+          canonicalTextFilter("trace_id", "equals", traceId),
+          {
+            project_id: projectId,
+            page_number: 0,
+            page_size: 5,
+          },
+        ),
+      );
+      assert(
+        asArray(filteredTraces).some((row) => row.trace_id === traceId),
+        "Trace list did not return the selected source under trace_id filter.",
+      );
+
+      const audit = await loadEvalTaskLinkedSourceAudit({
+        organizationId,
+        workspaceId,
+        taskId: createdTaskId,
+        projectId,
+        traceId,
+      });
+      assert(audit.task_exists === true, "Linked task row was not found in DB.");
+      assert(
+        audit.trace_id_filter_contains === true,
+        "Linked task DB filters did not contain the selected trace_id.",
+      );
+      assert(
+        audit.source_trace_exists === true,
+        "Linked source trace was not visible in DB for the selected project.",
+      );
+      assert(
+        Number(audit.matched_span_count) > 0,
+        "Linked source trace has no matching spans for trace-row evaluation.",
+      );
+
+      const deleted = await client.post(
+        apiPath("/tracer/eval-task/mark_eval_tasks_deleted/"),
+        { eval_task_ids: [createdTaskId] },
+      );
+      assert(deleted?.message, "Linked task delete did not return success.");
+      const cleanupAudit = await loadEvalTaskLifecycleAudit({
+        taskId: createdTaskId,
+      });
+      assert(
+        cleanupAudit.task_deleted === true,
+        "Linked task public delete flag was not set.",
+      );
+
+      evidence.push({
+        seed_task_id: seed.id,
+        seed_project_id: projectId,
+        seed_eval_config_id: seedEval.id,
+        created_task_id: createdTaskId,
+        source_trace_id: traceId,
+        source_trace_name: trace.name || traceDetail?.name || null,
+        source_url: `/dashboard/observe/${projectId}/trace/${traceId}`,
+        filters_applied: taskDetail.filters_applied,
+        matched_span_count: audit.matched_span_count,
+        source_reverse_task_column_count:
+          audit.source_reverse_task_column_count,
+        public_deleted: cleanupAudit.task_deleted,
+      });
+    },
+  },
+  {
     id: "ALT-API-001",
     title: "Observe alert list, detail, metric options, graph, and logs",
     tags: ["observe", "alerts", "safe", "data-roundtrip", "db-audit"],
@@ -5989,6 +6131,73 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
+async function resolveEvalTaskSeedWithTrace(client, evidence) {
+  const list = await client.get(
+    apiPath("/tracer/eval-task/list_eval_tasks_with_project_name/"),
+    {
+      query: {
+        page_number: 0,
+        page_size: 25,
+        sort_params: JSON.stringify([
+          { column_id: "created_at", direction: "desc" },
+        ]),
+      },
+    },
+  );
+  const rows = asArray(list.table || list).filter(
+    (row) => row?.id && (row.project_id || row.filters_applied?.project_id),
+  );
+  if (!rows.length) {
+    skip("No Observe task exists to provide a project/eval config seed.");
+  }
+
+  for (const seed of rows) {
+    const projectId = seed.project_id || seed.filters_applied?.project_id;
+    if (!isUuid(projectId)) continue;
+    const seedDetail = await client.get(
+      apiPath("/tracer/eval-task/get_eval_details/"),
+      {
+        query: { eval_id: seed.id },
+      },
+    );
+    const seedEval = asArray(seedDetail.evals_applied)[0];
+    if (!seedEval?.id) continue;
+
+    const traceList = await client.get(
+      queryWithFilters(apiPath("/tracer/trace/list_traces_of_session/"), [], {
+        project_id: projectId,
+        page_number: 0,
+        page_size: 10,
+      }),
+    );
+    const traces = asArray(traceList).filter((row) => row?.trace_id || row?.id);
+    for (const trace of traces) {
+      const traceId = trace.trace_id || trace.id;
+      if (!isUuid(traceId)) continue;
+      try {
+        const traceDetail = await client.get(
+          apiPath("/tracer/trace/{id}/", { id: traceId }),
+        );
+        evidence.push({
+          endpoint: "eval task linked-source seed",
+          seed_task_id: seed.id,
+          seed_project_id: projectId,
+          seed_eval_config_id: seedEval.id,
+          trace_id: traceId,
+          trace_total_rows: traceList?.metadata?.total_rows ?? null,
+        });
+        return { seed, seedEval, projectId, trace, traceDetail };
+      } catch (error) {
+        if (!(error instanceof ApiJourneyError && [400, 404].includes(error.status))) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  skip("No Observe task project with a readable trace exists for linked-source coverage.");
+}
+
 async function setEvalTaskStatus({ taskId, status }) {
   const sql = `
 WITH updated AS (
@@ -6041,6 +6250,70 @@ SELECT json_build_object(
     SELECT count(*)
     FROM tracer_eval_logger log
     JOIN requested r ON log.eval_task_id = r.task_id::text
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadEvalTaskLinkedSourceAudit({
+  organizationId,
+  workspaceId,
+  taskId,
+  projectId,
+  traceId,
+}) {
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(organizationId)} AS organization_id,
+    ${sqlUuid(workspaceId)} AS workspace_id,
+    ${sqlUuid(taskId)} AS task_id,
+    ${sqlUuid(projectId)} AS project_id,
+    ${sqlUuid(traceId)} AS trace_id
+),
+task_row AS (
+  SELECT task.id, task.project_id, task.filters, task.deleted
+  FROM tracer_eval_task task
+  JOIN requested r ON task.id = r.task_id
+  WHERE task.project_id = r.project_id
+),
+source_trace AS (
+  SELECT trace.id, trace.project_id
+  FROM tracer_trace trace
+  JOIN requested r ON trace.id = r.trace_id
+  WHERE trace.project_id = r.project_id
+    AND trace.deleted = false
+)
+SELECT json_build_object(
+  'task_exists', EXISTS (SELECT 1 FROM task_row),
+  'task_deleted', COALESCE((SELECT deleted FROM task_row), false),
+  'task_project_id', (SELECT project_id FROM task_row),
+  'filters', (SELECT filters FROM task_row),
+  'trace_id_filter_contains', COALESCE((
+    SELECT (filters::jsonb -> 'trace_id') ? (SELECT trace_id::text FROM requested)
+    FROM task_row
+  ), false),
+  'eval_count', (
+    SELECT count(*)
+    FROM tracer_eval_task_evals task_evals
+    JOIN requested r ON task_evals.evaltask_id = r.task_id
+  ),
+  'source_trace_exists', EXISTS (SELECT 1 FROM source_trace),
+  'source_trace_project_id', (SELECT project_id FROM source_trace),
+  'matched_span_count', (
+    SELECT count(*)
+    FROM tracer_observation_span span
+    JOIN requested r ON span.project_id = r.project_id
+    WHERE span.trace_id = r.trace_id
+      AND span.deleted = false
+  ),
+  'source_reverse_task_column_count', (
+    SELECT count(*)
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tracer_eval_task'
+      AND column_name IN ('source_type', 'source_id')
   )
 );
 `;

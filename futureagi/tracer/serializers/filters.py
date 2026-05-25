@@ -97,8 +97,19 @@ EVAL_TASK_FILTERS_SCHEMA = {
             "description": "Lower-bound ISO timestamp for legacy task filters.",
         },
         "session_id": {
-            "type": "string",
-            "description": "Trace session id to constrain the task.",
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Trace session id(s) to constrain the task.",
+        },
+        "trace_id": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Trace id(s) to constrain linked-source tasks.",
+        },
+        "span_id": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Observation span id(s) to constrain linked-source tasks.",
         },
         "observation_type": {
             "type": "array",
@@ -493,14 +504,16 @@ class EvalTaskFiltersField(serializers.JSONField):
                     "date_range must be a two-value list."
                 )
 
-        if "observation_type" in value:
-            observation_type = value["observation_type"]
-            if not isinstance(observation_type, list) or not all(
-                isinstance(item, str) and item for item in observation_type
-            ):
+        for key in ("session_id", "trace_id", "span_id", "observation_type"):
+            filter_value = value.get(key)
+            if filter_value is None:
+                continue
+            values = filter_value if isinstance(filter_value, list) else [filter_value]
+            if not all(isinstance(item, str) and item for item in values):
                 raise serializers.ValidationError(
-                    "observation_type must be a list of non-empty strings."
+                    f"{key} must be a string or list of non-empty strings."
                 )
+            value[key] = values
 
         if "span_attributes_filters" in value:
             value["span_attributes_filters"] = FilterListField().run_validation(

@@ -156,6 +156,67 @@ class TestEvalTaskCreateAPI:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_create_eval_task_accepts_linked_source_id_filters(
+        self, auth_client, populated_observe_project, eval_template
+    ):
+        """Trace drawer/Add Evals flows save direct source ids as task filters."""
+        project = populated_observe_project["project"]
+        trace = populated_observe_project["traces"][0]
+        span = populated_observe_project["spans"][0]
+        session = populated_observe_project["sessions"][0]
+        config = CustomEvalConfig.objects.create(
+            name="Linked source eval",
+            project=project,
+            eval_template=eval_template,
+            config={"threshold": 0.8},
+            mapping={"input": "input", "output": "output"},
+            filters={},
+        )
+
+        response = auth_client.post(
+            "/tracer/eval-task/",
+            {
+                "project": str(project.id),
+                "name": "Linked trace task",
+                "run_type": "continuous",
+                "sampling_rate": 100,
+                "row_type": "traces",
+                "filters": {
+                    "trace_id": [str(trace.id)],
+                    "span_id": [span.id],
+                    "session_id": [str(session.id)],
+                },
+                "evals": [str(config.id)],
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        task = EvalTask.objects.get(id=get_result(response)["id"])
+        assert task.filters["project_id"] == str(project.id)
+        assert task.filters["trace_id"] == [str(trace.id)]
+        assert task.filters["span_id"] == [span.id]
+        assert task.filters["session_id"] == [str(session.id)]
+
+    def test_create_eval_task_rejects_invalid_linked_source_filter_shape(
+        self, auth_client, project, custom_eval_config
+    ):
+        """Direct source id filters must be scalar strings or string lists."""
+        response = auth_client.post(
+            "/tracer/eval-task/",
+            {
+                "project": str(project.id),
+                "name": "Invalid linked trace task",
+                "run_type": "continuous",
+                "sampling_rate": 100,
+                "filters": {"trace_id": {"id": str(uuid.uuid4())}},
+                "evals": [str(custom_eval_config.id)],
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.integration
 @pytest.mark.api

@@ -66,9 +66,11 @@ vi.mock("../components/TaskConfigPanel", () => ({
   default: () => <div>task config</div>,
 }));
 
-vi.mock("../components/TaskLivePreview", () => ({
-  default: React.forwardRef(() => <div>task preview</div>),
-}));
+vi.mock("../components/TaskLivePreview", () => {
+  const MockTaskLivePreview = React.forwardRef(() => <div>task preview</div>);
+  MockTaskLivePreview.displayName = "MockTaskLivePreview";
+  return { default: MockTaskLivePreview };
+});
 
 vi.mock("../components/TaskUsageTab", () => ({
   default: () => <div>task usage</div>,
@@ -167,5 +169,25 @@ describe("TaskDetailPage", () => {
     expect(
       screen.queryByRole("button", { name: /^pause$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers a source backlink when task filters include a trace id", () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        project_id: "project-1",
+        filters_applied: {
+          project_id: "project-1",
+          trace_id: ["trace-1"],
+        },
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    expect(
+      screen.getByRole("button", { name: /open source/i }),
+    ).toBeInTheDocument();
   });
 });

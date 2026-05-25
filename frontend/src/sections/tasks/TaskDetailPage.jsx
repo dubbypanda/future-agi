@@ -26,8 +26,7 @@ import TaskUsageTab from "./components/TaskUsageTab";
 import {
   NewTaskValidationSchema,
   getDefaultTaskValues,
-  extractAttributeFilters,
-  getTaskFilterApiKey,
+  getNewTaskFilters,
 } from "./schema";
 import TaskConfirmDialog from "src/sections/common/EvalsTasks/EditTaskDrawer/TaskConfirmBox";
 
@@ -43,6 +42,26 @@ const TAB_OPTIONS = [
   { label: "Logs", value: "logs", icon: "solar:notebook-linear" },
   { label: "Usage", value: "usage", icon: "solar:chart-2-linear" },
 ];
+
+const firstFilterValue = (value) => {
+  if (Array.isArray(value)) return value.find(Boolean) || null;
+  return value || null;
+};
+
+const getLinkedTraceSource = (taskDetails) => {
+  const filters = taskDetails?.filters_applied || taskDetails?.filters || {};
+  const projectId =
+    taskDetails?.project_id ||
+    taskDetails?.projectId ||
+    filters.project_id ||
+    filters.projectId;
+  const traceId = firstFilterValue(filters.trace_id || filters.traceId);
+  if (!projectId || !traceId) return null;
+  return {
+    label: "Open source",
+    path: `/dashboard/observe/${projectId}/trace/${traceId}`,
+  };
+};
 
 const TaskDetailPage = () => {
   const { taskId } = useParams();
@@ -144,29 +163,15 @@ const TaskDetailPage = () => {
   const handleConfirm = useCallback(
     (editType) => {
       const data = formValues;
-      const attributeFilters = extractAttributeFilters(data?.filters);
-      // observation_type rows may now carry an array `filterValue` (canonical
-      // `in`/`not_in`) or a scalar (legacy `equals`). Flatten + drop empties
-      // so the BE always sees a flat list of selected values.
-      const observationTypes = (data.filters || [])
-        .filter((f) => getTaskFilterApiKey(f.property) === "observation_type")
-        .flatMap((f) => {
-          const v = f?.filterConfig?.filterValue;
-          if (Array.isArray(v)) return v;
-          return v !== undefined && v !== null && v !== "" ? [v] : [];
-        });
+      const { filters, attributeFilters } = getNewTaskFilters(
+        data,
+        data.project,
+      );
 
       const transformedData = {
         evals: data.evalsDetails?.map((item) => item.id || item) || [],
         filters: {
-          project_id: data.project,
-          date_range: [
-            new Date(data.startDate).toISOString(),
-            new Date(data.endDate).toISOString(),
-          ],
-          ...(observationTypes?.length > 0
-            ? { observation_type: observationTypes }
-            : {}),
+          ...filters,
           ...(attributeFilters?.length > 0
             ? { span_attributes_filters: attributeFilters }
             : {}),
@@ -248,10 +253,27 @@ const TaskDetailPage = () => {
   const status = (taskDetails.status || "").toLowerCase();
   const canPause = status === "running";
   const canResume = status === "paused";
+  const linkedTraceSource = getLinkedTraceSource(taskDetails);
 
   // Pause/Resume stay in the header
   const headerActions = (
     <>
+      {linkedTraceSource && (
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => navigate(linkedTraceSource.path)}
+          startIcon={<Iconify icon="solar:map-point-wave-linear" width={14} />}
+          sx={{
+            textTransform: "none",
+            fontWeight: 500,
+            fontSize: "12px",
+            height: 30,
+          }}
+        >
+          {linkedTraceSource.label}
+        </Button>
+      )}
       {canPause && (
         <Button
           variant="outlined"

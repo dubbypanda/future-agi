@@ -63,4 +63,29 @@ describe("eval task filter payload contract", () => {
     expect(attributeFilters[0]).not.toHaveProperty("columnId");
     expect(attributeFilters[0]).not.toHaveProperty("filterConfig");
   });
+
+  it("keeps direct source id filters for linked trace tasks", () => {
+    const { filters } = getNewTaskFilters(
+      {
+        runType: "continuous",
+        filters: [
+          {
+            property: "trace_id",
+            filterConfig: {
+              filterType: "text",
+              filterOp: "equals",
+              filterValue: "trace-1",
+            },
+          },
+        ],
+      },
+      "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+      true,
+    );
+
+    expect(filters).toEqual({
+      project_id: "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+      trace_id: ["trace-1"],
+    });
+  });
 });
