@@ -1,15 +1,17 @@
 import pytest
+from cryptography.fernet import Fernet
 
 from accounts.models.organization import Organization
 from accounts.models.organization_membership import OrganizationMembership
 from accounts.models.workspace import Workspace, WorkspaceMembership
-from conftest import WorkspaceAwareAPIClient
 from agentcc.models.blocklist import AgentccBlocklist
 from agentcc.models.custom_property import AgentccCustomPropertySchema
 from agentcc.models.email_alert import AgentccEmailAlert
 from agentcc.models.org_config import AgentccOrgConfig
 from agentcc.models.session import AgentccSession
 from agentcc.models.webhook import AgentccWebhook
+from conftest import WorkspaceAwareAPIClient
+from integrations.services.credentials import CredentialManager
 from tfc.constants.levels import Level
 from tfc.constants.roles import OrganizationRoles
 
@@ -121,7 +123,9 @@ class TestAgentccRequestOrganizationContext:
         )
 
         assert response.status_code == 200, response.json()
-        blocklist = AgentccBlocklist.no_workspace_objects.get(name="secondary_blocklist")
+        blocklist = AgentccBlocklist.no_workspace_objects.get(
+            name="secondary_blocklist"
+        )
         assert blocklist.organization_id == org_b.id
         assert blocklist.organization_id != user.organization_id
 
@@ -146,6 +150,44 @@ class TestAgentccRequestOrganizationContext:
         alert = AgentccEmailAlert.no_workspace_objects.get(name="secondary_alert")
         assert alert.organization_id == org_b.id
         assert alert.organization_id != user.organization_id
+
+    def test_email_alert_update_preserves_existing_secret_when_omitted(
+        self, user, secondary_org_context, secondary_org_client, settings
+    ):
+        settings.INTEGRATION_ENCRYPTION_KEY = Fernet.generate_key().decode()
+
+        create_response = secondary_org_client.post(
+            "/agentcc/email-alerts/",
+            {
+                "name": "secondary_alert_secret",
+                "recipients": ["alerts@example.com"],
+                "events": ["budget.exceeded"],
+                "provider": "sendgrid",
+                "provider_config": {
+                    "api_key": "sg.original-secret",
+                    "from_email": "old@example.com",
+                },
+            },
+            format="json",
+        )
+        assert create_response.status_code == 200, create_response.json()
+        alert_id = create_response.json()["result"]["id"]
+
+        update_response = secondary_org_client.patch(
+            f"/agentcc/email-alerts/{alert_id}/",
+            {
+                "provider_config": {"from_email": "new@example.com"},
+                "cooldown_minutes": 10,
+            },
+            format="json",
+        )
+
+        assert update_response.status_code == 200, update_response.json()
+        alert = AgentccEmailAlert.no_workspace_objects.get(id=alert_id)
+        config = CredentialManager.decrypt(bytes(alert.encrypted_config))
+        assert config["api_key"] == "sg.original-secret"
+        assert config["from_email"] == "new@example.com"
+        assert alert.cooldown_minutes == 10
 
     def test_org_config_active_uses_active_request_organization(
         self, user, secondary_org_context, secondary_org_client
