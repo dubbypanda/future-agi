@@ -2711,11 +2711,20 @@ export const simulationAgentccJourneys = [
   {
     id: "AGENTCC-API-006",
     title:
-      "Gateway session create, update, close, requests, and delete lifecycle",
-    tags: ["gateway", "agentcc", "sessions", "mutating", "data-roundtrip"],
-    async run({ client, cleanup, runId, evidence }) {
+      "Gateway session create, search, stats, requests, close, and delete lifecycle",
+    tags: [
+      "gateway",
+      "agentcc",
+      "sessions",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
       requireMutations();
       const sessionId = `api_journey_session_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      const marker = `api_journey_session_log_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      const logIds = [randomUUID(), randomUUID(), randomUUID()];
 
       const created = await client.post(apiPath("/agentcc/sessions/"), {
         session_id: sessionId,
@@ -2724,10 +2733,55 @@ export const simulationAgentccJourneys = [
         metadata: { source: "api-journey", runId },
       });
       assert(created?.id, "Gateway session create did not return id.");
-      cleanup.defer("delete API journey gateway session", () =>
-        ignoreNotFound(() =>
-          client.delete(apiPath("/agentcc/sessions/{id}/", { id: created.id })),
-        ),
+      cleanup.defer("hard delete API journey gateway session fixture", () =>
+        deleteAgentccSessionFixtureDb({
+          sessionUuid: created.id,
+          organizationId,
+          logIds,
+        }),
+      );
+
+      let dbAudit = await loadAgentccSessionDbAudit({
+        sessionUuid: created.id,
+        organizationId,
+        workspaceId,
+        sessionId,
+      });
+      assert(
+        dbAudit.id === created.id &&
+          dbAudit.organization_id === organizationId &&
+          dbAudit.workspace_id === workspaceId &&
+          dbAudit.deleted === false,
+        "Gateway session DB audit did not find the created workspace-scoped active row.",
+      );
+
+      const duplicateCreate = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/sessions/"), {
+            session_id: sessionId,
+            name: "Duplicate API journey session",
+          }),
+        [400],
+        "Gateway session create accepted a duplicate active session_id.",
+      );
+      assert(
+        errorText(duplicateCreate).toLowerCase().includes("unique") ||
+          errorText(duplicateCreate).toLowerCase().includes("duplicate"),
+        "Duplicate gateway session create did not return a uniqueness error.",
+      );
+
+      const invalidStatus = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/sessions/"), {
+            session_id: `${sessionId}_invalid`,
+            status: "paused",
+          }),
+        [400],
+        "Gateway session create accepted an unsupported status.",
+      );
+      assert(
+        errorText(invalidStatus).toLowerCase().includes("status"),
+        "Invalid gateway session status did not return a status validation error.",
       );
 
       const activeSessions = asArray(
@@ -2738,6 +2792,26 @@ export const simulationAgentccJourneys = [
       assert(
         activeSessions.some((session) => session.id === created.id),
         "Created active gateway session was not visible through status filter.",
+      );
+
+      const searchedByName = asArray(
+        await client.get(apiPath("/agentcc/sessions/"), {
+          query: { search: "API journey session", limit: 100 },
+        }),
+      );
+      assert(
+        searchedByName.some((session) => session.id === created.id),
+        "Created gateway session was not visible through name search.",
+      );
+
+      const searchedById = asArray(
+        await client.get(apiPath("/agentcc/sessions/"), {
+          query: { search: sessionId.slice(-12), limit: 100 },
+        }),
+      );
+      assert(
+        searchedById.some((session) => session.id === created.id),
+        "Created gateway session was not visible through session_id search.",
       );
 
       const updated = await client.patch(
@@ -2753,6 +2827,16 @@ export const simulationAgentccJourneys = [
         "Gateway session update did not persist name/metadata.",
       );
 
+      await seedAgentccRequestLogsDb({
+        organizationId,
+        workspaceId,
+        logIds,
+        apiKeyId: `api_journey_session_key_${runId}`,
+        marker,
+        sharedSessionId: sessionId,
+        soloSessionId: `${sessionId}_other`,
+      });
+
       const detail = await client.get(
         apiPath("/agentcc/sessions/{id}/", { id: created.id }),
       );
@@ -2764,6 +2848,13 @@ export const simulationAgentccJourneys = [
         detail?.stats && typeof detail.stats.request_count === "number",
         "Gateway session detail did not include request stats.",
       );
+      assert(
+        detail.stats.request_count === 2 &&
+          detail.stats.total_tokens === 180 &&
+          Number(detail.stats.total_cost).toFixed(6) === "0.003700" &&
+          Number(detail.stats.avg_latency_ms).toFixed(2) === "185.00",
+        "Gateway session detail stats did not match seeded request logs.",
+      );
 
       const requests = asArray(
         await client.get(
@@ -2771,8 +2862,11 @@ export const simulationAgentccJourneys = [
         ),
       );
       assert(
-        Array.isArray(requests),
-        "Gateway session requests did not return an array.",
+        requests.length === 2 &&
+          requests.every((request) => request.session_id === sessionId) &&
+          requests.some((request) => request.request_id === `${marker}_error`) &&
+          requests.some((request) => request.request_id === `${marker}_success`),
+        "Gateway session requests did not return the seeded request chain.",
       );
 
       const closed = await client.post(
@@ -2799,7 +2893,7 @@ export const simulationAgentccJourneys = [
       );
       const listed = asArray(
         await client.get(apiPath("/agentcc/sessions/"), {
-          query: { limit: 100 },
+          query: { search: sessionId, limit: 100 },
         }),
       );
       assert(
@@ -2807,7 +2901,45 @@ export const simulationAgentccJourneys = [
         "Deleted gateway session was still visible in list.",
       );
 
-      evidence.push({ session_id: created.id, gateway_session_id: sessionId });
+      dbAudit = await loadAgentccSessionDbAudit({
+        sessionUuid: created.id,
+        organizationId,
+        workspaceId,
+        sessionId,
+      });
+      assert(
+        dbAudit.deleted === true &&
+          dbAudit.deleted_at_set === true &&
+          dbAudit.request_log_count === 2 &&
+          dbAudit.other_session_log_count === 1,
+        "Gateway session DB audit did not confirm soft-delete and seeded log state.",
+      );
+
+      const cleanupAudit = await deleteAgentccSessionFixtureDb({
+        sessionUuid: created.id,
+        organizationId,
+        logIds,
+      });
+      assert(
+        Number(cleanupAudit.remaining_session_count) === 0 &&
+          Number(cleanupAudit.remaining_log_count) === 0,
+        `Gateway session fixture hard cleanup left disposable rows behind: ${JSON.stringify(cleanupAudit)}`,
+      );
+
+      evidence.push({
+        session_uuid: created.id,
+        session_id: sessionId,
+        duplicate_status: duplicateCreate.status,
+        invalid_status_status: invalidStatus.status,
+        request_count: detail.stats.request_count,
+        total_tokens: detail.stats.total_tokens,
+        total_cost: Number(detail.stats.total_cost).toFixed(6),
+        avg_latency_ms: Number(detail.stats.avg_latency_ms).toFixed(2),
+        request_rows: requests.length,
+        deleted_at_set: dbAudit.deleted_at_set,
+        cleanup_remaining_session_count: cleanupAudit.remaining_session_count,
+        cleanup_remaining_log_count: cleanupAudit.remaining_log_count,
+      });
     },
   },
   {
@@ -5329,6 +5461,91 @@ SELECT COALESCE((
   WHERE id = ${sqlUuid(alertId)}
     AND organization_id = ${sqlUuid(organizationId)}
 ), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadAgentccSessionDbAudit({
+  sessionUuid,
+  organizationId,
+  workspaceId,
+  sessionId,
+}) {
+  const sql = `
+SELECT COALESCE((
+  SELECT json_build_object(
+    'id', s.id::text,
+    'organization_id', s.organization_id::text,
+    'workspace_id', s.workspace_id::text,
+    'session_id', s.session_id,
+    'name', s.name,
+    'status', s.status,
+    'metadata', s.metadata,
+    'deleted', s.deleted,
+    'deleted_at_set', s.deleted_at IS NOT NULL,
+    'request_log_count', (
+      SELECT count(*)
+      FROM agentcc_request_log l
+      WHERE l.organization_id = ${sqlUuid(organizationId)}
+        AND l.workspace_id = ${sqlUuid(workspaceId)}
+        AND l.session_id = ${sqlString(sessionId)}
+        AND l.deleted = false
+    ),
+    'other_session_log_count', (
+      SELECT count(*)
+      FROM agentcc_request_log l
+      WHERE l.organization_id = ${sqlUuid(organizationId)}
+        AND l.workspace_id = ${sqlUuid(workspaceId)}
+        AND l.session_id = ${sqlString(`${sessionId}_other`)}
+        AND l.deleted = false
+    )
+  )
+  FROM agentcc_session s
+  WHERE s.id = ${sqlUuid(sessionUuid)}
+    AND s.organization_id = ${sqlUuid(organizationId)}
+), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteAgentccSessionFixtureDb({
+  sessionUuid,
+  organizationId,
+  logIds,
+}) {
+  const sql = `
+WITH target_logs AS (
+  SELECT id
+  FROM agentcc_request_log
+  WHERE id = ANY(${sqlUuidArray(logIds)})
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+target_session AS (
+  SELECT id
+  FROM agentcc_session
+  WHERE id = ${sqlUuid(sessionUuid)}
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+deleted_logs AS (
+  DELETE FROM agentcc_request_log
+  USING target_logs
+  WHERE agentcc_request_log.id = target_logs.id
+  RETURNING agentcc_request_log.id
+),
+deleted_session AS (
+  DELETE FROM agentcc_session
+  USING target_session
+  WHERE agentcc_session.id = target_session.id
+  RETURNING agentcc_session.id
+)
+SELECT json_build_object(
+  'deleted_log_count', (SELECT count(*) FROM deleted_logs),
+  'deleted_session_count', (SELECT count(*) FROM deleted_session),
+  'remaining_log_count',
+    (SELECT count(*) FROM target_logs) - (SELECT count(*) FROM deleted_logs),
+  'remaining_session_count',
+    (SELECT count(*) FROM target_session) - (SELECT count(*) FROM deleted_session)
+);
 `;
   return runPostgresJson(sql);
 }
