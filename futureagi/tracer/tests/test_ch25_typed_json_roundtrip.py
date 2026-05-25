@@ -52,28 +52,34 @@ CH_HOST = os.environ.get("CH25_HOST", "127.0.0.1")
 CH_PORT = int(os.environ.get("CH25_HTTP_PORT", "19001"))
 
 
-def _ch_available() -> bool:
+# NOTE (codex P3 finding 2026-05-26): the previous implementation called
+# `_ch_available()` during collection via `pytest.mark.skipif`. That opened
+# a CH client BEFORE any test ran, so `pytest --collect-only` and
+# unrelated discovery (e.g. CI test sharding, IDE test discovery) had to
+# wait on a network round-trip to CH 25.3 and could fail flakily if the
+# sidecar was warming up. We now defer the availability check to fixture
+# time — the marker stays `@pytest.mark.integration` (selectable via
+# `-m integration`/`-m 'not integration'`) and the actual reachability
+# probe runs only when a test in this file is actually executed.
+
+pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _require_ch25():
+    """Fixture-time reachability gate (replaces collection-time skipif)."""
     if clickhouse_connect is None:
-        return False
+        pytest.skip("clickhouse-connect not installed")
     try:
         c = clickhouse_connect.get_client(
-            host=CH_HOST, port=CH_PORT, send_receive_timeout=2
+            host=CH_HOST, port=CH_PORT, send_receive_timeout=5
         )
         c.command("SELECT 1")
-        return True
-    except Exception:
-        return False
-
-
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(
-        not _ch_available(),
-        reason="CH 25.3 not reachable on {}:{}; integration test".format(
-            CH_HOST, CH_PORT
-        ),
-    ),
-]
+    except Exception as exc:
+        pytest.skip(
+            f"CH 25.3 not reachable on {CH_HOST}:{CH_PORT} ({exc!r}); "
+            f"integration test"
+        )
 
 
 # Fixture payloads. Each is a representative shape for a (observation_type,
@@ -284,13 +290,20 @@ def test_spans_table_attributes_extra_is_string(ch_client):
     )
 
 
-# Full schema contract guard. attributes_extra MUST be String (schema 013);
-# the other two typed-JSON columns store metadata without nested-array
-# numerics — they keep typed-JSON for path-access via system.json indexes.
+# Full schema contract guard. attributes_extra MUST be String (schema 013,
+# exact match — this is the load-bearing fix). The other two typed-JSON
+# columns store metadata without nested-array numerics — they keep typed-
+# JSON for path-access via system.json indexes. Per codex P3 finding
+# 2026-05-26, those two are matched as "any JSON(...)" rather than the
+# exact rendered type string, so the test survives CH 25.x patch versions
+# that re-canonicalize the JSON column DDL.
 _EXPECTED_SPANS_TYPES = {
-    "attributes_extra": "String",
-    "resource_attrs":   "JSON(max_dynamic_paths=512)",
-    "metadata":         "JSON(max_dynamic_paths=256)",
+    # column: (kind, matcher) where matcher is either:
+    #   "exact" — type string must match `expected` exactly
+    #   "prefix" — type string must start with `expected`
+    "attributes_extra": ("exact",  "String"),
+    "resource_attrs":   ("prefix", "JSON("),
+    "metadata":         ("prefix", "JSON("),
 }
 
 
@@ -312,9 +325,16 @@ def test_spans_table_typed_json_contract(ch_client):
     actual = {name: type_ for name, type_ in rows}
     missing = set(_EXPECTED_SPANS_TYPES) - set(actual)
     assert not missing, f"spans table missing columns: {sorted(missing)}"
-    for col, expected in _EXPECTED_SPANS_TYPES.items():
-        assert actual[col] == expected, (
-            f"spans.{col}: expected {expected!r}, got {actual[col]!r}. "
+    for col, (kind, expected) in _EXPECTED_SPANS_TYPES.items():
+        got = actual[col]
+        if kind == "exact":
+            ok = got == expected
+        elif kind == "prefix":
+            ok = got.startswith(expected)
+        else:  # pragma: no cover — programmer error
+            raise ValueError(f"unknown kind {kind!r} in _EXPECTED_SPANS_TYPES")
+        assert ok, (
+            f"spans.{col}: expected {kind}-match {expected!r}, got {got!r}. "
             f"If you changed this on purpose, update _EXPECTED_SPANS_TYPES and "
             f"verify _process_vapi_logs / _process_retell_logs / eval reader "
             f"still type-preserve nested-array leaves."

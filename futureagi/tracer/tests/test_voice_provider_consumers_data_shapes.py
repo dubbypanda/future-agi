@@ -22,6 +22,17 @@ from datetime import timezone
 
 import pytest
 
+# Acceptable failure modes for the TypeFragility contract: any of these
+# means the consumer crashed LOUDLY on a str-typed numeric (not silent
+# corruption). pydantic.ValidationError covers the post-arithmetic path
+# (e.g. `cost * 100` produces a repeated string that pydantic refuses).
+try:
+    from pydantic import ValidationError as _PydanticValidationError
+except ImportError:  # pragma: no cover
+    _PydanticValidationError = ValueError  # fallback so the tuple is well-formed
+
+_LOUD_FAILURE_EXCEPTIONS = (TypeError, ValueError, _PydanticValidationError)
+
 
 pytestmark = pytest.mark.unit
 
@@ -397,6 +408,11 @@ class TestTypeFragilityRegression:
         ("messages[1].secondsFromStart", lambda lg: (lg["messages"][1].__setitem__("secondsFromStart", "1.5"), lg)[1]),
         # `time` (ms-epoch) → passed to `datetime.fromtimestamp(time / 1000)`.
         ("messages[1].time", lambda lg: (lg["messages"][1].__setitem__("time", "1773816575961"), lg)[1]),
+        # Top-level `cost` → consumer does `cost * 100 if cost else None`.
+        # Not a nested-array leaf (so the CH typed-JSON bug doesn't affect it
+        # today), but the class doc claims "every numeric leaf the consumer
+        # touches" — so we cover it (codex P3 finding 2026-05-26).
+        ("cost (top-level)", lambda lg: (lg.__setitem__("cost", "0.0234"), lg)[1]),
     ]
 
     @pytest.mark.parametrize("leaf_name,mutate", _VAPI_STR_LEAF_MUTATORS,
@@ -404,7 +420,7 @@ class TestTypeFragilityRegression:
     def test_vapi_numeric_leaf_as_string_raises_typeerror(self, leaf_name, mutate):
         mod = _import_provider_module()
         log = mutate(_vapi_basic_call())
-        with pytest.raises(TypeError):
+        with pytest.raises(_LOUD_FAILURE_EXCEPTIONS):
             mod.ObservabilityService._process_vapi_logs(log)
 
     _RETELL_STR_LEAF_MUTATORS = [
@@ -430,5 +446,5 @@ class TestTypeFragilityRegression:
     def test_retell_numeric_leaf_as_string_raises_typeerror(self, leaf_name, mutate):
         mod = _import_provider_module()
         log = mutate(_retell_basic_call())
-        with pytest.raises(TypeError):
+        with pytest.raises(_LOUD_FAILURE_EXCEPTIONS):
             mod.ObservabilityService._process_retell_logs(log)
