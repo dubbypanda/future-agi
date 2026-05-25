@@ -2577,6 +2577,325 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "MUR-API-003",
+    title: "Mentioned member discussion read/reply lifecycle",
+    tags: ["annotation", "mutating", "multi-user", "comments", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const managerId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace member to run mention collaboration coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      const altEmail = currentUserEmail(altUser);
+      assert(altUserId, "Mentioned alternate user id could not be resolved.");
+      if (String(altUserId) === String(managerId)) {
+        skip("Alternate token resolved to the manager user.");
+      }
+
+      const sample = await resolveTraceAndSpanSample(client);
+      const queue = await resolveManagerQueueWithoutSource(
+        client,
+        "trace",
+        sample.traceId,
+        sample.projectId,
+        evidence,
+      );
+      await ensureExplicitQueueMember(
+        client,
+        queue,
+        managerId,
+        cleanup,
+        evidence,
+        {
+          reason: "multi-user mention manager coverage",
+          roles: ["manager", "reviewer", "annotator"],
+        },
+      );
+      await ensureTemporaryAnnotatorMember(
+        client,
+        queue,
+        altUserId,
+        cleanup,
+        evidence,
+      );
+      const altQueueDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      );
+      assert(
+        asArray(altQueueDetail.viewer_roles).includes("annotator"),
+        `Alternate user must be a queue member to read mentions: ${JSON.stringify(
+          altQueueDetail.viewer_roles,
+        )}.`,
+      );
+
+      const itemPayload = {
+        source_type: "trace",
+        source_id: sample.traceId,
+        status: "pending",
+        priority: 4,
+        order: 8301,
+        metadata: { api_journey: runId, stage: "multi-user-mention" },
+      };
+      const item = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+        itemPayload,
+      );
+      assert(
+        item?.id,
+        "Mention journey direct queue item create returned no id.",
+      );
+      cleanup.defer("delete multi-user mention queue item", () =>
+        deleteQueueItemIfPresent(client, queue.id, item.id),
+      );
+
+      const marker = `api-journey-mention ${runId}`;
+      const rootText = `${marker} root for @${altEmail || "alt-user"}`;
+      const discussionPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/",
+        queue.id,
+        { id: item.id },
+      );
+      const created = await client.post(discussionPath, {
+        comment: rootText,
+        mentioned_user_ids: [
+          String(altUserId),
+          ...(altEmail ? [`@${String(altEmail).toUpperCase()}`] : []),
+        ],
+      });
+      const commentId = created?.comment?.id;
+      const threadId = created?.thread?.id || created?.comment?.thread;
+      assert(commentId, "Mention create did not return comment.id.");
+      assert(threadId, "Mention create did not return thread.id.");
+      assert(
+        asArray(created.comment?.mentioned_users).some(
+          (mentioned) => String(mentioned.id) === String(altUserId),
+        ),
+        `Mention create did not preserve alternate user mention: ${JSON.stringify(
+          created.comment?.mentioned_users,
+        )}.`,
+      );
+
+      const altRead = await altClient.get(discussionPath);
+      assert(
+        asArray(altRead.review_threads).some(
+          (thread) => String(thread.id) === String(threadId),
+        ) &&
+          asArray(altRead.review_comments).some(
+            (comment) =>
+              String(comment.id) === String(commentId) &&
+              asArray(comment.mentioned_users).some(
+                (mentioned) => String(mentioned.id) === String(altUserId),
+              ),
+          ),
+        "Mentioned alternate user could not read the thread and explicit mention.",
+      );
+
+      const altSearch = await altClient.get(discussionPath, {
+        query: { search: marker },
+      });
+      assert(
+        asArray(altSearch.review_comments).some(
+          (comment) => String(comment.id) === String(commentId),
+        ),
+        "Mentioned alternate user search did not find the root mention.",
+      );
+
+      const replyText = `${marker} alternate reply`;
+      const altReply = await altClient.post(discussionPath, {
+        comment: replyText,
+        thread_id: threadId,
+      });
+      const replyId = altReply?.comment?.id;
+      assert(replyId, "Mentioned alternate reply did not return comment.id.");
+      assert(
+        String(
+          altReply.comment?.reviewer?.id || altReply.comment?.reviewer_id,
+        ) === String(altUserId),
+        `Mentioned alternate reply was not attributed to the alternate user: ${JSON.stringify(
+          altReply.comment,
+        )}.`,
+      );
+
+      const altReacted = await altClient.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/comments/{comment_id}/reaction/",
+          queue.id,
+          { id: item.id, comment_id: commentId },
+        ),
+        { emoji: "\u{1F44D}" },
+      );
+      const reactedComment =
+        altReacted.comment ||
+        asArray(altReacted.review_comments).find(
+          (row) => String(row.id) === String(commentId),
+        );
+      const reactions = Array.isArray(reactedComment?.reactions)
+        ? reactedComment.reactions
+        : Object.entries(reactedComment?.reactions || {}).map(
+            ([emoji, userIds]) => ({
+              emoji,
+              user_ids: Array.isArray(userIds) ? userIds : [],
+            }),
+          );
+      assert(
+        reactions.some(
+          (reaction) =>
+            reaction.emoji === "\u{1F44D}" &&
+            asArray(reaction.user_ids).some(
+              (userId) => String(userId) === String(altUserId),
+            ),
+        ),
+        "Alternate reaction payload did not contain the alternate user.",
+      );
+
+      const managerSearch = await client.get(discussionPath, {
+        query: { search: marker },
+      });
+      assert(
+        asArray(managerSearch.review_comments).some(
+          (comment) => String(comment.id) === String(commentId),
+        ) &&
+          asArray(managerSearch.review_comments).some(
+            (comment) => String(comment.id) === String(replyId),
+          ),
+        "Manager search did not return both root and alternate reply comments.",
+      );
+
+      const resolved = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/resolve/",
+          queue.id,
+          { id: item.id, thread_id: threadId },
+        ),
+        { comment: `${marker} manager resolve` },
+      );
+      const resolvedThread =
+        resolved.thread ||
+        asArray(resolved.review_threads).find(
+          (thread) => String(thread.id) === String(threadId),
+        );
+      assert(
+        resolvedThread?.status === "resolved",
+        "Manager resolve did not mark mentioned thread resolved.",
+      );
+      const resolveCommentId = resolved?.comment?.id || null;
+
+      const reopened = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/reopen/",
+          queue.id,
+          { id: item.id, thread_id: threadId },
+        ),
+        { comment: `${marker} manager reopen` },
+      );
+      const reopenedThread =
+        reopened.thread ||
+        asArray(reopened.review_threads).find(
+          (thread) => String(thread.id) === String(threadId),
+        );
+      assert(
+        reopenedThread?.status === "reopened",
+        "Manager reopen did not mark mentioned thread reopened.",
+      );
+      const reopenCommentId = reopened?.comment?.id || null;
+
+      const altReload = await altClient.get(discussionPath);
+      assert(
+        asArray(altReload.review_threads).some(
+          (thread) =>
+            String(thread.id) === String(threadId) &&
+            thread.status === "reopened",
+        ) &&
+          asArray(altReload.review_comments).some(
+            (comment) => String(comment.id) === String(replyId),
+          ),
+        "Mentioned alternate user could not reload the reopened thread and reply.",
+      );
+
+      const activeDbAudit = await loadDiscussionDbAudit(threadId);
+      assertDiscussionDbState(activeDbAudit, {
+        queueItemId: item.id,
+        organizationId,
+        workspaceId,
+        threadStatus: "reopened",
+        expectedDeleted: false,
+        rootCommentId: commentId,
+        replyCommentId: replyId,
+        resolveCommentId,
+        reopenCommentId,
+        userId: altUserId,
+        emoji: "\u{1F44D}",
+      });
+      const rootDbComment = asArray(activeDbAudit.comments).find(
+        (comment) => String(comment.id) === String(commentId),
+      );
+      const replyDbComment = asArray(activeDbAudit.comments).find(
+        (comment) => String(comment.id) === String(replyId),
+      );
+      assert(
+        String(rootDbComment?.reviewer_id) === String(managerId) &&
+          String(replyDbComment?.reviewer_id) === String(altUserId),
+        `Mention DB audit attribution mismatch: ${JSON.stringify(
+          activeDbAudit.comments,
+        )}.`,
+      );
+
+      await deleteQueueItemIfPresent(client, queue.id, item.id);
+      const cleanupDbAudit = await loadDiscussionDbAudit(threadId);
+      assertDiscussionDbState(cleanupDbAudit, {
+        queueItemId: item.id,
+        organizationId,
+        workspaceId,
+        threadStatus: "reopened",
+        expectedDeleted: true,
+        rootCommentId: commentId,
+        replyCommentId: replyId,
+        resolveCommentId,
+        reopenCommentId,
+        userId: altUserId,
+        emoji: "\u{1F44D}",
+      });
+
+      evidence.push({
+        queue_id: queue.id,
+        queue_name: queue.name,
+        item_id: item.id,
+        trace_id: sample.traceId,
+        manager_id: managerId,
+        mentioned_user_id: altUserId,
+        root_comment_id: commentId,
+        reply_comment_id: replyId,
+        thread_id: threadId,
+        resolve_comment_id: resolveCommentId,
+        reopen_comment_id: reopenCommentId,
+        alt_search_matches: asArray(altSearch.review_comments).length,
+        manager_search_matches: asArray(managerSearch.review_comments).length,
+        db_comment_count: activeDbAudit.comments.length,
+        cleanup_deleted_thread: cleanupDbAudit.thread.deleted,
+      });
+    },
+  },
+  {
     id: "AQ-API-031",
     title:
       "Annotation history, raw scores, value history, and item notes reload",
