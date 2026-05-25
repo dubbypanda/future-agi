@@ -3029,6 +3029,383 @@ export const simulationAgentccJourneys = [
     },
   },
   {
+    id: "AGENTCC-API-012",
+    title:
+      "Gateway analytics deterministic aggregate, grouping, and filter coverage",
+    tags: [
+      "gateway",
+      "agentcc",
+      "analytics",
+      "request-logs",
+      "mutating",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      assert(
+        organizationId,
+        "Gateway analytics journey requires organization id.",
+      );
+      assert(workspaceId, "Gateway analytics journey requires workspace id.");
+
+      const marker = `api_journey_analytics_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      const apiKeyId = `${marker}_key`;
+      const sharedSessionId = `${marker}_session_shared`;
+      const soloSessionId = `${marker}_session_solo`;
+      const logIds = [randomUUID(), randomUUID(), randomUUID()];
+      const start = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const end = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const baseQuery = { api_key_id: apiKeyId, start, end };
+
+      await seedAgentccRequestLogsDb({
+        organizationId,
+        workspaceId,
+        logIds,
+        apiKeyId,
+        marker,
+        sharedSessionId,
+        soloSessionId,
+      });
+      cleanup.defer("hard-delete disposable gateway analytics logs", () =>
+        deleteAgentccRequestLogsDb({ logIds, organizationId }),
+      );
+
+      const overview = await client.get(
+        apiPath("/agentcc/analytics/overview/"),
+        {
+          query: baseQuery,
+        },
+      );
+      assert(
+        overview.total_requests?.value === 3,
+        "Analytics overview total requests mismatch.",
+      );
+      assert(
+        overview.total_tokens?.value === 880,
+        "Analytics overview total tokens mismatch.",
+      );
+      assertApprox(
+        overview.total_cost?.value,
+        0.0092,
+        "Analytics overview total cost mismatch.",
+      );
+      assertApprox(
+        overview.avg_latency_ms?.value,
+        263.33,
+        "Analytics overview average latency mismatch.",
+      );
+      assertApprox(
+        overview.error_rate?.value,
+        33.33,
+        "Analytics overview error rate mismatch.",
+      );
+      assertApprox(
+        overview.cache_hit_rate?.value,
+        33.33,
+        "Analytics overview cache hit rate mismatch.",
+      );
+      assert(
+        overview.active_models?.value === 3,
+        "Analytics overview active model count mismatch.",
+      );
+      assert(
+        overview.p95_latency_ms?.value === 420,
+        "Analytics overview p95 latency mismatch.",
+      );
+
+      const usageDaily = await client.get(
+        apiPath("/agentcc/analytics/usage-timeseries/"),
+        {
+          query: { ...baseQuery, granularity: "day" },
+        },
+      );
+      assert(
+        usageDaily.granularity === "day",
+        "Analytics usage did not preserve valid daily granularity.",
+      );
+      assert(
+        sumMetric(usageDaily.series, "request_count") === 3 &&
+          sumMetric(usageDaily.series, "total_tokens") === 880 &&
+          sumMetric(usageDaily.series, "input_tokens") === 390 &&
+          sumMetric(usageDaily.series, "output_tokens") === 490 &&
+          sumMetric(usageDaily.series, "error_count") === 1,
+        "Analytics usage timeseries totals did not match seeded rows.",
+      );
+      assertApprox(
+        sumMetric(usageDaily.series, "total_cost"),
+        0.0092,
+        "Analytics usage cost total mismatch.",
+      );
+
+      const usageByProvider = await client.get(
+        apiPath("/agentcc/analytics/usage-timeseries/"),
+        {
+          query: { ...baseQuery, granularity: "day", group_by: "provider" },
+        },
+      );
+      assert(
+        usageByProvider.group_by === "provider" &&
+          sumMetric(usageByProvider.groups?.openai, "request_count") === 2 &&
+          sumMetric(usageByProvider.groups?.anthropic, "request_count") === 1,
+        "Analytics usage provider grouping mismatch.",
+      );
+
+      const invalidGranularity = await client.get(
+        apiPath("/agentcc/analytics/usage-timeseries/"),
+        {
+          query: {
+            ...baseQuery,
+            granularity: "invalid",
+            group_by: "unsupported",
+          },
+        },
+      );
+      assert(
+        invalidGranularity.granularity === "hour" &&
+          !invalidGranularity.group_by &&
+          sumMetric(invalidGranularity.series, "request_count") === 3,
+        "Analytics usage did not fall back for invalid granularity/group_by.",
+      );
+
+      const costByProvider = await client.get(
+        apiPath("/agentcc/analytics/cost-breakdown/"),
+        {
+          query: { ...baseQuery, group_by: "provider", top_n: 10 },
+        },
+      );
+      assert(
+        costByProvider.group_by === "provider",
+        "Analytics cost group_by provider mismatch.",
+      );
+      assertApprox(
+        costByProvider.total_cost,
+        0.0092,
+        "Analytics cost total mismatch.",
+      );
+      const openaiCost = findBreakdown(costByProvider.breakdown, "openai");
+      const anthropicCost = findBreakdown(
+        costByProvider.breakdown,
+        "anthropic",
+      );
+      assert(
+        openaiCost?.request_count === 2,
+        "Analytics cost OpenAI request count mismatch.",
+      );
+      assert(
+        anthropicCost?.request_count === 1,
+        "Analytics cost Anthropic request count mismatch.",
+      );
+      assertApprox(
+        openaiCost.total_cost,
+        0.0037,
+        "Analytics OpenAI cost mismatch.",
+      );
+      assertApprox(
+        anthropicCost.total_cost,
+        0.0055,
+        "Analytics Anthropic cost mismatch.",
+      );
+
+      const costTopTwo = await client.get(
+        apiPath("/agentcc/analytics/cost-breakdown/"),
+        {
+          query: { ...baseQuery, group_by: "model", top_n: 2 },
+        },
+      );
+      assert(
+        costTopTwo.breakdown.length === 3 &&
+          findBreakdown(costTopTwo.breakdown, "Other")?.request_count === 1,
+        "Analytics cost top_n did not include expected Other bucket.",
+      );
+
+      const costInvalidGroup = await client.get(
+        apiPath("/agentcc/analytics/cost-breakdown/"),
+        {
+          query: {
+            ...baseQuery,
+            group_by: "not_a_group",
+            top_n: "not_a_number",
+          },
+        },
+      );
+      assert(
+        costInvalidGroup.group_by === "model" &&
+          costInvalidGroup.breakdown.length === 3,
+        "Analytics cost did not fall back for invalid group/top_n.",
+      );
+
+      const latency = await client.get(
+        apiPath("/agentcc/analytics/latency-stats/"),
+        {
+          query: { ...baseQuery, granularity: "day" },
+        },
+      );
+      assert(
+        latency.summary?.total_requests === 3,
+        "Analytics latency total requests mismatch.",
+      );
+      assert(latency.summary.min_ms === 120, "Analytics latency min mismatch.");
+      assert(latency.summary.max_ms === 420, "Analytics latency max mismatch.");
+      assertApprox(
+        latency.summary.avg_ms,
+        263.33,
+        "Analytics latency average mismatch.",
+      );
+      assert(latency.summary.p50_ms === 250, "Analytics latency p50 mismatch.");
+      assert(latency.summary.p95_ms === 420, "Analytics latency p95 mismatch.");
+      assert(
+        sumMetric(latency.timeseries, "request_count") === 3,
+        "Analytics latency timeseries count mismatch.",
+      );
+
+      const errorByStatus = await client.get(
+        apiPath("/agentcc/analytics/error-breakdown/"),
+        {
+          query: { ...baseQuery, granularity: "day", group_by: "status_code" },
+        },
+      );
+      assert(
+        errorByStatus.total_requests === 3,
+        "Analytics error total requests mismatch.",
+      );
+      assert(
+        errorByStatus.total_errors === 1,
+        "Analytics error total errors mismatch.",
+      );
+      assertApprox(
+        errorByStatus.overall_error_rate,
+        33.33,
+        "Analytics error rate mismatch.",
+      );
+      const status503 = findBreakdown(errorByStatus.breakdown, "503");
+      assert(
+        status503?.error_count === 1,
+        "Analytics error status breakdown mismatch.",
+      );
+      assert(
+        sumMetric(errorByStatus.error_timeseries, "error_count") === 1 &&
+          sumMetric(errorByStatus.error_timeseries, "total_count") === 3,
+        "Analytics error timeseries totals mismatch.",
+      );
+
+      const errorByMessage = await client.get(
+        apiPath("/agentcc/analytics/error-breakdown/"),
+        {
+          query: {
+            ...baseQuery,
+            granularity: "day",
+            group_by: "error_message",
+          },
+        },
+      );
+      assert(
+        errorByMessage.breakdown.some((row) => row.name.includes(marker)),
+        "Analytics error_message breakdown did not include seeded error text.",
+      );
+
+      const models = await client.get(
+        apiPath("/agentcc/analytics/model-comparison/"),
+        {
+          query: {
+            ...baseQuery,
+            models: "gpt-4o-mini,gpt-4o,claude-3-haiku",
+          },
+        },
+      );
+      assert(
+        models.models?.length === 3,
+        "Analytics model comparison row count mismatch.",
+      );
+      const miniModel = models.models.find(
+        (row) => row.model === "gpt-4o-mini",
+      );
+      const errorModel = models.models.find((row) => row.model === "gpt-4o");
+      const streamModel = models.models.find(
+        (row) => row.model === "claude-3-haiku",
+      );
+      assert(
+        miniModel?.cache_hit_rate === 100,
+        "Analytics model cache-hit rate mismatch.",
+      );
+      assert(
+        errorModel?.error_rate === 100,
+        "Analytics model error rate mismatch.",
+      );
+      assert(
+        streamModel?.provider === "anthropic",
+        "Analytics model provider mismatch.",
+      );
+      assertApprox(
+        streamModel.total_cost,
+        0.0055,
+        "Analytics model total cost mismatch.",
+      );
+
+      const guardrailOverview = await client.get(
+        apiPath("/agentcc/analytics/guardrail-overview/"),
+        {
+          query: baseQuery,
+        },
+      );
+      assert(
+        guardrailOverview.total_requests === 3 &&
+          guardrailOverview.guardrail_triggered === 1 &&
+          guardrailOverview.top_triggered_rule === "toxicity",
+        "Analytics guardrail overview mismatch.",
+      );
+
+      const guardrailRules = await client.get(
+        apiPath("/agentcc/analytics/guardrail-rules/"),
+        {
+          query: baseQuery,
+        },
+      );
+      assert(
+        guardrailRules.rules?.[0]?.rule === "toxicity" &&
+          guardrailRules.rules?.[0]?.trigger_count === 1,
+        "Analytics guardrail rules mismatch.",
+      );
+
+      const guardrailTrends = await client.get(
+        apiPath("/agentcc/analytics/guardrail-trends/"),
+        {
+          query: { ...baseQuery, granularity: "day" },
+        },
+      );
+      assert(
+        sumMetric(guardrailTrends.series, "trigger_count") === 1,
+        "Analytics guardrail trends mismatch.",
+      );
+
+      const cleanupAudit = await deleteAgentccRequestLogsDb({
+        logIds,
+        organizationId,
+      });
+      assert(
+        Number(cleanupAudit.remaining_count) === 0,
+        "Disposable gateway analytics logs remained after cleanup.",
+      );
+
+      evidence.push({
+        seeded_analytics_log_count: 3,
+        total_requests: overview.total_requests.value,
+        total_cost: overview.total_cost.value,
+        usage_total_tokens: sumMetric(usageDaily.series, "total_tokens"),
+        error_rate: errorByStatus.overall_error_rate,
+        model_rows: models.models.length,
+        guardrail_triggered: guardrailOverview.guardrail_triggered,
+        cleanup_remaining_count: cleanupAudit.remaining_count,
+      });
+    },
+  },
+  {
     id: "AGENTCC-API-008",
     title:
       "Gateway provider credential create, mask, rotate, update, and delete lifecycle",
@@ -3954,6 +4331,23 @@ async function expectApiError(fn, expectedStatuses, successMessage) {
 
 function errorText(error) {
   return [error?.message, JSON.stringify(error?.body || {})].join(" ");
+}
+
+function assertApprox(actual, expected, message, tolerance = 0.0001) {
+  const actualNumber = Number(actual);
+  assert(
+    Number.isFinite(actualNumber) &&
+      Math.abs(actualNumber - expected) <= tolerance,
+    `${message} Expected ${expected}, received ${actual}.`,
+  );
+}
+
+function sumMetric(rows, key) {
+  return asArray(rows).reduce((sum, row) => sum + Number(row?.[key] || 0), 0);
+}
+
+function findBreakdown(rows, name) {
+  return asArray(rows).find((row) => String(row?.name) === String(name));
 }
 
 function collectionRows(value) {
