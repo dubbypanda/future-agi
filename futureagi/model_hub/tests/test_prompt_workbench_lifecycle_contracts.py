@@ -217,6 +217,42 @@ def test_prompt_sdk_code_accepts_dict_prompt_config_snapshot(
 
 
 @pytest.mark.django_db
+def test_run_template_prompt_run_submits_organization_id(
+    auth_client, organization, workspace, user, monkeypatch
+):
+    template, version = _create_prompt_template(
+        organization, workspace, user, "Prompt run organization id contract"
+    )
+    submitted = {}
+
+    def fake_submit_with_retry(_executor, _func, *args, **_kwargs):
+        submitted["args"] = args
+
+    monkeypatch.setattr(
+        "model_hub.views.prompt_template.submit_with_retry",
+        fake_submit_with_retry,
+    )
+
+    response = auth_client.post(
+        f"/model-hub/prompt-templates/{template.id}/run_template/",
+        {
+            "name": template.name,
+            "version": version.template_version,
+            "is_run": "prompt",
+            "variable_names": {"name": ["Ada"]},
+            "placeholders": {},
+            "evaluation_configs": [],
+            "prompt_config": [_prompt_config("Say hello to {{name}}")],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert str(submitted["args"][2]) == str(organization.id)
+    assert submitted["args"][2] != organization
+
+
+@pytest.mark.django_db
 def test_prompt_default_version_is_exclusive_for_set_default_and_commit(
     auth_client, organization, workspace, user
 ):

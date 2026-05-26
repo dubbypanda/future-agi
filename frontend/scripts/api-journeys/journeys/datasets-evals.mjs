@@ -9295,6 +9295,148 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "PROMPT-API-007",
+    title:
+      "Prompt Workbench safe provider run preview, status polling, and DB readback",
+    tags: [
+      "prompts",
+      "workbench",
+      "provider",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const promptName = `api journey prompt run ${suffix}`;
+      const variableNames = { topic: ["coverage"] };
+      const runConfig = promptConfig(
+        "Reply with exactly one short phrase.",
+        "Say ready for {{topic}}.",
+      );
+      let promptDeleted = false;
+
+      const options = await client.get(
+        apiPath("/model-hub/develops/retrieve_run_prompt_options/"),
+      );
+      const safeModel = payloadArray(options, "models").find(
+        (model) =>
+          model?.model_name === "gpt-4o-mini" &&
+          model?.providers === "openai" &&
+          model?.mode === "chat" &&
+          model?.is_available === true,
+      );
+      if (!safeModel) {
+        skip("gpt-4o-mini is not available for safe prompt Workbench runs.");
+      }
+      runConfig.configuration.model = safeModel.model_name;
+      runConfig.configuration.model_detail = { type: safeModel.mode };
+      runConfig.configuration.max_tokens = 16;
+      runConfig.configuration.temperature = 0;
+
+      const createdPrompt = await client.post(
+        apiPath("/model-hub/prompt-templates/create-draft/"),
+        {
+          name: promptName,
+          variable_names: variableNames,
+          metadata: { source: "api-journey", run_id: runId },
+          prompt_config: [runConfig],
+        },
+      );
+      const promptId =
+        createdPrompt?.id ||
+        createdPrompt?.root_template ||
+        createdPrompt?.rootTemplate;
+      assert(
+        isUuid(promptId),
+        "Prompt run journey create did not return a UUID id.",
+      );
+      cleanup.defer("delete API journey prompt run prompt", async () => {
+        if (!promptDeleted) {
+          await deletePromptTemplateIfPresent(client, promptId);
+        }
+      });
+
+      const submitted = await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/run_template/", {
+          id: promptId,
+        }),
+        {
+          name: promptName,
+          version: "v1",
+          is_run: "prompt",
+          variable_names: variableNames,
+          placeholders: {},
+          evaluation_configs: [],
+          prompt_config: [runConfig],
+        },
+      );
+      assert(
+        submitted?.template_id === promptId,
+        "Prompt Workbench run submit returned the wrong template id.",
+      );
+
+      const runStatus = await waitForPromptTemplateRunCompletion(client, {
+        promptId,
+        templateVersion: "v1",
+      });
+      assertPromptTemplateRunStatus(runStatus, {
+        promptId,
+        templateVersion: "v1",
+        modelName: safeModel.model_name,
+      });
+
+      const activeAudit = await loadPromptRunPreviewDbAudit({
+        promptId,
+        templateVersion: "v1",
+        organizationId,
+        workspaceId,
+      });
+      assertPromptRunPreviewDbAudit(activeAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        modelName: safeModel.model_name,
+        expectedDeleted: false,
+      });
+
+      await deletePromptTemplateIfPresent(client, promptId);
+      promptDeleted = true;
+      const deletedAudit = await loadPromptRunPreviewDbAudit({
+        promptId,
+        templateVersion: "v1",
+        organizationId,
+        workspaceId,
+      });
+      assertPromptRunPreviewDbAudit(deletedAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        modelName: safeModel.model_name,
+        expectedDeleted: true,
+      });
+
+      evidence.push({
+        prompt_id: promptId,
+        prompt_name: promptName,
+        model: safeModel.model_name,
+        provider: safeModel.providers,
+        output_count: activeAudit.output_count,
+        metadata_count: activeAudit.metadata_count,
+        status: runStatus.status,
+        deleted_at_set: deletedAudit.prompt_deleted_at_set,
+      });
+    },
+  },
+  {
     id: "PROMPT-API-003",
     title:
       "Prompt Workbench folder list/search, prompt assignment, and soft-delete lifecycle",
@@ -22723,6 +22865,130 @@ FROM requested;
   return runPostgresJson(sql);
 }
 
+async function loadPromptRunPreviewDbAudit({
+  promptId,
+  templateVersion,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(promptId), "promptId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const workspaceFilter = workspaceId
+    ? `AND p.workspace_id = ${sqlUuid(workspaceId)}`
+    : "";
+  const sql = `
+WITH prompt AS (
+  SELECT
+    id,
+    name,
+    organization_id,
+    workspace_id,
+    deleted,
+    deleted_at
+  FROM model_hub_prompttemplate p
+  WHERE p.id = ${sqlUuid(promptId)}
+    AND p.organization_id = ${sqlUuid(organizationId)}
+    ${workspaceFilter}
+),
+version AS (
+  SELECT
+    id,
+    original_template_id,
+    template_version,
+    is_draft,
+    deleted,
+    deleted_at,
+    prompt_config_snapshot,
+    output,
+    metadata
+  FROM model_hub_promptversion
+  WHERE original_template_id = (SELECT id FROM prompt)
+    AND template_version = ${sqlText(templateVersion)}
+)
+SELECT json_build_object(
+  'prompt_id', p.id::text,
+  'prompt_name', p.name,
+  'prompt_organization_id', p.organization_id::text,
+  'prompt_workspace_id', p.workspace_id::text,
+  'prompt_deleted', p.deleted,
+  'prompt_deleted_at_set', p.deleted_at IS NOT NULL,
+  'version_id', v.id::text,
+  'template_version', v.template_version,
+  'is_draft', v.is_draft,
+  'version_deleted', v.deleted,
+  'version_deleted_at_set', v.deleted_at IS NOT NULL,
+  'model_name', v.prompt_config_snapshot->'configuration'->>'model',
+  'output', v.output,
+  'metadata', v.metadata,
+  'output_count', CASE
+    WHEN jsonb_typeof(v.output) = 'array' THEN jsonb_array_length(v.output)
+    ELSE 0
+  END,
+  'metadata_count', CASE
+    WHEN jsonb_typeof(v.metadata) = 'array' THEN jsonb_array_length(v.metadata)
+    ELSE 0
+  END
+)
+FROM prompt p
+LEFT JOIN version v
+  ON v.original_template_id = p.id;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertPromptRunPreviewDbAudit(
+  audit,
+  { promptId, organizationId, workspaceId, modelName, expectedDeleted },
+) {
+  assert(audit?.prompt_id === promptId, "Prompt run DB audit id mismatch.");
+  assert(
+    audit.prompt_organization_id === organizationId,
+    "Prompt run DB audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.prompt_workspace_id === workspaceId,
+      "Prompt run DB audit workspace mismatch.",
+    );
+  }
+  assert(
+    audit.template_version === "v1",
+    "Prompt run DB audit returned the wrong version.",
+  );
+  assert(
+    audit.model_name === modelName,
+    "Prompt run DB audit returned the wrong model.",
+  );
+
+  if (expectedDeleted) {
+    assert(audit.prompt_deleted === true, "Prompt run prompt should be deleted.");
+    assert(
+      audit.prompt_deleted_at_set === true,
+      "Deleted prompt run prompt missing deleted_at.",
+    );
+    assert(
+      audit.version_deleted === true,
+      "Prompt run version should be deleted.",
+    );
+    assert(
+      audit.version_deleted_at_set === true,
+      "Deleted prompt run version missing deleted_at.",
+    );
+    return;
+  }
+
+  assert(audit.prompt_deleted === false, "Prompt run prompt should be active.");
+  assert(audit.version_deleted === false, "Prompt run version should be active.");
+  assert(audit.is_draft === false, "Prompt run version should be non-draft.");
+  assert(Number(audit.output_count) > 0, "Prompt run DB audit found no output.");
+  assert(
+    Number(audit.metadata_count) > 0,
+    "Prompt run DB audit found no metadata.",
+  );
+}
+
 function assertPromptTemplateVersionDbAudit(
   audit,
   {
@@ -23005,6 +23271,11 @@ function sqlUuid(value) {
   return `'${value}'::uuid`;
 }
 
+function sqlText(value) {
+  assert(typeof value === "string", "SQL text value must be a string.");
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 function sqlUuidArray(values) {
   assert(Array.isArray(values), "SQL UUID array value must be an array.");
   for (const value of values) {
@@ -23231,6 +23502,73 @@ function promptConfig(systemText, userText) {
     },
     placeholders: [],
   };
+}
+
+async function waitForPromptTemplateRunCompletion(
+  client,
+  { promptId, templateVersion, timeoutMs = 120000, intervalMs = 3000 },
+) {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = null;
+  while (Date.now() < deadline) {
+    lastStatus = await client.get(
+      apiPath("/model-hub/prompt-templates/{id}/get-run-status/", {
+        id: promptId,
+      }),
+      { query: { template_version: templateVersion } },
+    );
+    const result = lastStatus?.executions_result || {};
+    const outputRows = payloadArray(result.output, "output");
+    const firstOutput = outputRows.find(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+    if (firstOutput) return lastStatus;
+
+    const status = String(lastStatus?.status || "").toLowerCase();
+    const errorMessage = lastStatus?.error_message || result?.error_message;
+    if (status === "failed" || errorMessage) {
+      throw new Error(
+        `Prompt Workbench run failed: ${errorMessage || JSON.stringify(lastStatus)}`,
+      );
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error(
+    `Timed out waiting for prompt Workbench run ${promptId}/${templateVersion}; last status=${JSON.stringify(
+      lastStatus,
+    )}.`,
+  );
+}
+
+function assertPromptTemplateRunStatus(
+  payload,
+  { promptId, templateVersion, modelName },
+) {
+  const result = payload?.executions_result || {};
+  assert(
+    result.template_version === templateVersion,
+    "Prompt Workbench run status returned the wrong version.",
+  );
+  assert(
+    result.original_template === promptId,
+    "Prompt Workbench run status returned the wrong prompt id.",
+  );
+  const outputRows = payloadArray(result.output, "output");
+  assert(
+    outputRows.some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    ),
+    "Prompt Workbench run status did not return generated output.",
+  );
+  const metadataRows = payloadArray(result.metadata, "metadata");
+  assert(
+    metadataRows.some((row) => row && typeof row === "object"),
+    "Prompt Workbench run status did not return run metadata.",
+  );
+  assert(
+    result.prompt_config_snapshot?.configuration?.model === modelName,
+    "Prompt Workbench run status returned the wrong model.",
+  );
 }
 
 async function resolvePromptEvalTemplateForConfig(client, cleanup, suffix) {

@@ -461,6 +461,16 @@ async def replace_ids_with_column_name_async(prompt: str) -> str:
         return prompt
 
 
+def _coerce_organization_id(organization_or_id):
+    return getattr(organization_or_id, "id", organization_or_id)
+
+
+def _request_organization_id(request):
+    return _coerce_organization_id(
+        getattr(request, "organization", None) or request.user.organization
+    )
+
+
 # Add this helper method after the replace_ids_with_column_name function
 def get_next_version_number(template_id, organization_id):
     """
@@ -468,6 +478,7 @@ def get_next_version_number(template_id, organization_id):
     Uses database-level locking to ensure uniqueness.
     Gets the latest created version and increments its number.
     """
+    organization_id = _coerce_organization_id(organization_id)
 
     with transaction.atomic():
         # Use select_for_update to lock the rows and prevent race conditions
@@ -879,9 +890,7 @@ class PromptTemplateViewSet(BaseModelViewSetMixin, viewsets.ModelViewSet):
                 raise ValueError("Invalid version format")
 
             # Use centralized WebSocket manager
-            ws_manager = get_websocket_manager(
-                getattr(request, "organization", None) or request.user.organization.id
-            )
+            ws_manager = get_websocket_manager(_request_organization_id(request))
             result = ws_manager.handle_stop_streaming_request(
                 str(template.id), versions, session_uuids
             )
@@ -1003,11 +1012,10 @@ class PromptTemplateViewSet(BaseModelViewSetMixin, viewsets.ModelViewSet):
                             self.run,  # Your existing sync function
                             template,
                             obj,
-                            getattr(self.request, "organization", None)
-                            or self.request.user.organization.id,
+                            _request_organization_id(self.request),
                             version,
                             is_run,
-                            request.workspace,
+                            workspace=request.workspace,
                         )
                     )
 
@@ -1465,8 +1473,7 @@ class PromptTemplateViewSet(BaseModelViewSetMixin, viewsets.ModelViewSet):
                             self.run,
                             parent_template,
                             execution,
-                            getattr(request, "organization", None)
-                            or request.user.organization.id,
+                            _request_organization_id(request),
                             version_to_run,
                             is_run,
                             None,
@@ -1764,7 +1771,9 @@ class PromptTemplateViewSet(BaseModelViewSetMixin, viewsets.ModelViewSet):
     ):
         try:
             close_old_connections()
-            organization = Organization.objects.get(id=organization_id)
+            organization = Organization.objects.get(
+                id=_coerce_organization_id(organization_id)
+            )
         except Organization.DoesNotExist:
             organization = None
 
