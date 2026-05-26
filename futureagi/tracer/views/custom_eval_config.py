@@ -22,6 +22,7 @@ from tracer.models.observation_span import EvalLogger, ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.serializers.custom_eval_config import (
+    CustomEvalConfigListQuerySerializer,
     CustomEvalConfigSerializer,
     GetCustomEvalTemplateSerializer,
     RunEvaluationSerializer,
@@ -246,17 +247,16 @@ class CustomEvalConfigView(BaseModelViewSetMixin, ModelViewSet):
     )
     def list_custom_eval_configs(self, request, *args, **kwargs):
         """
-        List CustomEvalConfigs filtered by the filters provided in the request body.
+        List CustomEvalConfigs filtered by canonical query parameters.
         """
         try:
-            filters = request.query_params.get("filters", {})
-            task_id = request.query_params.get(
-                "task_id", None
-            ) or request.query_params.get("taskId", None)
-            if filters:
-                filters = json.loads(filters)
-            if not isinstance(filters, dict):
-                return self._gm.bad_request("Filters must be a dictionary")
+            query_serializer = CustomEvalConfigListQuerySerializer(
+                data=request.query_params
+            )
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+            query_data = query_serializer.validated_data
+            task_id = query_data.get("task_id")
 
             # Pure-routing change: only the alias is different from the
             # original query. CustomEvalConfigSerializer.get_eval_group()
@@ -271,9 +271,7 @@ class CustomEvalConfigView(BaseModelViewSetMixin, ModelViewSet):
                 project__organization=getattr(request, "organization", None)
                 or request.user.organization,
             ).all()
-            project_id = request.query_params.get(
-                "project_id"
-            ) or request.query_params.get("projectId")
+            project_id = query_data.get("project_id")
             if project_id:
                 queryset = queryset.filter(project_id=project_id)
 

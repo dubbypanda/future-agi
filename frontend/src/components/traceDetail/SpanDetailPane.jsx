@@ -31,6 +31,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { enqueueSnackbar } from "notistack";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "src/utils/axios";
+import { apiPath } from "src/api/contracts/api-surface";
 import SmartPreview from "./SmartPreview";
 import { isOpenAIMessages } from "./ChatMessageView";
 import useSearchHighlight from "./useSearchHighlight";
@@ -1208,12 +1209,14 @@ const InlineTagsRow = ({ tags = [], traceId, spanId }) => {
   const { mutate: saveTags, isPending } = useMutation({
     mutationFn: (newTags) => {
       if (spanId) {
-        return axios.post(`/tracer/observation-span/update-tags/`, {
+        return axios.post(apiPath("/tracer/observation-span/update-tags/"), {
           span_id: spanId,
           tags: newTags,
         });
       }
-      return axios.patch(`/tracer/trace/${traceId}/tags/`, { tags: newTags });
+      return axios.patch(apiPath("/tracer/trace/{id}/tags/", { id: traceId }), {
+        tags: newTags,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trace-detail"] });
@@ -1443,6 +1446,7 @@ const AnnotationsTabContent = ({ spanId, traceId, onAction }) => (
         secondarySourceType="trace"
         secondarySourceId={traceId}
         title=""
+        openQueueItemOnRowClick
         renderActions={
           onAction ? (
             <Button
@@ -2052,9 +2056,7 @@ const SpanDetailPane = ({
                       variant="caption"
                       sx={{
                         fontSize: 10,
-                        color: matchCount
-                          ? "text.secondary"
-                          : "text.disabled",
+                        color: matchCount ? "text.secondary" : "text.disabled",
                         minWidth: 42,
                         textAlign: "right",
                         fontVariantNumeric: "tabular-nums",
@@ -2133,11 +2135,9 @@ const SpanDetailPane = ({
                   context: {
                     trace_id: traceId,
                     span_id: ev.spanId || ev.observation_span_id || span?.id,
-                    eval_log_id:
-                      ev.eval_log_id || ev.cell_id || ev.log_id,
+                    eval_log_id: ev.eval_log_id || ev.cell_id || ev.log_id,
                     custom_eval_config_id:
-                      ev.custom_eval_config_id ||
-                      ev.eval_config_id,
+                      ev.custom_eval_config_id || ev.eval_config_id,
                     eval_name: ev.eval_name,
                     score: ev.score,
                     explanation: ev.explanation || ev.eval_explanation,

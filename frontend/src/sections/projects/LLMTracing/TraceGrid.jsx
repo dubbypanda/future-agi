@@ -26,7 +26,6 @@ import {
 import { useUrlState } from "src/routes/hooks/use-url-state";
 import { userTraceRowHeightMapping } from "../UsersView/common";
 import { statusBar } from "src/components/run-insights/traces-tab/common";
-import { objectCamelToSnake } from "src/utils/utils";
 import LLMTracingTraceDetailDrawer from "./LLMTracingTraceDetailDrawer";
 import { useLLMTracingStoreShallow, useTraceGridStore } from "./states";
 import _ from "lodash";
@@ -108,6 +107,35 @@ const TraceGrid = React.forwardRef(
     const refreshGrid = useCallback(() => {
       gridRef?.current?.api?.refreshServerSide({ purge: true });
     }, [gridRef]);
+    const filterRequestKey = useMemo(
+      () =>
+        JSON.stringify({
+          filters,
+          extraFilters: extraFilters || EMPTY_EXTRA_FILTERS,
+          metricFilters: metricFilters || [],
+          hasEvalFilter,
+          dateInterval,
+          projectId,
+          enabled,
+        }),
+      [
+        filters,
+        extraFilters,
+        metricFilters,
+        hasEvalFilter,
+        dateInterval,
+        projectId,
+        enabled,
+      ],
+    );
+    const previousFilterRequestKeyRef = useRef(filterRequestKey);
+
+    useEffect(() => {
+      if (previousFilterRequestKeyRef.current === filterRequestKey) return;
+      previousFilterRequestKeyRef.current = filterRequestKey;
+      prefetchCache.current.clear();
+      refreshGrid();
+    }, [filterRequestKey, refreshGrid]);
 
     // Listen for refresh events from the header reload button
     useEffect(() => {
@@ -131,6 +159,10 @@ const TraceGrid = React.forwardRef(
       return () =>
         window.removeEventListener("observe-reset-selection", handler);
     }, [gridRef]);
+
+    useEffect(() => {
+      gridRef?.current?.api?.hideOverlay?.();
+    }, [filters, extraFilters, hasEvalFilter, metricFilters, gridRef]);
 
     const defaultColDef = useMemo(
       () => ({
@@ -174,6 +206,7 @@ const TraceGrid = React.forwardRef(
             }
             try {
               setLoading(true);
+              params.api?.hideOverlay();
               const { request } = params;
 
               const pageSize = request.endRow - request.startRow;
@@ -187,10 +220,8 @@ const TraceGrid = React.forwardRef(
                 page_number: page,
                 page_size: ROWS_LIMIT,
                 filters: JSON.stringify([
-                  ...objectCamelToSnake([
-                    ...filters,
-                    ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
-                  ]),
+                  ...filters,
+                  ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
                   ...(extraFilters || EMPTY_EXTRA_FILTERS),
                   ...(metricFilters || []),
                 ]),
@@ -527,14 +558,12 @@ const TraceGrid = React.forwardRef(
           tooltipShowDelay={0}
           tooltipHideDelay={2000}
           tooltipInteraction={true}
-          rowSelection={{ mode: "multiRow" }}
+          rowSelection={{ mode: "multiRow", enableClickSelection: false }}
           pagination={false}
           cacheBlockSize={ROWS_LIMIT}
           maxBlocksInCache={undefined}
           rowBuffer={10}
           suppressServerSideFullWidthLoadingRow={true}
-          serverSideInitialRowCount={ROWS_LIMIT}
-          suppressRowClickSelection={true}
           rowModelType="serverSide"
           serverSideDatasource={dataSource}
           noRowsOverlayComponent={() =>
@@ -601,7 +630,7 @@ TraceGrid.propTypes = {
   columns: PropTypes.array,
   setColumns: PropTypes.func,
   setFilters: PropTypes.func,
-  setFilterOpen: PropTypes.bool,
+  setFilterOpen: PropTypes.func,
   setLoading: PropTypes.func,
   compareType: PropTypes.string,
   projectId: PropTypes.string,

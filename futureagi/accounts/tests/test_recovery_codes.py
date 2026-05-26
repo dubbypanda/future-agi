@@ -54,12 +54,13 @@ class TestRecoveryCodes:
         device = UserTOTPDevice.objects.get(user=user)
         decrypted = decrypt_message(device.secret_encrypted)
         totp = pyotp.TOTP(decrypted["secret"])
+        user.refresh_from_db()
+        auth_client.force_authenticate(user=user)
 
         response = auth_client.post(
             "/accounts/2fa/recovery-codes/regenerate/",
             {"code": totp.now()},
         )
-        print("DEBUG BODY:", response.content)
         assert response.status_code == 200
         data = response.json()
         assert len(data["recovery_codes"]) == 10
@@ -138,6 +139,17 @@ class TestRecoveryCodes:
             {},
         )
         assert response.status_code == 400
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "validation_error"
+        assert data["code"] == "invalid"
+        assert (
+            data["detail"]
+            == "Password is required to regenerate recovery codes."
+        )
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]
 
     def test_passkey_only_regenerate_wrong_password_rejected(self, auth_client, user):
         """Passkey-only user is rejected when wrong password is provided."""
@@ -148,3 +160,11 @@ class TestRecoveryCodes:
             {"password": "wrongpassword"},
         )
         assert response.status_code == 400
+        data = response.json()
+        assert data["status"] is False
+        assert data["type"] == "validation_error"
+        assert data["code"] == "invalid"
+        assert data["detail"] == "Invalid password."
+        assert data["message"] == data["detail"]
+        assert data["error"] == data["detail"]
+        assert data["result"] == data["detail"]

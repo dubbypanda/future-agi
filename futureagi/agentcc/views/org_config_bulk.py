@@ -1,10 +1,15 @@
 import structlog
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from agentcc.db_routing import DATABASE_FOR_ORG_CONFIG_BULK
 from agentcc.models import AgentccOrgConfig
 from agentcc.permissions import IsAdminToken
+from agentcc.serializers.contracts import (
+    AgentccErrorResponseSerializer,
+    OrgConfigBulkResponseSerializer,
+)
 from agentcc.services.config_push import _build_payload
 from tfc.routers import uses_db
 from tfc.utils.general_methods import GeneralMethods
@@ -25,6 +30,12 @@ class OrgConfigBulkView(APIView):
     _gm = GeneralMethods()
 
     @uses_db(DATABASE_FOR_ORG_CONFIG_BULK, feature_key="feature:org_config_bulk")
+    @swagger_auto_schema(
+        responses={
+            200: OrgConfigBulkResponseSerializer,
+            400: AgentccErrorResponseSerializer,
+        }
+    )
     def get(self, request):
         try:
             # Pure routing: same query as before, just on the replica alias

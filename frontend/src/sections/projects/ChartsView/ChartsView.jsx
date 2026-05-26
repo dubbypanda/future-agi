@@ -27,7 +27,6 @@ import ChartsGenerator from "./ChartsGenerator";
 import ChartsDateTimeRangePicker from "./ChartsDateTimeRangePicker";
 import EvaluationCharts from "./EvaluationCharts";
 import { useChartsViewContext } from "./ChartsViewProvider/ChartsViewContext";
-import { objectCamelToSnake } from "src/utils/utils";
 import { normalizeTimestamp } from "./ChartsViewProvider/common";
 import SvgColor from "src/components/svg-color";
 
@@ -238,7 +237,7 @@ const ChartsView = () => {
       const response = await axios.get(endpoints.project.showCharts(), {
         params: {
           project_id: observeId,
-          filters: JSON.stringify(objectCamelToSnake(filters)),
+          filters: JSON.stringify(filters),
           interval: selectedInterval?.toLowerCase(),
         },
       });

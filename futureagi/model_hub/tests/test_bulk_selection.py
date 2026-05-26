@@ -20,6 +20,8 @@ from accounts.models.workspace import Workspace
 from model_hub.models.ai_model import AIModel
 from model_hub.services.bulk_selection import (
     ResolveResult,
+    _validate_user_scoped_filters,
+    _resolve_trace_ids_clickhouse,
     resolve_filtered_trace_ids,
 )
 from tracer.models.project import Project
@@ -173,8 +175,12 @@ class TestCap:
             organization=organization,
             cap=10,
         )
+        # When the filter would return more than ``cap``, the resolver no
+        # longer runs a precise COUNT(*) — it returns ``cap`` ids plus a
+        # ``total_matching`` of ``cap + 1`` to signal "≥ cap+1". The exact
+        # match count on huge filters was the dominant /preview timeout.
         assert len(result.ids) == 10
-        assert result.total_matching == 25
+        assert result.total_matching == 11
         assert result.truncated is True
 
     def test_cap_above_total_is_not_truncated(
@@ -200,6 +206,52 @@ class TestCap:
         )
         # Last-created trace is newest → first in latest-first ordering.
         assert result.ids == [t.id for t in seeded_traces[-1:-4:-1]]
+
+    def test_clickhouse_cap_sentinel_survives_exclusion(self, monkeypatch):
+        """CH applies exclude_ids after cap+1 fetch; keep truncation truthy.
+
+        If the sentinel row itself is excluded, the returned list length drops
+        to ``cap``. We still need ``truncated=True`` because there may be more
+        non-excluded rows beyond the fetched window.
+        """
+
+        class FakeBuilder:
+            def __init__(self, **_kwargs):
+                pass
+
+            def build(self):
+                return "SELECT trace_id", {}
+
+        class FakeResult:
+            data = [{"trace_id": f"trace-{i}"} for i in range(11)]
+
+        class FakeAnalytics:
+            def should_use_clickhouse(self, _query_type):
+                return True
+
+            def execute_ch_query(self, *_args, **_kwargs):
+                return FakeResult()
+
+        monkeypatch.setattr(
+            "tracer.services.clickhouse.query_builders.trace_list.TraceListQueryBuilder",
+            FakeBuilder,
+        )
+        monkeypatch.setattr(
+            "tracer.services.clickhouse.query_service.AnalyticsQueryService",
+            FakeAnalytics,
+        )
+
+        result = _resolve_trace_ids_clickhouse(
+            project_id="project-1",
+            filters=[],
+            exclude_ids={"trace-0"},
+            cap=10,
+            annotation_label_ids=[],
+        )
+
+        assert result.ids == [f"trace-{i}" for i in range(1, 11)]
+        assert result.total_matching == 11
+        assert result.truncated is True
 
 
 # --------------------------------------------------------------------------
@@ -335,26 +387,21 @@ class TestUserScopedFilters:
                 user=None,
             )
 
-    def test_user_scoped_accepts_camelcase_column_id(
-        self, observe_project, organization
-    ):
-        """camelCase form of the column_id must also trip the guard."""
-        with pytest.raises(ValueError, match="user-scoped"):
-            resolve_filtered_trace_ids(
-                project_id=observe_project.id,
-                filters=[
-                    {
-                        "columnId": "my_annotations",
-                        "filter_config": {
-                            "filter_type": "boolean",
-                            "filter_op": "equals",
-                            "filter_value": True,
-                        },
-                    }
-                ],
-                organization=organization,
-                user=None,
-            )
+    def test_user_scoped_requires_canonical_column_id(self):
+        """Backend user-scoped guard reads the canonical snake_case filter contract."""
+        _validate_user_scoped_filters(
+            [
+                {
+                    "columnId": "my_annotations",
+                    "filter_config": {
+                        "filter_type": "boolean",
+                        "filter_op": "equals",
+                        "filter_value": True,
+                    },
+                }
+            ],
+            user=None,
+        )
 
     def test_validator_silent_when_user_provided(self, user):
         """Validator does not raise when user is provided for user-scoped cols."""
@@ -438,10 +485,249 @@ class TestParityWithListEndpoint:
         expected = list_ids - {str(i) for i in excluded}
         assert {str(i) for i in resolver.ids} == expected
 
+    def test_parity_trace_name_system_metric_filter(
+        self, auth_client, observe_project, seeded_traces, organization
+    ):
+        from django.utils import timezone
+        from tracer.models.observation_span import ObservationSpan
 
-# NOTE: FilterEngine-branch parity tests (system metric, non-system metric,
-# span attribute, voice-call annotation, has_eval, has_annotation) are
-# deferred. Each requires a known-good filter payload captured from the
-# frontend — without that, any synthesized payload can drift from the
-# frontend's actual shape. Follow-up: capture real payloads from devtools
-# for each FilterEngine branch and add one parity test per branch.
+        match = seeded_traces[7]
+        skip = seeded_traces[8]
+        ObservationSpan.objects.create(
+            id=f"root-{match.id.hex}",
+            project=observe_project,
+            trace=match,
+            name="vip checkout trace",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        ObservationSpan.objects.create(
+            id=f"root-{skip.id.hex}",
+            project=observe_project,
+            trace=skip,
+            name="ordinary trace",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        filters = [
+            {
+                "column_id": "trace_name",
+                "filter_config": {
+                    "filter_type": "text",
+                    "filter_op": "contains",
+                    "filter_value": "vip checkout",
+                    "col_type": "SYSTEM_METRIC",
+                },
+            }
+        ]
+
+        resolver = resolve_filtered_trace_ids(
+            project_id=observe_project.id,
+            filters=filters,
+            organization=organization,
+        )
+        list_ids = _list_endpoint_ids(auth_client, observe_project.id, filters)
+
+        assert {str(i) for i in resolver.ids} == list_ids == {str(match.id)}
+
+    def test_parity_span_attribute_filter(
+        self, auth_client, observe_project, seeded_traces, organization
+    ):
+        from django.utils import timezone
+        from tracer.models.observation_span import ObservationSpan
+
+        match = seeded_traces[9]
+        skip = seeded_traces[10]
+        ObservationSpan.objects.create(
+            id=f"root-{match.id.hex}",
+            project=observe_project,
+            trace=match,
+            name="vip root",
+            observation_type="chain",
+            span_attributes={"customer_tier": "vip", "risk_score": 92},
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        ObservationSpan.objects.create(
+            id=f"root-{skip.id.hex}",
+            project=observe_project,
+            trace=skip,
+            name="free root",
+            observation_type="chain",
+            span_attributes={"customer_tier": "free", "risk_score": 42},
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        filters = [
+            {
+                "column_id": "customer_tier",
+                "filter_config": {
+                    "filter_type": "text",
+                    "filter_op": "equals",
+                    "filter_value": "vip",
+                    "col_type": "SPAN_ATTRIBUTE",
+                },
+            }
+        ]
+
+        resolver = resolve_filtered_trace_ids(
+            project_id=observe_project.id,
+            filters=filters,
+            organization=organization,
+        )
+        list_ids = _list_endpoint_ids(auth_client, observe_project.id, filters)
+
+        assert {str(i) for i in resolver.ids} == list_ids == {str(match.id)}
+
+    def test_parity_eval_metric_filter(
+        self, auth_client, observe_project, seeded_traces, organization, workspace
+    ):
+        from django.utils import timezone
+        from model_hub.models.evals_metric import EvalTemplate
+        from tracer.models.custom_eval_config import CustomEvalConfig
+        from tracer.models.observation_span import EvalLogger, ObservationSpan
+
+        template = EvalTemplate.objects.create(
+            name="bulk_selection_quality",
+            organization=organization,
+            workspace=workspace,
+        )
+        config = CustomEvalConfig.objects.create(
+            name="Quality Eval",
+            eval_template=template,
+            project=observe_project,
+        )
+        match = seeded_traces[11]
+        skip = seeded_traces[12]
+        match_span = ObservationSpan.objects.create(
+            id=f"root-{match.id.hex}",
+            project=observe_project,
+            trace=match,
+            name="high quality",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        skip_span = ObservationSpan.objects.create(
+            id=f"root-{skip.id.hex}",
+            project=observe_project,
+            trace=skip,
+            name="low quality",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        EvalLogger.objects.create(
+            trace=match,
+            observation_span=match_span,
+            custom_eval_config=config,
+            output_float=0.91,
+        )
+        EvalLogger.objects.create(
+            trace=skip,
+            observation_span=skip_span,
+            custom_eval_config=config,
+            output_float=0.41,
+        )
+        filters = [
+            {
+                "column_id": str(config.id),
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than_or_equal",
+                    "filter_value": 80,
+                    "col_type": "EVAL_METRIC",
+                },
+            }
+        ]
+
+        resolver = resolve_filtered_trace_ids(
+            project_id=observe_project.id,
+            filters=filters,
+            organization=organization,
+        )
+        list_ids = _list_endpoint_ids(auth_client, observe_project.id, filters)
+
+        assert {str(i) for i in resolver.ids} == list_ids == {str(match.id)}
+
+    def test_parity_annotation_label_filter(
+        self, auth_client, observe_project, seeded_traces, organization, workspace, user
+    ):
+        from django.utils import timezone
+        from model_hub.models.develop_annotations import AnnotationsLabels
+        from model_hub.models.score import Score
+        from tracer.models.observation_span import ObservationSpan
+
+        label = AnnotationsLabels.objects.create(
+            name="bulk_quality",
+            type="numeric",
+            organization=organization,
+            workspace=workspace,
+            settings={
+                "min": 0,
+                "max": 100,
+                "step_size": 1,
+                "display_type": "slider",
+            },
+        )
+        match = seeded_traces[13]
+        skip = seeded_traces[14]
+        ObservationSpan.objects.create(
+            id=f"root-{match.id.hex}",
+            project=observe_project,
+            trace=match,
+            name="annotated high",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        ObservationSpan.objects.create(
+            id=f"root-{skip.id.hex}",
+            project=observe_project,
+            trace=skip,
+            name="annotated low",
+            observation_type="chain",
+            start_time=timezone.now(),
+            parent_span_id=None,
+        )
+        Score.objects.create(
+            source_type="trace",
+            trace=match,
+            label=label,
+            value={"value": 93},
+            annotator=user,
+            organization=organization,
+            workspace=workspace,
+        )
+        Score.objects.create(
+            source_type="trace",
+            trace=skip,
+            label=label,
+            value={"value": 50},
+            annotator=user,
+            organization=organization,
+            workspace=workspace,
+        )
+        filters = [
+            {
+                "column_id": str(label.id),
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 80,
+                    "col_type": "ANNOTATION",
+                },
+            }
+        ]
+
+        resolver = resolve_filtered_trace_ids(
+            project_id=observe_project.id,
+            filters=filters,
+            organization=organization,
+            user=user,
+        )
+        list_ids = _list_endpoint_ids(auth_client, observe_project.id, filters)
+
+        assert {str(i) for i in resolver.ids} == list_ids == {str(match.id)}
