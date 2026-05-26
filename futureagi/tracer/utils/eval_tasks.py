@@ -513,7 +513,16 @@ def run_for_processed_spans(span_ids: list, eval_ids: list, eval_task_id: str):
     try:
         eval_task = EvalTask.objects.get(id=eval_task_id)
         evals = eval_task.evals.filter(id__in=eval_ids)
-        spans = ObservationSpan.objects.filter(id__in=span_ids)
+        # Read from CH 25.3 (was
+        # ObservationSpan.objects.filter(id__in=span_ids)). The loop only
+        # reads span.id to dispatch a per-span activity; existence (i.e.
+        # the implicit filter behaviour of the queryset for deleted/missing
+        # spans) is preserved by CHSpanReader.list_by_ids which already
+        # filters is_deleted = 0.
+        from tracer.services.clickhouse.v2 import get_reader
+
+        with get_reader() as reader:
+            spans = reader.list_by_ids([str(sid) for sid in span_ids])
 
         for span in spans:
             for eval_config in evals:
