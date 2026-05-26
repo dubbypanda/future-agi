@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import process from "node:process";
 import { promisify } from "node:util";
 import {
   apiPath,
@@ -17,7 +18,14 @@ export const agentPlaygroundJourneys = [
     title:
       "Agent playground graph, node, dataset, version, execution list, and delete lifecycle",
     tags: ["agents", "agent-playground", "mutating", "data-integrity"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       assert(
         isUuid(organizationId),
@@ -41,9 +49,14 @@ export const agentPlaygroundJourneys = [
       const nodeTemplates = Array.isArray(templateListPayload?.node_templates)
         ? templateListPayload.node_templates
         : asArray(templateListPayload);
-      assert(nodeTemplates.length > 0, "Agent node template list returned no rows.");
+      assert(
+        nodeTemplates.length > 0,
+        "Agent node template list returned no rows.",
+      );
 
-      const llmTemplate = nodeTemplates.find((item) => item.name === "llm_prompt");
+      const llmTemplate = nodeTemplates.find(
+        (item) => item.name === "llm_prompt",
+      );
       assert(
         llmTemplate?.id,
         "Agent node templates did not include the seeded llm_prompt template.",
@@ -63,10 +76,13 @@ export const agentPlaygroundJourneys = [
         "llm_prompt template input_mode should be dynamic.",
       );
 
-      const createdGraph = await client.post(apiPath("/agent-playground/graphs/"), {
-        name: graphName,
-        description: `Disposable API journey graph ${runId}`,
-      });
+      const createdGraph = await client.post(
+        apiPath("/agent-playground/graphs/"),
+        {
+          name: graphName,
+          description: `Disposable API journey graph ${runId}`,
+        },
+      );
       const graphId = createdGraph.id;
       const draftVersionId = createdGraph.active_version?.id;
       assert(isUuid(graphId), "Agent graph create did not return a graph id.");
@@ -156,7 +172,10 @@ export const agentPlaygroundJourneys = [
         direction: "output",
         displayName: "response",
       });
-      assert(sourceOutput, "Source node did not expose a response output port.");
+      assert(
+        sourceOutput,
+        "Source node did not expose a response output port.",
+      );
 
       const targetNode = await client.post(
         apiPath("/agent-playground/graphs/{id}/versions/{version_id}/nodes/", {
@@ -234,11 +253,14 @@ export const agentPlaygroundJourneys = [
       );
 
       const renamedOutput = await client.patch(
-        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/ports/{port_id}/", {
-          id: graphId,
-          version_id: draftVersionId,
-          port_id: sourceOutput.id,
-        }),
+        apiPath(
+          "/agent-playground/graphs/{id}/versions/{version_id}/ports/{port_id}/",
+          {
+            id: graphId,
+            version_id: draftVersionId,
+            port_id: sourceOutput.id,
+          },
+        ),
         { display_name: "raw_response" },
       );
       assert(
@@ -246,10 +268,13 @@ export const agentPlaygroundJourneys = [
         "Port update did not return the renamed output port.",
       );
 
-      await client.patch(apiPath("/agent-playground/graphs/{id}/", { id: graphId }), {
-        name: updatedGraphName,
-        description: "Updated by AGT-API-001",
-      });
+      await client.patch(
+        apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+        {
+          name: updatedGraphName,
+          description: "Updated by AGT-API-001",
+        },
+      );
       const updatedGraph = await client.get(
         apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
       );
@@ -265,7 +290,9 @@ export const agentPlaygroundJourneys = [
         { query: { version_id: draftVersionId, page: 1, page_size: 10 } },
       );
       assert(
-        datasetBeforeRowCreate.columns?.some((column) => column.name === "topic"),
+        datasetBeforeRowCreate.columns?.some(
+          (column) => column.name === "topic",
+        ),
         "Graph dataset did not include the exposed input column.",
       );
       assert(
@@ -278,19 +305,28 @@ export const agentPlaygroundJourneys = [
           graph_id: graphId,
         }),
       );
-      assert(isUuid(createdRow.id), "Graph dataset row create did not return an id.");
+      assert(
+        isUuid(createdRow.id),
+        "Graph dataset row create did not return an id.",
+      );
       const topicCell = (createdRow.cells || []).find((cell) =>
         datasetBeforeRowCreate.columns?.some(
           (column) => column.id === cell.column_id && column.name === "topic",
         ),
       );
-      assert(topicCell?.id, "Created graph dataset row did not include a topic cell.");
+      assert(
+        topicCell?.id,
+        "Created graph dataset row did not include a topic cell.",
+      );
 
       const updatedCell = await client.put(
-        apiPath("/agent-playground/graphs/{graph_id}/dataset/cells/{cell_id}/", {
-          graph_id: graphId,
-          cell_id: topicCell.id,
-        }),
+        apiPath(
+          "/agent-playground/graphs/{graph_id}/dataset/cells/{cell_id}/",
+          {
+            graph_id: graphId,
+            cell_id: topicCell.id,
+          },
+        ),
         { value: "agent-playground API journey" },
       );
       assert(
@@ -332,7 +368,10 @@ export const agentPlaygroundJourneys = [
         apiPath("/agent-playground/graphs/{id}/versions/", { id: graphId }),
         { commit_message: "temporary draft for delete coverage" },
       );
-      assert(isUuid(secondVersion.id), "Second graph version create returned no id.");
+      assert(
+        isUuid(secondVersion.id),
+        "Second graph version create returned no id.",
+      );
       const secondVersionDetail = await client.get(
         apiPath("/agent-playground/graphs/{id}/versions/{version_id}/", {
           id: graphId,
@@ -396,7 +435,8 @@ export const agentPlaygroundJourneys = [
         },
       );
       assert(
-        isUuid(restoreDraftVersion.id) && restoreDraftVersion.status === "draft",
+        isUuid(restoreDraftVersion.id) &&
+          restoreDraftVersion.status === "draft",
         "Temporary restore version create did not return a draft version.",
       );
       const restoreVersion = await client.patch(
@@ -425,13 +465,17 @@ export const agentPlaygroundJourneys = [
       );
 
       const restoredVersion = await client.post(
-        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/activate/", {
-          id: graphId,
-          version_id: draftVersionId,
-        }),
+        apiPath(
+          "/agent-playground/graphs/{id}/versions/{version_id}/activate/",
+          {
+            id: graphId,
+            version_id: draftVersionId,
+          },
+        ),
       );
       assert(
-        restoredVersion.id === draftVersionId && restoredVersion.status === "active",
+        restoredVersion.id === draftVersionId &&
+          restoredVersion.status === "active",
         "Graph restore activate endpoint did not restore the prior version.",
       );
       assert(
@@ -511,7 +555,9 @@ export const agentPlaygroundJourneys = [
       });
       const deletedGraphDetail = await expectApiError(
         () =>
-          client.get(apiPath("/agent-playground/graphs/{id}/", { id: graphId })),
+          client.get(
+            apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+          ),
         [404],
         "Deleted agent graph detail unexpectedly succeeded.",
       );
@@ -533,6 +579,326 @@ export const agentPlaygroundJourneys = [
         missing_execution_status: missingExecution.status,
         deleted_graph_status: deletedGraphDetail.status,
         pre_delete_audit: preDeleteAudit,
+        post_delete_audit: postDeleteAudit,
+      });
+    },
+  },
+  {
+    id: "AGT-API-002",
+    title: "Agent playground execution and node execution detail readback",
+    tags: ["agents", "agent-playground", "execution", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+
+      const marker = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const graphName = `api journey agent exec ${marker}`;
+      const nodeName = `api_exec_node_${marker}`.slice(0, 80);
+      const inputValue = `agent execution input ${runId}`;
+      const outputValue = `agent execution output ${runId}`;
+      const graphExecutionId = randomUUID();
+      const nodeExecutionId = randomUUID();
+      const inputDataId = randomUUID();
+      const outputDataId = randomUUID();
+      let graphDeleted = false;
+
+      const templateListPayload = await client.get(
+        apiPath("/agent-playground/node-templates/"),
+      );
+      const nodeTemplates = Array.isArray(templateListPayload?.node_templates)
+        ? templateListPayload.node_templates
+        : asArray(templateListPayload);
+      const llmTemplate = nodeTemplates.find(
+        (item) => item.name === "llm_prompt",
+      );
+      assert(
+        llmTemplate?.id,
+        "Agent node templates did not include the seeded llm_prompt template.",
+      );
+
+      const createdGraph = await client.post(
+        apiPath("/agent-playground/graphs/"),
+        {
+          name: graphName,
+          description: `Disposable execution readback graph ${runId}`,
+        },
+      );
+      const graphId = createdGraph.id;
+      const draftVersionId = createdGraph.active_version?.id;
+      assert(isUuid(graphId), "Agent graph create did not return a graph id.");
+      assert(
+        isUuid(draftVersionId),
+        "Agent graph create did not return an initial draft version id.",
+      );
+
+      cleanup.defer("hard delete disposable agent execution graph", () =>
+        hardDeleteAgentGraph({
+          graphId,
+          graphNames: [graphName],
+          promptNames: [nodeName],
+          organizationId,
+          workspaceId,
+        }),
+      );
+
+      const sourceNode = await client.post(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/nodes/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        {
+          id: randomUUID(),
+          type: "atomic",
+          name: nodeName,
+          node_template_id: llmTemplate.id,
+          position: { x: 80, y: 120 },
+          prompt_template: {
+            messages: [
+              {
+                id: "msg-exec",
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Return one deterministic sentence about {{topic}}.",
+                  },
+                ],
+              },
+            ],
+            response_format: "text",
+            model: "gpt-4o-mini",
+            temperature: 0,
+            metadata: { api_journey: "AGT-API-002", run_id: runId },
+          },
+        },
+      );
+      assert(
+        isUuid(sourceNode.id),
+        "Execution graph node create returned no id.",
+      );
+      const inputPort = findPort(sourceNode, {
+        direction: "input",
+        displayName: "topic",
+      });
+      const outputPort = findPort(sourceNode, {
+        direction: "output",
+        displayName: "response",
+      });
+      assert(inputPort?.id, "Execution graph node did not expose topic input.");
+      assert(
+        outputPort?.id,
+        "Execution graph node did not expose response output.",
+      );
+
+      const activatedVersion = await client.patch(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        { status: "active", commit_message: "activate AGT-API-002 graph" },
+      );
+      assert(
+        activatedVersion.status === "active",
+        "Graph version activation did not return active status.",
+      );
+
+      const seedAudit = await seedAgentExecutionFixture({
+        graphExecutionId,
+        nodeExecutionId,
+        inputDataId,
+        outputDataId,
+        graphVersionId: draftVersionId,
+        nodeId: sourceNode.id,
+        inputPortId: inputPort.id,
+        outputPortId: outputPort.id,
+        inputValue,
+        outputValue,
+      });
+      assert(
+        seedAudit.graph_execution_visible === 1 &&
+          seedAudit.node_execution_visible === 1 &&
+          seedAudit.execution_data_visible === 2,
+        "Seeded agent execution fixture was not DB-visible.",
+      );
+
+      const executionList = await client.get(
+        apiPath("/agent-playground/graphs/{graph_id}/executions/", {
+          graph_id: graphId,
+        }),
+        { query: { page: 1, page_size: 10 } },
+      );
+      const executions = executionList.executions || [];
+      const listedExecution = executions.find(
+        (execution) => execution.id === graphExecutionId,
+      );
+      assert(
+        listedExecution?.status === "success",
+        "Agent execution list did not include the seeded successful execution.",
+      );
+
+      const executionDetail = await client.get(
+        apiPath(
+          "/agent-playground/graphs/{graph_id}/executions/{execution_id}/",
+          {
+            graph_id: graphId,
+            execution_id: graphExecutionId,
+          },
+        ),
+      );
+      assert(
+        executionDetail.id === graphExecutionId,
+        "Agent execution detail id mismatch.",
+      );
+      assert(
+        executionDetail.status === "success",
+        "Agent execution detail status mismatch.",
+      );
+      assert(
+        executionDetail.input_payload?.topic === inputValue,
+        "Agent execution detail did not expose the input payload.",
+      );
+      assert(
+        executionDetail.output_payload?.response === outputValue,
+        "Agent execution detail did not expose the output payload.",
+      );
+      const detailedNode = (executionDetail.nodes || []).find(
+        (node) => node.id === sourceNode.id,
+      );
+      assert(
+        detailedNode?.node_execution?.id === nodeExecutionId,
+        "Agent execution detail did not attach the node execution.",
+      );
+
+      const wrongGraphExecution = await expectApiError(
+        () =>
+          client.get(
+            apiPath(
+              "/agent-playground/graphs/{graph_id}/executions/{execution_id}/",
+              { graph_id: randomUUID(), execution_id: graphExecutionId },
+            ),
+          ),
+        [404],
+        "Agent execution detail ignored the graph id boundary.",
+      );
+
+      const nodeExecutionDetail = await client.get(
+        apiPath(
+          "/agent-playground/executions/{execution_id}/nodes/{node_execution_id}/",
+          {
+            execution_id: graphExecutionId,
+            node_execution_id: nodeExecutionId,
+          },
+        ),
+      );
+      assert(
+        nodeExecutionDetail.node_execution_id === nodeExecutionId,
+        "Node execution detail id mismatch.",
+      );
+      assert(
+        nodeExecutionDetail.node_id === sourceNode.id,
+        "Node execution detail node id mismatch.",
+      );
+      assert(
+        nodeExecutionDetail.status === "success",
+        "Node execution detail status mismatch.",
+      );
+      assert(
+        nodeExecutionDetail.duration_seconds >= 6,
+        "Node execution detail duration was not calculated.",
+      );
+      assert(
+        nodeExecutionDetail.inputs?.some(
+          (entry) =>
+            entry.port_id === inputPort.id &&
+            entry.port_key === inputPort.key &&
+            entry.payload === inputValue &&
+            entry.is_valid === true,
+        ),
+        "Node execution detail did not return the seeded input payload.",
+      );
+      assert(
+        nodeExecutionDetail.outputs?.some(
+          (entry) =>
+            entry.port_id === outputPort.id &&
+            entry.port_key === outputPort.key &&
+            entry.payload === outputValue &&
+            entry.is_valid === true,
+        ),
+        "Node execution detail did not return the seeded output payload.",
+      );
+
+      const missingNodeExecution = await expectApiError(
+        () =>
+          client.get(
+            apiPath(
+              "/agent-playground/executions/{execution_id}/nodes/{node_execution_id}/",
+              {
+                execution_id: graphExecutionId,
+                node_execution_id: randomUUID(),
+              },
+            ),
+          ),
+        [404],
+        "Missing node execution detail unexpectedly succeeded.",
+      );
+
+      await client.post(apiPath("/agent-playground/graphs/delete/"), {
+        ids: [graphId],
+      });
+      graphDeleted = true;
+
+      const postDeleteAudit = await loadAgentExecutionDbAudit({
+        graphId,
+        graphExecutionId,
+        nodeExecutionId,
+      });
+      assert(
+        postDeleteAudit.graph_execution_visible === 0 &&
+          postDeleteAudit.node_execution_visible === 0 &&
+          postDeleteAudit.execution_data_visible === 0,
+        "Public graph delete left execution rows visible.",
+      );
+
+      const deletedExecutionDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath(
+              "/agent-playground/graphs/{graph_id}/executions/{execution_id}/",
+              { graph_id: graphId, execution_id: graphExecutionId },
+            ),
+          ),
+        [404],
+        "Deleted graph execution detail unexpectedly succeeded.",
+      );
+
+      evidence.push({
+        graph_id: graphId,
+        graph_deleted: graphDeleted,
+        graph_execution_id: graphExecutionId,
+        node_execution_id: nodeExecutionId,
+        node_id: sourceNode.id,
+        input_port_id: inputPort.id,
+        output_port_id: outputPort.id,
+        execution_list_count: executions.length,
+        node_duration_seconds: nodeExecutionDetail.duration_seconds,
+        wrong_graph_status: wrongGraphExecution.status,
+        missing_node_execution_status: missingNodeExecution.status,
+        deleted_execution_status: deletedExecutionDetail.status,
+        seed_audit: seedAudit,
         post_delete_audit: postDeleteAudit,
       });
     },
@@ -646,7 +1012,10 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
-function assertAgentGraphPreDeleteAudit(audit, { organizationId, workspaceId }) {
+function assertAgentGraphPreDeleteAudit(
+  audit,
+  { organizationId, workspaceId },
+) {
   assert(audit.graph_visible === 1, "Created agent graph was not DB-visible.");
   assert(
     audit.organization_id === organizationId,
@@ -657,8 +1026,14 @@ function assertAgentGraphPreDeleteAudit(audit, { organizationId, workspaceId }) 
     "Created agent graph workspace_id mismatch.",
   );
   assert(audit.version_visible >= 1, "Agent graph had no visible version.");
-  assert(audit.node_visible === 2, "Agent graph should have two visible nodes.");
-  assert(audit.port_visible >= 4, "Agent graph should have visible node ports.");
+  assert(
+    audit.node_visible === 2,
+    "Agent graph should have two visible nodes.",
+  );
+  assert(
+    audit.port_visible >= 4,
+    "Agent graph should have visible node ports.",
+  );
   assert(
     audit.node_connection_visible === 1,
     "Agent graph should have one visible node connection.",
@@ -682,17 +1057,32 @@ function assertAgentGraphPreDeleteAudit(audit, { organizationId, workspaceId }) 
 }
 
 function assertAgentGraphPostDeleteAudit(audit) {
-  assert(audit.graph_total === 1, "Deleted agent graph row was missing from DB.");
+  assert(
+    audit.graph_total === 1,
+    "Deleted agent graph row was missing from DB.",
+  );
   assert(audit.graph_visible === 0, "Deleted agent graph remained visible.");
   assert(audit.graph_deleted === true, "Agent graph was not soft-deleted.");
-  assert(audit.version_visible === 0, "Deleted agent graph versions remained visible.");
-  assert(audit.node_visible === 0, "Deleted agent graph nodes remained visible.");
-  assert(audit.port_visible === 0, "Deleted agent graph ports remained visible.");
+  assert(
+    audit.version_visible === 0,
+    "Deleted agent graph versions remained visible.",
+  );
+  assert(
+    audit.node_visible === 0,
+    "Deleted agent graph nodes remained visible.",
+  );
+  assert(
+    audit.port_visible === 0,
+    "Deleted agent graph ports remained visible.",
+  );
   assert(
     audit.node_connection_visible === 0,
     "Deleted agent graph node connections remained visible.",
   );
-  assert(audit.edge_visible === 0, "Deleted agent graph edges remained visible.");
+  assert(
+    audit.edge_visible === 0,
+    "Deleted agent graph edges remained visible.",
+  );
   assert(
     audit.prompt_template_node_visible === 0,
     "Deleted agent graph prompt-template node links remained visible.",
@@ -701,10 +1091,19 @@ function assertAgentGraphPostDeleteAudit(audit) {
     audit.graph_dataset_visible === 0,
     "Deleted agent graph dataset link remained visible.",
   );
-  assert(audit.dataset_visible === 0, "Deleted agent graph dataset remained visible.");
-  assert(audit.column_visible === 0, "Deleted agent graph columns remained visible.");
+  assert(
+    audit.dataset_visible === 0,
+    "Deleted agent graph dataset remained visible.",
+  );
+  assert(
+    audit.column_visible === 0,
+    "Deleted agent graph columns remained visible.",
+  );
   assert(audit.row_visible === 0, "Deleted agent graph rows remained visible.");
-  assert(audit.cell_visible === 0, "Deleted agent graph cells remained visible.");
+  assert(
+    audit.cell_visible === 0,
+    "Deleted agent graph cells remained visible.",
+  );
 }
 
 async function hardDeleteAgentGraph({
@@ -819,6 +1218,123 @@ SELECT json_build_object(
 COMMIT;
 `;
   return runPostgresJson(sql);
+}
+
+async function seedAgentExecutionFixture({
+  graphExecutionId,
+  nodeExecutionId,
+  inputDataId,
+  outputDataId,
+  graphVersionId,
+  nodeId,
+  inputPortId,
+  outputPortId,
+  inputValue,
+  outputValue,
+}) {
+  const sql = `
+INSERT INTO agent_playground_graph_execution (
+  id, graph_version_id, status, input_payload, output_payload,
+  started_at, completed_at, created_at, updated_at, deleted
+) VALUES (
+  ${sqlUuid(graphExecutionId)},
+  ${sqlUuid(graphVersionId)},
+  'success',
+  jsonb_build_object('topic', ${sqlTextLiteral(inputValue)}),
+  jsonb_build_object('response', ${sqlTextLiteral(outputValue)}),
+  now() - interval '7 seconds',
+  now(),
+  now(),
+  now(),
+  false
+);
+
+INSERT INTO agent_playground_node_execution (
+  id, graph_execution_id, node_id, status,
+  started_at, completed_at, created_at, updated_at, deleted
+) VALUES (
+  ${sqlUuid(nodeExecutionId)},
+  ${sqlUuid(graphExecutionId)},
+  ${sqlUuid(nodeId)},
+  'success',
+  now() - interval '7 seconds',
+  now(),
+  now(),
+  now(),
+  false
+);
+
+INSERT INTO agent_playground_execution_data (
+  id, node_execution_id, node_id, port_id, payload,
+  validation_errors, is_valid, created_at, updated_at, deleted
+) VALUES
+  (
+    ${sqlUuid(inputDataId)},
+    ${sqlUuid(nodeExecutionId)},
+    ${sqlUuid(nodeId)},
+    ${sqlUuid(inputPortId)},
+    to_jsonb(${sqlTextLiteral(inputValue)}::text),
+    NULL,
+    true,
+    now(),
+    now(),
+    false
+  ),
+  (
+    ${sqlUuid(outputDataId)},
+    ${sqlUuid(nodeExecutionId)},
+    ${sqlUuid(nodeId)},
+    ${sqlUuid(outputPortId)},
+    to_jsonb(${sqlTextLiteral(outputValue)}::text),
+    NULL,
+    true,
+    now(),
+    now(),
+    false
+  );
+
+${agentExecutionAuditSql({ graphExecutionId, nodeExecutionId })}
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadAgentExecutionDbAudit({
+  graphId,
+  graphExecutionId,
+  nodeExecutionId,
+}) {
+  const sql = `
+SELECT json_build_object(
+  'graph_visible', (
+    SELECT count(*) FROM agent_playground_graph
+    WHERE id = ${sqlUuid(graphId)} AND deleted = false
+  ),
+  ${agentExecutionAuditFields({ graphExecutionId, nodeExecutionId })}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function agentExecutionAuditSql({ graphExecutionId, nodeExecutionId }) {
+  return `SELECT json_build_object(
+  ${agentExecutionAuditFields({ graphExecutionId, nodeExecutionId })}
+);`;
+}
+
+function agentExecutionAuditFields({ graphExecutionId, nodeExecutionId }) {
+  return `
+  'graph_execution_visible', (
+    SELECT count(*) FROM agent_playground_graph_execution
+    WHERE id = ${sqlUuid(graphExecutionId)} AND deleted = false
+  ),
+  'node_execution_visible', (
+    SELECT count(*) FROM agent_playground_node_execution
+    WHERE id = ${sqlUuid(nodeExecutionId)} AND deleted = false
+  ),
+  'execution_data_visible', (
+    SELECT count(*) FROM agent_playground_execution_data
+    WHERE node_execution_id = ${sqlUuid(nodeExecutionId)} AND deleted = false
+  )`;
 }
 
 async function runPostgresJson(sql) {
