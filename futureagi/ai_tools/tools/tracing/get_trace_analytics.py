@@ -65,7 +65,9 @@ class GetTraceAnalyticsTool(BaseTool):
 
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-        # Trace stats
+        # Trace stats (KEEP-PG: Trace model is not yet migrated to CH; its
+        # `error` JSONField + `created_at` filter have no CH counterpart on
+        # this branch).
         trace_qs = Trace.objects.filter(
             created_at__gte=since, project__organization=context.organization
         )
@@ -76,7 +78,32 @@ class GetTraceAnalyticsTool(BaseTool):
         error_traces = trace_qs.exclude(Q(error__isnull=True) | Q(error={})).count()
         error_rate = (error_traces / total_traces * 100) if total_traces > 0 else 0
 
-        # Span stats
+        # Span stats.
+        #
+        # CH25-TODO: this aggregate has two CH-incompatible shapes that
+        # block a clean drop-in:
+        #   1) The filter is `trace__created_at__gte=since` — a join on
+        #      the Trace FK to filter by trace.created_at. CH spans don't
+        #      carry trace.created_at; the closest analog is span.start_time
+        #      which can drift up to a trace's full duration. For accurate
+        #      parity we'd need either (a) a pre-fetch of trace_ids from PG
+        #      then `aggregate_by_trace_ids(trace_ids)`, or (b) acceptance
+        #      that "spans started in the window" is the right semantic.
+        #      The PG read keeps the original semantic; do not silently
+        #      shift to start_time.
+        #   2) No project_id case: an org-wide rollup. CHSpanReader has no
+        #      `aggregate_by_organization(org_id, *, since, until)` yet —
+        #      proposed signature for a future reader extension:
+        #         aggregate_by_organization(org_id, *, since, until,
+        #                                   trace_ids=None) ->
+        #             {span_count, prompt_tokens, completion_tokens,
+        #              total_tokens, cost, avg_latency_ms}
+        #      That would let the no-project_id branch route to CH with the
+        #      same time window the caller chose.
+        # See `time_bucket_aggregate` and `per_project_group_by_name`; both
+        # require a project_id and time window so they only fit if a
+        # caller-supplied `project_id` is present (and we accept the
+        # start_time semantic shift).
         span_qs = ObservationSpan.objects.filter(
             trace__created_at__gte=since,
             deleted=False,
@@ -117,6 +144,17 @@ class GetTraceAnalyticsTool(BaseTool):
 
         # Group-by breakdown
         if params.group_by == "model":
+            # CH25-TODO: no reader method covers group-by-model with these
+            # aggregates yet. `per_project_group_by_name` groups by `name`
+            # only; we'd need a generalised
+            #   per_project_group_by(project_id, *, group_by_field,
+            #                        observation_type=None, since=None,
+            #                        until=None, status_filter=None,
+            #                        limit=50) -> [{<group_value>,
+            #                                       usage_count, tokens,
+            #                                       cost, avg_latency_ms}]
+            # to route the model/status/operation_name branches. KEEP-PG
+            # until a reader extension lands.
             model_stats = (
                 span_qs.exclude(model__isnull=True)
                 .exclude(model="")
@@ -147,6 +185,9 @@ class GetTraceAnalyticsTool(BaseTool):
                 )
 
         elif params.group_by == "status":
+            # CH25-TODO: same reader-extension gap as group-by-model above.
+            # KEEP-PG until `per_project_group_by(group_by_field='status',
+            # ...)` exists.
             status_stats = (
                 span_qs.values("status")
                 .annotate(
@@ -171,6 +212,10 @@ class GetTraceAnalyticsTool(BaseTool):
                 content += markdown_table(["Status", "Spans", "Tokens", "Cost"], rows)
 
         elif params.group_by == "name":
+            # KEEP-PG: groups by `Trace.name`, not span name; Trace is not
+            # migrated. `per_project_group_by_name` exists for spans but
+            # would require switching to `span.name` which changes the
+            # business meaning of this breakdown.
             name_stats = (
                 trace_qs.values("name")
                 .annotate(count=Count("id"))
