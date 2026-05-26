@@ -5,6 +5,11 @@ Creates data across tracing, datasets, simulation, and prototyping.
 Usage:
     python manage.py seed_dummy_data --email=nikhilpareekiitr@gmail.com
     python manage.py seed_dummy_data --email=nikhilpareekiitr@gmail.com --flush
+
+CH25-TODO: KEEP-PG. Dev seed script — all ObservationSpan.objects.create
+sites are dual-write source-of-truth writes (D-027). CH receives the
+seeded rows via PeerDB CDC. No reads in this file; ``CHSpanReader`` is
+not applicable.
 """
 
 import random
