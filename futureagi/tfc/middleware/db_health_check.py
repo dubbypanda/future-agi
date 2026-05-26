@@ -16,8 +16,8 @@ logger = structlog.get_logger(__name__)
 #      every such request, even when the replica is healthy;
 #   2. a brief replica blip would 503 requests that don't even read from
 #      replica.
-# Health of non-critical aliases is monitored OUT-OF-BAND via
-# `tfc.telemetry.replica_lag` (Prometheus gauge) — see that module.
+# Health of non-critical aliases should be monitored out-of-band by the
+# database/platform layer (for example Aurora CloudWatch ReplicaLag).
 #
 # Operational note: the structured-log event names emitted below
 # ("database_connection_failed_critical") replace an earlier f-string
@@ -32,8 +32,8 @@ def check_db_connection():
     Only probes aliases in `_CRITICAL_DB_ALIASES` (currently: `default`).
     A failure here returns False (→ 503 from the decorator). Non-critical
     aliases (`replica`, `default_direct`) are intentionally NOT probed on
-    the request path. Their health is monitored out-of-band via
-    `tfc.telemetry.replica_lag` (Prometheus gauge).
+    the request path. Monitor their health out-of-band in the
+    database/platform layer.
 
     Consequence for routed endpoints: if `READ_REPLICA_OPT_IN` is enabled
     and the replica is down, a routed view's `.using("replica")` query will
