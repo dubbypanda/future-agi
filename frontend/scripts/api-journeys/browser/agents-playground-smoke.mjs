@@ -96,6 +96,7 @@ async function main() {
       draft_version_id: setup.draftVersionId,
       source_node_id: setup.sourceNode.id,
       target_node_id: setup.targetNode.id,
+      node_connection_id: setup.targetNode.node_connection?.id,
       graph_name: graphName,
       search_result_count: graphRows.length,
       variable_setup: variableSetup,
@@ -236,6 +237,7 @@ async function main() {
       await waitForVisibleText(page, sourceNodeName, { exact: true });
       await waitForVisibleText(page, targetNodeName, { exact: true });
       await waitForSelectorWithSize(page, ".react-flow");
+      evidence.rendered_edge_count = await waitForRenderedEdgeCount(page, 1);
 
       logStep("edit global variable drawer");
       const graphDatasetResponse = page.waitForResponse(
@@ -835,6 +837,27 @@ async function waitForEnabledButton(page, text, timeout = 30000) {
       }),
     { timeout },
     text,
+  );
+}
+
+async function waitForRenderedEdgeCount(page, minimumCount, timeout = 30000) {
+  await page.waitForFunction(
+    (expectedCount) => {
+      const edges = Array.from(document.querySelectorAll(".react-flow__edge"));
+      const renderedEdges = edges.filter((edge) => {
+        const path = edge.querySelector("path");
+        return path?.getAttribute("d");
+      });
+      return renderedEdges.length >= expectedCount;
+    },
+    { timeout },
+    minimumCount,
+  );
+  return page.evaluate(
+    () =>
+      Array.from(document.querySelectorAll(".react-flow__edge")).filter(
+        (edge) => edge.querySelector("path")?.getAttribute("d"),
+      ).length,
   );
 }
 
