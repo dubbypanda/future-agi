@@ -2037,11 +2037,14 @@ export const datasetEvalJourneys = [
         annotationTaskFixture?.fixture_created === true,
         "AnnotationTask fixture seed did not create a task.",
       );
-      cleanup.defer("hard delete API journey annotation task fixture", async () => {
-        if (!annotationTaskFixtureCleaned) {
-          await hardDeleteAnnotationTaskFixture(annotationTaskFixture);
-        }
-      });
+      cleanup.defer(
+        "hard delete API journey annotation task fixture",
+        async () => {
+          if (!annotationTaskFixtureCleaned) {
+            await hardDeleteAnnotationTaskFixture(annotationTaskFixture);
+          }
+        },
+      );
 
       const annotationTasks = asArray(
         await client.get(apiPath("/model-hub/annotation-tasks/"), {
@@ -2060,7 +2063,11 @@ export const datasetEvalJourneys = [
         annotationTask?.id,
         "Seeded AnnotationTask was not returned by the filtered list.",
       );
-      assertAnnotationTaskPayload(annotationTask, annotationTaskFixture, userId);
+      assertAnnotationTaskPayload(
+        annotationTask,
+        annotationTaskFixture,
+        userId,
+      );
       const annotationTaskDetail = await client.get(
         apiPath("/model-hub/annotation-tasks/{id}/", {
           id: annotationTask.id,
@@ -2072,8 +2079,9 @@ export const datasetEvalJourneys = [
         userId,
       );
       annotationTaskReadStatus = 200;
-      annotationTaskCleanup =
-        await hardDeleteAnnotationTaskFixture(annotationTaskFixture);
+      annotationTaskCleanup = await hardDeleteAnnotationTaskFixture(
+        annotationTaskFixture,
+      );
       annotationTaskFixtureCleaned = true;
       assert(
         Number(annotationTaskCleanup.remaining_task_count) === 0,
@@ -4181,9 +4189,12 @@ export const datasetEvalJourneys = [
           expectApiErrorStatus(
             () =>
               client.get(
-                apiPath("/model-hub/develops/get-derived-datasets/{dataset_id}/", {
-                  dataset_id: fixture.other_dataset_id,
-                }),
+                apiPath(
+                  "/model-hub/develops/get-derived-datasets/{dataset_id}/",
+                  {
+                    dataset_id: fixture.other_dataset_id,
+                  },
+                ),
               ),
             404,
             "Derived datasets endpoint exposed a same-org other-workspace dataset.",
@@ -4191,9 +4202,12 @@ export const datasetEvalJourneys = [
           expectApiErrorStatus(
             () =>
               client.post(
-                apiPath("/model-hub/develops/{exp_dataset_id}/create-dataset/", {
-                  exp_dataset_id: fixture.other_experiment_dataset_id,
-                }),
+                apiPath(
+                  "/model-hub/develops/{exp_dataset_id}/create-dataset/",
+                  {
+                    exp_dataset_id: fixture.other_experiment_dataset_id,
+                  },
+                ),
                 {
                   name: fixture.other_blocked_dataset_name,
                   model_type: "GenerativeLLM",
@@ -4252,6 +4266,7 @@ export const datasetEvalJourneys = [
       const inputValue = `Return OK for ${runId}`;
       const rowId = randomUUID();
       const deletedColumnIds = new Set();
+      let outputColumnId = null;
       let rowDeleted = false;
 
       const runPromptOptions = await client.get(
@@ -4340,22 +4355,33 @@ export const datasetEvalJourneys = [
         config,
       });
 
+      const outputTable = await getDatasetTable(client, datasetId, {
+        column_config_only: true,
+      });
+      const outputColumn = findColumn(outputTable, outputName);
+      assert(outputColumn?.id, "Run-prompt output column was not visible.");
+      outputColumnId = outputColumn.id;
+      cleanup.defer("delete run-prompt output column", async () => {
+        if (!outputColumnId || deletedColumnIds.has(outputColumnId)) return;
+        await ignoreNotFound(() =>
+          client.delete(
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_column/{column_id}/",
+              { dataset_id: datasetId, column_id: outputColumnId },
+            ),
+          ),
+        );
+      });
+
       const firstRun = await waitForRunPromptColumnCompletion(client, {
         datasetId,
         rowId,
         columnName: outputName,
       });
-      cleanup.defer("delete run-prompt output column", async () => {
-        if (deletedColumnIds.has(firstRun.column.id)) return;
-        await ignoreNotFound(() =>
-          client.delete(
-            apiPath(
-              "/model-hub/develops/{dataset_id}/delete_column/{column_id}/",
-              { dataset_id: datasetId, column_id: firstRun.column.id },
-            ),
-          ),
-        );
-      });
+      assert(
+        firstRun.column.id === outputColumnId,
+        "Run-prompt output column id changed while waiting for completion.",
+      );
 
       const activeAudit = await loadRunPromptColumnDbAudit({
         datasetId,
@@ -4614,14 +4640,12 @@ export const datasetEvalJourneys = [
       let createResult;
       let updateResult;
       try {
-        createResult = await client.get(
-          apiPath("/model-hub/knowledge-base/"),
-          { query: { type: "create", name: `api journey kb ${runId}` } },
-        );
-        updateResult = await client.get(
-          apiPath("/model-hub/knowledge-base/"),
-          { query: { type: "update", name: `api journey kb ${runId}` } },
-        );
+        createResult = await client.get(apiPath("/model-hub/knowledge-base/"), {
+          query: { type: "create", name: `api journey kb ${runId}` },
+        });
+        updateResult = await client.get(apiPath("/model-hub/knowledge-base/"), {
+          query: { type: "update", name: `api journey kb ${runId}` },
+        });
       } catch (error) {
         if (isLegacyKnowledgeBaseEntitlementDeniedError(error)) {
           evidence.push({
@@ -4999,7 +5023,8 @@ export const datasetEvalJourneys = [
   },
   {
     id: "KB-API-004",
-    title: "Legacy knowledge base entitlement gate and structured KB read availability",
+    title:
+      "Legacy knowledge base entitlement gate and structured KB read availability",
     tags: ["knowledge-base", "safe", "entitlement", "smoke"],
     async run({ client, evidence }) {
       const tableError = await expectLegacyKnowledgeBaseEntitlementDenied(
@@ -9052,7 +9077,10 @@ export const datasetEvalJourneys = [
       );
       const promptId =
         created?.id || created?.root_template || created?.rootTemplate;
-      assert(isUuid(promptId), "Legacy prompt create did not return a UUID id.");
+      assert(
+        isUuid(promptId),
+        "Legacy prompt create did not return a UUID id.",
+      );
       cleanup.defer("delete legacy API journey prompt", () =>
         deletePromptTemplateIfPresent(client, promptId),
       );
@@ -9154,7 +9182,8 @@ export const datasetEvalJourneys = [
       );
       assert(
         versions.find((row) => row?.template_version === "v2")
-          ?.prompt_config_snapshot?.messages?.[1]?.content?.[0]?.text === v2Text,
+          ?.prompt_config_snapshot?.messages?.[1]?.content?.[0]?.text ===
+          v2Text,
         "Legacy prompt versions endpoint did not return the saved v2 content.",
       );
 
@@ -14668,7 +14697,13 @@ async function seedExperimentDatasetMaterializeFixture({
     .join(",\n");
 
   const experimentRows = [
-    [experimentId, `${datasetName} experiment`, datasetId, inputColumnId, datasetId],
+    [
+      experimentId,
+      `${datasetName} experiment`,
+      datasetId,
+      inputColumnId,
+      datasetId,
+    ],
   ];
   if (otherWorkspaceId) {
     experimentRows.push([
@@ -22963,7 +22998,10 @@ function assertPromptRunPreviewDbAudit(
   );
 
   if (expectedDeleted) {
-    assert(audit.prompt_deleted === true, "Prompt run prompt should be deleted.");
+    assert(
+      audit.prompt_deleted === true,
+      "Prompt run prompt should be deleted.",
+    );
     assert(
       audit.prompt_deleted_at_set === true,
       "Deleted prompt run prompt missing deleted_at.",
@@ -22980,9 +23018,15 @@ function assertPromptRunPreviewDbAudit(
   }
 
   assert(audit.prompt_deleted === false, "Prompt run prompt should be active.");
-  assert(audit.version_deleted === false, "Prompt run version should be active.");
+  assert(
+    audit.version_deleted === false,
+    "Prompt run version should be active.",
+  );
   assert(audit.is_draft === false, "Prompt run version should be non-draft.");
-  assert(Number(audit.output_count) > 0, "Prompt run DB audit found no output.");
+  assert(
+    Number(audit.output_count) > 0,
+    "Prompt run DB audit found no output.",
+  );
   assert(
     Number(audit.metadata_count) > 0,
     "Prompt run DB audit found no metadata.",
@@ -23010,7 +23054,10 @@ function assertPromptTemplateVersionDbAudit(
       "Prompt DB audit workspace mismatch.",
     );
   }
-  assert(Number(audit.version_count) >= 2, "Prompt DB audit found too few versions.");
+  assert(
+    Number(audit.version_count) >= 2,
+    "Prompt DB audit found too few versions.",
+  );
   const allDefaultVersions = payloadArray(
     audit.all_default_versions,
     "all_default_versions",
@@ -23025,7 +23072,10 @@ function assertPromptTemplateVersionDbAudit(
 
   if (expectedDeleted) {
     assert(audit.prompt_deleted === true, "Prompt should be soft-deleted.");
-    assert(audit.prompt_deleted_at_set === true, "Deleted prompt missing deleted_at.");
+    assert(
+      audit.prompt_deleted_at_set === true,
+      "Deleted prompt missing deleted_at.",
+    );
     assert(
       Number(audit.active_version_count) === 0,
       "Deleted prompt still had active versions.",
@@ -23047,8 +23097,10 @@ function assertPromptTemplateVersionDbAudit(
     "Active prompt should have exactly one active default version.",
   );
   assert(
-    payloadArray(audit.active_default_versions, "active_default_versions")[0] ===
-      expectedDefaultVersion,
+    payloadArray(
+      audit.active_default_versions,
+      "active_default_versions",
+    )[0] === expectedDefaultVersion,
     "Active prompt default version mismatch.",
   );
 }
