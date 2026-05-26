@@ -5434,6 +5434,95 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "PROMPT-API-008",
+    title: "Direct run-prompt creates workspace-scoped persistence row",
+    tags: ["prompts", "dataset", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const modelName = "gpt-4o-mini";
+
+      const fixture = await seedDirectRunPromptFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Direct run-prompt DB fixture was not created.",
+      );
+      cleanup.defer("hard-delete direct run-prompt fixture", () =>
+        hardDeleteDirectRunPromptFixture(fixture),
+      );
+
+      let workflowDispatch = "started";
+      try {
+        const result = await client.post(apiPath("/model-hub/run-prompt/"), {
+          dataset_id: fixture.dataset_id,
+          name: fixture.run_prompt_name,
+          model: modelName,
+          concurrency: 1,
+          messages: [{ role: "user", content: "Return exactly OK" }],
+          output_format: "string",
+          temperature: 0,
+          max_tokens: 20,
+        });
+        assert(
+          String(result).includes("success"),
+          "Direct run-prompt did not return a success response.",
+        );
+      } catch (error) {
+        const errorText = JSON.stringify(error?.body || {});
+        assert(
+          error?.status === 500 &&
+            errorText.includes("Failed to start run prompt workflow"),
+          `Direct run-prompt failed before persistence with unexpected error: ${
+            error?.status || error.message
+          } ${errorText}`,
+        );
+        workflowDispatch = "failed_to_start";
+      }
+
+      const audit = await loadDirectRunPromptDbAudit({
+        datasetId: fixture.dataset_id,
+        name: fixture.run_prompt_name,
+        organizationId,
+        workspaceId,
+      });
+      assertDirectRunPromptDbAudit(audit, {
+        datasetId: fixture.dataset_id,
+        name: fixture.run_prompt_name,
+        modelName,
+        organizationId,
+        workspaceId,
+      });
+      if (workflowDispatch === "failed_to_start") {
+        assert(
+          audit.run_prompt_status === "Failed",
+          "Direct run-prompt dispatch failure did not mark RunPrompter Failed.",
+        );
+      }
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        row_id: fixture.row_id,
+        input_column_id: fixture.input_column_id,
+        run_prompt_id: audit.run_prompt_id,
+        run_prompt_status: audit.run_prompt_status,
+        run_prompt_workspace_id: audit.run_prompt_workspace_id,
+        workflow_dispatch: workflowDispatch,
+        output_column_count: Number(audit.output_column_count),
+        active_output_cell_count: Number(audit.active_output_cell_count),
+      });
+    },
+  },
+  {
     id: "PROMPT-API-005",
     title: "Dataset run-prompt edit and config scope guards",
     tags: ["prompts", "dataset", "mutating", "db-audit"],
@@ -14636,6 +14725,54 @@ function assertRunPromptColumnDbAudit(
   }
 }
 
+function assertDirectRunPromptDbAudit(
+  audit,
+  { datasetId, name, modelName, organizationId, workspaceId },
+) {
+  assert(audit?.run_prompt_id, "Direct run-prompt DB audit found no RunPrompter.");
+  assert(audit.dataset_id === datasetId, "Direct run-prompt dataset mismatch.");
+  assert(
+    audit.run_prompt_dataset_id === datasetId,
+    "Direct run-prompt persisted the wrong dataset id.",
+  );
+  assert(
+    audit.run_prompt_name === name,
+    "Direct run-prompt persisted the wrong name.",
+  );
+  assert(
+    audit.run_prompt_model === modelName,
+    "Direct run-prompt persisted the wrong model.",
+  );
+  assert(
+    audit.organization_id === organizationId,
+    "Direct run-prompt dataset organization mismatch.",
+  );
+  assert(
+    audit.run_prompt_organization_id === organizationId,
+    "Direct run-prompt organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.workspace_id === workspaceId,
+      "Direct run-prompt dataset workspace mismatch.",
+    );
+    assert(
+      audit.run_prompt_workspace_id === workspaceId,
+      "Direct run-prompt workspace mismatch.",
+    );
+  }
+  assert(
+    ["Not Started", "Running", "Completed", "Failed"].includes(
+      audit.run_prompt_status,
+    ),
+    "Direct run-prompt status was not a known execution status.",
+  );
+  assert(
+    Number(audit.run_prompt_count) === 1,
+    "Direct run-prompt DB audit found duplicate active RunPrompter rows.",
+  );
+}
+
 function assertDatasetSdkSnippetSafety(result) {
   const expectedCodeKeys = [
     "curl_add_col",
@@ -20183,6 +20320,207 @@ function assertDatasetEvalDrawerDbAudit(
   }
 }
 
+async function seedDirectRunPromptFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const rowId = randomUUID();
+  const inputCellId = randomUUID();
+  const datasetName = `api journey direct run prompt ${runId}`;
+  const inputColumnName = `api_direct_rp_input_${suffix}`;
+  const inputValue = `Seeded direct run-prompt input ${runId}`;
+  const runPromptName = `api_direct_rp_output_${suffix}`;
+  const columnConfig = {
+    [inputColumnId]: { is_visible: true, is_frozen: null },
+  };
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(inputColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(inputColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(inputColumnName)},
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_row AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES (
+    ${sqlUuid(rowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    0,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  )
+  RETURNING id
+),
+inserted_cell AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    status,
+    dataset_id,
+    column_id,
+    row_id
+  )
+  VALUES (
+    ${sqlUuid(inputCellId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(inputValue)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'pass',
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(inputColumnId)},
+    ${sqlUuid(rowId)}
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'input_column_name', ${sqlTextLiteral(inputColumnName)},
+  'row_id', ${sqlUuid(rowId)}::text,
+  'run_prompt_name', ${sqlTextLiteral(runPromptName)},
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'inserted_column_count', (SELECT count(*) FROM inserted_column),
+  'inserted_row_count', (SELECT count(*) FROM inserted_row),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cell)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDirectRunPromptFixture(fixture) {
+  assert(
+    fixture && isUuid(fixture.dataset_id),
+    "Direct run-prompt fixture dataset id must be a UUID for DB cleanup.",
+  );
+  const sql = `
+WITH selected_run_prompts AS (
+  SELECT id
+  FROM model_hub_runprompter
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+),
+deleted_pending_tasks AS (
+  DELETE FROM model_hub_pendingrowtask
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+  RETURNING 1
+),
+deleted_run_prompt_tools AS (
+  DELETE FROM model_hub_runprompter_tools
+  WHERE runprompter_id IN (SELECT id FROM selected_run_prompts)
+  RETURNING 1
+),
+deleted_run_prompts AS (
+  DELETE FROM model_hub_runprompter
+  WHERE id IN (SELECT id FROM selected_run_prompts)
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
+  'deleted_run_prompt_tool_count', (SELECT count(*) FROM deleted_run_prompt_tools),
+  'deleted_run_prompt_count', (SELECT count(*) FROM deleted_run_prompts)
+);
+`;
+  await runPostgresJson(sql);
+  return hardDeleteDatasetCopyFixture([fixture.dataset_id]);
+}
+
 async function seedRunPromptEditFixture({
   runId,
   organizationId,
@@ -21471,6 +21809,79 @@ SELECT json_build_object(
 FROM selected_dataset d
 JOIN selected_column c ON c.dataset_id = d.id
 JOIN selected_run_prompt rp ON rp.dataset_id = d.id;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDirectRunPromptDbAudit({
+  datasetId,
+  name,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(datasetId), "datasetId must be a UUID for DB audit.");
+  assert(typeof name === "string" && name, "name must be set for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH selected_dataset AS (
+  SELECT d.id, d.name, d.organization_id, d.workspace_id
+  FROM model_hub_dataset d
+  WHERE d.id = ${sqlUuid(datasetId)}
+    AND d.organization_id = ${sqlUuid(organizationId)}
+),
+selected_run_prompt AS (
+  SELECT rp.*
+  FROM model_hub_runprompter rp
+  WHERE rp.dataset_id = ${sqlUuid(datasetId)}
+    AND rp.name = ${sqlTextLiteral(name)}
+    AND rp.deleted = false
+  ORDER BY rp.created_at DESC
+  LIMIT 1
+)
+SELECT COALESCE((
+  SELECT json_build_object(
+    'dataset_id', d.id::text,
+    'dataset_name', d.name,
+    'organization_id', d.organization_id::text,
+    'workspace_id', d.workspace_id::text,
+    'run_prompt_id', rp.id::text,
+    'run_prompt_name', rp.name,
+    'run_prompt_model', rp.model,
+    'run_prompt_status', rp.status,
+    'run_prompt_dataset_id', rp.dataset_id::text,
+    'run_prompt_organization_id', rp.organization_id::text,
+    'run_prompt_workspace_id', rp.workspace_id::text,
+    'run_prompt_deleted', rp.deleted,
+    'run_prompt_count', (
+      SELECT count(*)
+      FROM model_hub_runprompter count_rp
+      WHERE count_rp.dataset_id = d.id
+        AND count_rp.name = ${sqlTextLiteral(name)}
+        AND count_rp.deleted = false
+    ),
+    'output_column_count', (
+      SELECT count(*)
+      FROM model_hub_column c
+      WHERE c.dataset_id = d.id
+        AND c.source = 'run_prompt'
+        AND c.source_id = rp.id::text
+        AND c.deleted = false
+    ),
+    'active_output_cell_count', (
+      SELECT count(*)
+      FROM model_hub_cell cell
+      JOIN model_hub_column c ON c.id = cell.column_id
+      WHERE cell.dataset_id = d.id
+        AND c.source = 'run_prompt'
+        AND c.source_id = rp.id::text
+        AND cell.deleted = false
+    )
+  )
+  FROM selected_dataset d
+  JOIN selected_run_prompt rp ON rp.dataset_id = d.id
+), '{}'::json);
 `;
   return runPostgresJson(sql);
 }

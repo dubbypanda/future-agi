@@ -156,6 +156,18 @@ def _request_run_prompter_queryset(request):
     )
 
 
+def _extract_tool_ids(tools):
+    tool_ids = []
+    for tool in tools or []:
+        if isinstance(tool, dict):
+            tool_id = tool.get("id")
+        else:
+            tool_id = tool
+        if tool_id:
+            tool_ids.append(tool_id)
+    return tool_ids
+
+
 PROVIDERS_WITH_JSON = ["vertex_ai", "azure", "bedrock", "sagemaker"]
 
 # Re-export for backward compatibility - prefer importing from column_utils directly
@@ -924,17 +936,22 @@ class LitellmAPIView(CreateAPIView):
         validated_data = request.validated_data
         # `validated_request` owns request-shape validation; from here the view
         # handles only domain execution errors.
-        organization = (
-            getattr(request, "organization", None) or request.user.organization
+        organization = _request_organization(request)
+        dataset = (
+            _request_dataset_queryset(request)
+            .filter(id=validated_data.get("dataset_id"))
+            .first()
         )
-        dataset = Dataset.objects.filter(
-            id=validated_data.get("dataset_id"), deleted=False
-        ).first()
-        if not dataset or dataset.organization_id != organization.id:
+        if not dataset:
             return self._gm.not_found("Dataset not found")
         # Retrieve tools based on the IDs from the validated data
-        tool_ids = validated_data.get("tools", [])
-        tools = Tools.objects.filter(id__in=tool_ids)
+        tool_ids = _extract_tool_ids(validated_data.get("tools"))
+        tools = Tools.objects.filter(
+            _request_workspace_filter(request),
+            id__in=tool_ids,
+            organization=organization,
+            deleted=False,
+        )
 
         # Use transaction to ensure atomicity
         with transaction.atomic():
@@ -952,6 +969,7 @@ class LitellmAPIView(CreateAPIView):
                 tool_choice=validated_data.get("tool_choice"),
                 output_format=validated_data.get("output_format"),
                 dataset=dataset,
+                workspace=dataset.workspace,
                 concurrency=validated_data.get("concurrency"),
                 run_prompt_config=validated_data.get("run_prompt_config"),
                 status=StatusType.NOT_STARTED.value,  # Start with NOT_STARTED

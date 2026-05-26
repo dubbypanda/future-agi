@@ -838,6 +838,98 @@ class TestLitellmAPIView:
         # Response could be 200 or 400 depending on API key validation
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST]
 
+    def test_litellm_api_direct_run_persists_workspace(
+        self, user, workspace, dataset, organization
+    ):
+        """Direct run-prompt creates a workspace-scoped RunPrompter before queuing."""
+        from conftest import WorkspaceAwareAPIClient
+
+        client = WorkspaceAwareAPIClient()
+        client.force_authenticate(user=user)
+        client.set_workspace(workspace)
+        payload = {
+            "dataset_id": str(dataset.id),
+            "name": "Direct Run Prompt",
+            "model": "gpt-4",
+            "concurrency": 1,
+            "messages": [{"role": "user", "content": "Return OK"}],
+            "output_format": "string",
+            "max_tokens": 20,
+        }
+
+        try:
+            with patch(
+                "model_hub.tasks.run_prompt.process_prompts_single.apply_async"
+            ) as mock_apply_async:
+                mock_apply_async.return_value = MagicMock(id="direct-workflow")
+                response = client.post(
+                    "/model-hub/run-prompt/",
+                    payload,
+                    format="json",
+                )
+        finally:
+            client.stop_workspace_injection()
+
+        assert response.status_code == status.HTTP_200_OK
+        run_prompter = RunPrompter.no_workspace_objects.get(
+            dataset=dataset,
+            name=payload["name"],
+            organization=organization,
+            deleted=False,
+        )
+        assert run_prompter.workspace_id == workspace.id
+        assert run_prompter.status == StatusType.RUNNING.value
+        mock_apply_async.assert_called_once_with(
+            args=({"type": "not_started", "prompt_id": str(run_prompter.id)},)
+        )
+
+    def test_litellm_api_rejects_other_workspace_dataset(
+        self, user, workspace, organization
+    ):
+        """Direct run-prompt must not mutate a dataset outside request.workspace."""
+        from conftest import WorkspaceAwareAPIClient
+
+        other_workspace = Workspace.objects.create(
+            name="Other Workspace",
+            organization=organization,
+            created_by=user,
+        )
+        other_dataset = Dataset.no_workspace_objects.create(
+            name="Other Workspace Dataset",
+            organization=organization,
+            workspace=other_workspace,
+            source=DatasetSourceChoices.BUILD.value,
+        )
+        client = WorkspaceAwareAPIClient()
+        client.force_authenticate(user=user)
+        client.set_workspace(workspace)
+        payload = {
+            "dataset_id": str(other_dataset.id),
+            "name": "Blocked Direct Run Prompt",
+            "model": "gpt-4",
+            "concurrency": 1,
+            "messages": [{"role": "user", "content": "Return OK"}],
+        }
+
+        try:
+            with patch(
+                "model_hub.tasks.run_prompt.process_prompts_single.apply_async"
+            ) as mock_apply_async:
+                response = client.post(
+                    "/model-hub/run-prompt/",
+                    payload,
+                    format="json",
+                )
+        finally:
+            client.stop_workspace_injection()
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert not RunPrompter.no_workspace_objects.filter(
+            dataset=other_dataset,
+            name=payload["name"],
+        ).exists()
+        mock_apply_async.assert_not_called()
+
     def test_litellm_api_missing_model(self, auth_client):
         """Test that missing model returns error."""
         payload = {
