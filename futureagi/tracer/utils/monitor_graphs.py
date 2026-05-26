@@ -165,6 +165,17 @@ def get_static_metric_graph_data(monitor, time_window_start=None, time_window_en
             )
 
     # --- PostgreSQL fallback ---
+    # CH25-TODO(blocked-on-reader-extension): the CH primary branch above
+    # uses MonitorMetricsQueryBuilder.build_time_series_query which fully
+    # supports span_attributes_filters (via FilterEngine v2),
+    # status-stratified Count/Avg(Case), and group-by-session/provider
+    # error-free rates. The new time_bucket_aggregate reader from
+    # 46153d310 only accepts observation_type as a filter; it cannot
+    # consume the full parsing_evaltask_filters Q-object that
+    # monitor.filters produces nor emit the status / group-stratified
+    # columns this graph path needs. Fallback intentionally left as ORM
+    # for resilience; remove only when time_bucket_aggregate_with_filters
+    # + group_by_*_window helpers exist on CHSpanReader.
     try:
         metric_type = monitor.metric_type
 
@@ -293,6 +304,13 @@ def _get_eval_metric_graph_data(
 
     filters = parsing_evaltask_filters(monitor.filters)
 
+    # CH25-TODO(cross-store-join; EvalLogger stays PG): EvalLogger is a
+    # PG-only model. The subquery `observation_span__in=ObservationSpan.
+    # objects.filter(filters)` is a Django subquery driving the EvalLogger
+    # filter; moving the span lookup to CH would require materializing the
+    # span-id list into Python and then `observation_span_id__in=<list>`,
+    # which loses the subquery memory benefit and adds a CH round-trip
+    # per call. Defer until EvalLogger itself migrates (separate work).
     base_queryset = EvalLogger.objects.filter(
         custom_eval_config=custom_eval_config,
         target_type="span",
@@ -356,7 +374,14 @@ def _get_eval_metric_graph_data(
 def _get_group_error_free_rate_data(
     monitor, time_window_start=None, time_window_end=None, frequency_seconds=None
 ):
-    """Handles graph data generation for group-based error-free rate metrics."""
+    """Handles graph data generation for group-based error-free rate metrics.
+
+    CH25-TODO(blocked-on-reader-extension): bucket + group_by(session OR
+    provider) + per-bucket error_count + ratio derivation. Needs
+    group_by_session_window / group_by_provider_window readers that emit
+    `{bucket, session_id|provider, total, error_count}` rows. PG fallback
+    stays as ORM until the CH primary path covers all branches.
+    """
     metric_type = monitor.metric_type
     filters = parsing_evaltask_filters(monitor.filters)
 
@@ -440,7 +465,12 @@ def _calculate_std_dev(data):
 def _get_eval_metric_buckets(
     monitor, extended_start, time_window_end, bucket_annotation, filters
 ):
-    """Handles bucket creation for EVALUATION_METRICS."""
+    """Handles bucket creation for EVALUATION_METRICS.
+
+    CH25-TODO(cross-store-join; EvalLogger stays PG): same pattern as
+    _get_eval_metric_graph_data above — EvalLogger filtered by a span-id
+    subquery. Defer until EvalLogger migrates.
+    """
     try:
         custom_eval_config = CustomEvalConfig.objects.get(id=monitor.metric)
         eval_output_type = custom_eval_config.eval_template.config.get("output")
@@ -499,7 +529,13 @@ def _get_eval_metric_buckets(
 def _get_group_error_rate_buckets(
     monitor, extended_start, time_window_end, bucket_annotation, filters
 ):
-    """Handles bucket creation for group-based error rate metrics."""
+    """Handles bucket creation for group-based error rate metrics.
+
+    CH25-TODO(blocked-on-reader-extension): same shape as
+    _get_group_error_free_rate_data above. Needs group_by_session_window /
+    group_by_provider_window readers that emit per-bucket per-group
+    {total, error_count} pairs.
+    """
     metric_type = monitor.metric_type
     base_queryset = ObservationSpan.objects.filter(project=monitor.project)
     base_queryset = _apply_time_window_filter(
@@ -553,7 +589,16 @@ def _get_group_error_rate_buckets(
 def _get_default_observation_span_buckets(
     monitor, extended_start, time_window_end, bucket_annotation, filters
 ):
-    """Handles bucket creation for default ObservationSpan metrics."""
+    """Handles bucket creation for default ObservationSpan metrics.
+
+    CH25-TODO(blocked-on-reader-extension): _get_aggregation_expression
+    below selects between Sum("total_tokens"), Count("id", filter=Q(
+    status="ERROR")), Avg("latency_ms"), and Avg(Case(...status=ERROR...))
+    based on metric_type. time_bucket_aggregate covers the Sum/Avg
+    branches but not the status-stratified Count(filter=Q) or the
+    Avg(Case) error-rate branch. Defer until the reader emits
+    `error_count` alongside `span_count`.
+    """
     metric_type = monitor.metric_type
     base_queryset = ObservationSpan.objects.filter(project=monitor.project)
     base_queryset = _apply_time_window_filter(
