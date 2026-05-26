@@ -261,8 +261,8 @@ class TestExecutionChatBatchView(APIView):
                 f"Processed row_ids by scenario: {processed_row_ids_by_scenario}"
             )
 
-            # Initialize TestExecutor for helper methods
-            test_executor = TestExecutor()
+            # Only helper methods are needed here; avoid requiring voice-provider config.
+            test_executor = TestExecutor(initialize_voice_service=False)
 
             # Cache for SimulatorAgent per scenario (to avoid repeated lookups)
             simulator_agent_cache = {}
