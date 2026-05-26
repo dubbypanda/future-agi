@@ -227,25 +227,52 @@ def fetch_comparison_metrics(call_execution: CallExecution, session_id: str):
 
 def fetch_voice_conversation_span(trace_id: str) -> dict:
     """
-    Fetch the conversation span for a voice trace (single DB query).
-    Returns the raw span dict with span_attributes and eval_attributes.
+    Fetch the conversation span for a voice trace via ClickHouse.
+    Returns a dict with span_attributes and eval_attributes (legacy shape).
+
+    Voice traces have at most a handful of conversation spans (typically one
+    per trace), so list_by_trace + Python filter is bounded. `eval_attributes`
+    was a PG-only JSONField; in CH it round-trips through `attributes_extra`
+    (see tracer/services/clickhouse/v2/adapter.py:330). We reconstruct the
+    same dict shape downstream callers expect.
     """
     if not trace_id:
         raise ValueError("Trace ID is required")
 
-    span = (
-        ObservationSpan.objects.filter(
-            trace_id=trace_id,
-            observation_type="conversation",
-        )
-        .values("span_attributes", "eval_attributes")
-        .first()
-    )
+    from tracer.services.clickhouse.v2 import get_reader
 
-    if not span:
+    with get_reader() as reader:
+        spans = reader.list_by_trace(str(trace_id))
+
+    conversation_span = next(
+        (s for s in spans if s.observation_type == "conversation"), None
+    )
+    if conversation_span is None:
         raise ValueError(f"No conversation span found for trace {trace_id}")
 
-    return span
+    # Legacy callers expect a dict shaped like
+    # {"span_attributes": {...}, "eval_attributes": {...}}.
+    # CH's `span_attributes` is the merge of attrs_string/number/bool +
+    # attributes_extra (without the round-tripped eval_attributes /
+    # model_parameters keys, which live alongside in attributes_extra).
+    extra = type(reader).attributes_extra_as_dict(conversation_span) or {}
+    span_attributes: dict = {}
+    span_attributes.update(conversation_span.attrs_string or {})
+    span_attributes.update(conversation_span.attrs_number or {})
+    span_attributes.update(conversation_span.attrs_bool or {})
+    # Overflow keys that aren't the round-tripped PG JSONField columns are
+    # part of the original span_attributes; keep them merged in.
+    _ROUND_TRIP_COLS = ("model_parameters", "input_images", "eval_input", "eval_attributes")
+    for k, v in extra.items():
+        if k not in _ROUND_TRIP_COLS:
+            span_attributes[k] = v
+
+    eval_attributes = extra.get("eval_attributes") or {}
+
+    return {
+        "span_attributes": span_attributes,
+        "eval_attributes": eval_attributes,
+    }
 
 
 def merge_span_attrs(span: dict) -> ChainMap:
