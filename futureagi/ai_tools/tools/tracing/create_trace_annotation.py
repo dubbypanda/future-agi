@@ -62,8 +62,10 @@ class CreateTraceAnnotationTool(BaseTool):
 
         from model_hub.models.develop_annotations import AnnotationsLabels
         from model_hub.models.score import Score
-        from tracer.models.observation_span import ObservationSpan
+        from tracer.models.project import Project
+        from tracer.models.trace import Trace
         from tracer.models.trace_annotation import TraceAnnotation
+        from tracer.services.clickhouse.v2 import get_reader
 
         from ._annotation_validation import validate_annotation_value
 
@@ -78,16 +80,19 @@ class CreateTraceAnnotationTool(BaseTool):
                 "Annotation Label", str(params.annotation_label_id)
             )
 
-        # Validate span exists
-        try:
-            span = ObservationSpan.objects.select_related("trace").get(
-                id=params.span_id, project__organization=context.organization
-            )
-        except ObservationSpan.DoesNotExist:
+        # Validate span exists (CH read replaces ObservationSpan ORM .get;
+        # FK traversal to Trace is now a separate PG lookup, and org-tenant
+        # scope is verified via the Project model).
+        with get_reader() as reader:
+            span = reader.get(str(params.span_id))
+        if span is None:
             return ToolResult.not_found("Span", params.span_id)
-
-        # Resolve the trace from the span
-        trace = span.trace
+        if not Project.objects.filter(
+            id=span.project_id, organization=context.organization
+        ).exists():
+            return ToolResult.not_found("Span", params.span_id)
+        # Resolve the trace from the span (still PG since Trace not migrated)
+        trace = Trace.objects.filter(id=span.trace_id).first() if span.trace_id else None
         if not trace:
             return ToolResult.error(
                 f"Span '{params.span_id}' is not associated with any trace.",
@@ -171,7 +176,7 @@ class CreateTraceAnnotationTool(BaseTool):
                 error_code="NO_DEFAULT_QUEUE_SCOPE",
             )
         Score.no_workspace_objects.update_or_create(
-            observation_span_id=span.pk,
+            observation_span_id=span.id,
             label_id=label.pk,
             annotator_id=context.user.pk,
             queue_item=default_item,
