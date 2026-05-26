@@ -3324,6 +3324,8 @@ class GetExperimentDatasetTableView(APIView):
             response_data = {
                 "metadata": {
                     "dataset_name": dataset.name,
+                    "experiment_id": str(experiment.id),
+                    "experiment_name": experiment.name,
                     "total_rows": total_rows,
                     "total_pages": (total_rows + page_size - 1) // page_size,
                 },
@@ -12093,11 +12095,15 @@ class GetDerivedDatasets(APIView):
     )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
-            dataset = get_object_or_404(Dataset, id=dataset_id)
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found(get_error_message("DATASET_NOT_FOUND"))
 
             # Filter datasets and exclude those with null experiments
-            derived_datasets = ExperimentDatasetTable.objects.filter(
-                experiment__dataset=dataset, deleted=False
+            derived_datasets = (
+                _request_experiment_dataset_queryset(request)
+                .filter(experiment__dataset=dataset)
+                .select_related("experiment")
             )
 
             serializer = DerivedDatasetSerializer(derived_datasets, many=True)

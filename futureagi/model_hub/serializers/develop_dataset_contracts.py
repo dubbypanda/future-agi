@@ -89,6 +89,8 @@ class DatasetListResponseSerializer(serializers.Serializer):
 
 class DatasetTableMetadataSerializer(serializers.Serializer):
     dataset_name = serializers.CharField()
+    experiment_id = serializers.UUIDField(required=False)
+    experiment_name = serializers.CharField(required=False)
     total_rows = serializers.IntegerField(required=False)
     total_pages = serializers.IntegerField(required=False)
     error_messages = serializers.ListField(

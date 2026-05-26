@@ -4065,6 +4065,14 @@ export const datasetEvalJourneys = [
         "Experiment dataset table returned the wrong dataset name.",
       );
       assert(
+        table.metadata.experiment_id === fixture.experiment_id,
+        "Experiment dataset table metadata did not expose the parent experiment id.",
+      );
+      assert(
+        table.metadata.experiment_name === fixture.experiment_name,
+        "Experiment dataset table metadata did not expose the parent experiment name.",
+      );
+      assert(
         Number(table.metadata.total_rows) === 2,
         "Experiment dataset table total_rows did not include all rows.",
       );
@@ -4098,6 +4106,47 @@ export const datasetEvalJourneys = [
         "Experiment dataset table did not expose both base and experiment columns.",
       );
 
+      const [derivedDatasets, summary] = await Promise.all([
+        client.get(
+          apiPath("/model-hub/develops/get-derived-datasets/{dataset_id}/", {
+            dataset_id: fixture.dataset_id,
+          }),
+        ),
+        client.get(
+          apiPath("/model-hub/experiments/v2/{experiment_id}/stats/", {
+            experiment_id: fixture.experiment_id,
+          }),
+        ),
+      ]);
+      const derivedRow = asArray(derivedDatasets).find(
+        (row) => row?.id === fixture.experiment_dataset_id,
+      );
+      assert(
+        derivedRow?.name === fixture.experiment_dataset_name,
+        "Derived datasets endpoint did not include the experiment dataset row.",
+      );
+      assert(
+        derivedRow?.experiment?.id === fixture.experiment_id,
+        "Derived datasets endpoint did not expose the parent experiment id.",
+      );
+      assertExperimentStatsPayload(summary);
+      assert(
+        asArray(summary.table_data).some(
+          (row) => row?.dataset_id === fixture.experiment_dataset_id,
+        ),
+        "Individual experiment summary did not include the experiment dataset row.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/experiments/v2/{experiment_id}/stats/", {
+              experiment_id: fixture.experiment_dataset_id,
+            }),
+          ),
+        400,
+        "Experiment summary accepted an experiment dataset id as an experiment id.",
+      );
+
       await expectApiErrorStatus(
         () =>
           client.post(
@@ -4115,33 +4164,45 @@ export const datasetEvalJourneys = [
 
       let otherWorkspaceGuard = "skipped:no-other-workspace";
       if (fixture.other_experiment_dataset_id) {
-        await expectApiErrorStatus(
-          () =>
-            client.get(
-              apiPath(
-                "/model-hub/develops/{experiment_dataset_id}/get-experiment-dataset-table/",
+        await Promise.all([
+          expectApiErrorStatus(
+            () =>
+              client.get(
+                apiPath(
+                  "/model-hub/develops/{experiment_dataset_id}/get-experiment-dataset-table/",
+                  {
+                    experiment_dataset_id: fixture.other_experiment_dataset_id,
+                  },
+                ),
+              ),
+            404,
+            "Experiment dataset table read accepted a same-org other-workspace fixture.",
+          ),
+          expectApiErrorStatus(
+            () =>
+              client.get(
+                apiPath("/model-hub/develops/get-derived-datasets/{dataset_id}/", {
+                  dataset_id: fixture.other_dataset_id,
+                }),
+              ),
+            404,
+            "Derived datasets endpoint exposed a same-org other-workspace dataset.",
+          ),
+          expectApiErrorStatus(
+            () =>
+              client.post(
+                apiPath("/model-hub/develops/{exp_dataset_id}/create-dataset/", {
+                  exp_dataset_id: fixture.other_experiment_dataset_id,
+                }),
                 {
-                  experiment_dataset_id: fixture.other_experiment_dataset_id,
+                  name: fixture.other_blocked_dataset_name,
+                  model_type: "GenerativeLLM",
                 },
               ),
-            ),
-          404,
-          "Experiment dataset table read accepted a same-org other-workspace fixture.",
-        );
-        await expectApiErrorStatus(
-          () =>
-            client.post(
-              apiPath("/model-hub/develops/{exp_dataset_id}/create-dataset/", {
-                exp_dataset_id: fixture.other_experiment_dataset_id,
-              }),
-              {
-                name: fixture.other_blocked_dataset_name,
-                model_type: "GenerativeLLM",
-              },
-            ),
-          404,
-          "Experiment create-dataset accepted a same-org other-workspace fixture.",
-        );
+            404,
+            "Experiment create-dataset accepted a same-org other-workspace fixture.",
+          ),
+        ]);
         otherWorkspaceGuard = "passed";
       }
 
@@ -4160,6 +4221,8 @@ export const datasetEvalJourneys = [
         experiment_dataset_name: fixture.experiment_dataset_name,
         table_total_rows: Number(table.metadata.total_rows),
         table_total_pages: Number(table.metadata.total_pages),
+        derived_dataset_count: asArray(derivedDatasets).length,
+        summary_rows: asArray(summary.table_data).length,
         duplicate_dataset_name: fixture.duplicate_dataset_name,
         duplicate_name_active_count: Number(audit.duplicate_name_active_count),
         other_workspace_guard: otherWorkspaceGuard,
@@ -14463,7 +14526,7 @@ async function seedExperimentDatasetMaterializeFixture({
     .join(",\n");
 
   const experimentRows = [
-    [experimentId, `${datasetName} experiment`, datasetId, inputColumnId],
+    [experimentId, `${datasetName} experiment`, datasetId, inputColumnId, datasetId],
   ];
   if (otherWorkspaceId) {
     experimentRows.push([
@@ -14471,11 +14534,12 @@ async function seedExperimentDatasetMaterializeFixture({
       `${otherDatasetName} experiment`,
       otherDatasetId,
       otherInputColumnId,
+      otherDatasetId,
     ]);
   }
   const experimentValues = experimentRows
     .map(
-      ([id, name, experimentDatasetIdForRow, columnId]) => `(
+      ([id, name, experimentDatasetIdForRow, columnId, snapshotDatasetId]) => `(
     ${sqlUuid(id)},
     now(),
     now(),
@@ -14488,7 +14552,7 @@ async function seedExperimentDatasetMaterializeFixture({
     ${sqlUuid(columnId)},
     NULL::uuid,
     'llm',
-    NULL::uuid
+    ${sqlUuid(snapshotDatasetId)}
   )`,
     )
     .join(",\n");
@@ -14685,6 +14749,7 @@ SELECT json_build_object(
   'duplicate_dataset_id', ${sqlUuid(duplicateDatasetId)}::text,
   'duplicate_dataset_name', ${sqlTextLiteral(duplicateDatasetName)},
   'experiment_id', ${sqlUuid(experimentId)}::text,
+  'experiment_name', ${sqlTextLiteral(`${datasetName} experiment`)},
   'experiment_dataset_id', ${sqlUuid(experimentDatasetId)}::text,
   'experiment_dataset_name', ${sqlTextLiteral(experimentDatasetName)},
   'input_column_id', ${sqlUuid(inputColumnId)}::text,

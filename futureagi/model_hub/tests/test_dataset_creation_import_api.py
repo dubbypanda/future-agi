@@ -355,6 +355,7 @@ def _create_experiment_dataset_fixture(
     experiment = ExperimentsTable.no_workspace_objects.create(
         name=f"{dataset_name} experiment",
         dataset=dataset,
+        snapshot_dataset=dataset,
         column=input_column,
         status=StatusType.COMPLETED.value,
         prompt_config=[],
@@ -398,6 +399,8 @@ def test_get_experiment_dataset_table_scopes_and_reports_total_rows(
     assert response.status_code == status.HTTP_200_OK
     result = response.json()["result"]
     assert result["metadata"]["dataset_name"] == "Active Experiment Table Result"
+    assert result["metadata"]["experiment_id"] == str(fixture["experiment"].id)
+    assert result["metadata"]["experiment_name"] == fixture["experiment"].name
     assert result["metadata"]["total_rows"] == 2
     assert result["metadata"]["total_pages"] == 2
     assert len(result["table"]) == 1
@@ -439,6 +442,9 @@ def test_experiment_dataset_routes_reject_other_workspace_before_usage_or_read(
         "/model-hub/develops/"
         f"{fixture['experiment_dataset'].id}/get-experiment-dataset-table/"
     )
+    derived_response = auth_client.get(
+        f"/model-hub/develops/get-derived-datasets/{fixture['dataset'].id}/"
+    )
     create_response = auth_client.post(
         f"/model-hub/develops/{fixture['experiment_dataset'].id}/create-dataset/",
         {"name": "Should Not Be Created", "model_type": "GenerativeLLM"},
@@ -446,6 +452,7 @@ def test_experiment_dataset_routes_reject_other_workspace_before_usage_or_read(
     )
 
     assert table_response.status_code == status.HTTP_404_NOT_FOUND
+    assert derived_response.status_code == status.HTTP_404_NOT_FOUND
     assert create_response.status_code == status.HTTP_404_NOT_FOUND
     assert usage_calls == []
     assert not Dataset.no_workspace_objects.filter(
@@ -453,6 +460,36 @@ def test_experiment_dataset_routes_reject_other_workspace_before_usage_or_read(
         organization=organization,
         deleted=False,
     ).exists()
+
+
+@pytest.mark.django_db
+def test_get_derived_datasets_returns_scoped_individual_experiment_rows(
+    auth_client, organization, workspace, user
+):
+    fixture = _create_experiment_dataset_fixture(
+        organization,
+        user,
+        workspace,
+        dataset_name="Active Derived Dataset Source",
+        experiment_dataset_name="Active Derived Dataset Result",
+    )
+
+    response = auth_client.get(
+        f"/model-hub/develops/get-derived-datasets/{fixture['dataset'].id}/"
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    rows = response.json()["result"]
+    assert rows == [
+        {
+            "id": str(fixture["experiment_dataset"].id),
+            "name": "Active Derived Dataset Result",
+            "experiment": {
+                "id": str(fixture["experiment"].id),
+                "name": fixture["experiment"].name,
+            },
+        }
+    ]
 
 
 @pytest.mark.django_db
