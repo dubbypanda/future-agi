@@ -20,9 +20,14 @@ CH 25.3 migration status (KEEP-PG transitional bridge):
 
   All ``ObservationSpan.objects`` reads in this module remain PG-bound
   because the surrounding FilterEngine pipeline is built on Django Q
-  objects + Subquery/OuterRef. Routing through CHSpanReader requires
-  migrating ``tracer.utils.filters.FilterEngine`` first; that's a
-  cross-cutting refactor out of scope for the helpers chunk.
+  objects + Subquery/OuterRef expressions that are FUSED into the outer
+  Trace/Session queryset's ``.annotate(...)``. The subquery results
+  participate directly in Django's SQL generation (``Case(When(Exists(...
+  )))`` branches, ``Subquery(...)`` annotations); a ``dict[trace_id,
+  CHSpan]`` returned by a reader cannot be spliced into the SQL graph
+  without first lifting the whole queryset out of Django. That bridge
+  refactor (FilterEngine → CH-aware filter compiler) is cross-cutting
+  and out of scope for the helpers chunk.
 
   Hot-path production traffic already routes through ClickHouse via
   ``_resolve_trace_ids_clickhouse`` and ``_resolve_voice_call_ids_clickhouse``
@@ -32,32 +37,36 @@ CH 25.3 migration status (KEEP-PG transitional bridge):
   ``_has_explicit_time_filter``), (b) span filter-mode (no CH dispatch
   exists at this layer yet), and (c) session filter-mode.
 
-  Reader-extension proposals that would unblock further migration here:
+  Reader-extension proposals (status updated wave-3):
 
-    list_root_spans_by_trace_ids(trace_ids, *, conversation_only=False)
+    list_root_spans_by_trace_ids(trace_ids, *, observation_type=None)
         -> dict[trace_id, CHSpan]
-        Replaces the root_span_qs Subquery pattern at lines 265-330
-        / 352-358. Returns the first root span (parent_span_id empty)
-        per trace, optionally filtered to observation_type="conversation"
-        for the voice-call path.
+        STATUS: LANDED in wave-3 (commit 93c5c415f). Still cannot replace
+        the root_span_qs Subquery in ``_build_trace_base_queryset`` /
+        ``_apply_voice_call_constraints`` because the Subquery is
+        consumed inside the outer Trace queryset's ``.annotate(node_type
+        =Case(When(Exists(...))))``. A FilterEngine-CH bridge would
+        first need to materialise the outer Trace rows out of Django so
+        the per-trace root-span lookup can hydrate them in Python.
 
-    aggregate_by_session_ids(session_ids, *, project_id)
-        -> dict[sid, {span_count, total_cost, total_tokens,
-                      traces_count, start_time, end_time,
-                      first_message, last_message}]
-        Replaces the GROUP BY trace__session_id aggregation at lines
-        1117-1158. Would let ``_apply_session_filters`` route the
-        aggregate computation to CH while keeping FilterEngine for the
-        score-based filter branches.
+    aggregate_by_session_ids(session_ids, *, project_id=None)
+        -> dict[sid, {span_count, traces_count, tokens, cost,
+                      start_time, end_time}]
+        STATUS: LANDED in wave-3 (commit 93c5c415f). Still cannot
+        replace the session-aggregate at lines 1117-1158 for the same
+        FilterEngine-fusion reason: the GROUP BY result is annotated
+        onto a TraceSession queryset and FilterEngine's score-based
+        branches read those annotations as Django expressions.
 
     list_spans_by_project_with_filters(project_id, *, filters,
                                        annotation_label_ids,
                                        organization, cap, exclude_ids)
         -> list[span_id]
-        End-to-end CH dispatch for ``resolve_filtered_span_ids`` mirroring
-        the existing ``TraceListQueryBuilder`` shape. This is the largest
-        gap (no CH dispatch at all for span filter-mode today) and is
-        the highest-impact future extension.
+        STATUS: NOT YET LANDED. End-to-end CH dispatch for
+        ``resolve_filtered_span_ids`` mirroring the existing
+        ``TraceListQueryBuilder`` shape. Largest gap (no CH dispatch
+        for span filter-mode today) and highest-impact future
+        extension.
 """
 
 from __future__ import annotations
@@ -305,13 +314,18 @@ def _build_trace_base_queryset(project_id, organization, workspace=None):
     """
     project = Project.objects.get(id=project_id, organization=organization)
 
-    # CH25-TODO: this is the heart of the FilterEngine bridge — root_span_qs
-    # is consumed as a Subquery/OuterRef inside Django Q-object filter
-    # branches further down (see ``_apply_trace_filters``). Routing through
-    # CHSpanReader requires migrating FilterEngine to a CH-aware filter
-    # builder (the v2 query_builders package already does this for the
-    # ClickHouse hot path — see ``_resolve_trace_ids_clickhouse``). PG
-    # fallback only; production traffic uses the CH path.
+    # CH25-TODO(wave-3): ``list_root_spans_by_trace_ids`` now exists
+    # (commit 93c5c415f) and could supply the per-trace root span
+    # data, but it cannot replace the Subquery+OuterRef pattern here:
+    # ``root_span_qs`` is FUSED into the outer Trace queryset's
+    # ``.annotate(node_type=Case(When(Exists(root_span_qs)...)))``
+    # — Django's SQL generator inlines the subquery into the SELECT.
+    # A ``dict[tid, CHSpan]`` from the reader can't be spliced into
+    # that SQL graph; replacing this requires lifting the entire outer
+    # Trace queryset out of Django (i.e. migrating FilterEngine to a
+    # CH-aware filter builder, which the v2 ``query_builders`` package
+    # already does for the hot path — see ``_resolve_trace_ids_clickhouse``).
+    # PG fallback only; production traffic uses the CH path.
     root_span_qs = ObservationSpan.objects.filter(
         trace_id=OuterRef("id"), parent_span_id__isnull=True
     )
@@ -404,14 +418,17 @@ def _apply_voice_call_constraints(
     superset — grid shows N, queue receives N + non-conversation traces.
     This helper brings parity with the voice list view.
     """
-    # CH25-TODO: same FilterEngine-bridge story as _build_trace_base_queryset.
-    # The CH dispatch path (`_resolve_voice_call_ids_clickhouse`) handles
-    # voice-call filtering via `VoiceCallListQueryBuilder`; this PG fallback
-    # uses the Subquery+OuterRef pattern. Reader extension request:
-    #   list_root_spans_by_trace_ids(trace_ids, *, observation_type=None)
-    #       -> dict[trace_id, CHSpan]
-    # would let us materialise the same `has_conversation_root` flag with
-    # one CH query instead of an Exists Subquery.
+    # CH25-TODO(wave-3): ``list_root_spans_by_trace_ids(trace_ids,
+    # observation_type='conversation')`` now exists (commit 93c5c415f)
+    # and returns the per-trace conversation root. Still blocked by
+    # the same FilterEngine-fusion gap as _build_trace_base_queryset:
+    # ``has_conversation_root`` is annotated onto the outer Trace
+    # queryset via ``Exists(root_span_qs.filter(...))`` so the
+    # ``.filter(has_conversation_root=True)`` line consumes it as a
+    # Django expression. Replacing requires lifting the queryset out
+    # of Django. Production traffic uses the CH dispatch path
+    # ``_resolve_voice_call_ids_clickhouse`` via
+    # ``VoiceCallListQueryBuilder``; this is the PG fallback.
     root_span_qs = ObservationSpan.objects.filter(
         trace_id=OuterRef("id"),
         parent_span_id__isnull=True,
@@ -1173,16 +1190,18 @@ def _apply_session_filters(base_sessions_qs, filters, *, project_id, organizatio
     excluding pagination and sort ordering. Returns a queryset yielding
     dicts with a ``trace__session_id`` key.
 
-    CH25-TODO: highest-yield reader extension for this file —
-        aggregate_by_session_ids(session_ids, *, project_id)
-            -> dict[sid, {span_count, total_cost, total_tokens,
-                          traces_count, start_time, end_time,
-                          first_message, last_message}]
-    would let us drop the entire ObservationSpan.objects.filter(...)
-    .values("trace__session_id").annotate(Sum/Min/Max/Count) chain
-    (lines below) into a single CH GROUP BY pass. The score-based
-    filter branches that follow (lines 1189-1222) stay PG since Score
-    is a PG-only table.
+    CH25-TODO(wave-3): ``aggregate_by_session_ids(session_ids,
+    project_id=)`` LANDED in commit 93c5c415f. Returns dict[sid,
+    {span_count, traces_count, tokens, cost, start_time, end_time}].
+    Still blocked by FilterEngine fusion: the ``aggregated`` queryset
+    below is consumed by the FilterEngine score-based filter branches
+    (lines 1189-1222) as a Django queryset with the aggregate columns
+    available as fields. Replacing it would require lifting the
+    score-based filtering out of Django too. The ``first_message`` /
+    ``last_message`` Subqueries (lines 1258-1280 below) are not
+    covered by the wave-3 reader either — those would need a
+    ``first_last_messages_by_session_ids`` extension. KEEP-PG until the
+    FilterEngine bridge lands.
     """
     trace_sessions_qs, remaining_filters = apply_created_at_filters(
         base_sessions_qs, filters or []
