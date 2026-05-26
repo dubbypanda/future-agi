@@ -27,6 +27,13 @@ def _aggregate_spans_by_trace_ids(trace_ids):
     ORM aggregate() previously produced:
         - span_count, total_tokens, total_cost, total_duration (latency_ms),
           error_count, last_activity_at (max end_time of any span).
+        - covered: True if every requested trace_id had at least one
+          span in CH (or the input list was empty / all traces are
+          legitimately empty in PG too); False if CH lag dropped any.
+          See _aggregate_spans_by_trace_ids callers — both periodic-
+          task branches skip the write when coverage is incomplete
+          (avoids the P0 silent-undercount path from the codex
+          consolidated review).
 
     The reader does not yet expose `error_count` or `last_activity_at`
     over a `trace_ids` set; rolling them up in Python from one
@@ -44,6 +51,8 @@ def _aggregate_spans_by_trace_ids(trace_ids):
             "total_duration": 0,
             "error_count": 0,
             "last_activity_at": None,
+            "covered": True,
+            "missing_trace_ids": [],
         }
     with get_reader() as reader:
         spans = reader.list_by_trace_ids([str(tid) for tid in trace_ids])
@@ -56,6 +65,17 @@ def _aggregate_spans_by_trace_ids(trace_ids):
         (s.end_time for s in spans if s.end_time is not None),
         default=None,
     )
+    # Coverage check: trace_ids that produced zero spans in CH could be
+    # either (a) traces that legitimately have no spans yet on either
+    # store, or (b) CH lag where the spans exist in PG but haven't
+    # replicated yet. The old PG-aggregate path masked this distinction
+    # (Count returned 0 either way), but reading from a different store
+    # than the write target makes (b) a new failure mode. Surface it via
+    # a `covered` flag so write-driving callers can warn-and-skip on
+    # next-tick rather than persisting an undercount.
+    seen_trace_ids = {str(s.trace_id) for s in spans}
+    requested = {str(tid) for tid in trace_ids}
+    missing_trace_ids = sorted(requested - seen_trace_ids)
     return {
         "span_count": span_count,
         "total_tokens": total_tokens,
@@ -63,6 +83,8 @@ def _aggregate_spans_by_trace_ids(trace_ids):
         "total_duration": total_duration,
         "error_count": error_count,
         "last_activity_at": last_activity_at,
+        "covered": not missing_trace_ids,
+        "missing_trace_ids": missing_trace_ids,
     }
 
 
@@ -210,6 +232,24 @@ def update_session_metrics_task():
                     trace_ids = list(traces.values_list("id", flat=True))
 
                     extra = _aggregate_spans_by_trace_ids(trace_ids)
+                    if not extra["covered"]:
+                        # CH lag: some trace_ids that exist in PG haven't
+                        # replicated yet. Skip the write — the next tick
+                        # will pick them up. Logging the missing set so
+                        # the lag is observable (codex P0 from the
+                        # consolidated review: writes driven by under-
+                        # counted CH reads should not be silent).
+                        logger.warning(
+                            "ch_lag_skip_session_metrics_write",
+                            session_id=str(session.id),
+                            missing_trace_ids_count=len(
+                                extra["missing_trace_ids"]
+                            ),
+                            missing_trace_ids_sample=extra[
+                                "missing_trace_ids"
+                            ][:10],
+                        )
+                        continue
                     session.span_count = extra["span_count"]
                     session.total_duration_ms = extra["total_duration"]
                     session.error_count = extra["error_count"]
@@ -238,6 +278,18 @@ def update_session_metrics_task():
                     continue
 
                 span_metrics = _aggregate_spans_by_trace_ids(trace_ids)
+                if not span_metrics["covered"]:
+                    logger.warning(
+                        "ch_lag_skip_session_metrics_write",
+                        session_id=str(session.id),
+                        missing_trace_ids_count=len(
+                            span_metrics["missing_trace_ids"]
+                        ),
+                        missing_trace_ids_sample=span_metrics[
+                            "missing_trace_ids"
+                        ][:10],
+                    )
+                    continue
 
                 # Update session (last_activity_at = max(end_time) from the
                 # same rollup; was previously a separate ORDER BY -end_time
@@ -386,7 +438,16 @@ def update_end_user_analytics_task():
                         ):
                             user.first_seen = ch_stats["first_seen"]
 
-                    if ch_stats.get("last_seen"):
+                    # last_seen parity: prefer user_agg["last_seen"] which
+                    # is max(end_time) — matches Django's previous behavior
+                    # of `.order_by("-end_time").first().end_time`. The
+                    # legacy ch_stats path returns max(start_time), which
+                    # underestimates last_seen for any long-running span.
+                    # Use that only as a fallback when CHSpanReader has
+                    # nothing (e.g. CH lag for this user).
+                    if user_agg["last_seen"]:
+                        user.last_seen = user_agg["last_seen"]
+                    elif ch_stats.get("last_seen"):
                         user.last_seen = ch_stats["last_seen"]
 
                     user.save(
@@ -513,8 +574,41 @@ def complete_sessions_with_trace_completion_task():
                 if not spans:
                     continue
 
+                # CH coverage check before driving a status/ended_at write
+                # (codex P0 from the consolidated review). If any trace in
+                # this session has zero spans in CH while it has spans in
+                # PG (lag), skipping completion until the next tick is the
+                # safe choice — partial coverage could make the "last
+                # span" pick stale and trigger an early COMPLETED write.
+                seen_trace_ids = {str(s.trace_id) for s in spans}
+                requested = {str(tid) for tid in trace_ids}
+                missing = sorted(requested - seen_trace_ids)
+                if missing:
+                    logger.warning(
+                        "ch_lag_skip_session_completion",
+                        session_id=str(session.id),
+                        missing_trace_ids_count=len(missing),
+                        missing_trace_ids_sample=missing[:10],
+                    )
+                    continue
+
+                # Mirror Django's `order_by("-end_time").first()` ordering
+                # exactly: PostgreSQL defaults NULLs FIRST under DESC, so a
+                # span with end_time=None — i.e. an unfinished/streaming
+                # span — was previously picked first and short-circuited
+                # the completion check (status is "UNSET" → completion
+                # skipped). Preserve that semantic by checking for any
+                # null-end_time span first; a still-open span keeps the
+                # session in ACTIVE.
+                has_unfinished = any(s.end_time is None for s in spans)
+                if has_unfinished:
+                    # Old path: last_span would be a null-end-time span,
+                    # whose status is typically UNSET → fails the OK/ERROR
+                    # gate → no completion. Same effect here.
+                    continue
+
                 last_span = max(
-                    (s for s in spans if s.end_time is not None),
+                    spans,
                     key=lambda s: s.end_time,
                     default=None,
                 )
@@ -609,7 +703,15 @@ def recalculate_project_user_analytics_task(project_id: str):
                         if ch_stats.get("first_seen"):
                             user.first_seen = ch_stats["first_seen"]
 
-                        if ch_stats.get("last_seen"):
+                        # last_seen parity: prefer user_agg["last_seen"]
+                        # (max(end_time)) over ch_stats["last_seen"]
+                        # (max(start_time)) — matches Django's
+                        # `.order_by("-end_time").first().end_time`
+                        # semantics. ch_stats is the legacy fallback for
+                        # cases where CHSpanReader has nothing.
+                        if user_agg["last_seen"]:
+                            user.last_seen = user_agg["last_seen"]
+                        elif ch_stats.get("last_seen"):
                             user.last_seen = ch_stats["last_seen"]
 
                         user.save()
