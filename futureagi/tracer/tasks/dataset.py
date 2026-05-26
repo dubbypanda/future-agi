@@ -59,12 +59,16 @@ def _chspan_field_value(span, field_name):
     if field_name in ("model_parameters", "input_images", "eval_input", "eval_attributes"):
         from tracer.services.clickhouse.v2.span_reader import CHSpanReader
 
-        extra = CHSpanReader.attributes_extra_as_dict(span) or {}
+        extra = CHSpanReader.attributes_extra_as_dict(span)
+        if not isinstance(extra, dict):
+            return None
         return extra.get(field_name)
     if field_name == "span_attributes":
         from tracer.services.clickhouse.v2.span_reader import CHSpanReader
 
-        extra = CHSpanReader.attributes_extra_as_dict(span) or {}
+        extra = CHSpanReader.attributes_extra_as_dict(span)
+        if not isinstance(extra, dict):
+            extra = {}
         merged: dict = {}
         merged.update(span.attrs_string or {})
         merged.update(span.attrs_number or {})
@@ -114,6 +118,11 @@ def _serialize_span_tree(span_id):
         if root_span is None:
             return []
         all_spans = reader.list_by_trace(root_span.trace_id)
+
+    # Preserve the legacy ObservationSpan model's default ordering
+    # (`Meta.ordering = ["-start_time"]`) so sibling child JSON order is
+    # unchanged. list_by_trace returns ascending start_time, so reverse.
+    all_spans = list(reversed(all_spans))
 
     # Build parent_id -> children lookup
     children_map: dict = {}
@@ -192,6 +201,21 @@ def process_spans_chunk_task(span_ids, dataset_id, column_span_mapping_data):
             fetched = reader.list_by_ids([str(s) for s in span_ids])
         by_id = {s.id: s for s in fetched}
         observation_spans = [by_id[str(s)] for s in span_ids if str(s) in by_id]
+
+        # Surface CH lag / divergence: span IDs found in PG but missing in CH
+        # would have silently produced fewer rows under the legacy ORM, which
+        # is the wrong outcome for a dataset build. Log loudly so the
+        # operator can decide whether to retry or rebackfill CH.
+        if len(observation_spans) != len(span_ids):
+            missing = [str(s) for s in span_ids if str(s) not in by_id]
+            logger.warning(
+                "dataset_chunk_ch_spans_missing",
+                requested=len(span_ids),
+                found=len(observation_spans),
+                missing_count=len(missing),
+                missing_sample=missing[:10],
+                dataset_id=str(dataset_id),
+            )
 
         rows_to_create = []
         cells_to_create = []
