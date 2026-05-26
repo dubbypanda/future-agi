@@ -207,6 +207,18 @@ def get_session_navigation(request, project_id, current_session_id, query_data=N
 
     session_ids = [session["id"] for session in trace_sessions]
 
+    # CH25-TODO: this 3-site ORM aggregate (per-session Min/Max + two
+    # OuterRef Subqueries for first/last input + Coalesce(Sum) + distinct
+    # Count(trace_id)) is the natural shape for a reader method
+    #   per_session_aggregate(session_ids, *, end_user_id=None) ->
+    #       dict[session_id, {start_time, end_time, first_input,
+    #                         last_input, total_cost, total_tokens,
+    #                         trace_count}]
+    # No existing CHSpanReader method covers it, and looping the
+    # single-session session_aggregate() per id would be N+1 (P2 from the
+    # consolidated review). The hand-rolled SessionAnalyticsQueryBuilder
+    # path above is the primary CH route; this PG block remains the
+    # fallback until per_session_aggregate lands.
     spans_data = (
         ObservationSpan.objects.filter(
             trace__session_id__in=session_ids, **end_user_filter
