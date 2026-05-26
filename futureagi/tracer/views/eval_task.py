@@ -1270,9 +1270,52 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             )
             filters = update_fields.get("filters") or eval_task.filters
 
-            # Validate filters and get total spans count
-            parsed_filters = parsing_evaltask_filters(filters)
-            total_spans = ObservationSpan.objects.filter(parsed_filters).count()
+            # Validate filters and get total spans count.
+            #
+            # CH25 migration (D-027): spans live in ClickHouse. The reader
+            # exposes a narrow ``count_with_filters`` (project_id /
+            # trace_ids / observation_type / session_id / created_at_*)
+            # that matches the keys ``parsing_evaltask_filters_for_ch``
+            # emits. Routing the keep-PG ``parsing_evaltask_filters → Q``
+            # through CH in full would require a Q→CH translator; here
+            # we only need a count so the narrow companion is sufficient.
+            #
+            # session_id filter semantics: ``parsing_evaltask_filters`` on
+            # the PG side materializes ``Trace.objects.filter(session_id=)
+            # .values_list("id")`` and filters by ``trace_id__in=…``. The
+            # CH spans table denormalizes ``trace_session_id`` onto every
+            # row, so the reader's ``session_id`` kwarg (which becomes
+            # ``trace_session_id = %s``) is the direct equivalent — no PG
+            # Trace round-trip needed.
+            #
+            # span_attributes_filters guard: ``_for_ch`` IGNORES
+            # span_attributes_filters because translating JSON-field Q
+            # objects to CH typed-Map predicates needs the v2 FilterEngine.
+            # If a caller passed them, ``count_with_filters`` would
+            # otherwise OVERCOUNT (running with the looser filter set
+            # only), inflating ``target_sample_size`` against the legacy
+            # PG denominator. Fall back to PG for that case so the count
+            # is tight; remove the fallback once the v2 FilterEngine
+            # ships CH attribute-filter support.
+            # CH25-TODO(span_attributes_filters_for_ch): wire a v2-
+            # FilterEngine-backed ``count_with_attr_filters`` so 100% of
+            # evaltask filter shapes route through CH.
+            from tracer.services.clickhouse.v2 import get_reader
+            from tracer.services.clickhouse.v2.span_reader import CHSpanReader
+
+            has_span_attr_filters = bool(
+                filters
+                and isinstance(filters, dict)
+                and filters.get("span_attributes_filters")
+            )
+            if has_span_attr_filters:
+                # PG fallback (KEEP-PG until the v2 FilterEngine lands).
+                parsed_filters = parsing_evaltask_filters(filters)
+                total_spans = ObservationSpan.objects.filter(parsed_filters).count()
+            else:
+                ch_kwargs = CHSpanReader.parsing_evaltask_filters_for_ch(filters or {})
+                with get_reader() as reader:
+                    total_spans = reader.count_with_filters(**ch_kwargs)
 
             if total_spans == 0:
                 logger.warning(
