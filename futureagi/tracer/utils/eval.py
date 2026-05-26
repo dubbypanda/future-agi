@@ -266,21 +266,28 @@ def build_session_context(session) -> dict | None:
         # explore_trace for deeper drill-down.
         traces_page = list(trace_qs.order_by("created_at")[:100])
         trace_ids = [t.id for t in traces_page]
+        # Stringified, as a set, so the per-trace bucket lookups below stay
+        # O(1) and match the str trace_id CH returns on each span row.
+        _page_trace_id_strs = {str(tid) for tid in trace_ids}
 
         # Read from CH 25.3 (was three separate ObservationSpan.objects
-        # queries: session aggregate, per-trace aggregate, per-trace span
-        # listing). We fetch the full span set scoped to the page of
-        # traces once and aggregate / bucket in Python. Soft-deleted spans
-        # are already filtered (CHSpanReader.list_by_trace_ids filters
-        # is_deleted=0; trace soft-delete cascades to spans, see
-        # _soft_delete_trace_tree in tracer/views/trace.py). The session
-        # aggregate uses the same row set so it stays consistent with the
-        # trace_ids cap.
-        if trace_ids:
-            with get_reader() as reader:
-                _ch_spans = reader.list_by_trace_ids([str(tid) for tid in trace_ids])
-        else:
+        # queries: session-wide aggregate, per-trace aggregate, per-trace
+        # span listing). list_by_session covers the same row set as the
+        # original ObservationSpan.objects.filter(trace__in=trace_qs,
+        # deleted=False) — soft-deleted traces cascade to spans (see
+        # _soft_delete_trace_tree in tracer/views/trace.py) and
+        # CHSpanReader filters is_deleted=0. The session aggregate is
+        # computed over the FULL row set (matching the original ORM
+        # aggregate which was not capped); the per-trace breakdown and
+        # the inline span list are only populated for traces in the
+        # 100-trace page so trace_summaries below still iterates the
+        # capped set.
+        session_id = getattr(session, "id", None)
+        if session_id is None:
             _ch_spans = []
+        else:
+            with get_reader() as reader:
+                _ch_spans = reader.list_by_session(str(session_id))
 
         _start_time = None
         _end_time = None
@@ -291,6 +298,9 @@ def build_session_context(session) -> dict | None:
         per_trace: dict = {}
         spans_by_trace: dict = {}
         for s in _ch_spans:
+            # Session totals span every trace; this matches the original
+            # filter(trace__in=trace_qs).aggregate(...) which had no
+            # 100-trace cap.
             _total_spans += 1
             if s.status == "ERROR":
                 _error_count += 1
@@ -301,6 +311,10 @@ def build_session_context(session) -> dict | None:
             if s.end_time and (_end_time is None or s.end_time > _end_time):
                 _end_time = s.end_time
 
+            # Per-trace breakdown + inline span listing are scoped to the
+            # traces in the page so the payload size stays bounded.
+            if s.trace_id not in _page_trace_id_strs:
+                continue
             agg = per_trace.setdefault(
                 s.trace_id,
                 {
