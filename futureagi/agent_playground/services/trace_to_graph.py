@@ -46,7 +46,12 @@ def _chspan_to_legacy_dict(span) -> dict[str, Any]:
 
     from tracer.services.clickhouse.v2.span_reader import CHSpanReader
 
-    extra = CHSpanReader.attributes_extra_as_dict(span) or {}
+    extra = CHSpanReader.attributes_extra_as_dict(span)
+    # Defensive: attributes_extra_as_dict can yield a non-dict if the
+    # underlying CH column is a raw String (schema 013) rather than typed
+    # JSON. Treat anything that's not a dict as no overflow data.
+    if not isinstance(extra, dict):
+        extra = {}
 
     span_attributes: dict = {}
     span_attributes.update(span.attrs_string or {})
