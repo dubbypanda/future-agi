@@ -127,7 +127,12 @@ class APIKeyAuthentication(BaseAuthentication):
         try:
             org_api_key = OrgApiKey.objects.select_related(
                 "organization", "workspace"
-            ).get(api_key=api_key, secret_key=secret_key, enabled=True)
+            ).get(
+                api_key=api_key,
+                secret_key=secret_key,
+                enabled=True,
+                deleted=False,
+            )
 
             # Validate that the API key has a valid organization
             if not org_api_key.organization:
@@ -528,7 +533,12 @@ class LangfuseBasicAuthentication(APIKeyAuthentication):
         try:
             org_api_key = OrgApiKey.objects.select_related(
                 "organization", "workspace"
-            ).get(api_key=public_key, secret_key=secret_key, enabled=True)
+            ).get(
+                api_key=public_key,
+                secret_key=secret_key,
+                enabled=True,
+                deleted=False,
+            )
         except OrgApiKey.DoesNotExist as e:
             raise AuthenticationFailed("Invalid API key or secret key") from e
 

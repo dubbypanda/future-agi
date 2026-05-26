@@ -6,6 +6,7 @@ import {
   apiPath,
   asArray,
   assert,
+  createApiClient,
   currentUserEmail,
   currentUserId,
   envFlag,
@@ -5421,18 +5422,40 @@ export const appCoreJourneys = [
   {
     id: "CORE-API-002",
     title:
-      "Developer secret key create, masked list, disable, enable, and delete lifecycle",
-    tags: ["core", "keys", "mutating", "data-roundtrip", "security"],
-    async run({ client, user, organizationId, cleanup, runId, evidence }) {
+      "Developer secret key create, masked list, API auth, disable, enable, and delete lifecycle",
+    tags: [
+      "core",
+      "keys",
+      "mutating",
+      "data-roundtrip",
+      "security",
+      "authentication",
+    ],
+    async run({
+      apiBase,
+      client,
+      user,
+      organizationId,
+      workspaceId,
+      cleanup,
+      runId,
+      evidence,
+    }) {
       requireMutations();
       if (!canManageOrgSecrets(user)) {
         skip(
           "Current user is not an org owner/admin; secret key cleanup is unsafe.",
         );
       }
+      const userId = currentUserId(user);
+      assert(userId, "Developer key journey requires an authenticated user id.");
       assert(
         isUuid(organizationId),
         "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
       );
 
       const keyName = `api journey key ${runId}`;
@@ -5458,12 +5481,11 @@ export const appCoreJourneys = [
         "created masked_secret_key",
       );
 
-      cleanup.defer("delete developer secret key", () =>
-        ignoreNotFound(() =>
-          client.delete(apiPath("/accounts/key/delete_secret_key/"), {
-            body: { key_id: created.key_id },
-          }),
-        ),
+      let hardCleaned = false;
+      cleanup.defer("hard-delete developer secret key fixture", () =>
+        hardCleaned
+          ? null
+          : hardDeleteDeveloperSecretKeyDb(created.key_id, organizationId),
       );
 
       let dbAudit = await loadDeveloperSecretKeyDbAudit(
@@ -5500,6 +5522,24 @@ export const appCoreJourneys = [
         "DB audit raw secret_key did not match one-time create response.",
       );
 
+      const apiKeyClient = createApiClient({
+        apiBase,
+        organizationId,
+        workspaceId,
+      });
+      const apiKeyHeaders = {
+        "X-Api-Key": created.api_key,
+        "X-Secret-Key": created.secret_key,
+      };
+      const apiKeyUserInfo = await apiKeyClient.get(
+        apiPath("/accounts/user-info/"),
+        { headers: apiKeyHeaders },
+      );
+      assert(
+        currentUserId(apiKeyUserInfo) === userId,
+        "Developer key auth returned a different user-info identity.",
+      );
+
       let listed = asArray(
         await client.get(apiPath("/accounts/key/get_secret_keys/"), {
           query: { search: keyName, page_size: 10 },
@@ -5524,6 +5564,14 @@ export const appCoreJourneys = [
         dbAudit.enabled === false,
         "DB audit developer key was not disabled.",
       );
+      const disabledAuthError = await expectApiError(
+        () =>
+          apiKeyClient.get(apiPath("/accounts/user-info/"), {
+            headers: apiKeyHeaders,
+          }),
+        [401, 403],
+        "Disabled developer key still authenticated to user-info.",
+      );
       listed = asArray(
         await client.get(apiPath("/accounts/key/get_secret_keys/"), {
           query: { search: keyName, page_size: 10 },
@@ -5547,6 +5595,14 @@ export const appCoreJourneys = [
       assert(
         dbAudit.enabled === true,
         "DB audit developer key was not re-enabled.",
+      );
+      const reenabledUserInfo = await apiKeyClient.get(
+        apiPath("/accounts/user-info/"),
+        { headers: apiKeyHeaders },
+      );
+      assert(
+        currentUserId(reenabledUserInfo) === userId,
+        "Re-enabled developer key auth returned a different user-info identity.",
       );
       listed = asArray(
         await client.get(apiPath("/accounts/key/get_secret_keys/"), {
@@ -5576,6 +5632,14 @@ export const appCoreJourneys = [
         dbAudit.deleted_at_set === true,
         "DB audit developer key deleted_at was not set.",
       );
+      const deletedAuthError = await expectApiError(
+        () =>
+          apiKeyClient.get(apiPath("/accounts/user-info/"), {
+            headers: apiKeyHeaders,
+          }),
+        [401, 403],
+        "Deleted developer key still authenticated to user-info.",
+      );
       const afterDelete = asArray(
         await client.get(apiPath("/accounts/key/get_secret_keys/"), {
           query: { search: keyName, page_size: 10 },
@@ -5586,13 +5650,28 @@ export const appCoreJourneys = [
         "Deleted secret key was still visible through list/search.",
       );
 
+      const hardCleanup = await hardDeleteDeveloperSecretKeyDb(
+        created.key_id,
+        organizationId,
+      );
+      hardCleaned = true;
+      assert(
+        hardCleanup.remaining_key_count === 0,
+        `Developer key hard cleanup left rows behind: ${JSON.stringify(hardCleanup)}`,
+      );
+
       evidence.push({
         key_name: keyName,
         key_id: created.key_id,
         create_returned_one_time_raw_key_material: true,
         list_api_key_masked: true,
         list_secret_key_masked: true,
+        api_key_user_info_auth: true,
+        disabled_auth_status: disabledAuthError.status,
+        reenabled_user_info_auth: true,
+        deleted_auth_status: deletedAuthError.status,
         db_deleted_at_set: dbAudit.deleted_at_set,
+        hard_cleanup_remaining_key_count: hardCleanup.remaining_key_count,
       });
     },
   },
@@ -6538,6 +6617,29 @@ SELECT json_build_object(
 FROM accounts_orgapikey
 WHERE id = ${sqlUuid(keyId)}
   AND organization_id = ${sqlUuid(organizationId)};
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDeveloperSecretKeyDb(keyId, organizationId) {
+  const sql = `
+WITH target_keys AS (
+  SELECT id
+  FROM accounts_orgapikey
+  WHERE id = ${sqlUuid(keyId)}
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+deleted_keys AS (
+  DELETE FROM accounts_orgapikey key
+  USING target_keys target
+  WHERE key.id = target.id
+  RETURNING key.id
+)
+SELECT json_build_object(
+  'deleted_key_count', (SELECT count(*) FROM deleted_keys),
+  'remaining_key_count',
+    (SELECT count(*) FROM target_keys) - (SELECT count(*) FROM deleted_keys)
+);
 `;
   return runPostgresJson(sql);
 }
