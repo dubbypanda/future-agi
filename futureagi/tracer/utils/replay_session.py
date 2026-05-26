@@ -487,6 +487,43 @@ def _get_transcripts_from_trace_query(trace_query: QuerySet) -> dict[str, list[d
     }
 
 
+def _chspan_to_legacy_dict(span) -> dict:
+    """Reconstruct the legacy ``{trace_id, span_attributes, eval_attributes}``
+    dict shape from a ``CHSpan`` so existing ``merge_span_attrs`` callers
+    keep working.
+
+    ``span_attributes`` is the merge of the typed maps (attrs_string /
+    attrs_number / attrs_bool) plus the overflow JSON ``attributes_extra``
+    minus the four PG JSONField columns the adapter round-trips into the
+    overflow (model_parameters / input_images / eval_input / eval_attributes
+    — see ``tracer/services/clickhouse/v2/adapter.py:330``). Those four are
+    pulled back out into their original positions.
+    """
+    from tracer.services.clickhouse.v2.span_reader import CHSpanReader
+
+    extra = CHSpanReader.attributes_extra_as_dict(span) or {}
+    attrs: dict = {}
+    attrs.update(span.attrs_string or {})
+    attrs.update(span.attrs_number or {})
+    attrs.update(span.attrs_bool or {})
+
+    _ROUND_TRIP_COLS = (
+        "model_parameters",
+        "input_images",
+        "eval_input",
+        "eval_attributes",
+    )
+    for k, v in extra.items():
+        if k not in _ROUND_TRIP_COLS:
+            attrs[k] = v
+
+    return {
+        "trace_id": span.trace_id,
+        "span_attributes": attrs,
+        "eval_attributes": extra.get("eval_attributes") or {},
+    }
+
+
 def _get_transcripts_from_session_query(trace_query: QuerySet) -> dict[str, list[dict]]:
     """
     Get transcripts from a session-filtered trace queryset, ordered by root span start time.
@@ -541,31 +578,40 @@ def _is_voice_trace_query(trace_query: QuerySet) -> bool:
     NOTE: Only samples the first 10 traces for performance. In mixed
     voice/text projects this may not be fully representative.
     """
-    trace_ids = trace_query.values_list("id", flat=True)[:10]
-    return ObservationSpan.objects.filter(
-        trace_id__in=trace_ids,
-        observation_type="conversation",
-    ).exists()
+    from tracer.services.clickhouse.v2 import get_reader
+
+    trace_ids = list(trace_query.values_list("id", flat=True)[:10])
+    if not trace_ids:
+        return False
+
+    # Cheap pre-filter: list spans for the sampled traces and short-circuit
+    # on the first conversation span. Per-trace span counts are bounded.
+    with get_reader() as reader:
+        for tid in trace_ids:
+            for s in reader.list_by_trace(str(tid)):
+                if s.observation_type == "conversation":
+                    return True
+    return False
 
 
 def _get_first_voice_span_raw_log(trace_query: QuerySet) -> dict | None:
     """Fetch the raw_log from the first conversation span in the trace query."""
+    from tracer.services.clickhouse.v2 import get_reader
+
     trace_id = trace_query.values_list("id", flat=True).first()
     if not trace_id:
         return None
 
-    span = (
-        ObservationSpan.objects.filter(
-            trace_id=trace_id,
-            observation_type="conversation",
-        )
-        .values("span_attributes", "eval_attributes")
-        .first()
+    with get_reader() as reader:
+        spans = reader.list_by_trace(str(trace_id))
+
+    conversation_span = next(
+        (s for s in spans if s.observation_type == "conversation"), None
     )
-    if not span:
+    if conversation_span is None:
         return None
 
-    attrs = merge_span_attrs(span)
+    attrs = merge_span_attrs(_chspan_to_legacy_dict(conversation_span))
     raw_log = attrs.get("raw_log")
     return raw_log if isinstance(raw_log, dict) else None
 
@@ -675,16 +721,27 @@ def _extract_voice_trace_system_prompt(
 
 def _load_voice_conversation_spans(trace_query: QuerySet) -> list[dict]:
     """
-    Load conversation-type spans for all traces in the query (single DB hit).
-    Returns a list of dicts with trace_id, span_attributes, and eval_attributes.
+    Load conversation-type spans for all traces in the query.
+    Returns a list of dicts shaped like ``{trace_id, span_attributes, eval_attributes}``
+    so downstream ``merge_span_attrs`` / attribute lookups keep working.
+
+    Backing store is now ClickHouse (CHSpanReader). One bulk query across
+    all trace_ids; observation_type filter applied in Python.
     """
+    from tracer.services.clickhouse.v2 import get_reader
+
     trace_ids = list(trace_query.values_list("id", flat=True))
-    return list(
-        ObservationSpan.objects.filter(
-            trace_id__in=trace_ids,
-            observation_type="conversation",
-        ).values("trace_id", "span_attributes", "eval_attributes")
-    )
+    if not trace_ids:
+        return []
+
+    with get_reader() as reader:
+        spans = reader.list_by_trace_ids([str(t) for t in trace_ids])
+
+    return [
+        _chspan_to_legacy_dict(s)
+        for s in spans
+        if s.observation_type == "conversation"
+    ]
 
 
 def _extract_recording_urls_from_spans(spans: list[dict]) -> dict[str, str]:
