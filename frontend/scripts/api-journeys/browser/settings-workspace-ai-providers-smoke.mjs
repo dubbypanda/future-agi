@@ -12,11 +12,13 @@ const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
-const SCREENSHOT_PATH = "/tmp/settings-workspace-ai-providers-smoke.png";
-const MUTATION_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-ai-providers-mutation-smoke.png";
-const DELETE_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-ai-providers-delete-smoke.png";
+const ROUTE_MODE =
+  process.env.AI_PROVIDERS_ROUTE_MODE === "global" ? "global" : "workspace";
+const IS_GLOBAL_ROUTE = ROUTE_MODE === "global";
+const SCREENSHOT_PREFIX = `/tmp/settings-${ROUTE_MODE}-ai-providers`;
+const SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-smoke.png`;
+const MUTATION_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-mutation-smoke.png`;
+const DELETE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-delete-smoke.png`;
 const RUN_PROVIDER_KEY_MUTATION = envFlag("API_JOURNEY_MUTATIONS");
 const SAFE_PROVIDER_KEY_CANDIDATES = [
   "palm",
@@ -142,6 +144,9 @@ async function main() {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
+    const expectedPath = IS_GLOBAL_ROUTE
+      ? "/dashboard/settings/ai-providers"
+      : `/dashboard/settings/workspace/${auth.workspaceId}/ai-providers`;
     const providerStatusResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/model-hub/develops/provider-status/") &&
@@ -154,12 +159,12 @@ async function main() {
         response.status() < 400,
       { timeout: 60000 },
     );
-    await page.goto(
-      `${APP_BASE}/dashboard/settings/workspace/${auth.workspaceId}/ai-providers`,
-      { waitUntil: "domcontentloaded" },
-    );
+    await page.goto(`${APP_BASE}${expectedPath}`, {
+      waitUntil: "domcontentloaded",
+    });
     await Promise.all([providerStatusResponse, customModelsResponse]);
 
+    await assertCurrentPath(page, expectedPath);
     await waitForVisibleText(page, "AI Providers", { exact: true });
     await waitForVisibleText(page, "Manage your AI providers");
     await waitForVisibleText(page, "Create custom model", { exact: true });
@@ -273,6 +278,7 @@ async function main() {
       JSON.stringify(
         {
           status: "passed",
+          route_mode: ROUTE_MODE,
           app_base: APP_BASE,
           api_base: auth.apiBase,
           organization_id: auth.organizationId,
@@ -494,6 +500,14 @@ async function waitForVisibleButton(page, label) {
     },
     { timeout: 30000 },
     label,
+  );
+}
+
+async function assertCurrentPath(page, expectedPath, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    (path) => window.location.pathname === path,
+    { timeout },
+    expectedPath,
   );
 }
 

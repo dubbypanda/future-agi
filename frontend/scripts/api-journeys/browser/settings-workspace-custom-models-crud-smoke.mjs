@@ -12,16 +12,16 @@ const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
+const ROUTE_MODE =
+  process.env.AI_PROVIDERS_ROUTE_MODE === "global" ? "global" : "workspace";
+const IS_GLOBAL_ROUTE = ROUTE_MODE === "global";
+const SCREENSHOT_PREFIX = `/tmp/settings-${ROUTE_MODE}-custom-model`;
 const CALLBACK_HOST =
   process.env.API_JOURNEY_CALLBACK_HOST || "host.docker.internal";
-const CREATE_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-custom-model-create-smoke.png";
-const UPDATE_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-custom-model-update-smoke.png";
-const DELETE_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-custom-model-delete-smoke.png";
-const ERROR_SCREENSHOT_PATH =
-  "/tmp/settings-workspace-custom-model-error-smoke.png";
+const CREATE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-create-smoke.png`;
+const UPDATE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-update-smoke.png`;
+const DELETE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-delete-smoke.png`;
+const ERROR_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-error-smoke.png`;
 
 async function main() {
   requireMutations();
@@ -85,17 +85,20 @@ async function main() {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
+    const expectedPath = IS_GLOBAL_ROUTE
+      ? "/dashboard/settings/ai-providers"
+      : `/dashboard/settings/workspace/${auth.workspaceId}/ai-providers`;
     const customModelsResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/model-hub/custom-models/") &&
         response.status() < 400,
       { timeout: 60000 },
     );
-    await page.goto(
-      `${APP_BASE}/dashboard/settings/workspace/${auth.workspaceId}/ai-providers`,
-      { waitUntil: "domcontentloaded" },
-    );
+    await page.goto(`${APP_BASE}${expectedPath}`, {
+      waitUntil: "domcontentloaded",
+    });
     await customModelsResponse;
+    await assertCurrentPath(page, expectedPath);
     await waitForVisibleText(page, "Create custom model", { exact: true });
 
     await clickVisibleButton(page, "Create custom model");
@@ -218,6 +221,7 @@ async function main() {
       JSON.stringify(
         {
           status: "passed",
+          route_mode: ROUTE_MODE,
           app_base: APP_BASE,
           api_base: auth.apiBase,
           organization_id: auth.organizationId,
@@ -407,6 +411,14 @@ async function waitForNoVisibleText(
     },
     { timeout },
     { text, exact },
+  );
+}
+
+async function assertCurrentPath(page, expectedPath, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    (path) => window.location.pathname === path,
+    { timeout },
+    expectedPath,
   );
 }
 
