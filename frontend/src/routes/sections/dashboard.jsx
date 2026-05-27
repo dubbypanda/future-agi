@@ -764,6 +764,16 @@ export const dashboardRoutes = (
               ),
             },
             {
+              path: "integrations/:connectionId",
+              element: (
+                <WorkspaceRoleProtection
+                  allowedRoles={["workspace_admin", "workspace_member"]}
+                >
+                  <IntegrationDetailPage />
+                </WorkspaceRoleProtection>
+              ),
+            },
+            {
               path: "ai-providers",
               element: (
                 <WorkspaceRoleProtection

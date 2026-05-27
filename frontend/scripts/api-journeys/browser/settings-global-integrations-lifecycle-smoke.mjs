@@ -16,18 +16,21 @@ const puppeteer = require("puppeteer-core");
 const execFileAsync = promisify(execFile);
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
-const EDIT_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-edit-smoke.png";
-const SYNC_GUARD_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-sync-guard-smoke.png";
-const PAUSE_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-pause-smoke.png";
-const RESUME_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-resume-smoke.png";
-const DELETE_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-delete-smoke.png";
-const ERROR_SCREENSHOT_PATH =
-  "/tmp/settings-global-integrations-lifecycle-error-smoke.png";
+const ROUTE_MODE =
+  process.env.INTEGRATIONS_LIFECYCLE_ROUTE === "workspace"
+    ? "workspace"
+    : "global";
+const IS_WORKSPACE_ROUTE = ROUTE_MODE === "workspace";
+const DISPLAY_NAME_PREFIX = `UI Journey ${
+  IS_WORKSPACE_ROUTE ? "Workspace" : "Global"
+} Integration`;
+const SCREENSHOT_PREFIX = `/tmp/settings-${ROUTE_MODE}-integrations-lifecycle`;
+const EDIT_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-edit-smoke.png`;
+const SYNC_GUARD_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-sync-guard-smoke.png`;
+const PAUSE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-pause-smoke.png`;
+const RESUME_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-resume-smoke.png`;
+const DELETE_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-delete-smoke.png`;
+const ERROR_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}-error-smoke.png`;
 
 async function main() {
   requireMutations();
@@ -42,10 +45,12 @@ async function main() {
 
   const marker = auth.runId.replace(/[^a-z0-9-]/gi, "").slice(0, 20);
   await deleteUiJourneyIntegrationData({
+    displayNamePrefix: DISPLAY_NAME_PREFIX,
     organizationId: auth.organizationId,
     workspaceId: auth.workspaceId,
   });
   const seeded = await seedIntegrationConnectionData({
+    displayNamePrefix: DISPLAY_NAME_PREFIX,
     marker,
     organizationId: auth.organizationId,
     workspaceId: auth.workspaceId,
@@ -141,6 +146,12 @@ async function main() {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
+    const expectedListPath = IS_WORKSPACE_ROUTE
+      ? `/dashboard/settings/workspace/${auth.workspaceId}/integrations`
+      : "/dashboard/settings/integrations";
+    const expectedDetailPath = IS_WORKSPACE_ROUTE
+      ? `/dashboard/settings/workspace/${auth.workspaceId}/integrations/${seeded.connection_id}`
+      : `/dashboard/settings/integrations/${seeded.connection_id}`;
     const listResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/integrations/connections/") &&
@@ -148,12 +159,18 @@ async function main() {
         response.status() < 400,
       { timeout: 60000 },
     );
-    await page.goto(`${APP_BASE}/dashboard/settings/integrations`, {
+    await page.goto(`${APP_BASE}${expectedListPath}`, {
       waitUntil: "domcontentloaded",
     });
     await listResponse;
 
     await waitForVisibleText(page, "Integrations", { exact: true });
+    if (IS_WORKSPACE_ROUTE) {
+      await waitForVisibleText(page, "Manage workspace integrations", {
+        exact: true,
+      });
+    }
+    await assertCurrentPath(page, expectedListPath);
     await waitForVisibleText(page, seeded.display_name, { exact: true });
     await waitForVisibleText(page, seeded.host_url, { exact: true });
     await assertPageDoesNotContain(page, [
@@ -172,6 +189,7 @@ async function main() {
     );
     await clickVisibleText(page, seeded.display_name);
     await detailResponse;
+    await assertCurrentPath(page, expectedDetailPath);
 
     await waitForVisibleText(page, "Back to Integrations", { exact: true });
     await waitForVisibleText(page, seeded.display_name, { exact: true });
@@ -340,11 +358,13 @@ async function main() {
       "integration delete",
     );
 
-    await page.waitForFunction(
-      () => window.location.pathname.endsWith("/settings/integrations"),
-      { timeout: 30000 },
-    );
+    await assertCurrentPath(page, expectedListPath);
     await waitForVisibleText(page, "Integrations", { exact: true });
+    if (IS_WORKSPACE_ROUTE) {
+      await waitForVisibleText(page, "Manage workspace integrations", {
+        exact: true,
+      });
+    }
     await waitForNoVisibleText(page, updatedDisplayName, { exact: true });
     await page.screenshot({ path: DELETE_SCREENSHOT_PATH, fullPage: true });
 
@@ -396,12 +416,15 @@ async function main() {
       JSON.stringify(
         {
           status: "passed",
+          route_mode: ROUTE_MODE,
           app_base: APP_BASE,
           api_base: auth.apiBase,
           organization_id: auth.organizationId,
           workspace_id: auth.workspaceId,
           evidence: {
             connection_id: seeded.connection_id,
+            entry_path: expectedListPath,
+            detail_path: expectedDetailPath,
             display_name: updatedDisplayName,
             sync_guard_status: syncGuardResponse.status(),
             pause_status: responseResult(pauseBody)?.status,
@@ -685,6 +708,14 @@ async function waitForNoVisibleSelector(
   );
 }
 
+async function assertCurrentPath(page, expectedPath, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    (path) => window.location.pathname === path,
+    { timeout },
+    expectedPath,
+  );
+}
+
 async function assertPageDoesNotContain(page, values) {
   const content = await page.content();
   for (const value of values) {
@@ -796,6 +827,7 @@ function isIntegrationMutationResponse(response) {
 }
 
 async function seedIntegrationConnectionData({
+  displayNamePrefix,
   marker,
   organizationId,
   workspaceId,
@@ -808,7 +840,7 @@ async function seedIntegrationConnectionData({
   assert(isUuid(workspaceId), "Integration seed workspace id must be a UUID.");
   assert(isUuid(userId), "Integration seed user id must be a UUID.");
 
-  const displayName = `UI Journey Global Integration ${marker}`;
+  const displayName = `${displayNamePrefix} ${marker}`;
   const externalProjectName = `ui-journey-${marker}`;
   const publicKey = `pk-lf-${marker.slice(0, 12)}pub1234`;
   const secretKey = `sk-lf-${marker.slice(0, 12)}sec5678`;
@@ -955,7 +987,11 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
-async function deleteUiJourneyIntegrationData({ organizationId, workspaceId }) {
+async function deleteUiJourneyIntegrationData({
+  displayNamePrefix,
+  organizationId,
+  workspaceId,
+}) {
   const sql = `
 WITH requested AS (
   SELECT
@@ -968,7 +1004,7 @@ target_connections AS (
   JOIN requested r
     ON connection.organization_id = r.organization_id
    AND connection.workspace_id = r.workspace_id
-  WHERE connection.display_name LIKE 'UI Journey Global Integration %'
+  WHERE connection.display_name LIKE ${sqlString(`${displayNamePrefix} %`)}
 ),
 deleted_logs AS (
   DELETE FROM integrations_sync_log log
@@ -1069,6 +1105,10 @@ function childProcessEnv() {
 function sqlUuid(value) {
   assert(isUuid(value), "SQL UUID value must be a UUID.");
   return `'${value}'::uuid`;
+}
+
+function sqlString(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 function shellQuote(value) {
