@@ -8053,7 +8053,6 @@ async function seedVoiceSimulationCallOutputFixtureDb({
   const runTestId = randomUUID();
   const testExecutionId = randomUUID();
   const callExecutionId = randomUUID();
-  const createCallExecutionId = randomUUID();
   const transcriptIds = [randomUUID(), randomUUID()];
   const customerCallId = `${namePrefix}-provider-call`;
   const recordingUrl = "https://example.com/api-journey/voice-call.mp3";
@@ -8583,7 +8582,6 @@ inserted_create_call AS (
     updated_at,
     deleted,
     deleted_at,
-    id,
     phone_number_id,
     to_number,
     system_prompt,
@@ -8597,7 +8595,6 @@ inserted_create_call AS (
     now(),
     false,
     NULL,
-    ${sqlUuid(createCallExecutionId)},
     ${sqlString(`${namePrefix}-phone-number`)},
     '+15555550123',
     'Temporary voice simulation call for API journey output coverage.',
@@ -10276,7 +10273,7 @@ SELECT json_build_object(
   'provider_keys', (
     SELECT COALESCE(json_agg(key ORDER BY key), '[]'::json)
     FROM target_call,
-    LATERAL json_object_keys(provider_call_data) AS keys(key)
+    LATERAL jsonb_object_keys(provider_call_data) AS keys(key)
   ),
   'transcript_count', (
     SELECT count(*)
