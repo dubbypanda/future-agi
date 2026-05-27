@@ -3086,12 +3086,7 @@ class TestAutomationRulesE2E:
     # -----------------------------------------------------------------------
     # 34. Concurrent evaluators of the same rule don't double-add
     # -----------------------------------------------------------------------
-    @pytest.mark.xfail(
-        reason="evaluate_rule internally resolves Organization via a path "
-        "that doesn't read from thread-local workspace context. Needs "
-        "evaluate_rule to accept organization_id as a parameter. Real "
-        "backend bug — not test infra."
-    )
+    @pytest.mark.django_db(transaction=True)
     def test_concurrent_evaluators_serialise(
         self, auth_client, organization, workspace
     ):
@@ -3122,7 +3117,9 @@ class TestAutomationRulesE2E:
             },
             format="json",
         )
-        rule = AutomationRule.objects.get(pk=resp.data["id"])
+        rule = AutomationRule.objects.select_related(
+            "organization", "queue", "queue__project"
+        ).get(pk=resp.data["id"])
 
         results: list[dict] = []
         errors: list[str] = []
