@@ -362,10 +362,21 @@ async function loadProjectIfCurrentWorkspace(
 }
 
 async function preparePage(page, auth, { seed, taskName, draftId }) {
+  const startDate = formatDateForInput(new Date(Date.now() - 30 * 864e5));
+  const endDate = formatDateForInput(new Date());
   await page.setBypassServiceWorker(true);
   await installRuntimeConfig(page, auth);
   await page.evaluateOnNewDocument(() => {
     window.__apiJourneyNormalizeText = (value) => String(value || "").trim();
+    window.__apiJourneyElementText = (element) => {
+      const values = [element.textContent];
+      if ("value" in element) values.push(element.value);
+      values.push(element.getAttribute?.("aria-label"));
+      return values
+        .map((value) => window.__apiJourneyNormalizeText(value))
+        .filter(Boolean)
+        .join(" ");
+    };
     window.__apiJourneyVisibleElements = () => {
       const isVisible = (element) => {
         const style = window.getComputedStyle(element);
@@ -389,6 +400,8 @@ async function preparePage(page, auth, { seed, taskName, draftId }) {
       draftId,
       seed,
       taskName,
+      startDate,
+      endDate,
     }) => {
       localStorage.setItem("accessToken", tokens.access);
       localStorage.setItem("refreshToken", tokens.refresh || "");
@@ -411,8 +424,8 @@ async function preparePage(page, auth, { seed, taskName, draftId }) {
             spansLimit: 100000,
             samplingRate: 100,
             evalsDetails: [seed.evalConfig],
-            startDate: formatDateForInput(new Date(Date.now() - 30 * 864e5)),
-            endDate: formatDateForInput(new Date()),
+            startDate,
+            endDate,
             runType: "continuous",
           },
         }),
@@ -426,6 +439,8 @@ async function preparePage(page, auth, { seed, taskName, draftId }) {
       draftId,
       seed,
       taskName,
+      startDate,
+      endDate,
     },
   );
 }
@@ -469,9 +484,7 @@ async function expectVisibleText(
   await page.waitForFunction(
     ({ text: expectedText, exact: exactMatch }) => {
       return window.__apiJourneyVisibleElements().some((element) => {
-        const textContent = window.__apiJourneyNormalizeText(
-          element.textContent,
-        );
+        const textContent = window.__apiJourneyElementText(element);
         if (exactMatch) return textContent === expectedText;
         return textContent.includes(expectedText);
       });
@@ -487,9 +500,7 @@ async function expectNoVisibleText(page, text, { timeout = 30000 } = {}) {
       return !window
         .__apiJourneyVisibleElements()
         .some((element) =>
-          window
-            .__apiJourneyNormalizeText(element.textContent)
-            .includes(expectedText),
+          window.__apiJourneyElementText(element).includes(expectedText),
         );
     },
     { timeout },
