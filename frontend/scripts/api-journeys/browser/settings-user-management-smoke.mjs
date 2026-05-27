@@ -1,5 +1,7 @@
+import { execFile as execFileCallback } from "node:child_process";
 import { createRequire } from "node:module";
 import process from "node:process";
+import { promisify } from "node:util";
 import {
   apiPath,
   asArray,
@@ -12,11 +14,16 @@ import {
 
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const execFileAsync = promisify(execFileCallback);
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
 const SCREENSHOT_PATH = "/tmp/settings-user-management-smoke.png";
 const INVITE_SCREENSHOT_PATH = "/tmp/settings-user-management-invite-smoke.png";
 const CANCEL_SCREENSHOT_PATH = "/tmp/settings-user-management-cancel-smoke.png";
+const ROLE_SCREENSHOT_PATH = "/tmp/settings-user-management-role-smoke.png";
+const REMOVE_SCREENSHOT_PATH = "/tmp/settings-user-management-remove-smoke.png";
+const REACTIVATE_SCREENSHOT_PATH =
+  "/tmp/settings-user-management-reactivate-smoke.png";
 const ERROR_SCREENSHOT_PATH = "/tmp/settings-user-management-error-smoke.png";
 const ORG_ADMIN_LEVEL = 8;
 
@@ -40,10 +47,25 @@ async function main() {
     memberRow,
     "RBAC member list did not return the current user by email.",
   );
+  const workspaceRows = asArray(
+    await auth.client.get(apiPath("/accounts/workspace/list/")),
+  );
+  const activeWorkspace = workspaceRows.find(
+    (row) => row?.id === auth.workspaceId,
+  );
+  const workspaceName =
+    activeWorkspace?.display_name ||
+    activeWorkspace?.name ||
+    "Default Workspace";
   const shouldMutate = envFlag("API_JOURNEY_MUTATIONS");
-  const inviteEmail =
-    `ui.journey.rbac.${auth.runId.replace(/[^a-z0-9-]/gi, "").slice(0, 20)}@futureagi.local`.toLowerCase();
+  const marker = auth.runId.replace(/[^a-z0-9-]/gi, "").slice(0, 20);
+  const inviteEmail = `ui.journey.rbac.${marker}@futureagi.local`.toLowerCase();
+  const activeMemberEmail =
+    `ui.journey.rbac.member.${marker}@futureagi.local`.toLowerCase();
+  const activeMemberPassword = `ApiJourney${marker.slice(0, 8)}123!`;
   let inviteCancelled = !shouldMutate;
+  let activeMemberCleaned = !shouldMutate;
+  let activeMemberUserId = "";
 
   const apiFailures = [];
   const pageErrors = [];
@@ -54,6 +76,7 @@ async function main() {
     member_status: memberRow.status,
     member_org_level: memberRow.org_level,
     member_type: memberRow.type,
+    workspace_name: workspaceName,
     invite_mutation_exercised: shouldMutate,
   };
 
@@ -67,6 +90,33 @@ async function main() {
   const page = await browser.newPage();
   await page.setBypassServiceWorker(true);
   await installRuntimeConfig(page, auth);
+  await page.evaluateOnNewDocument(() => {
+    window.__userManagementInputByLabel = (expectedLabel) => {
+      const normalize = (value) =>
+        String(value || "")
+          .replace(/\s*\*$/, "")
+          .trim();
+      const visible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const labelElement = Array.from(document.querySelectorAll("label")).find(
+        (candidate) =>
+          visible(candidate) &&
+          normalize(candidate.textContent) === expectedLabel,
+      );
+      const root =
+        labelElement?.closest(".MuiFormControl-root") ||
+        labelElement?.parentElement?.parentElement;
+      return root?.querySelector("input") || null;
+    };
+  });
   await page.evaluateOnNewDocument(
     ({ tokens, organizationId, workspaceId, user }) => {
       localStorage.setItem("accessToken", tokens.access);
@@ -245,6 +295,141 @@ async function main() {
       inviteCancelled = true;
       evidence.cancel_screenshot = CANCEL_SCREENSHOT_PATH;
       await page.screenshot({ path: CANCEL_SCREENSHOT_PATH, fullPage: true });
+
+      stage = "setup accepted disposable member";
+      const activeMember = await createAcceptedRbacMember({
+        auth,
+        email: activeMemberEmail,
+        password: activeMemberPassword,
+        orgLevel: 3,
+        workspaceLevel: 3,
+      });
+      activeMemberUserId = activeMember.user_id;
+      activeMemberCleaned = false;
+      evidence.active_member_email = activeMemberEmail;
+      evidence.active_member_user_id = activeMemberUserId;
+
+      stage = "verify accepted member row";
+      await searchMembers(page, activeMemberEmail);
+      await waitForVisibleText(page, activeMemberEmail);
+      await waitForMemberRowText(page, activeMemberEmail, "Active");
+      await waitForMemberRowText(page, activeMemberEmail, "Member");
+
+      stage = "update accepted member role";
+      await clickMemberRowActionMenu(page, activeMemberEmail, "Edit user info");
+      await clickVisibleTextElement(page, "Edit user info", { exact: true });
+      await waitForVisibleText(page, "Edit user info", { exact: true });
+      await selectSearchFieldOption(page, "Organization Role", "Admin");
+      const roleResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/accounts/organization/members/role/") &&
+          response.request().method() === "POST",
+        { timeout: 60000 },
+      );
+      await clickDialogButton(page, "Update");
+      const roleResponse = await roleResponsePromise;
+      const roleBody = await roleResponse.json().catch(() => null);
+      assert(
+        roleResponse.status() < 400,
+        `Browser member role update failed with HTTP ${roleResponse.status()}: ${JSON.stringify(roleBody)}`,
+      );
+      await waitForNoVisibleText(page, "Edit user info", { exact: true });
+      let activeRows = asArray(
+        await auth.client.get(apiPath("/accounts/organization/members/"), {
+          query: { search: activeMemberEmail, page: 1, limit: 10 },
+        }),
+      );
+      let activeRow = findMemberRow(activeRows, activeMemberEmail);
+      assert(
+        activeRow?.org_level === 8,
+        "Browser role update did not persist Admin org level.",
+      );
+      await waitForMemberRowText(page, activeMemberEmail, "Admin");
+      evidence.role_screenshot = ROLE_SCREENSHOT_PATH;
+      await page.screenshot({ path: ROLE_SCREENSHOT_PATH, fullPage: true });
+
+      stage = "remove accepted member";
+      await clickMemberRowActionMenu(
+        page,
+        activeMemberEmail,
+        "Remove from organization",
+      );
+      await clickVisibleTextElement(page, "Remove from organization", {
+        exact: true,
+      });
+      await waitForVisibleText(
+        page,
+        "Are you sure you want to remove this member?",
+        { exact: true },
+      );
+      const removeResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/accounts/organization/members/remove/") &&
+          response.request().method() === "DELETE",
+        { timeout: 60000 },
+      );
+      await clickDialogButton(page, "Remove");
+      const removeResponse = await removeResponsePromise;
+      const removeBody = await removeResponse.json().catch(() => null);
+      assert(
+        removeResponse.status() < 400,
+        `Browser member remove failed with HTTP ${removeResponse.status()}: ${JSON.stringify(removeBody)}`,
+      );
+      await waitForMemberRowText(page, activeMemberEmail, "Deactivated");
+      activeRows = asArray(
+        await auth.client.get(apiPath("/accounts/organization/members/"), {
+          query: { search: activeMemberEmail, page: 1, limit: 10 },
+        }),
+      );
+      activeRow = findMemberRow(activeRows, activeMemberEmail);
+      assert(
+        activeRow?.status === "Deactivated",
+        "Browser member remove did not reload the row as Deactivated.",
+      );
+      evidence.remove_screenshot = REMOVE_SCREENSHOT_PATH;
+      await page.screenshot({ path: REMOVE_SCREENSHOT_PATH, fullPage: true });
+
+      stage = "reactivate accepted member";
+      await clickMemberRowActionMenu(
+        page,
+        activeMemberEmail,
+        "Reactivate member",
+      );
+      await clickVisibleTextElement(page, "Reactivate member", { exact: true });
+      await waitForVisibleText(page, "Reactivate this member?", {
+        exact: true,
+      });
+      const reactivateResponsePromise = page.waitForResponse(
+        (response) =>
+          response
+            .url()
+            .includes("/accounts/organization/members/reactivate/") &&
+          response.request().method() === "POST",
+        { timeout: 60000 },
+      );
+      await clickDialogButton(page, "Reactivate");
+      const reactivateResponse = await reactivateResponsePromise;
+      const reactivateBody = await reactivateResponse.json().catch(() => null);
+      assert(
+        reactivateResponse.status() < 400,
+        `Browser member reactivate failed with HTTP ${reactivateResponse.status()}: ${JSON.stringify(reactivateBody)}`,
+      );
+      await waitForMemberRowText(page, activeMemberEmail, "Active");
+      activeRows = asArray(
+        await auth.client.get(apiPath("/accounts/organization/members/"), {
+          query: { search: activeMemberEmail, page: 1, limit: 10 },
+        }),
+      );
+      activeRow = findMemberRow(activeRows, activeMemberEmail);
+      assert(
+        activeRow?.status === "Active",
+        "Browser member reactivate did not reload the row as Active.",
+      );
+      evidence.reactivate_screenshot = REACTIVATE_SCREENSHOT_PATH;
+      await page.screenshot({
+        path: REACTIVATE_SCREENSHOT_PATH,
+        fullPage: true,
+      });
     } else {
       stage = "close read-only invite drawer";
       await page.keyboard.press("Escape");
@@ -294,6 +479,13 @@ async function main() {
     if (shouldMutate && !inviteCancelled) {
       await cancelInvitesByEmail(auth, inviteEmail);
     }
+    if (shouldMutate && !activeMemberCleaned) {
+      await cleanupAcceptedMember(auth, {
+        email: activeMemberEmail,
+        userId: activeMemberUserId,
+      });
+      activeMemberCleaned = true;
+    }
     await browser.close();
   }
 }
@@ -327,42 +519,41 @@ async function fillChipsInput(page, placeholder, value) {
 }
 
 async function selectSearchFieldOption(page, label, option) {
-  const clicked = await page.evaluate((expectedLabel) => {
-    const normalize = (value) =>
-      String(value || "")
-        .replace(/\s*\*$/, "")
-        .trim();
-    const visible = (element) => {
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return (
-        style.visibility !== "hidden" &&
-        style.display !== "none" &&
-        rect.width > 0 &&
-        rect.height > 0
-      );
-    };
-    const labelElement = Array.from(document.querySelectorAll("label")).find(
-      (candidate) =>
-        visible(candidate) &&
-        normalize(candidate.textContent) === expectedLabel,
-    );
-    const root =
-      labelElement?.closest(".MuiFormControl-root") ||
-      labelElement?.parentElement?.parentElement;
-    const input = root?.querySelector("input");
-    if (!input) return false;
-    input.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-    input.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    input.focus();
-    return true;
-  }, label);
-  assert(clicked, `Could not open search select ${label}.`);
+  const box = await labeledInputBox(page, label);
+  await page.mouse.click(box.x, box.y);
   await clickVisibleTextElement(page, option, {
     exact: true,
     selector: '[role="menuitem"], li',
   });
+  await waitForLabeledInputValue(page, label, option);
+}
+
+async function labeledInputBox(page, label) {
+  await page.waitForFunction(
+    (expectedLabel) =>
+      Boolean(window.__userManagementInputByLabel(expectedLabel)),
+    { timeout: 30000 },
+    label,
+  );
+  const box = await page.evaluate((expectedLabel) => {
+    const input = window.__userManagementInputByLabel(expectedLabel);
+    if (!input) return null;
+    const rect = input.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, label);
+  assert(box, `Could not locate input for ${label}.`);
+  return box;
+}
+
+async function waitForLabeledInputValue(page, label, value) {
+  await page.waitForFunction(
+    ({ label: expectedLabel, value: expectedValue }) => {
+      const input = window.__userManagementInputByLabel(expectedLabel);
+      return input?.value === expectedValue;
+    },
+    { timeout: 30000 },
+    { label, value },
+  );
 }
 
 async function searchMembers(page, search) {
@@ -379,6 +570,33 @@ async function searchMembers(page, search) {
   await page.keyboard.press("Backspace");
   await page.type(selector, search);
   await searchedMembersResponse;
+}
+
+async function waitForMemberRowText(page, email, text) {
+  await page.waitForFunction(
+    ({ expectedEmail, expectedText }) => {
+      const visible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      return Array.from(document.querySelectorAll('[role="row"]')).some(
+        (row) =>
+          visible(row) &&
+          String(row.textContent || "")
+            .toLowerCase()
+            .includes(expectedEmail) &&
+          String(row.textContent || "").includes(expectedText),
+      );
+    },
+    { timeout: 30000 },
+    { expectedEmail: email, expectedText: text },
+  );
 }
 
 async function clickEnabledButton(page, text) {
@@ -451,7 +669,11 @@ async function clickDialogButton(page, text) {
   assert(box, `Could not click dialog button ${text}.`);
 }
 
-async function clickMemberRowActionMenu(page, email) {
+async function clickMemberRowActionMenu(
+  page,
+  email,
+  expectedMenuText = "Cancel invite",
+) {
   await page.waitForFunction(
     (expectedEmail) =>
       Array.from(document.querySelectorAll('[role="row"]')).some((row) =>
@@ -514,10 +736,9 @@ async function clickMemberRowActionMenu(page, email) {
     }
     const opened = await page
       .waitForFunction(
-        () =>
-          document.body.innerText.includes("Cancel invite") ||
-          document.body.innerText.includes("Resend the invite"),
+        (text) => document.body.innerText.includes(text),
         { timeout: 1000 },
+        expectedMenuText,
       )
       .then(() => true)
       .catch(() => false);
@@ -730,6 +951,330 @@ async function cancelInvitesByEmail(auth, email) {
         },
       );
     }
+  }
+}
+
+async function createAcceptedRbacMember({
+  auth,
+  email,
+  password,
+  orgLevel,
+  workspaceLevel,
+}) {
+  const invited = await auth.client.post(
+    apiPath("/accounts/organization/invite/"),
+    {
+      emails: [email],
+      org_level: orgLevel,
+      workspace_access: [
+        { workspace_id: auth.workspaceId, level: workspaceLevel },
+      ],
+    },
+  );
+  assert(
+    asArray(invited?.invited).includes(email),
+    "Accepted-member setup invite response did not include disposable email.",
+  );
+
+  let rows = asArray(
+    await auth.client.get(apiPath("/accounts/organization/members/"), {
+      query: { search: email, page: 1, limit: 10 },
+    }),
+  );
+  const pendingInvite = rows.find(
+    (row) =>
+      row?.type === "invite" &&
+      String(row?.email || "").toLowerCase() === email,
+  );
+  assert(
+    pendingInvite?.status === "Pending",
+    "Accepted-member setup did not create a Pending invite row.",
+  );
+
+  const tokenInfo = await resolveInviteAcceptanceToken(email);
+  const acceptPath = apiPath("/accounts/accept-invitation/{uidb64}/{token}/", {
+    uidb64: tokenInfo.uidb64,
+    token: tokenInfo.token,
+  });
+  const preview = await unauthenticatedApiRequest(
+    auth.apiBase,
+    "GET",
+    acceptPath,
+  );
+  assert(
+    preview?.valid === true && preview?.email === email,
+    "Accepted-member setup invite preview did not validate.",
+  );
+  const accepted = await unauthenticatedApiRequest(
+    auth.apiBase,
+    "POST",
+    acceptPath,
+    {
+      new_password: password,
+      repeat_password: password,
+    },
+  );
+  assert(
+    typeof accepted?.access === "string" &&
+      typeof accepted?.refresh === "string",
+    "Accepted-member setup did not return access and refresh tokens.",
+  );
+
+  rows = asArray(
+    await auth.client.get(apiPath("/accounts/organization/members/"), {
+      query: { search: email, page: 1, limit: 10 },
+    }),
+  );
+  const activeMember = findMemberRow(rows, email);
+  assert(
+    activeMember?.type === "member" && activeMember?.status === "Active",
+    "Accepted-member setup did not reload as an Active member.",
+  );
+  return {
+    user_id: tokenInfo.user_id,
+    member: activeMember,
+  };
+}
+
+async function cleanupAcceptedMember(auth, { email, userId }) {
+  if (userId) {
+    await ignoreNotFound(() =>
+      auth.client.delete(
+        apiPath("/accounts/team/users/{member_id}/", {
+          member_id: userId,
+        }),
+      ),
+    );
+  }
+  await deleteDisposableRbacUserArtifacts(email);
+}
+
+function findMemberRow(rows, email) {
+  return asArray(rows).find(
+    (row) => String(row?.email || "").toLowerCase() === email,
+  );
+}
+
+async function resolveInviteAcceptanceToken(email) {
+  const script = `
+import json
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from accounts.models import User
+user = User.objects.get(email=${JSON.stringify(email)})
+print(json.dumps({
+    "user_id": str(user.id),
+    "uidb64": urlsafe_base64_encode(force_bytes(user.pk)),
+    "token": default_token_generator.make_token(user),
+}))
+`;
+  return runBackendShellJson(script);
+}
+
+async function runBackendShellJson(script) {
+  let stdout;
+  const container = process.env.API_JOURNEY_BACKEND_CONTAINER;
+  if (container) {
+    const command = [
+      "cd /app/backend",
+      `python manage.py shell -c ${shellQuote(script)}`,
+    ].join(" && ");
+    ({ stdout } = await execFileAsync(
+      "docker",
+      ["exec", container, "sh", "-lc", command],
+      { maxBuffer: 20 * 1024 * 1024 },
+    ));
+  } else {
+    const backendDir = process.env.API_JOURNEY_BACKEND_DIR || "futureagi";
+    ({ stdout } = await execFileAsync(
+      "uv",
+      ["run", "python", "manage.py", "shell", "-c", script],
+      {
+        cwd: backendDir,
+        env: {
+          ...process.env,
+          EE_LICENSE_KEY: process.env.EE_LICENSE_KEY || "test-license-key",
+          PGBOUNCER_HOST: process.env.PGBOUNCER_HOST || "127.0.0.1",
+          PGBOUNCER_PORT: process.env.PGBOUNCER_PORT || "5436",
+          REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6382/0",
+          REDIS_CACHE_URL:
+            process.env.REDIS_CACHE_URL || "redis://127.0.0.1:6382/0",
+          UV_PROJECT_ENVIRONMENT:
+            process.env.UV_PROJECT_ENVIRONMENT || ".venv-th5064-py311",
+        },
+        maxBuffer: 20 * 1024 * 1024,
+      },
+    ));
+  }
+  const jsonLine = stdout
+    .trim()
+    .split(/\r?\n/)
+    .reverse()
+    .find((line) => line.trim().startsWith("{"));
+  assert(jsonLine, "Backend shell command did not emit a JSON object.");
+  return JSON.parse(jsonLine);
+}
+
+async function unauthenticatedApiRequest(apiBase, method, pathName, body) {
+  const response = await fetch(new URL(pathName, apiBase), {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
+  }
+  if (!response.ok) {
+    throw new Error(
+      `${method} ${pathName} failed with HTTP ${response.status}: ${text.slice(0, 1000)}`,
+    );
+  }
+  if (payload && typeof payload === "object" && payload.status === false) {
+    throw new Error(
+      `${method} ${pathName} returned status:false: ${JSON.stringify(payload).slice(0, 1000)}`,
+    );
+  }
+  return payload?.result ?? payload;
+}
+
+async function deleteDisposableRbacUserArtifacts(email) {
+  const sql = `
+WITH requested AS (
+  SELECT lower(${sqlTextLiteral(email)}) AS email
+),
+user_rows AS (
+  SELECT u.id
+  FROM accounts_user u
+  JOIN requested r ON lower(u.email) = r.email
+),
+deleted_auth_tokens AS (
+  DELETE FROM accounts_auth_token token
+  USING user_rows u
+  WHERE token.user_id = u.id
+  RETURNING token.id
+),
+deleted_recovery_codes AS (
+  DELETE FROM accounts_recovery_code code
+  USING user_rows u
+  WHERE code.user_id = u.id
+  RETURNING code.id
+),
+deleted_totp_devices AS (
+  DELETE FROM accounts_user_totp_device device
+  USING user_rows u
+  WHERE device.user_id = u.id
+  RETURNING device.id
+),
+deleted_webauthn_credentials AS (
+  DELETE FROM accounts_webauthn_credential credential
+  USING user_rows u
+  WHERE credential.user_id = u.id
+  RETURNING credential.id
+),
+deleted_user_groups AS (
+  DELETE FROM accounts_user_groups user_group
+  USING user_rows u
+  WHERE user_group.user_id = u.id
+  RETURNING user_group.id
+),
+deleted_user_permissions AS (
+  DELETE FROM accounts_user_user_permissions user_permission
+  USING user_rows u
+  WHERE user_permission.user_id = u.id
+  RETURNING user_permission.id
+),
+deleted_workspace_memberships AS (
+  DELETE FROM accounts_workspacemembership membership
+  USING user_rows u
+  WHERE membership.user_id = u.id
+  RETURNING membership.id
+),
+deleted_org_memberships AS (
+  DELETE FROM accounts_organization_membership membership
+  USING user_rows u
+  WHERE membership.user_id = u.id
+  RETURNING membership.id
+),
+deleted_invites AS (
+  DELETE FROM accounts_organization_invite oi
+  USING requested r
+  WHERE lower(oi.target_email) = r.email
+  RETURNING oi.id
+),
+deleted_users AS (
+  DELETE FROM accounts_user u
+  USING requested r
+  WHERE lower(u.email) = r.email
+  RETURNING u.id
+)
+SELECT json_build_object(
+  'deleted_invites', (SELECT count(*) FROM deleted_invites),
+  'deleted_auth_tokens', (SELECT count(*) FROM deleted_auth_tokens),
+  'deleted_recovery_codes', (SELECT count(*) FROM deleted_recovery_codes),
+  'deleted_totp_devices', (SELECT count(*) FROM deleted_totp_devices),
+  'deleted_webauthn_credentials', (SELECT count(*) FROM deleted_webauthn_credentials),
+  'deleted_user_groups', (SELECT count(*) FROM deleted_user_groups),
+  'deleted_user_permissions', (SELECT count(*) FROM deleted_user_permissions),
+  'deleted_workspace_memberships', (SELECT count(*) FROM deleted_workspace_memberships),
+  'deleted_org_memberships', (SELECT count(*) FROM deleted_org_memberships),
+  'deleted_users', (SELECT count(*) FROM deleted_users),
+  'remaining_invites', (
+    SELECT count(*) FROM accounts_organization_invite oi, requested r
+    WHERE lower(oi.target_email) = r.email
+  ),
+  'remaining_users', (
+    SELECT count(*) FROM accounts_user u, requested r
+    WHERE lower(u.email) = r.email
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function runPostgresJson(sql) {
+  const container = process.env.API_JOURNEY_DB_CONTAINER || "ws2-postgres";
+  const user = process.env.API_JOURNEY_DB_USER || "user";
+  const database = process.env.API_JOURNEY_DB_NAME || "tfc";
+  const { stdout } = await execFileAsync(
+    "docker",
+    ["exec", container, "psql", "-U", user, "-d", database, "-At", "-c", sql],
+    { maxBuffer: 10 * 1024 * 1024 },
+  );
+  const text = stdout.trim();
+  assert(text, "Postgres DB cleanup returned no JSON output.");
+  return JSON.parse(text);
+}
+
+function sqlTextLiteral(value) {
+  return `'${String(value ?? "").replaceAll("'", "''")}'`;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+}
+
+async function ignoreNotFound(fn) {
+  try {
+    return await fn();
+  } catch (error) {
+    const message = String(error?.message || "").toLowerCase();
+    if (
+      error?.status === 404 ||
+      message.includes("not found") ||
+      message.includes("does not exist") ||
+      message.includes("no keys are associated") ||
+      (message.includes("no ") && message.includes(" matches "))
+    ) {
+      return null;
+    }
+    throw error;
   }
 }
 
