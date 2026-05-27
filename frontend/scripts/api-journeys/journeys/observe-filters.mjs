@@ -2803,31 +2803,15 @@ export const observeFilterJourneys = [
         req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
       };
       const guardCalls = [
-        ["GET", () => client.get(apiPath("/tracer/charts/"))],
-        ["POST", () => client.post(apiPath("/tracer/charts/"), payload)],
-        [
-          "GET detail",
-          () => client.get(apiPath("/tracer/charts/{id}/", { id: chartId })),
-        ],
-        [
-          "PUT",
-          () =>
-            client.put(
-              apiPath("/tracer/charts/{id}/", { id: chartId }),
-              payload,
-            ),
-        ],
+        ["GET", () => client.get("/tracer/charts/")],
+        ["POST", () => client.post("/tracer/charts/", payload)],
+        ["GET detail", () => client.get(`/tracer/charts/${chartId}/`)],
+        ["PUT", () => client.put(`/tracer/charts/${chartId}/`, payload)],
         [
           "PATCH",
-          () =>
-            client.patch(apiPath("/tracer/charts/{id}/", { id: chartId }), {
-              property: "p95",
-            }),
+          () => client.patch(`/tracer/charts/${chartId}/`, { property: "p95" }),
         ],
-        [
-          "DELETE",
-          () => client.delete(apiPath("/tracer/charts/{id}/", { id: chartId })),
-        ],
+        ["DELETE", () => client.delete(`/tracer/charts/${chartId}/`)],
       ];
       const guardedMethods = [];
       for (const [method, fn] of guardCalls) {
@@ -2938,38 +2922,18 @@ export const observeFilterJourneys = [
       const generatedContractAudit =
         await loadGeneratedTraceAnnotationCrudContractAudit();
       const guardCalls = [
-        ["GET", () => client.get(apiPath("/tracer/trace-annotation/"))],
-        ["POST", () => client.post(apiPath("/tracer/trace-annotation/"), {})],
+        ["GET", () => client.get("/tracer/trace-annotation/")],
+        ["POST", () => client.post("/tracer/trace-annotation/", {})],
         [
           "GET detail",
-          () =>
-            client.get(
-              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
-            ),
+          () => client.get(`/tracer/trace-annotation/${routeId}/`),
         ],
-        [
-          "PUT",
-          () =>
-            client.put(
-              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
-              {},
-            ),
-        ],
+        ["PUT", () => client.put(`/tracer/trace-annotation/${routeId}/`, {})],
         [
           "PATCH",
-          () =>
-            client.patch(
-              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
-              {},
-            ),
+          () => client.patch(`/tracer/trace-annotation/${routeId}/`, {}),
         ],
-        [
-          "DELETE",
-          () =>
-            client.delete(
-              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
-            ),
-        ],
+        ["DELETE", () => client.delete(`/tracer/trace-annotation/${routeId}/`)],
       ];
       const guardedMethods = [];
       for (const [method, fn] of guardCalls) {
