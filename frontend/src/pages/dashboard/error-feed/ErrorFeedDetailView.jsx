@@ -26,6 +26,7 @@ import OverviewTab from "./components/OverviewTab";
 import TracesTab from "./components/TracesTab";
 import StateGraphTab from "./components/StateGraphTab";
 import TrendsTab from "./components/TrendsTab";
+import AnalyzeTab from "./components/AnalyzeTab";
 import { useErrorFeedStore } from "./store";
 
 // ── Detail page skeleton ─────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ const TABS = [
   { key: "traces", label: "Traces", icon: "mdi:timeline-text-outline" },
   { key: "stategraph", label: "State Graph", icon: "mdi:graph-outline" },
   { key: "trends", label: "Trends", icon: "mdi:chart-line" },
+  { key: "analyze", label: "Analyze", icon: "mdi:brain" },
 ];
 
 // ── Main view ─────────────────────────────────────────────────────────────────
@@ -404,6 +406,7 @@ export default function ErrorFeedDetailView() {
             {safeTabIndex === 1 && <TracesTab error={currentError} />}
             {safeTabIndex === 2 && <StateGraphTab error={currentError} />}
             {safeTabIndex === 3 && <TrendsTab error={currentError} />}
+            {safeTabIndex === 4 && <AnalyzeTab error={currentError} />}
           </Box>
         </Box>
       </Box>

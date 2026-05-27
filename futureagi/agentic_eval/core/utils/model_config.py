@@ -137,6 +137,13 @@ class ModelConfigs:
         max_tokens=8100,
     )
 
+    VERTEX_GEMINI_3_1_FLASH_LITE: Final[ModelConfig] = ModelConfig(
+        provider=LiteLlmProvider.VERTEX_AI.value,
+        model_name="vertex_ai/gemini-3.1-flash-lite",
+        temperature=0.2,
+        max_tokens=8100,
+    )
+
     CLAUDE_4_5_SONNET_BEDROCK_ARN: Final[ModelConfig] = ModelConfig(
         provider=LiteLlmProvider.AWS_BEDROCK_ANTHROPIC.value,
         model_name=os.environ.get("BEDROCK_SONNET_ARN", ""),
