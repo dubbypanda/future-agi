@@ -16,7 +16,7 @@ import pandas as pd
 import structlog
 
 logger = structlog.get_logger(__name__)
-from django.db import models
+from django.db import OperationalError, connection, models, transaction
 from django.db.models import (
     Avg,
     Case,
@@ -40,8 +40,10 @@ from django.db.models.functions import (
     Round,
 )
 from django.http import FileResponse
+from rest_framework import status as drf_status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from model_hub.models.choices import AnnotationTypeChoices
@@ -115,14 +117,14 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
             analytics = AnalyticsQueryService()
             if analytics.should_use_clickhouse(QueryType.TRACE_DETAIL):
-                try:
-                    return self._retrieve_clickhouse(
-                        request, trace_session_id, trace_session, project_id, analytics
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "CH session retrieve failed, falling back to PG", error=str(e)
-                    )
+                # CH-only path post-TH-5562. PG fallback removed — a CH
+                # error propagates so the outer handler can return a 5xx
+                # with structured diagnostics instead of silently
+                # degrading to a 30 s PG aggregate that breaches
+                # ``statement_timeout``. Mirrors D-027 from PR #654.
+                return self._retrieve_clickhouse(
+                    request, trace_session_id, trace_session, project_id, analytics
+                )
 
             serializer = self.get_serializer(trace_session)
             trace_session = serializer.data
@@ -422,9 +424,32 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     "next": has_next,
                 }
             )
+        except OperationalError as e:
+            # Postgres ``statement_timeout`` fire from any PG query reached
+            # while building the detail body. Return 504 so callers know
+            # the request is retryable instead of a generic 400.
+            logger.exception(
+                "trace_session_retrieve_timeout",
+                session_id=str(self.kwargs.get("pk")),
+                error=str(e),
+            )
+            return Response(
+                {
+                    "status": False,
+                    "result": (
+                        "Session detail unavailable: query exceeded time "
+                        "budget. Retry shortly."
+                    ),
+                },
+                status=drf_status.HTTP_504_GATEWAY_TIMEOUT,
+            )
         except Exception as e:
-            traceback.print_exc()
-            return self._gm.bad_request(f"Error retrieving trace session: {str(e)}")
+            logger.exception(
+                "trace_session_retrieve_failed",
+                session_id=str(self.kwargs.get("pk")),
+                error=str(e),
+            )
+            return self._gm.bad_request("Error retrieving trace session.")
 
     def _retrieve_clickhouse(
         self, request, trace_session_id, trace_session_obj, project_id, analytics
@@ -527,14 +552,33 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
         # Get eval metrics from CH
         trace_ids = [r["trace_id"] for r in traces_data]
-        eval_configs = list(
-            CustomEvalConfig.objects.filter(
-                id__in=EvalLogger.objects.filter(trace_id__in=trace_ids).values(
-                    "custom_eval_config_id"
-                ),
-                deleted=False,
-            ).select_related("eval_template")
-        )
+
+        # Bound the only PG hop in the CH detail path: TH-5562 traced one
+        # trigger of the cascade to this query (EvalLogger / CustomEvalConfig
+        # are still PG-resident). Wrap in a 5s ``statement_timeout`` budget
+        # — on a hot or oversized EvalLogger this used to run the whole
+        # ``retrieve()`` past the 30s middleware budget. On timeout we
+        # degrade to an empty config list: the page renders without eval
+        # columns instead of failing.
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cur:
+                    cur.execute("SET LOCAL statement_timeout = '5s'")
+                eval_configs = list(
+                    CustomEvalConfig.objects.filter(
+                        id__in=EvalLogger.objects.filter(trace_id__in=trace_ids).values(
+                            "custom_eval_config_id"
+                        ),
+                        deleted=False,
+                    ).select_related("eval_template")
+                )
+        except OperationalError as e:
+            logger.warning(
+                "retrieve_clickhouse_eval_configs_timeout",
+                session_id=str(trace_session_id),
+                error=str(e),
+            )
+            eval_configs = []
 
         eval_map = {}
         if eval_configs and trace_ids:

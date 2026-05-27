@@ -82,6 +82,11 @@ class SessionAnalyticsQueryBuilder(BaseQueryBuilder):
         """
         params = dict(self.params)
 
+        # ``trace_session_id`` is a UUID column. Comparing it to '' makes
+        # CH 25.3 try to coerce '' -> UUID and raise
+        # ``Code 376: Cannot parse uuid``, which is logged in prod (TH-5562)
+        # — use ``IS NOT NULL`` instead. The NIL-UUID check on the next
+        # line still excludes spans with the sentinel "no session" value.
         query = f"""
         SELECT
             trace_session_id,
@@ -92,7 +97,7 @@ class SessionAnalyticsQueryBuilder(BaseQueryBuilder):
             sum(cost) AS total_cost
         FROM {self.TABLE}
         {self.project_where()}
-          AND trace_session_id != ''
+          AND trace_session_id IS NOT NULL
           AND trace_session_id != toUUID('{NIL_UUID}')
         GROUP BY trace_session_id
         ORDER BY started_at DESC
