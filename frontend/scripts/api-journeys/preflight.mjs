@@ -33,6 +33,12 @@ try {
       service: "redis",
     })),
   );
+  checks.push(
+    ...(await checkRedisWriteHealth({
+      envName: "API_JOURNEY_REDIS_CONTAINER",
+      fallbackNames: DEFAULT_REDIS_CONTAINERS,
+    })),
+  );
   checks.push(await checkDockerDiskUsage());
 } catch (error) {
   checks.push({
@@ -235,6 +241,76 @@ async function checkDockerContainer({ name, service, explicit }) {
       name: `${service}_container:${name}`,
       status: explicit ? "failed" : "warning",
       error: error.message,
+    };
+  }
+}
+
+async function checkRedisWriteHealth({ envName, fallbackNames }) {
+  const explicit = splitEnvList(process.env[envName]);
+  const names = [
+    ...new Set((explicit.length ? explicit : fallbackNames).filter(Boolean)),
+  ];
+  const results = [];
+
+  for (const name of names) {
+    const state = await loadDockerContainerState(name);
+    if (!state?.exists || state.status !== "running") continue;
+    results.push(await checkRedisContainerWriteHealth(name));
+  }
+
+  return results;
+}
+
+async function loadDockerContainerState(name) {
+  try {
+    const { stdout } = await execFileAsync("docker", [
+      "inspect",
+      name,
+      "--format",
+      "{{json .State}}",
+    ]);
+    const state = JSON.parse(stdout.trim());
+    return { exists: true, status: state.Status };
+  } catch {
+    return { exists: false, status: "" };
+  }
+}
+
+async function checkRedisContainerWriteHealth(name) {
+  const key = `api_journey_preflight:${Date.now()}:${Math.random()
+    .toString(36)
+    .slice(2)}`;
+  try {
+    const { stdout } = await execFileAsync("docker", [
+      "exec",
+      name,
+      "redis-cli",
+      "SET",
+      key,
+      "ok",
+      "EX",
+      "30",
+    ]);
+    const output = stdout.trim();
+    const passed = output === "OK";
+    if (passed) {
+      await execFileAsync("docker", ["exec", name, "redis-cli", "DEL", key]);
+    }
+    return {
+      name: `redis_write:${name}`,
+      status: passed ? "passed" : "failed",
+      detail: passed
+        ? "Redis accepted a short-lived write probe."
+        : "Redis did not accept a write probe; cache-backed auth and journeys may fail.",
+      output: passed ? undefined : output.slice(0, 1000),
+      recent_log_summary: passed ? undefined : await summarizeDockerLogs(name),
+    };
+  } catch (error) {
+    return {
+      name: `redis_write:${name}`,
+      status: "failed",
+      error: error.message,
+      recent_log_summary: await summarizeDockerLogs(name),
     };
   }
 }
