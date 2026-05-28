@@ -83,6 +83,24 @@ describe("OpenAPI runtime contract", () => {
     );
   });
 
+  it("accepts JSON-valued Gateway provider config maps", () => {
+    expect(
+      validateContractedRequestConfig({
+        url: "/agentcc/gateways/default/update-provider/",
+        method: "post",
+        data: {
+          name: "bedrock",
+          config: {
+            api_format: "bedrock",
+            models: ["anthropic.claude-3-haiku-20240307-v1:0"],
+            default_timeout: 45,
+            max_concurrent: 3,
+          },
+        },
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("validates form bodies against the same request schema", () => {
     const body = new FormData();
     body.set("code", "123456");

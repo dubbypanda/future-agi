@@ -56255,8 +56255,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Config",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
+            "x-json-value": true
           }
         }
       }

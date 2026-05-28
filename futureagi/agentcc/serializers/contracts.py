@@ -314,7 +314,7 @@ class GatewayConfigPatchRequestSerializer(serializers.Serializer):
 
 class GatewayProviderUpdateRequestSerializer(serializers.Serializer):
     name = serializers.CharField()
-    config = serializers.DictField()
+    config = serializers.DictField(child=serializers.JSONField())
 
 
 class GatewayNameRequestSerializer(serializers.Serializer):

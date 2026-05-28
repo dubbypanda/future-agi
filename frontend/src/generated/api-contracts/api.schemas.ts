@@ -2882,7 +2882,7 @@ export interface GatewayMCPServerUpdateRequestApi {
   config: GatewayMCPServerUpdateRequestApiConfig;
 }
 
-export type GatewayProviderUpdateRequestApiConfig = {[key: string]: string};
+export type GatewayProviderUpdateRequestApiConfig = {[key: string]: unknown};
 
 export interface GatewayProviderUpdateRequestApi {
   /** @minLength 1 */
