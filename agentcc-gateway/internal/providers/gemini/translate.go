@@ -82,6 +82,18 @@ type geminiGenerationConfig struct {
 	ResponseSchema     json.RawMessage     `json:"responseSchema,omitempty"`
 	ResponseModalities []string            `json:"responseModalities,omitempty"`
 	SpeechConfig       *geminiSpeechConfig `json:"speechConfig,omitempty"`
+	ThinkingConfig     *geminiThinkingConfig `json:"thinkingConfig,omitempty"`
+}
+
+// geminiThinkingConfig controls Gemini "thinking". includeThoughts MUST be
+// true for the model to return thought summaries (otherwise it reasons
+// internally but returns nothing). thinkingLevel (low|medium|high|minimal) is
+// the Gemini 3.x knob; thinkingBudget (token count) is the 2.5-era knob, kept
+// backwards-compatible on 3.x. Set at most one of level/budget.
+type geminiThinkingConfig struct {
+	IncludeThoughts bool   `json:"includeThoughts,omitempty"`
+	ThinkingLevel   string `json:"thinkingLevel,omitempty"`
+	ThinkingBudget  *int   `json:"thinkingBudget,omitempty"`
 }
 
 type geminiSpeechConfig struct {
@@ -219,6 +231,14 @@ func translateRequest(req *models.ChatCompletionRequest) (*geminiRequest, string
 		}
 	}
 
+	// Thinking is opt-in: a caller enables Gemini thought summaries by passing
+	// `thinking_budget` (int tokens) or `reasoning_effort` (low|medium|high).
+	// includeThoughts is REQUIRED for summaries to be returned. Callers that
+	// pass neither are unaffected — no thinkingConfig, no added latency/cost.
+	if tc := buildThinkingConfig(req.Extra); tc != nil {
+		gc.ThinkingConfig = tc
+	}
+
 	gr.GenerationConfig = gc
 
 	// Translate tools.
@@ -247,6 +267,36 @@ func translateRequest(req *models.ChatCompletionRequest) (*geminiRequest, string
 	}
 
 	return gr, model
+}
+
+// buildThinkingConfig derives a Gemini thinkingConfig from the opt-in request
+// extras. Returns nil when the caller did not request thinking, leaving other
+// Gemini traffic untouched. `thinking_budget` (int) maps to thinkingBudget;
+// `reasoning_effort` (low|medium|high|minimal) maps to thinkingLevel.
+func buildThinkingConfig(extra map[string]json.RawMessage) *geminiThinkingConfig {
+	if extra == nil {
+		return nil
+	}
+	tc := &geminiThinkingConfig{IncludeThoughts: true}
+	set := false
+	if raw, ok := extra["thinking_budget"]; ok {
+		var n int
+		if err := json.Unmarshal(raw, &n); err == nil {
+			tc.ThinkingBudget = &n
+			set = true
+		}
+	}
+	if raw, ok := extra["reasoning_effort"]; ok && tc.ThinkingBudget == nil {
+		var s string
+		if err := json.Unmarshal(raw, &s); err == nil && s != "" {
+			tc.ThinkingLevel = strings.ToLower(s)
+			set = true
+		}
+	}
+	if !set {
+		return nil
+	}
+	return tc
 }
 
 func translateMessage(msg models.Message) geminiContent {
@@ -505,16 +555,20 @@ func translateResponse(resp *geminiResponse, model string) *models.ChatCompletio
 		msg := models.Message{Role: "assistant"}
 
 		var textParts []string
+		var reasoningParts []string
 		var imageParts []geminiInlineData
 		var audioParts []geminiInlineData
 		var toolCalls []models.ToolCall
 		toolCallIdx := 0
 
 		for _, part := range candidate.Content.Parts {
-			// Drop thinking text from the user-visible content. The signature
-			// still needs to ride along on the functionCall part below; this
-			// only suppresses the freeform reasoning prose.
+			// Thought summaries (returned when includeThoughts is set) surface
+			// as reasoning_content — kept out of user-visible content but no
+			// longer discarded. Signatures still ride on the functionCall part.
 			if part.Thought && part.FunctionCall == nil {
+				if part.Text != "" {
+					reasoningParts = append(reasoningParts, part.Text)
+				}
 				continue
 			}
 			if part.Text != "" {
@@ -596,6 +650,9 @@ func translateResponse(resp *geminiResponse, model string) *models.ChatCompletio
 		}
 		if len(toolCalls) > 0 {
 			msg.ToolCalls = toolCalls
+		}
+		if len(reasoningParts) > 0 {
+			msg.ReasoningContent = strings.Join(reasoningParts, "")
 		}
 
 		result.Choices = []models.Choice{
