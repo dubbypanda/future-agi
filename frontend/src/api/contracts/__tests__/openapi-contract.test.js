@@ -135,6 +135,32 @@ describe("OpenAPI runtime contract", () => {
     ).toMatchObject({ ok: true });
   });
 
+  it("accepts multipart files for read-only file fields in request schemas", () => {
+    const body = new FormData();
+    body.set("dataset_id", "eeacd5c1-6491-42a6-b72d-5d36ebeee72d");
+    body.set("file", new Blob(["input,output\nhello,world\n"]), "rows.csv");
+
+    expect(
+      validateContractedRequestConfig({
+        url: "/model-hub/develops/add_rows_from_file/",
+        method: "post",
+        data: body,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const invalidBody = new FormData();
+    invalidBody.set("dataset_id", "not-a-uuid");
+    invalidBody.set("file", new Blob(["input\nhello\n"]), "rows.csv");
+
+    expect(
+      validateContractedRequestConfig({
+        url: "/model-hub/develops/add_rows_from_file/",
+        method: "post",
+        data: invalidBody,
+      }).ok,
+    ).toBe(false);
+  });
+
   it("keeps form-body coercion isolated from JSON request validation", () => {
     const body = new FormData();
     body.set("require_2fa", "true");

@@ -653,8 +653,8 @@ SELECT json_build_object(
     FROM dataset_row
   ),
   'column_config_keys', (
-    SELECT COALESCE(jsonb_object_length(column_config), 0)
-    FROM dataset_row
+    SELECT count(*)
+    FROM dataset_row, jsonb_object_keys(column_config)
   ),
   'max_order', COALESCE((SELECT max("order") FROM rows), -1),
   'imported_input_values', (
@@ -794,6 +794,7 @@ SELECT json_build_object(
     SELECT count(*)
     FROM model_hub_dataset
     WHERE name LIKE ${sqlTextLiteral(`${prefix}%`)}
+      AND id NOT IN (SELECT id FROM deleted_datasets)
   )
 );
 `;

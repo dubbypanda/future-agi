@@ -265,6 +265,9 @@ function objectSchemaToZod(schema, options) {
 
   const shape = Object.fromEntries(
     keys.map((key) => {
+      if (options.requestBody && properties[key]?.readOnly) {
+        return [key, z.any().optional()];
+      }
       let field = schemaToZod(properties[key], options);
       if (!required.has(key)) field = field.optional();
       return [key, field];
@@ -403,6 +406,7 @@ export function validateContractedRequestConfig(config) {
   if (requestBody) {
     const schema = schemaToZod(requestBody, {
       coercePrimitives: isFormLikeBody(config.data),
+      requestBody: true,
     });
     const parsed = schema.safeParse(
       parseMaybeJsonBody(config.data, config.headers),
