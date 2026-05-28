@@ -9,9 +9,8 @@ endpoints assume CH is reachable; if it's down, the request fails loudly.
 
 import time
 from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 import structlog
 
@@ -24,7 +23,7 @@ from tracer.services.clickhouse.client import (
 logger = structlog.get_logger(__name__)
 
 
-class QueryType(str, Enum):
+class QueryType(StrEnum):
     """Supported query types with per-type routing."""
 
     TIME_SERIES = "TIME_SERIES"
@@ -52,13 +51,13 @@ class QueryResult:
     row_count: int
     backend_used: str  # "clickhouse" or "postgres"
     query_time_ms: float
-    columns: Optional[List[str]] = None
+    columns: list[str] | None = None
 
     @classmethod
     def from_clickhouse_rows(cls, rows, columns, query_time_ms):
         """Create from ClickHouse result rows."""
         col_names = [c[0] if isinstance(c, tuple) else c for c in columns]
-        data = [dict(zip(col_names, row)) for row in rows]
+        data = [dict(zip(col_names, row, strict=False)) for row in rows]
         return cls(
             data=data,
             row_count=len(rows),
@@ -72,7 +71,7 @@ class AnalyticsQueryService:
     """ClickHouse query dispatcher for the analytics endpoints."""
 
     def __init__(self):
-        self._ch_client: Optional[ClickHouseClient] = None
+        self._ch_client: ClickHouseClient | None = None
 
     @property
     def ch_client(self) -> ClickHouseClient:
@@ -91,7 +90,7 @@ class AnalyticsQueryService:
         elapsed = (time.monotonic() - start) * 1000
 
         col_names = [c[0] if isinstance(c, tuple) else c for c in columns]
-        data = [dict(zip(col_names, row)) for row in rows]
+        data = [dict(zip(col_names, row, strict=False)) for row in rows]
 
         logger.info(
             "ch_query_executed",
@@ -108,13 +107,13 @@ class AnalyticsQueryService:
             columns=col_names,
         )
 
-    def get_span_attribute_keys_ch(self, project_id: str) -> List[dict]:
+    def get_span_attribute_keys_ch(self, project_id: str) -> list[dict]:
         """Get distinct span attribute keys with types from ClickHouse.
 
-        Tries the denormalized ``spans`` table first (typed Maps).
-        If Maps are mostly empty (MV didn't populate them), falls back
-        to the CDC table ``tracer_observation_span`` and infers types
-        from the raw JSON using JSONExtractRaw.
+        Reads from the v2 ``spans`` table's typed attribute maps
+        (``attrs_string``, ``attrs_number``, ``attrs_bool``). These are
+        populated at ingest time by fi-collector, so they are the canonical
+        attribute inventory — no CDC fallback needed post-CH25 close-out.
         """
         # --- Try spans Maps first (fast, typed) ---
         # This is a *discovery* query (populate a filter dropdown), not an
@@ -170,56 +169,16 @@ class AnalyticsQueryService:
         result = self.execute_ch_query(
             query, {"project_id": project_id}, timeout_ms=10000
         )
-        if len(result.data) >= 5:
-            return [{"key": row["key"], "type": row["type"]} for row in result.data]
+        # CH25 close-out (2026-05-28): dropped the JSON-type-inference fallback
+        # that read `arrayJoin(JSONExtractKeysAndValuesRaw(span_attributes))`
+        # from the legacy `tracer_observation_span` CDC mirror. The v2 typed
+        # Maps (`attrs_string` / `attrs_number` / `attrs_bool`) are now the
+        # canonical attribute inventory — fi-collector splits attrs into them
+        # at ingest time, so the maps are always populated. If a project genuinely
+        # has fewer than 5 keys, returning whatever we have is correct.
+        return [{"key": row["key"], "type": row["type"]} for row in result.data]
 
-        # --- Fallback: CDC table with JSON type inference ---
-        # Step 1: get a sample of span IDs (light query, no heavy columns)
-        id_query = """
-            SELECT id FROM tracer_observation_span
-            WHERE project_id = %(project_id)s
-              AND _peerdb_is_deleted = 0
-            ORDER BY created_at DESC
-            LIMIT 20
-        """
-        id_result = self.execute_ch_query(
-            id_query, {"project_id": project_id}, timeout_ms=5000
-        )
-        sample_ids = tuple(row["id"] for row in id_result.data)
-        if not sample_ids:
-            return []
-
-        # Step 2: extract keys + types from those specific rows via PREWHERE
-        cdc_query = """
-            SELECT key, argMax(type, type) AS type FROM (
-                SELECT
-                    kv.1 AS key,
-                    multiIf(
-                        kv.2 IN ('true', 'false'), 'boolean',
-                        match(kv.2, '^-?[0-9]+(\\\\.[0-9]+)?$'), 'number',
-                        'text'
-                    ) AS type
-                FROM (
-                    SELECT DISTINCT
-                        arrayJoin(JSONExtractKeysAndValuesRaw(s.span_attributes)) AS kv
-                    FROM tracer_observation_span AS s
-                    PREWHERE s.id IN %(sample_ids)s
-                    WHERE s._peerdb_is_deleted = 0
-                )
-                WHERE kv.1 NOT IN ('raw_log', 'call', 'metrics_data')
-            )
-            GROUP BY key
-            ORDER BY key
-            LIMIT 1000
-        """
-        cdc_result = self.execute_ch_query(
-            cdc_query,
-            {"sample_ids": sample_ids, "project_id": project_id},
-            timeout_ms=10000,
-        )
-        return [{"key": row["key"], "type": row["type"]} for row in cdc_result.data]
-
-    def get_eval_config_ids_with_data_ch(self, project_id: str) -> List[str]:
+    def get_eval_config_ids_with_data_ch(self, project_id: str) -> list[str]:
         """Get distinct eval config IDs that have data for a project in ClickHouse."""
         query = """
             SELECT DISTINCT toString(custom_eval_config_id) AS config_id
@@ -238,7 +197,7 @@ class AnalyticsQueryService:
         )
         return [row["config_id"] for row in result.data]
 
-    def get_backend_status(self) -> Dict[str, Any]:
+    def get_backend_status(self) -> dict[str, Any]:
         """Get the ClickHouse connectivity status."""
         status = {
             "clickhouse": {

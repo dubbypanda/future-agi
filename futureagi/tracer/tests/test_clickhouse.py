@@ -1881,8 +1881,8 @@ class TestTimeSeriesQueryBuilder:
         assert isinstance(query, str)
         assert isinstance(params, dict)
         assert "project_id" in params
-        # Unfiltered query should use pre-aggregated table
-        assert "span_metrics_hourly" in query
+        # Unfiltered query should use the v2 pre-aggregated rollup
+        assert "spans_hourly_rollup" in query
 
     def test_build_with_filters_uses_spans_table(self):
         """When attribute filters are present, should fall back to raw spans table."""
@@ -1909,7 +1909,7 @@ class TestTimeSeriesQueryBuilder:
         assert "model" in query or "gpt-4" in str(params.values())
 
     def test_build_unfiltered_uses_agg_table(self):
-        """Without filters, should use pre-aggregated span_metrics_hourly."""
+        """Without filters, should use the v2 pre-aggregated spans_hourly_rollup."""
         from tracer.services.clickhouse.query_builders import TimeSeriesQueryBuilder
 
         builder = TimeSeriesQueryBuilder(
@@ -1918,7 +1918,11 @@ class TestTimeSeriesQueryBuilder:
             interval="hour",
         )
         query, params = builder.build()
-        assert "span_metrics_hourly" in query
+        assert "spans_hourly_rollup" in query
+        # Should use AggregatingMergeTree combinators
+        assert "countMerge" in query
+        assert "sumMerge" in query
+        assert "quantilesTDigestMerge" in query
 
     def test_build_sets_start_and_end_dates(self):
         """build() should populate start_date and end_date in params."""
@@ -2768,7 +2772,6 @@ class TestEvalMetricsQueryBuilder:
 
     def test_default_time_range(self):
         """When no start/end dates provided, should default to last 7 days."""
-        from datetime import datetime, timedelta
 
         from tracer.services.clickhouse.query_builders import EvalMetricsQueryBuilder
 
@@ -2959,6 +2962,7 @@ class TestAnalyticsQueryService:
         assert QueryType.EVAL_METRICS == "EVAL_METRICS"
         assert QueryType.ERROR_ANALYSIS == "ERROR_ANALYSIS"
 
+
 # ============================================================================
 # 5. Consistency Checker Tests
 # ============================================================================
@@ -3115,7 +3119,7 @@ class TestBaseQueryBuilder:
 
     def test_parse_time_range_defaults(self):
         """Empty filters should default to a 30-day window (partition-pruning friendly)."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 
@@ -3130,7 +3134,7 @@ class TestBaseQueryBuilder:
 
     def test_parse_time_range_ignores_non_date_filters(self):
         """parse_time_range should ignore filters on non-date columns."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 
@@ -5840,7 +5844,7 @@ class TestVoiceCallListQueryBuilderComprehensive:
 
     def test_build_uses_default_time_range_when_no_date_filter(self):
         """When no date filter, should default to a 30-day window."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         from tracer.services.clickhouse.query_builders.voice_call_list import (
             VoiceCallListQueryBuilder,
@@ -6157,9 +6161,9 @@ class TestVoiceCallListQueryBuilderComprehensive:
         # Each phone number is still recognised as a simulator call in Python.
         for phone in VAPI_PHONE_NUMBERS:
             span_attrs = {"raw_log": {"customer": {"number": phone}}}
-            assert VoiceCallListQueryBuilder.is_simulator_call(
-                span_attrs, "vapi"
-            ), f"Missing phone number: {phone}"
+            assert VoiceCallListQueryBuilder.is_simulator_call(span_attrs, "vapi"), (
+                f"Missing phone number: {phone}"
+            )
 
     def test_simulation_filter_uses_json_extract(self):
         """Simulation filtering is now Python-side against parsed raw_log.
