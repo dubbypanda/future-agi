@@ -3,8 +3,7 @@ import io
 import json
 import math
 import traceback
-from dataclasses import asdict
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 import pandas as pd
@@ -25,11 +24,10 @@ from django.db.models import (
     OuterRef,
     Q,
     Subquery,
-    TextField,
     Value,
     When,
 )
-from django.db.models.functions import Cast, Coalesce, Floor, JSONObject, NullIf, Round
+from django.db.models.functions import Coalesce, JSONObject, Round
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -41,29 +39,21 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from tracer.services.clickhouse.query_builders.base import NIL_UUID
-
-logger = structlog.get_logger(__name__)
-from model_hub.models.choices import AnnotationTypeChoices
-from model_hub.models.develop_annotations import AnnotationsLabels
 from model_hub.models.score import Score
-from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiErrorResponseSerializer
+from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.custom_eval_config import CustomEvalConfig, EvalOutputType
-from tracer.models.observation_span import EndUser, EvalLogger, ObservationSpan
+from tracer.models.observation_span import EvalLogger, ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
-from tracer.queries.end_users import build_user_list_pg
+from tracer.models.trace_session import TraceSession
 from tracer.serializers.filters import (
     ObserveGraphDataRequestSerializer,
     ObserveGraphDataResponseSerializer,
-)
-from tracer.serializers.observation_span import (
-    ObservationSpanSerializer,
 )
 from tracer.serializers.trace import (
     TraceAgentGraphQuerySerializer,
@@ -78,33 +68,32 @@ from tracer.serializers.trace import (
     UsersQuerySerializer,
     UsersResponseSerializer,
 )
-from tracer.services.clickhouse.query_builders import (
-    AgentGraphQueryBuilder,
-    EvalMetricsQueryBuilder,
-    TimeSeriesQueryBuilder,
-    UserListQueryBuilder,
-)
 from tracer.services.clickhouse.graph_dispatch import (
     fetch_annotation_graph_ch,
     fetch_eval_graph_ch,
     fetch_system_metric_graph_ch,
 )
+from tracer.services.clickhouse.query_builders import (
+    AgentGraphQueryBuilder,
+    UserListQueryBuilder,
+)
+from tracer.services.clickhouse.query_builders.base import NIL_UUID
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 from tracer.services.observability_providers import ObservabilityService
-from tracer.utils.aggregates import JSONBObjectAgg
 from tracer.utils.annotations import (
     build_annotation_subqueries as _build_annotation_subqueries_impl,
 )
 from tracer.utils.filters import FilterEngine
 from tracer.utils.helper import (
-    FieldConfig,
     get_annotation_labels_for_project,
     get_default_trace_config,
     update_column_config_based_on_eval_config,
     update_span_column_config_based_on_annotations,
 )
-from tracer.utils.otel import DECODER, CallAttributes, ConversationAttributes
+from tracer.utils.otel import CallAttributes, ConversationAttributes
 from tracer.views.observation_span import get_observation_spans
+
+logger = structlog.get_logger(__name__)
 
 ERROR_RESPONSES = {
     400: ApiErrorResponseSerializer,
@@ -607,7 +596,7 @@ def _build_annotation_map_from_scores_ch(trace_ids, annotation_label_ids, label_
     """
     params = {
         "trace_ids": tuple(str(t) for t in trace_ids),
-        "label_ids": tuple(str(l) for l in annotation_label_ids),
+        "label_ids": tuple(str(lid) for lid in annotation_label_ids),
     }
     result = analytics.execute_ch_query(sql, params)
 
@@ -769,8 +758,6 @@ def _build_annotation_map_from_scores_pg(trace_ids, annotation_label_ids, label_
     queues).
     """
     from django.db.models import Q
-
-    from model_hub.models.score import Score
 
     annotation_map = {}
     # Query scores linked directly to trace OR via observation_span → trace
@@ -957,34 +944,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         call_attrs = attrs.get("call") if isinstance(attrs.get("call"), dict) else {}
         perf = (raw_log.get("artifact") or {}).get("performanceMetrics") or {}
         structured = (raw_log.get("analysis") or {}).get("structuredData") or {}
-
-        turn_candidates = [
-            (
-                (attrs.get("metrics_data") or {}).get("turn_count")
-                if isinstance(attrs.get("metrics_data"), dict)
-                else None
-            ),
-            (
-                (attrs.get("metrics_data") or {}).get("bot_message_count")
-                if isinstance(attrs.get("metrics_data"), dict)
-                else None
-            ),
-            attrs.get("call.total_turns"),
-            attrs.get("call.totalTurns"),
-            attrs.get("callTotalTurns"),
-            attrs.get("totalTurns"),
-            call_attrs.get("total_turns"),
-            call_attrs.get("totalTurns"),
-            perf.get("totalTurns"),
-            perf.get("turnCount"),
-            structured.get("totalTurns"),
-            structured.get("turnCount"),
-            (
-                (attrs.get("metrics_data") or {}).get("message_count")
-                if isinstance(attrs.get("metrics_data"), dict)
-                else None
-            ),
-        ]
 
         turn_count = self._round_metric(attrs.get("call.total_turns"))
 
@@ -1460,7 +1419,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         type_counts = {}
         root_latencies = []
 
-        for sid, entry in span_map.items():
+        for entry in span_map.values():
             sp = entry["observation_span"]
             total_tokens += sp.get("total_tokens") or 0
             total_prompt_tokens += sp.get("prompt_tokens") or 0
@@ -1525,7 +1484,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             entry["annotations"] = annotation_map.get(sid, [])
 
         # Build tree: link children to parents
-        for span_id, entry in span_map.items():
+        for entry in span_map.values():
             parent_id = entry["_parent_id"]
             if parent_id is None:
                 root_spans.append(entry)
@@ -1610,11 +1569,16 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         # 'choice': 'never'}") when output_float/output_str_list are empty.
         # Keyed by (trace_id, config_id); only the most recent row per pair.
         _str_lookup_configs = [
-            c for c in eval_configs
-            if ((getattr(getattr(c, "eval_template", None), "config", None) or {}).get("output"))
+            c
+            for c in eval_configs
+            if (
+                (getattr(getattr(c, "eval_template", None), "config", None) or {}).get(
+                    "output"
+                )
+            )
             in (EvalOutputType.CHOICES.value, EvalOutputType.SCORE.value)
         ]
-        output_str_map: dict[tuple, "EvalLogger"] = {}
+        output_str_map: dict[tuple, EvalLogger] = {}
         if _str_lookup_configs and qs:
             trace_ids_for_lookup = [t.id for t in qs]
             for log in (
@@ -1738,11 +1702,18 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                         else None
                     )
                     log = output_str_map.get((trace.id, config.id))
-                    if log and log.output_str and tpl_output in (
-                        EvalOutputType.CHOICES.value, EvalOutputType.SCORE.value,
+                    if (
+                        log
+                        and log.output_str
+                        and tpl_output
+                        in (
+                            EvalOutputType.CHOICES.value,
+                            EvalOutputType.SCORE.value,
+                        )
                     ):
                         try:
                             import ast as _ast_mod
+
                             parsed = _ast_mod.literal_eval(log.output_str)
                         except (ValueError, SyntaxError):
                             parsed = None
@@ -1751,7 +1722,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                                 choice = parsed.get("choice")
                                 if choice:
                                     metric_entry["output"] = [choice]
-                                    metric_entry["output_type"] = EvalOutputType.CHOICES.value
+                                    metric_entry["output_type"] = (
+                                        EvalOutputType.CHOICES.value
+                                    )
                                     # Mirror as top-level `score` so the
                                     # drawer's `e?.score ?? e?.output ?? e?.value`
                                     # lookup hits a string and renders verbatim
@@ -1766,7 +1739,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                                     metric_entry["output"] = round(
                                         float(score_val) * 100, 2
                                     )
-                                    metric_entry["output_type"] = EvalOutputType.SCORE.value
+                                    metric_entry["output_type"] = (
+                                        EvalOutputType.SCORE.value
+                                    )
 
                 metrics[str(config.id)] = metric_entry
             if metrics:
@@ -1813,13 +1788,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         ).select_related("eval_template")
 
         for config in eval_configs:
-            choices = (
-                config.eval_template.choices
-                if getattr(config, "eval_template", None)
-                and config.eval_template.choices
-                else None
-            )
-
             metric_subquery = (
                 EvalLogger.objects.filter(
                     trace_id=OuterRef("id"),
@@ -1999,9 +1967,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         """
         try:
             project_id = self.request.query_params.get("project_id", None)
-            project = _project_queryset_for_request(self.request).filter(
-                id=project_id
-            ).first()
+            project = (
+                _project_queryset_for_request(self.request)
+                .filter(id=project_id)
+                .first()
+            )
 
             if not project_id or not project or project.trace_type != "observe":
                 return self._gm.bad_request(
@@ -2055,9 +2025,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             query_params = request.validated_query_data
             project_version_id = str(query_params["project_version_id"])
             # Tenant gate via PG (org/workspace-scoped ProjectVersion).
-            project_version = _project_version_queryset_for_request(request).filter(
-                id=project_version_id
-            ).first()
+            project_version = (
+                _project_version_queryset_for_request(request)
+                .filter(id=project_version_id)
+                .first()
+            )
             if not project_version:
                 raise Exception("Project version not found")  # noqa: B904
 
@@ -2094,9 +2066,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         try:
             body = request.validated_data
             project_id = str(body["project_id"])
-            project = _project_queryset_for_request(self.request).filter(
-                id=project_id
-            ).first()
+            project = (
+                _project_queryset_for_request(self.request)
+                .filter(id=project_id)
+                .first()
+            )
 
             if not project_id or not project or project.trace_type != "observe":
                 return self._gm.bad_request(
@@ -2104,7 +2078,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
 
             # Get parameters
-            property = body["property"]
             filters = body["filters"]
             interval = body["interval"]
             req_data_config = body["req_data_config"]
@@ -2157,7 +2130,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
             return self._gm.bad_request("Filter property type is not valid")
 
-
         except Exception as e:
             logger.exception(f"Error in get_graph_methods: {str(e)}")
             return self._gm.bad_request(f"Error fetching graph data: {str(e)}")
@@ -2167,27 +2139,33 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         try:
             traces_data = self.request.data.get("traces", [])
             for trace in traces_data:
-                project = _project_queryset_for_request(request).filter(
-                    id=trace.get("project")
-                ).first()
+                project = (
+                    _project_queryset_for_request(request)
+                    .filter(id=trace.get("project"))
+                    .first()
+                )
                 if not project:
                     raise ValueError("Project not found")
 
                 project_version = None
                 project_version_id = trace.get("project_version")
                 if project_version_id:
-                    project_version = _project_version_queryset_for_request(
-                        request
-                    ).filter(id=project_version_id).first()
+                    project_version = (
+                        _project_version_queryset_for_request(request)
+                        .filter(id=project_version_id)
+                        .first()
+                    )
                     if not project_version or project_version.project_id != project.id:
                         raise ValueError("Project version not found")
 
                 session = None
                 session_id = trace.get("session")
                 if session_id:
-                    session = _trace_session_queryset_for_request(request).filter(
-                        id=session_id
-                    ).first()
+                    session = (
+                        _trace_session_queryset_for_request(request)
+                        .filter(id=session_id)
+                        .first()
+                    )
                     if not session or session.project_id != project.id:
                         raise ValueError("Session not found")
 
@@ -2243,7 +2221,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 id__in=project_version_ids
             )
             existing_ids = {str(v.id) for v in existing_versions}
-            requested_ids = [str(project_version_id) for project_version_id in project_version_ids]
+            requested_ids = [
+                str(project_version_id) for project_version_id in project_version_ids
+            ]
             if len(existing_ids) != len(requested_ids):
                 missing_ids = set(requested_ids) - existing_ids
                 return self._gm.success_response(
@@ -2511,9 +2491,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             query = request.validated_query_data
             trace_id = str(query["trace_id"])
             project_version_id = str(query["project_version_id"])
-            project_version = _project_version_queryset_for_request(request).filter(
-                id=project_version_id
-            ).first()
+            project_version = (
+                _project_version_queryset_for_request(request)
+                .filter(id=project_version_id)
+                .first()
+            )
             if not project_version:
                 raise Exception("Project version not found")  # noqa: B904
 
@@ -2766,10 +2748,10 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         try:
             export = kwargs.get("export", False) if kwargs else False
             # CH-only path doesn't honor export=True (no unbounded-walk
-                # surface in TraceListQueryBuilder yet). Fail loud rather
-                # than serve a silently truncated CSV. Tracked as a
-                # follow-up: move the export to a Temporal job that streams
-                # unbounded rows from CH.
+            # surface in TraceListQueryBuilder yet). Fail loud rather
+            # than serve a silently truncated CSV. Tracked as a
+            # follow-up: move the export to a Temporal job that streams
+            # unbounded rows from CH.
             if export:
                 return self._gm.bad_request(
                     "Non-voice trace export beyond the first page is not "
@@ -2783,11 +2765,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             project_id = (
                 str(validated_data["project_id"])
                 if validated_data.get("project_id")
-                else None
-            )
-            session_id = (
-                str(validated_data["session_id"])
-                if validated_data.get("session_id")
                 else None
             )
             org = _get_request_organization(request)
@@ -2805,9 +2782,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                     .values_list("id", flat=True)
                 )
             else:
-                project = _project_queryset_for_request(request).filter(
-                    id=project_id
-                ).first()
+                project = (
+                    _project_queryset_for_request(request).filter(id=project_id).first()
+                )
                 if not project or project.trace_type not in ("observe", "experiment"):
                     raise Exception("Project should be of type observe or experiment")
                 org_project_ids = None
@@ -2833,7 +2810,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 org_project_ids=org_project_ids,
                 org=org,
             )
-
 
         except Exception as e:
             logger.exception(f"Error in fetching the traces list of observe: {str(e)}")
@@ -2889,7 +2865,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 remove_simulation_calls,
                 analytics,
             )
-
 
         except NotFound:
             raise
@@ -3041,7 +3016,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         raw_log = span_attrs.get("raw_log") or {}
         metadata_raw = row.get("metadata_json") or "{}"
         try:
-            metadata = json.loads(metadata_raw) if isinstance(metadata_raw, str) else (metadata_raw or {})
+            metadata = (
+                json.loads(metadata_raw)
+                if isinstance(metadata_raw, str)
+                else (metadata_raw or {})
+            )
         except (json.JSONDecodeError, TypeError):
             metadata = {}
 
@@ -3195,9 +3174,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         eval_config_ids = [str(c.id) for c in eval_configs]
 
         eval_outputs = {}
-        trace_evals: Dict[str, Any] = {}
+        trace_evals: dict[str, Any] = {}
         if eval_config_ids:
-            eval_query = f"""
+            eval_query = """
             SELECT
                 trace_id,
                 toString(custom_eval_config_id) AS eval_config_id,
@@ -3424,9 +3403,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             trace_id = str(query["trace_id"])
             project_id = str(query["project_id"])
 
-            project = _project_queryset_for_request(request).filter(
-                id=project_id
-            ).first()
+            project = (
+                _project_queryset_for_request(request).filter(id=project_id).first()
+            )
             if not project or project.trace_type != "observe":
                 raise Exception("Project should be of type observe")
 
@@ -3444,7 +3423,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             return self._get_trace_id_by_index_observe_clickhouse(
                 request, trace_id, project_id, filters, analytics
             )
-
 
         except Exception as e:
             return self._gm.bad_request(
@@ -3464,9 +3442,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             validated_data = serializer.validated_data
             project_id = str(validated_data["project_id"])
 
-            project = _project_queryset_for_request(request).filter(
-                id=project_id
-            ).first()
+            project = (
+                _project_queryset_for_request(request).filter(id=project_id).first()
+            )
             if not project:
                 return self._gm.bad_request("Project not found")
 
@@ -3757,7 +3735,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         Builder class resolved via v1↔v2 dispatch — set
         CH25_QUERY_TYPES_V2_PRIMARY=TRACE_LIST to flip to CH 25.3.
         """
-        from tracer.services.clickhouse.query_builders import TraceListQueryBuilder
         from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
 
         BuilderCls = get_query_builder_class("TRACE_LIST")  # noqa: N806
@@ -3821,8 +3798,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             annotation_labels = []
         else:
             annotation_labels = get_annotation_labels_for_project(project_id)
-        annotation_label_ids = [str(l.id) for l in annotation_labels]
-        label_types = {str(l.id): l.type for l in annotation_labels}
+        annotation_label_ids = [str(label.id) for label in annotation_labels]
+        label_types = {str(label.id): label.type for label in annotation_labels}
 
         builder = BuilderCls(
             project_id=None if org_scope else str(project_id),
@@ -4090,7 +4067,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
 
         VoiceBuilderCls = get_query_builder_class("VOICE_CALL_LIST")  # noqa: N806
-        TraceBuilderCls = get_query_builder_class("TRACE_LIST")        # noqa: N806
 
         filters = validated_data.get("filters", [])
         page = validated_data.get("page", 1)
@@ -4120,8 +4096,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
 
         # Get annotation labels that have actual annotations/scores for this project
         annotation_labels = get_annotation_labels_for_project(project_id)
-        annotation_label_ids = [str(l.id) for l in annotation_labels]
-        label_types = {str(l.id): l.type for l in annotation_labels}
+        annotation_label_ids = [str(label.id) for label in annotation_labels]
+        label_types = {str(label.id): label.type for label in annotation_labels}
 
         sim_flag = remove_simulation_calls and str(
             remove_simulation_calls
@@ -4374,7 +4350,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
 
         v1↔v2 dispatch — flips with CH25_QUERY_TYPES_V2_PRIMARY=TRACE_LIST.
         """
-        from tracer.services.clickhouse.query_builders import TraceListQueryBuilder
         from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
 
         BuilderCls = get_query_builder_class("TRACE_LIST")  # noqa: N806
@@ -4417,8 +4392,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         annotation_labels = get_annotation_labels_for_project(
             project_version.project_id
         )
-        annotation_label_ids = [str(l.id) for l in annotation_labels]
-        label_types = {str(l.id): l.type for l in annotation_labels}
+        annotation_label_ids = [str(label.id) for label in annotation_labels]
+        label_types = {str(label.id): label.type for label in annotation_labels}
 
         builder = BuilderCls(
             project_id=project_id,
@@ -4560,9 +4535,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             project_id = str(query["project_id"])
             filters = query["filters"]
 
-            project = _project_queryset_for_request(request).filter(
-                id=project_id
-            ).first()
+            project = (
+                _project_queryset_for_request(request).filter(id=project_id).first()
+            )
             if not project:
                 return self._gm.bad_request("Project not found")
 
