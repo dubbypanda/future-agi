@@ -31,6 +31,7 @@ async function main() {
   const restoreNodeName = `version_restore_${marker}`.slice(0, 80);
   const sourcePromptText = "Write one versioned fact about {{topic}}.";
   const firstCommitMessage = `browser save v1 ${auth.runId}`;
+  const browserCommitMessage = `browser save v2 ${auth.runId}`;
   const restoreCommitMessage = `api activate v3 ${auth.runId}`;
   const graphNames = [graphName];
   const promptNames = [
@@ -126,6 +127,16 @@ async function main() {
         )
       ) {
         expectedMutations.push(`save-v1 ${method} ${url}`);
+        return;
+      }
+      if (
+        browserCreatedVersionId &&
+        method === "PUT" &&
+        pathName.endsWith(
+          `/agent-playground/graphs/${graphId}/versions/${browserCreatedVersionId}/`,
+        )
+      ) {
+        expectedMutations.push(`save-v2 ${method} ${url}`);
         return;
       }
       if (
@@ -280,7 +291,43 @@ async function main() {
       evidence.version_1_status_after_browser_draft_create =
         activeV1AfterBrowserCreate.status;
 
-      // Keep browser draft creation isolated from later promotion behavior.
+      logStep("save browser-created draft as active version 2");
+      const browserSaveResponse = waitForVersionSaveResponse(page, {
+        graphId,
+        versionId: browserCreatedVersionId,
+      });
+      await openSaveAgentDialog(page, browserCommitMessage);
+      const browserSavedVersion = unwrapBrowserResult(
+        await browserSaveResponse.then((response) => response.json()),
+      );
+      assert(
+        browserSavedVersion?.id === browserCreatedVersionId &&
+          browserSavedVersion.status === "active",
+        "Saving browser-created Version 2 did not return active status.",
+      );
+      assert(
+        browserSavedVersion.commit_message === browserCommitMessage,
+        "Saving browser-created Version 2 did not persist the commit message.",
+      );
+      await waitForNoVisibleText(page, "Draft", { exact: true });
+      await waitForNoVisibleText(page, "Commit Message", { exact: true });
+
+      const inactiveV1AfterBrowserSave = await loadAgentVersion({
+        auth,
+        graphId,
+        versionId: setup.draftVersionId,
+      });
+      assert(
+        inactiveV1AfterBrowserSave.status === "inactive",
+        "Saving browser-created Version 2 did not move Version 1 to inactive.",
+      );
+      evidence.browser_saved_version = {
+        version_id: browserCreatedVersionId,
+        status: browserSavedVersion.status,
+        commit_message: browserSavedVersion.commit_message,
+        version_1_status_after_save: inactiveV1AfterBrowserSave.status,
+      };
+
       logStep("create temporary active version 3 through API");
       const createdDraft = await auth.client.post(
         apiPath("/agent-playground/graphs/{id}/versions/", { id: graphId }),
@@ -466,9 +513,9 @@ async function main() {
       });
       assert(
         finalV1Detail.status === "active" &&
-          ["draft", "inactive"].includes(finalBrowserVersionDetail.status) &&
+          finalBrowserVersionDetail.status === "inactive" &&
           finalRestoreVersionDetail.status === "inactive",
-        "Version restore readback did not leave Version 1 active, the browser-created version non-active, and the restore setup version inactive.",
+        "Version restore readback did not leave Version 1 active, the browser-created version inactive, and the restore setup version inactive.",
       );
       assert(
         versionNodesContain(
@@ -501,6 +548,10 @@ async function main() {
         preGraphDeleteAudit.node_connection_visible === 2,
         "Agent graph should have two visible node connections before graph delete.",
       );
+      assert(
+        preGraphDeleteAudit.edge_visible === 2,
+        "Agent graph should have two visible edges before graph delete.",
+      );
       evidence.pre_graph_delete_audit = preGraphDeleteAudit;
 
       logStep("capture screenshot");
@@ -518,8 +569,8 @@ async function main() {
         `Agent playground version smoke fired unexpected mutations: ${unexpectedMutations.join("; ")}`,
       );
       assert(
-        expectedMutations.length === 3,
-        `Expected save-v1, browser-create-v2, and restore-v1 mutations, saw ${expectedMutations.length}.`,
+        expectedMutations.length === 4,
+        `Expected save-v1, browser-create-v2, save-v2, and restore-v1 mutations, saw ${expectedMutations.length}.`,
       );
       evidence.expected_mutations = expectedMutations;
     } finally {
