@@ -5695,15 +5695,30 @@ class UpdateColumnTypeView(APIView):
 
             force_update = True
 
-            # Start async conversion in thread
-            perform_conversion.apply_async(args=(column.id, new_data_type))
+            # Start async conversion. If local Temporal is unavailable, run
+            # the same conversion function inline so the API does not leave a
+            # partially-mutated Running column behind after returning 500.
+            response_status = StatusType.RUNNING.value
+            response_message = "Column type conversion started"
+            try:
+                perform_conversion.apply_async(args=(column.id, new_data_type))
+            except Exception:
+                logger.exception(
+                    "Column type conversion dispatch failed; running synchronously"
+                )
+                conversion_sync = getattr(
+                    perform_conversion, "_original_func", perform_conversion
+                )
+                conversion_sync(column.id, new_data_type)
+                response_status = StatusType.COMPLETED.value
+                response_message = "Column type conversion completed"
 
             return self._gm.success_response(
                 {
-                    "message": "Column type conversion started",
+                    "message": response_message,
                     "column_id": str(column_id),
                     "new_data_type": new_data_type,
-                    "status": StatusType.RUNNING.value,
+                    "status": response_status,
                 }
             )
 
