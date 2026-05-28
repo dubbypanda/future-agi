@@ -1,6 +1,5 @@
 import ast
 import io
-import json
 
 import pandas as pd
 import structlog
@@ -129,8 +128,8 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
 
         # Get base queryset with automatic filtering from mixin, then add an
         # explicit organization guard for ProjectVersion's indirect project FK.
-        query_Set = super().get_queryset().filter(
-            project__organization=request_organization
+        query_Set = (
+            super().get_queryset().filter(project__organization=request_organization)
         )
 
         if project_version_id:
@@ -236,9 +235,7 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
 
             # Get all eval configs from the project version
             eval_configs = CustomEvalConfig.objects.filter(
-                id__in=EvalLogger.objects.filter(
-                    observation_span__project=project
-                )
+                id__in=EvalLogger.objects.filter(observation_span__project=project)
                 .values("custom_eval_config_id")
                 .distinct(),
                 deleted=False,
@@ -460,7 +457,7 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
             if serializer.is_valid():
                 validated_data = serializer.validated_data
                 project_id = validated_data["project_id"]
-                project_version_ids = validated_data["runs_ids"]
+                project_version_ids = validated_data.get("runs_ids") or []
 
             else:
                 return self._gm.bad_request(serializer.errors)
@@ -508,9 +505,7 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
 
             # Get all eval configs from the project version
             eval_configs = CustomEvalConfig.objects.filter(
-                id__in=EvalLogger.objects.filter(
-                    observation_span__project=project
-                )
+                id__in=EvalLogger.objects.filter(observation_span__project=project)
                 .values("custom_eval_config_id")
                 .distinct(),
                 deleted=False,
@@ -1444,9 +1439,7 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
             # Get configuration objects once
             eval_configs = list(
                 CustomEvalConfig.objects.filter(
-                    id__in=EvalLogger.objects.filter(
-                        observation_span__project=project
-                    )
+                    id__in=EvalLogger.objects.filter(observation_span__project=project)
                     .values("custom_eval_config_id")
                     .distinct(),
                     deleted=False,
