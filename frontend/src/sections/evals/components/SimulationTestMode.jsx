@@ -183,6 +183,7 @@ const SimulationTestMode = React.forwardRef(
       initialRunTestId = "",
       isComposite = false,
       compositeAdhocConfig = null,
+      initialExecutionId=null
     },
     ref,
   ) => {
@@ -202,7 +203,10 @@ const SimulationTestMode = React.forwardRef(
 
     // Test executions (runs within a simulation)
     const [executions, setExecutions] = useState([]);
-    const [selectedExecutionId, setSelectedExecutionId] = useState("");
+    const [executionsFetched, setExecutionsFetched] = useState(false);
+    const [selectedExecutionId, setSelectedExecutionId] = useState(
+      initialExecutionId || "",
+    );
 
     // Call executions (individual calls)
     const [calls, setCalls] = useState([]);
@@ -325,8 +329,10 @@ const SimulationTestMode = React.forwardRef(
         setExecutions([]);
         setSelectedExecutionId("");
         setRunTestContext(null);
+        setExecutionsFetched(false);
         return;
       }
+      setExecutionsFetched(false);
       const fetchAll = async () => {
         try {
           // Fetch detail (agent def, scenarios, persona, evals) and executions in parallel
@@ -344,16 +350,24 @@ const SimulationTestMode = React.forwardRef(
           // Executions: paginated {results: [...]}
           const items = execRes.data?.results || [];
           setExecutions(items);
+          setExecutionsFetched(true);
           if (items.length > 0) {
-            setSelectedExecutionId(items[0].id || "");
+  
+            const preferred =
+              initialExecutionId &&
+              items.some((it) => it.id === initialExecutionId)
+                ? initialExecutionId
+                : items[0].id || "";
+            setSelectedExecutionId(preferred);
           }
         } catch {
           setExecutions([]);
           setRunTestContext(null);
+          setExecutionsFetched(true);
         }
       };
       fetchAll();
-    }, [selectedRunTestId]);
+    }, [selectedRunTestId, initialExecutionId]);
 
     // 3. Fetch call executions for the selected execution
     useEffect(() => {
@@ -801,8 +815,7 @@ const SimulationTestMode = React.forwardRef(
     const isReady = useMemo(
       () =>
         !!selectedRunTestId &&
-        variables.length > 0 &&
-        variables.every((v) => !!mapping[v]),
+        (variables.length === 0 || variables.every((v) => !!mapping[v])),
       [selectedRunTestId, variables, mapping],
     );
 
@@ -978,8 +991,11 @@ const SimulationTestMode = React.forwardRef(
       totalCalls === 0 &&
       !loadingCalls &&
       !isPendingCallsFetch;
+    const hasNoExecutions =
+      !!selectedRunTestId && executionsFetched && executions.length === 0;
     const isMappingPending =
       !isConfirmedEmpty &&
+      !hasNoExecutions &&
       (loadingRunTests ||
         loadingCalls ||
         isPendingCallsFetch ||
@@ -1103,6 +1119,7 @@ const SimulationTestMode = React.forwardRef(
               fullWidth
               value={selectedExecutionId}
               onChange={(e) => setSelectedExecutionId(e.target.value)}
+              disabled={!!initialExecutionId}
               sx={{ fontSize: "13px" }}
             >
               {executions.map((ex, i) => (
@@ -1114,6 +1131,34 @@ const SimulationTestMode = React.forwardRef(
                 </MenuItem>
               ))}
             </Select>
+          </Box>
+        )}
+
+        {/* Empty state — simulation has no executions */}
+        {hasNoExecutions && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 0.75,
+              py: 3,
+              border: "1px dashed",
+              borderColor: "divider",
+              borderRadius: "8px",
+            }}
+          >
+            <Iconify
+              icon="mdi:table-off"
+              width={28}
+              sx={{ color: "text.disabled" }}
+            />
+            <Typography variant="body2" fontWeight={600} color="text.secondary">
+              This simulation has no data
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              Run the simulation first to generate call data for testing
+            </Typography>
           </Box>
         )}
 
@@ -1744,6 +1789,7 @@ SimulationTestMode.propTypes = {
   initialRunTestId: PropTypes.string,
   isComposite: PropTypes.bool,
   compositeAdhocConfig: PropTypes.object,
+  initialExecutionId :PropTypes.string
 };
 
 export default SimulationTestMode;

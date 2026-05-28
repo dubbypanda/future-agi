@@ -143,6 +143,7 @@ class ClickHouseFilterBuilder:
         "observation_type": "observation_type",
         "span_kind": "observation_type",
         "node_type": "observation_type",
+        "span_id": "id",
         "user": "end_user_id",
         "name": "name",
         "span_name": "name",
@@ -1092,6 +1093,7 @@ class ClickHouseFilterBuilder:
                 f"SELECT {inner_col} FROM tracer_eval_logger FINAL "
                 f"WHERE custom_eval_config_id IN %({param_cfg})s "
                 f"AND _peerdb_is_deleted = 0 "
+                f"AND (deleted = 0 OR deleted IS NULL) "
                 f"{error_clause} "
                 f"AND {match_condition}"
                 f")"
@@ -1552,7 +1554,8 @@ class ClickHouseFilterBuilder:
             "trace_id IN ("
             "SELECT DISTINCT toString(el.trace_id) FROM tracer_eval_logger AS el FINAL "
             f"INNER JOIN {self.table} AS sp ON sp.trace_id = toString(el.trace_id) "
-            "WHERE el._peerdb_is_deleted = 0 AND el.trace_id IS NOT NULL "
+            "WHERE el._peerdb_is_deleted = 0 AND (el.deleted = 0 OR el.deleted IS NULL) "
+            "AND el.trace_id IS NOT NULL "
             "AND sp._peerdb_is_deleted = 0 "
             "AND sp.project_id = %(project_id)s)"
         )
