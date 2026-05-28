@@ -165,7 +165,7 @@ const DataMenuList = ({
       trackEvent(Events.addRowToDatasetSuccessful, {
         [PropertyName.method]: "new dataset",
       });
-      onCreateDatasetRows();
+      onCreateDatasetRows(watchedDatasetName);
     } else {
       setTargetDatasetId(selectedDatasetId);
       const selectedDataset = datasetList?.find(

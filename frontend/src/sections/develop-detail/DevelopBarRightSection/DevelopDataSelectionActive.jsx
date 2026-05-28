@@ -20,6 +20,7 @@ import { useDevelopDetailContext } from "../Context/DevelopDetailContext";
 import { useDevelopSelectedRowsStoreShallow } from "../states";
 import { useAuthContext } from "src/auth/hooks";
 import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
+import { getCreatedRowsDatasetId } from "./createDatasetRowsResponse";
 
 const StyledBox = styled(Box)(({ theme }) => ({
   gap: "12px",
@@ -130,21 +131,24 @@ const DevelopDataSelectionActive = () => {
 
   const { mutate: onCreateDatasetRows, isPending: isCreateDatasetLoading } =
     useMutation({
-      mutationFn: () => {
+      mutationFn: (newDatasetName) => {
         const selectedIds = toggledNodes;
+        const resolvedName = newDatasetName || name;
         trackEvent(Events.addRowToNewDatasetSuccessful, {
           [PropertyName.rowToNewDataset]: {
             row_id: selectedIds[0],
-            name: name,
+            name: resolvedName,
           },
         });
         return axios.post(endpoints.develop.createDatasetRows(dataset), {
           row_ids: selectedIds,
           selected_all_rows: selectAll,
-          name: name,
+          name: resolvedName,
         });
       },
       onSuccess: ({ data }) => {
+        const createdDatasetId = getCreatedRowsDatasetId(data);
+
         handleClose();
         setTimeout(unCheckedHandler, 100);
         refreshGrid();
@@ -153,9 +157,7 @@ const DevelopDataSelectionActive = () => {
             message="Datapoint added to the created dataset"
             buttonText="View Dataset"
             onClick={() =>
-              navigate(
-                `/dashboard/develop/${data?.result?.newDatasetId}?tab=data`,
-              )
+              navigate(`/dashboard/develop/${createdDatasetId}?tab=data`)
             }
           />,
           {
