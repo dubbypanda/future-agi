@@ -329,7 +329,7 @@ class GatewayPlaygroundTestRequestSerializer(serializers.Serializer):
 
 class GatewayBudgetSetRequestSerializer(serializers.Serializer):
     level = serializers.CharField()
-    config = serializers.DictField()
+    config = serializers.DictField(child=serializers.JSONField())
 
 
 class GatewayBudgetRemoveRequestSerializer(serializers.Serializer):

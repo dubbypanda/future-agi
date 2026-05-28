@@ -2700,7 +2700,7 @@ export interface GatewayNameRequestApi {
   name: string;
 }
 
-export type GatewayBudgetSetRequestApiConfig = {[key: string]: string};
+export type GatewayBudgetSetRequestApiConfig = {[key: string]: unknown};
 
 export interface GatewayBudgetSetRequestApi {
   /** @minLength 1 */

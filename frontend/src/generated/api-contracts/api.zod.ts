@@ -5629,7 +5629,7 @@ export const AgentccGatewaysSetBudgetParams = zod.object({
 
 export const AgentccGatewaysSetBudgetBody = zod.object({
   "level": zod.string().min(1),
-  "config": zod.record(zod.string(), zod.string())
+  "config": zod.record(zod.string(), zod.unknown())
 })
 
 export const AgentccGatewaysSetBudgetResponse = zod.object({
