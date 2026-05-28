@@ -63,14 +63,18 @@ class Command(BaseCommand):
             elif event_type == "done":
                 w(self.style.WARNING(f"\n\n=== DONE: {_compact(payload)} ==="))
 
+        # Only override the agent's default thinking_budget when --thinking-budget
+        # is given (>0). Passing None here would DISABLE the agent's default-on.
+        agent_kwargs = dict(
+            cluster_id=opts["cluster"],
+            project_id=opts["project_id"],
+            question=opts["question"],
+            on_event=on_event,
+        )
+        if opts["thinking_budget"]:
+            agent_kwargs["thinking_budget"] = opts["thinking_budget"]
         try:
-            agent = ClusterAnalysisAgent(
-                cluster_id=opts["cluster"],
-                project_id=opts["project_id"],
-                question=opts["question"],
-                on_event=on_event,
-                thinking_budget=opts["thinking_budget"] or None,
-            )
+            agent = ClusterAnalysisAgent(**agent_kwargs)
         except Exception as exc:
             raise CommandError(f"Agent init failed: {exc}")
 
