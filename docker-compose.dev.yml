@@ -142,6 +142,10 @@ services:
     build:
       context: ./agentcc-gateway
     image: futureagi/agentcc-gateway:dev
+    volumes:
+      # Vertex AI service-account creds (relative path in config.yaml).
+      # The scratch-based image has no WORKDIR so the binary's cwd is `/`.
+      - ./Vertex_AI_Creds.json:/Vertex_AI_Creds.json:ro
 
   serving:
     build:
