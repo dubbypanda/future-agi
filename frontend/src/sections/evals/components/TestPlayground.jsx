@@ -37,7 +37,6 @@ import SimulationTestMode from "./SimulationTestMode";
 import {
   useEvalVersions,
   useSetDefaultVersion,
-  useRestoreVersion,
 } from "../hooks/useEvalVersions";
 import useErrorLocalizerPoll from "../hooks/useErrorLocalizerPoll";
 import EvalResultDisplay from "./EvalResultDisplay";
@@ -643,7 +642,6 @@ const TestPlayground = React.forwardRef(
     const [activeTab, setActiveTab] = useState("Custom");
     const { data: versionsData } = useEvalVersions(templateId);
     const setDefaultVersion = useSetDefaultVersion(templateId);
-    const restoreVersion = useRestoreVersion(templateId);
     const { enqueueSnackbar } = useSnackbar();
     const [isRunning, setIsRunning] = useState(false);
     const [result, setResult] = useState(null);
@@ -713,28 +711,16 @@ const TestPlayground = React.forwardRef(
       handleVersionMenuClose,
     ]);
 
-    const handleRestore = useCallback(async () => {
+    const handleRestore = useCallback(() => {
       if (!menuVersion) return;
-      try {
-        const restored = await restoreVersion.mutateAsync(menuVersion.id);
-        enqueueSnackbar(
-          `Restored V${menuVersion.version_number} as new V${restored?.version_number || ""}`,
-          { variant: "success" },
-        );
-      } catch {
-        enqueueSnackbar("Failed to restore version", { variant: "error" });
-      }
+      setSelectedVersionId(menuVersion.id);
+      onVersionSelect?.(menuVersion);
+      enqueueSnackbar(
+        `Loaded V${menuVersion.version_number} config — edit and save to create a new version`,
+        { variant: "info" },
+      );
       handleVersionMenuClose();
-    }, [menuVersion, restoreVersion, enqueueSnackbar, handleVersionMenuClose]);
-
-    const handleViewConfig = useCallback(
-      (version) => {
-        setSelectedVersionId(version.id);
-        onVersionSelect?.(version);
-        handleVersionMenuClose();
-      },
-      [onVersionSelect, handleVersionMenuClose],
-    );
+    }, [menuVersion, onVersionSelect, enqueueSnackbar, handleVersionMenuClose]);
 
     const handleVersionClick = useCallback(
       (version) => {
@@ -1843,19 +1829,6 @@ const TestPlayground = React.forwardRef(
                     },
                   }}
                 >
-                  <MenuItem
-                    onClick={() => {
-                      handleViewConfig(menuVersion);
-                    }}
-                    sx={{ fontSize: "13px", gap: 1, py: 1 }}
-                  >
-                    <Iconify
-                      icon="solar:eye-bold"
-                      width={16}
-                      sx={{ color: "text.secondary" }}
-                    />
-                    View Config
-                  </MenuItem>
                   {!menuVersion?.is_default && (
                     <MenuItem
                       onClick={handleSetDefault}
