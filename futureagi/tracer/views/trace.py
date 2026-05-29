@@ -1366,7 +1366,10 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
               AND (deleted = 0 OR deleted IS NULL)
             """
             eval_result = analytics.execute_ch_query(
-                eval_query, {"trace_id": str(trace_id)}, timeout_ms=30000
+                eval_query,
+                {"trace_id": str(trace_id)},
+                timeout_ms=30000,
+                settings={"do_not_merge_across_partitions_select_final": 1},
             )
             # Collect unique config IDs for name lookup
             config_ids_set = set()
@@ -5840,8 +5843,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 "SELECT id, span_attributes, provider "
                 "FROM tracer_observation_span FINAL "
                 "PREWHERE id IN %(span_ids)s "
-                "WHERE _peerdb_is_deleted = 0",
-                {"span_ids": tuple(span_ids)},
+                "WHERE project_id = %(project_id)s "
+                "AND _peerdb_is_deleted = 0",
+                {"span_ids": tuple(span_ids), "project_id": str(project_id)},
                 timeout_ms=10000,
             )
             for arow in attrs_result.data:
@@ -6406,11 +6410,14 @@ class UsersView(APIView):
                     PREWHERE end_user_id IN %(eu_ids)s
                     WHERE _peerdb_is_deleted = 0
                       {project_clause}
+                      AND created_at >= now() - INTERVAL 30 DAY
                       AND (
                         (span_attributes_raw != '{{}}' AND span_attributes_raw != '')
                         OR length(mapKeys(span_attr_str)) > 0
                         OR length(mapKeys(span_attr_num)) > 0
                       )
+                    ORDER BY created_at DESC
+                    LIMIT 50000
                     """
                     attr_result = analytics.execute_ch_query(
                         attr_query, attr_params, timeout_ms=30000

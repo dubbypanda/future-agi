@@ -2879,7 +2879,9 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
         else:
             queryset = super().get_queryset()
 
-        queryset = queryset.select_related("created_by").prefetch_related(
+        queryset = queryset.select_related(
+            "created_by", "organization", "workspace"
+        ).prefetch_related(
             Prefetch(
                 "queue_labels",
                 queryset=AnnotationQueueLabel.objects.filter(
@@ -4473,6 +4475,13 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 "prototype_run",
                 "call_execution",
                 "trace_session",
+                Prefetch(
+                    "assignments",
+                    queryset=QueueItemAssignment.objects.filter(
+                        deleted=False
+                    ).select_related("user"),
+                    to_attr="active_assignments",
+                ),
             )
         )
         queue_id = self.kwargs.get("queue_id")
@@ -5655,7 +5664,9 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         # Review mode compares every annotator's scores. Outside review mode,
         # even reviewer/manager users get their own annotation draft so a
         # multi-role user can still annotate an assigned item.
-        annotations_qs = _scores_for_queue_item(item).select_related("label")
+        annotations_qs = _scores_for_queue_item(item).select_related(
+            "label", "annotator"
+        )
         raw_annotator_id = query_params.get("annotator_id") or None
         viewing_annotator_id = None
         if raw_annotator_id and is_reviewer:

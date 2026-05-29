@@ -13,7 +13,8 @@ export const parseAnnotationValue = (value) => {
 };
 
 const renderChips = (items, theme) =>
-  items.map((item) => (
+  Array.isArray(items)
+    ? items.map((item) => (
     <Chip
       key={item}
       label={item}
@@ -25,7 +26,8 @@ const renderChips = (items, theme) =>
         fontWeight: 400,
       }}
     />
-  ));
+      ))
+    : null;
 
 export const renderAnnotationValue = (value, theme) => {
   const parsed = parseAnnotationValue(value);

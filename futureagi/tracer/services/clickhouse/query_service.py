@@ -121,12 +121,12 @@ class AnalyticsQueryService:
         return is_clickhouse_enabled()
 
     def execute_ch_query(
-        self, query: str, params: dict = None, timeout_ms: int = 10000
+        self, query: str, params: dict = None, timeout_ms: int = 10000, settings: dict = None
     ) -> QueryResult:
         """Execute a query on ClickHouse and return QueryResult."""
         start = time.monotonic()
         rows, columns, qt = self.ch_client.execute_read(
-            query, params or {}, timeout_ms=timeout_ms
+            query, params or {}, timeout_ms=timeout_ms, settings=settings
         )
         elapsed = (time.monotonic() - start) * 1000
 
@@ -256,6 +256,7 @@ class AnalyticsQueryService:
             cdc_query,
             {"sample_ids": sample_ids, "project_id": project_id},
             timeout_ms=10000,
+            settings={"max_memory_usage": 2000000000},
         )
         return [{"key": row["key"], "type": row["type"]} for row in cdc_result.data]
 

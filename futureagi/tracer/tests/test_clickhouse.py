@@ -7414,7 +7414,7 @@ class TestSessionAnalyticsQueryBuilder:
         assert "trace_session_id" in query
         assert "GROUP BY trace_session_id" in query
         assert "ORDER BY started_at DESC" in query
-        assert "trace_session_id != ''" in query
+        assert "trace_session_id IS NOT NULL" in query
 
     def test_session_navigation_has_aggregate_columns(self):
         """Navigation query should include count, tokens, cost."""

@@ -330,7 +330,7 @@ export default function JwtLoginView() {
           );
         }
       }
-      logger.error("Login attempt failed", error);
+      if ((error?.statusCode >= 400 && error?.statusCode < 500) || error?.name === "NotAllowedError") { logger.info("Login attempt failed (expected)", error); } else { logger.error("Login attempt failed", error); }
     }
   });
 
@@ -377,7 +377,7 @@ export default function JwtLoginView() {
           { variant: "error" },
         );
       }
-      logger.error("Passkey login failed", error);
+      if ((error?.statusCode >= 400 && error?.statusCode < 500) || error?.name === "NotAllowedError") { logger.info("Passkey login failed (expected)", error); } else { logger.error("Passkey login failed", error); }
     } finally {
       setPasskeyLoading(false);
     }
@@ -421,7 +421,7 @@ export default function JwtLoginView() {
         });
       }
     } catch (error) {
-      logger.error("Error during social login:", error);
+      if ((error?.statusCode >= 400 && error?.statusCode < 500) || error?.name === "NotAllowedError") { logger.info("Error during social login (expected)", error); } else { logger.error("Error during social login:", error); }
       if (error.response?.status === 302 && error.response?.headers?.reason) {
         enqueueSnackbar(error.response.headers.reason, { variant: "error" });
       } else {

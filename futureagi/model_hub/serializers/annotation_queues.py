@@ -484,7 +484,9 @@ class QueueItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["queue"]
 
     def get_assigned_users(self, obj):
-        assignments = obj.assignments.filter(deleted=False).select_related("user")
+        assignments = getattr(obj, "active_assignments", None)
+        if assignments is None:
+            assignments = obj.assignments.filter(deleted=False).select_related("user")
         return [
             {
                 "id": str(a.user_id),

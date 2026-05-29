@@ -843,7 +843,8 @@ export default function WidgetChart({ widget, globalDateRange }) {
 
           if (isStacked && dpi >= 0) {
             const w = chartContext.w;
-            const gridRect = w.globals.gridRect;
+            const gridRect = w?.globals?.gridRect;
+            if (!gridRect) return;
             const chartRect = el.getBoundingClientRect();
             const mouseY = event.clientY - chartRect.top - gridRect.y;
             const plotH = gridRect.height;

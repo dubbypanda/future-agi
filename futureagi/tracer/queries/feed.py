@@ -1558,7 +1558,10 @@ def _fetch_trace_rows(
     )
 
     total = base.values("trace_id").distinct().count()
-    rows: list[TracesListRow] = []
+
+    # First pass: dedupe by trace id so the batch helpers below only fetch
+    # what we'll actually emit (mirrors _fetch_representative_traces).
+    deduped: list = []
     seen: set = set()
     for ect in base[offset : offset + limit * 3]:  # over-fetch for dedupe
         if not ect.trace:
@@ -1567,20 +1570,35 @@ def _fetch_trace_rows(
         if tid in seen:
             continue
         seen.add(tid)
+        deduped.append(ect.trace)
+        if len(deduped) >= limit:
+            break
 
-        latency, prompt, completion = _get_trace_totals(tid)
+    if not deduped:
+        return [], total
+
+    trace_ids = [str(t.id) for t in deduped]
+    roots = _get_root_spans_batch(trace_ids)
+    totals = _get_trace_totals_batch(trace_ids)
+    scores = _get_trace_scores_batch(trace_ids)
+    scans = _get_scan_results_batch(trace_ids)
+
+    rows: list[TracesListRow] = []
+    for trace in deduped:
+        tid = str(trace.id)
+        latency, prompt, completion = totals.get(tid, (None, None, None))
         tokens = (prompt or 0) + (completion or 0)
-        score = _get_trace_score(tid)
-        root = _get_root_span(tid)
+        score = scores.get(tid)
+        root = roots.get(tid)
         input_text = None
         if root:
             attrs = root.span_attributes or {}
             input_text = attrs.get("input.value")
         if not input_text:
-            input_text = _trace_input_str(ect.trace)
+            input_text = _trace_input_str(trace)
 
         turns = None
-        scan_result = TraceScanResult.objects.filter(trace_id=tid).only("meta").first()
+        scan_result = scans.get(tid)
         if scan_result and scan_result.meta:
             turns = scan_result.meta.get("turn_count")
 
@@ -1588,7 +1606,7 @@ def _fetch_trace_rows(
             TracesListRow(
                 id=tid,
                 input=input_text,
-                timestamp=ect.trace.created_at,
+                timestamp=trace.created_at,
                 latency_ms=latency,
                 tokens=tokens if tokens else None,
                 cost=round(tokens * _COST_PER_TOKEN, 6) if tokens else None,
@@ -1596,8 +1614,6 @@ def _fetch_trace_rows(
                 turns=turns,
             )
         )
-        if len(rows) >= limit:
-            break
 
     return rows, total
 

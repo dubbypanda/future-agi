@@ -215,12 +215,19 @@ def get_created_by_name(template: "EvalTemplate") -> str:
     try:
         from model_hub.models.evals_metric import EvalTemplateVersion
 
-        version = (
-            EvalTemplateVersion.objects.filter(eval_template=template)
-            .select_related("created_by")
-            .order_by("version_number")
-            .first()
-        )
+        # Prefer a prefetched, version_number-ordered list when the caller
+        # supplied one (e.g. via Prefetch(..., to_attr="_prefetched_versions"))
+        # so we don't issue a per-row query inside a list loop (N+1).
+        prefetched_versions = getattr(template, "_prefetched_versions", None)
+        if prefetched_versions is not None:
+            version = prefetched_versions[0] if prefetched_versions else None
+        else:
+            version = (
+                EvalTemplateVersion.objects.filter(eval_template=template)
+                .select_related("created_by")
+                .order_by("version_number")
+                .first()
+            )
         if version and version.created_by:
             name = getattr(version.created_by, "name", "") or ""
             if name.strip():

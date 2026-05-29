@@ -113,13 +113,24 @@ class User(AbstractBaseUser, PermissionsMixin):
     # --- Multi-org helpers ---
 
     def get_membership(self, organization):
-        """Get the active OrganizationMembership for a specific org, or None."""
+        """Get the active OrganizationMembership for a specific org, or None.
+
+        Memoized per User instance (which lives for a single request) so the
+        many redundant (user, org) membership lookups during one auth pass
+        collapse to a single query (CORE-BACKEND-1074 / CORE-BACKEND-106X).
+        """
+        org_id = getattr(organization, "id", organization)
+        cache = self.__dict__.setdefault("_membership_cache", {})
+        if org_id in cache:
+            return cache[org_id]
         try:
-            return OrganizationMembership.no_workspace_objects.get(
+            membership = OrganizationMembership.no_workspace_objects.get(
                 user=self, organization=organization, is_active=True
             )
         except OrganizationMembership.DoesNotExist:
-            return None
+            membership = None
+        cache[org_id] = membership
+        return membership
 
     def get_membership_level(self, organization):
         """Get integer RBAC level for a specific org."""
@@ -145,11 +156,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     def can_access_organization(self, organization):
         """Check if user has access to a specific organization.
 
-        Uses OrganizationMembership as source of truth.
+        Uses OrganizationMembership as source of truth. Routed through the
+        memoized get_membership so repeated access checks in one request
+        reuse a single query (CORE-BACKEND-1074 / CORE-BACKEND-106X).
         """
-        return OrganizationMembership.no_workspace_objects.filter(
-            user=self, organization=organization, is_active=True
-        ).exists()
+        return self.get_membership(organization) is not None
 
     def get_organization_role(self, organization=None):
         """Get user's role in the given organization.

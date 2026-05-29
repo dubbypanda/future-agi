@@ -1049,6 +1049,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                             "FROM tracer_eval_logger "
                             "WHERE _peerdb_is_deleted = 0 AND deleted = 0 "
                             "AND custom_eval_config_id != toUUID('00000000-0000-0000-0000-000000000000') "
+                            "AND created_at >= now() - INTERVAL 90 DAY "
                             "AND dictGet('trace_dict', 'project_id', trace_id) IN %(project_ids)s",
                             {"project_ids": project_ids},
                             timeout_ms=5000,

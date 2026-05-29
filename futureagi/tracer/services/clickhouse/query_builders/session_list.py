@@ -139,6 +139,7 @@ class SessionListQueryBuilder(BaseQueryBuilder):
           AND trace_session_id IS NOT NULL
           AND trace_session_id != toUUID('{NIL_UUID}')
           AND (parent_span_id IS NULL OR parent_span_id = '')
+          AND created_at >= %(start_date)s - INTERVAL 1 DAY
           AND start_time >= %(start_date)s
           AND start_time < %(end_date)s
           {user_clause}
@@ -219,6 +220,7 @@ class SessionListQueryBuilder(BaseQueryBuilder):
           AND trace_session_id IS NOT NULL
           AND trace_session_id != toUUID('{NIL_UUID}')
           AND (parent_span_id IS NULL OR parent_span_id = '')
+          AND created_at >= %(start_date)s - INTERVAL 1 DAY
           AND start_time >= %(start_date)s
           AND start_time < %(end_date)s
           {user_clause}
@@ -265,6 +267,7 @@ class SessionListQueryBuilder(BaseQueryBuilder):
               AND trace_session_id IS NOT NULL
               AND trace_session_id != toUUID('{NIL_UUID}')
               AND (parent_span_id IS NULL OR parent_span_id = '')
+              AND created_at >= %(start_date)s - INTERVAL 1 DAY
               AND start_time >= %(start_date)s
               AND start_time < %(end_date)s
               {user_clause}

@@ -54,7 +54,7 @@ const SelectionHeader = (props) => {
   const onCheckboxClick = (e) => {
     e.stopPropagation(); // Stop event from reaching the header
     const api = props.api;
-    const { selectAll } = api.getServerSideSelectionState();
+    const { selectAll } = api.getServerSideSelectionState() || { selectAll: false };
     if (selectAll) {
       api.setServerSideSelectionState({ selectAll: false, toggledNodes: [] });
     } else {
@@ -190,7 +190,7 @@ const TestRunDetailGrid = () => {
           try {
             const { data } = await queryClient.fetchQuery(query);
             const status = data?.status;
-            if (TestRunLoadingStatus.includes(status.toLowerCase())) {
+            if (TestRunLoadingStatus.includes(status?.toLowerCase())) {
               isRefreshingRef.current = true;
             }
             const totalRows = data?.count ?? 0;
@@ -248,7 +248,7 @@ const TestRunDetailGrid = () => {
               queryClient.prefetchQuery(nextQuery);
             }
           } catch (error) {
-            logger.error("Failed to get test run detail", { error });
+            logger.warn("Failed to get test run detail", { error });
             params.fail();
             params.api.showNoRowsOverlay();
           }
@@ -355,7 +355,7 @@ const TestRunDetailGrid = () => {
       }
     }
     setStatus(status);
-    if (TestRunLoadingStatus.includes(status.toLowerCase())) {
+    if (TestRunLoadingStatus.includes(status?.toLowerCase())) {
       isRefreshingRef.current = true;
     } else {
       isRefreshingRef.current = false;
@@ -367,7 +367,7 @@ const TestRunDetailGrid = () => {
 
   const onRowSelectionChanged = useCallback(({ api, context }) => {
     const totalRowCount = context?.totalRowCount;
-    const { selectAll, toggledNodes } = api.getServerSideSelectionState();
+    const { selectAll, toggledNodes } = api.getServerSideSelectionState() || { selectAll: false, toggledNodes: [] };
 
     if (selectAll && totalRowCount - toggledNodes.length === 0) {
       api.deselectAll();

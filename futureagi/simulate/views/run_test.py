@@ -313,10 +313,24 @@ class RunTestListView(APIView):
                 queryset=AgentVersion.objects.order_by("-version_number"),
                 to_attr="_prefetched_versions",
             )
+            # Prefetch scenarios with their FK relations so the nested
+            # ScenarioResponseSerializer's get_dataset_* / get_agent / get_agent_type
+            # do not issue per-scenario FK lookups (model_hub_dataset, simulator_agents,
+            # simulate_agent_definition). Fixes CORE-BACKEND-Z49.
+            scenarios_prefetch = Prefetch(
+                "scenarios",
+                queryset=Scenarios.objects.select_related(
+                    "dataset",
+                    "simulator_agent",
+                    "agent_definition",
+                    "prompt_template",
+                    "prompt_version",
+                ),
+            )
             run_tests = (
                 RunTest.objects.filter(organization=user_organization, deleted=False)
                 .prefetch_related(
-                    "scenarios", "simulate_eval_configs", latest_version_prefetch
+                    scenarios_prefetch, "simulate_eval_configs", latest_version_prefetch
                 )
                 .select_related(
                     "agent_definition",
@@ -1987,8 +2001,11 @@ class TestExecutionDetailView(APIView):
             group_keys = query_data.get("group_keys", [])
 
             # Get the test execution
+            # select_related("run_test") loads the already-JOINed run_test row in the
+            # same query so later test_execution.run_test access does not fire a
+            # separate simulate_run_test SELECT. Fixes CORE-BACKEND-10G3.
             test_execution = get_object_or_404(
-                TestExecution,
+                TestExecution.objects.select_related("run_test"),
                 run_test_workspace_filter(request, "run_test"),
                 id=test_execution_id,
                 run_test__organization=user_organization,
@@ -2003,6 +2020,8 @@ class TestExecutionDetailView(APIView):
                     "test_execution",
                     "test_execution__simulator_agent",
                     "test_execution__agent_definition",
+                    "test_execution__run_test",
+                    "test_execution__run_test__agent_definition",
                 )
                 .prefetch_related("transcripts", "snapshots", "chat_messages")
             ).order_by("created_at")
@@ -4967,6 +4986,7 @@ class RunTestExecutionsView(APIView):
                     "agent_definition",
                     "agent_version",
                 )
+                .prefetch_related("calls")
                 .annotate(
                     _total_calls=Count("calls"),
                     _completed_calls=Count(

@@ -536,7 +536,11 @@ def upload_image_to_s3(
                     traceback.print_exc()
                     raise ValueError(get_error_message("INVALID_BASE64_STRING")) from e
 
-        img = Image.open(BytesIO(img_bytes))
+        try:
+            img = Image.open(BytesIO(img_bytes))
+        except Image.UnidentifiedImageError as e:
+            logger.warning(f"Skipping image upload: payload is not a valid image file: {str(e)}")
+            raise ValueError(get_error_message("INVALID_IMAGE")) from e
         format_detected = img.format
         if format_detected:
             format_detected = format_detected.lower()

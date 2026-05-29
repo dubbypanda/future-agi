@@ -92,7 +92,7 @@ class SessionAnalyticsQueryBuilder(BaseQueryBuilder):
             sum(cost) AS total_cost
         FROM {self.TABLE}
         {self.project_where()}
-          AND trace_session_id != ''
+          AND trace_session_id IS NOT NULL
           AND trace_session_id != toUUID('{NIL_UUID}')
         GROUP BY trace_session_id
         ORDER BY started_at DESC

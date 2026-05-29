@@ -7014,12 +7014,38 @@ class GetEvalsListView(APIView):
             get_created_by_name,
         )
 
-        eval_templates = EvalTemplate.objects.filter(
-            organization=organization,
-            owner=OwnerChoices.USER.value,
-            deleted=False,
-            visible_ui=True,
-        ).prefetch_related("evaluators__user", "versions__created_by")
+        from model_hub.models.evals_metric import EvalTemplateVersion, Evaluator
+
+        eval_templates = (
+            EvalTemplate.objects.filter(
+                organization=organization,
+                owner=OwnerChoices.USER.value,
+                deleted=False,
+                visible_ui=True,
+            )
+            # Prefetch the relations get_created_by_name() walks so it reads
+            # from memory instead of issuing a query per template (N+1 on
+            # model_hub_evaluator, model_hub_eval_template_version and
+            # accounts_organization — CORE-BACKEND-10TP / CORE-BACKEND-1161).
+            # to_attr names match what get_created_by_name() looks for.
+            .prefetch_related(
+                Prefetch(
+                    "evaluators",
+                    queryset=Evaluator.objects.select_related("user").filter(
+                        user__isnull=False
+                    )[:1],
+                    to_attr="_prefetched_evaluators",
+                ),
+                Prefetch(
+                    "versions",
+                    queryset=EvalTemplateVersion.objects.select_related(
+                        "created_by"
+                    ).order_by("version_number"),
+                    to_attr="_prefetched_versions",
+                ),
+            )
+            .select_related("organization")
+        )
 
         if search_text:
             eval_templates = eval_templates.filter(Q(name__icontains=search_text))
@@ -9082,7 +9108,7 @@ class ClassifyColumnView(APIView):
         try:
             close_old_connections()
             if not cell.value:
-                return None
+                return None, None
 
             prompt = (
                 f"Classify the following text into exactly one of these labels: {', '.join(labels)}.\n\n"
@@ -15159,7 +15185,7 @@ class GetKnowledgeBaseDetailsView(APIView):
                 ]
                 kbs = KnowledgeBaseFile.objects.filter(
                     organization_id=org.id, deleted=False
-                ).all()
+                ).prefetch_related("files")
                 if not kbs:
                     if KnowledgeBaseFile.all_objects.filter(
                         organization=org, deleted=True

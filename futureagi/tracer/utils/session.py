@@ -63,8 +63,8 @@ def _try_session_navigation_ch(request, project_id, current_session_id, query_da
             # Add user filter to the navigation query
             nav_params["user_id"] = user_id
             nav_query = nav_query.replace(
-                "AND trace_session_id != ''",
-                "AND trace_session_id != '' AND end_user_id = %(user_id)s",
+                "AND trace_session_id IS NOT NULL",
+                "AND trace_session_id IS NOT NULL AND end_user_id = %(user_id)s",
             )
 
         nav_result = service.execute_ch_query(nav_query, nav_params)
