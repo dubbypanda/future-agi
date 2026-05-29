@@ -216,7 +216,7 @@ function StatCard({ icon, label, value, subtitle, color, tooltip }) {
             <Typography
               variant="caption"
               display="block"
-              color="text.disabled"
+              color="text.secondary"
               noWrap
             >
               {subtitle}
@@ -993,7 +993,7 @@ export default function UsageSummaryV2() {
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No usage data yet
           </Typography>
-          <Typography variant="body2" color="text.disabled">
+          <Typography variant="body2" color="text.secondary">
             Start using FutureAGI features and your usage will appear here.
           </Typography>
         </Paper>

@@ -106,7 +106,7 @@ export default function EvaluationMetrics({
         >
           <Typography
             typography={"s2"}
-            color={"text.disabled"}
+            color={"text.secondary"}
             fontWeight={"fontWeightRegular"}
           >
             Evaluation results will appear shortly

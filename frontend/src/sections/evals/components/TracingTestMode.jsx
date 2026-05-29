@@ -1719,7 +1719,7 @@ const TracingTestMode = React.forwardRef(
             <Typography variant="body2" fontWeight={600} color="text.secondary">
               No {rowType.toLowerCase()} data found
             </Typography>
-            <Typography variant="caption" color="text.disabled">
+            <Typography variant="caption" color="text.secondary">
               Add {rowType.toLowerCase()} to this project before running a test
             </Typography>
           </Box>

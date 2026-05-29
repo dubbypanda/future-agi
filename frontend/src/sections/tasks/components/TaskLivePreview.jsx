@@ -1166,7 +1166,7 @@ const VariableMappingView = ({
         </Typography>
         <Typography
           variant="caption"
-          color="text.disabled"
+          color="text.secondary"
           sx={{ display: "block", fontSize: "10px" }}
         >
           Configured mapping for each eval against the current row&apos;s fields

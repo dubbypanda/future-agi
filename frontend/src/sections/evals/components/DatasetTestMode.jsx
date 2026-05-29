@@ -1377,7 +1377,7 @@ const DatasetTestMode = React.forwardRef(
               >
                 No rows in this dataset
               </Typography>
-              <Typography variant="caption" color="text.disabled">
+              <Typography variant="caption" color="text.secondary">
                 Add rows to the dataset before running a test
               </Typography>
             </Box>
@@ -1573,7 +1573,7 @@ const DatasetTestMode = React.forwardRef(
               {filteredCells.length === 0 && (
                 <Typography
                   variant="caption"
-                  color="text.disabled"
+                  color="text.secondary"
                   sx={{ py: 2, textAlign: "center", display: "block" }}
                 >
                   No columns match your search

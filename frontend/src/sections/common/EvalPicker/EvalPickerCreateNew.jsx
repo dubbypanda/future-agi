@@ -1274,7 +1274,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
         {!sourceReady && !hasDataInjection && !testError && !testPassed && (
           <Typography
             variant="caption"
-            color="text.disabled"
+            color="text.secondary"
             sx={{ mr: "auto", fontSize: "11px" }}
           >
             Map all variables to enable{" "}

@@ -1529,7 +1529,7 @@ const TestPlayground = React.forwardRef(
             {!templateId ? (
               <Typography
                 variant="body2"
-                color="text.disabled"
+                color="text.secondary"
                 sx={{ mt: 4, textAlign: "center" }}
               >
                 Save the evaluation first to create versions.
@@ -1537,7 +1537,7 @@ const TestPlayground = React.forwardRef(
             ) : !versionsData?.versions?.length ? (
               <Typography
                 variant="body2"
-                color="text.disabled"
+                color="text.secondary"
                 sx={{ mt: 4, textAlign: "center" }}
               >
                 No versions yet. Click &ldquo;Save Version&rdquo; to create one.
