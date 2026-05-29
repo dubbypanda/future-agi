@@ -2201,6 +2201,7 @@ class CompositeEvalCreateRequestSerializer(serializers.Serializer):
     )
     child_weights = serializers.JSONField(required=False, allow_null=True)
     child_pinned_versions = serializers.JSONField(required=False, allow_null=True)
+    child_configs = serializers.JSONField(required=False, allow_null=True)
     composite_child_axis = serializers.ChoiceField(
         choices=["", "pass_fail", "percentage", "choices", "code"],
         required=False,
@@ -2235,6 +2236,7 @@ class CompositeEvalUpdateRequestSerializer(serializers.Serializer):
     )
     child_weights = serializers.JSONField(required=False, allow_null=True)
     child_pinned_versions = serializers.JSONField(required=False, allow_null=True)
+    child_configs = serializers.JSONField(required=False, allow_null=True)
     composite_child_axis = serializers.ChoiceField(
         choices=["", "pass_fail", "percentage", "choices", "code"],
         required=False,
@@ -2271,6 +2273,7 @@ class CompositeEvalAdhocExecuteRequestSerializer(CompositeEvalExecuteRequestSeri
         default="",
     )
     child_weights = serializers.JSONField(required=False, allow_null=True)
+    child_configs = serializers.JSONField(required=False, allow_null=True)
     pass_threshold = serializers.FloatField(required=False, default=0.5)
 
 
@@ -2282,6 +2285,7 @@ class CompositeChildItemSerializer(serializers.Serializer):
     pinned_version_id = serializers.UUIDField(required=False, allow_null=True)
     pinned_version_number = serializers.IntegerField(required=False, allow_null=True)
     weight = serializers.FloatField(required=False)
+    config = serializers.JSONField(required=False, default=dict)
     required_keys = serializers.ListField(
         child=serializers.CharField(),
         required=False,

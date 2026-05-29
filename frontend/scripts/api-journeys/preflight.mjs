@@ -1,7 +1,9 @@
+/* eslint-disable no-console */
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import process from "node:process";
 import { promisify } from "node:util";
+import { readCachedTokens, writeCachedTokens } from "./lib/token-cache.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -133,7 +135,17 @@ async function checkApiReachability(base) {
 
 async function checkAuthentication(base) {
   if (process.env.FUTURE_AGI_ACCESS_TOKEN) {
-    return checkAccessToken(base, process.env.FUTURE_AGI_ACCESS_TOKEN);
+    return checkAccessToken(base, process.env.FUTURE_AGI_ACCESS_TOKEN, {
+      source: "env",
+    });
+  }
+
+  const cachedTokens = await readCachedTokens({ apiBase: base });
+  if (cachedTokens?.access) {
+    const tokenCheck = await checkAccessToken(base, cachedTokens.access, {
+      source: "token_file",
+    });
+    if (tokenCheck.status === "passed") return tokenCheck;
   }
 
   const email = process.env.FUTURE_AGI_EMAIL;
@@ -143,7 +155,7 @@ async function checkAuthentication(base) {
       name: "auth_context",
       status: "failed",
       detail:
-        "Set FUTURE_AGI_ACCESS_TOKEN or FUTURE_AGI_EMAIL/FUTURE_AGI_PASSWORD before running API journeys.",
+        "Set FUTURE_AGI_ACCESS_TOKEN, FUTURE_AGI_TOKEN_FILE, or FUTURE_AGI_EMAIL/FUTURE_AGI_PASSWORD before running API journeys.",
     };
   }
 
@@ -165,13 +177,21 @@ async function checkAuthentication(base) {
       password,
       includeRecaptcha: false,
     });
+    if (retry.ok && retry.body?.access) {
+      await writeCachedTokens(retry.body, { apiBase: base }).catch(() => null);
+    }
     return tokenResponseToCheck(retry);
   }
 
+  if (tokenResult.ok && tokenResult.body?.access) {
+    await writeCachedTokens(tokenResult.body, { apiBase: base }).catch(
+      () => null,
+    );
+  }
   return tokenResponseToCheck(tokenResult);
 }
 
-async function checkAccessToken(base, accessToken) {
+async function checkAccessToken(base, accessToken, { source } = {}) {
   try {
     const response = await fetchWithTimeout(`${base}/accounts/user-info/`, {
       method: "GET",
@@ -180,17 +200,19 @@ async function checkAccessToken(base, accessToken) {
     const body = await parseResponseBody(response);
     return {
       name: "auth_context",
+      source,
       status: response.ok && body?.status !== false ? "passed" : "failed",
       http_status: response.status,
       detail:
         response.ok && body?.status !== false
-          ? "Access token is accepted by /accounts/user-info/."
-          : "Access token was rejected by /accounts/user-info/.",
+          ? `${source === "token_file" ? "Cached" : "Provided"} access token is accepted by /accounts/user-info/.`
+          : `${source === "token_file" ? "Cached" : "Provided"} access token was rejected by /accounts/user-info/.`,
       body: response.ok ? undefined : summarizeBody(body),
     };
   } catch (error) {
     return {
       name: "auth_context",
+      source,
       status: "failed",
       error: error.message,
     };

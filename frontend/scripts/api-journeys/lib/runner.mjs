@@ -1,8 +1,10 @@
+/* eslint-disable no-console */
 import fs from "node:fs/promises";
 import process from "node:process";
 import {
   CleanupStack,
   SkipJourney,
+  createApiClient,
   createAuthenticatedContext,
 } from "./api-client.mjs";
 
@@ -45,7 +47,9 @@ export async function runJourneys(journeys, argv = process.argv.slice(2)) {
 
   let baseContext;
   try {
-    baseContext = await createAuthenticatedContext();
+    baseContext = selected.some((journey) => !journey.public)
+      ? await createAuthenticatedContext()
+      : createPublicJourneyContext();
   } catch (error) {
     const summary = {
       status: "failed",
@@ -148,6 +152,23 @@ export async function runJourneys(journeys, argv = process.argv.slice(2)) {
   await writeSummary(summary, args);
   if (summary.failed > 0) process.exitCode = 1;
   return summary;
+}
+
+function createPublicJourneyContext() {
+  const apiBase = normalizeBaseUrl(
+    process.env.API_BASE || "http://localhost:8003",
+  );
+  return {
+    client: createApiClient({ apiBase }),
+    user: null,
+    tokens: {},
+    apiBase,
+    organizationId: process.env.FUTURE_AGI_ORGANIZATION_ID || "",
+    workspaceId: process.env.FUTURE_AGI_WORKSPACE_ID || "",
+    runId: `${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`,
+  };
 }
 
 async function writeSummary(summary, args) {

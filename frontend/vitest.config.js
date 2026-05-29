@@ -42,7 +42,8 @@ export default mergeConfig(
       // Include patterns for different test types
       include: [
         'src/**/*.{test,spec}.{js,jsx,ts,tsx}',
-        'src/__tests__/**/*.{js,jsx,ts,tsx}'
+        'src/__tests__/**/*.{js,jsx,ts,tsx}',
+        'scripts/api-journeys/**/*.{test,spec}.{js,mjs}'
       ],
       // Exclude patterns
       exclude: [
@@ -53,4 +54,4 @@ export default mergeConfig(
       ]
     }
   })
-); 
+);

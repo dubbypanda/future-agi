@@ -3238,12 +3238,6 @@ def _get_accessible_ground_truth(ground_truth_id, request):
     )
 
 
-def _get_accessible_composite_template(template_id, organization):
-    return _get_accessible_eval_template(
-        template_id, organization, template_type="composite"
-    )
-
-
 def _resolve_child_pinned_versions(child_ids, child_pinned_versions):
     """Resolve child_id -> EvalTemplateVersion for composite child pins."""
     if child_pinned_versions is None:
@@ -3333,6 +3327,7 @@ class CompositeEvalCreateView(APIView):
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
+            workspace = getattr(request, "workspace", None) or get_current_workspace()
 
             # Validate name
             cleaned_name = req.name.strip()
@@ -3356,7 +3351,10 @@ class CompositeEvalCreateView(APIView):
                     id__in=req.child_template_ids, deleted=False
                 ).filter(
                     Q(owner=OwnerChoices.SYSTEM.value)
-                    | Q(owner=OwnerChoices.USER.value, organization=organization)
+                    | (
+                        Q(owner=OwnerChoices.USER.value, organization=organization)
+                        & _request_workspace_filter(request)
+                    )
                 )
             )
             if len(children) != len(req.child_template_ids):
@@ -3412,6 +3410,7 @@ class CompositeEvalCreateView(APIView):
             parent = EvalTemplate.objects.create(
                 name=cleaned_name,
                 organization=organization,
+                workspace=workspace,
                 owner=OwnerChoices.USER.value,
                 eval_tags=req.tags or [],
                 config={},
@@ -3464,7 +3463,6 @@ class CompositeEvalCreateView(APIView):
             # Create initial version (V1) so created_by is tracked
             from model_hub.models.evals_metric import EvalTemplateVersion
 
-            workspace = getattr(request, "workspace", None)
             try:
                 EvalTemplateVersion.objects.create_version(
                     eval_template=parent,
@@ -3522,7 +3520,11 @@ class CompositeEvalDetailView(APIView):
                 getattr(request, "organization", None) or request.user.organization
             )
             try:
-                parent = _get_accessible_composite_template(template_id, organization)
+                parent = _get_accessible_eval_template_for_request(
+                    template_id,
+                    request,
+                    template_type="composite",
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Composite eval template not found.")
 
@@ -3629,16 +3631,12 @@ class CompositeEvalDetailView(APIView):
 
             # Fetch parent composite — must exist and be a composite
             try:
-                parent = EvalTemplate.objects.get(
-                    id=template_id,
-                    deleted=False,
+                parent = _get_accessible_eval_template_for_request(
+                    template_id,
+                    request,
                     template_type="composite",
                 )
             except EvalTemplate.DoesNotExist:
-                return self._gm.not_found("Composite eval template not found.")
-
-            # Only users in the same org may edit a composite
-            if parent.organization_id != organization.id:
                 return self._gm.not_found("Composite eval template not found.")
 
             # Validate aggregation_function if provided
@@ -3732,9 +3730,12 @@ class CompositeEvalDetailView(APIView):
                         id__in=req.child_template_ids, deleted=False
                     ).filter(
                         Q(owner=OwnerChoices.SYSTEM.value)
-                        | Q(
-                            owner=OwnerChoices.USER.value,
-                            organization=organization,
+                        | (
+                            Q(
+                                owner=OwnerChoices.USER.value,
+                                organization=organization,
+                            )
+                            & _request_workspace_filter(request)
                         )
                     )
                 )
@@ -4029,7 +4030,11 @@ class CompositeEvalExecuteView(APIView):
             org = getattr(request, "organization", None) or request.user.organization
 
             try:
-                parent = _get_accessible_composite_template(template_id, org)
+                parent = _get_accessible_eval_template_for_request(
+                    template_id,
+                    request,
+                    template_type="composite",
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Composite eval template not found.")
 
@@ -4187,7 +4192,10 @@ class CompositeEvalAdhocExecuteView(APIView):
                 id__in=req.child_template_ids, deleted=False
             ).filter(
                 Q(owner=OwnerChoices.SYSTEM.value)
-                | Q(owner=OwnerChoices.USER.value, organization=org)
+                | (
+                    Q(owner=OwnerChoices.USER.value, organization=org)
+                    & _request_workspace_filter(request)
+                )
             )
             children_by_id = {str(c.id): c for c in children_qs}
             if len(children_by_id) != len(set(req.child_template_ids)):
