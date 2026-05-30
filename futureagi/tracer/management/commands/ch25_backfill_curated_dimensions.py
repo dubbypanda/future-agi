@@ -11,7 +11,11 @@ These tables hold the *curated* fields that are NOT derivable from spans
 analytics). In the legacy world they reached ClickHouse via PeerDB CDC
 (``tracer_enduser`` / ``trace_session`` landing tables → ``enduser_dict`` /
 ``trace_session_dict``); v2 removes CDC, so the history is loaded here once and
-then kept fresh by the collector dual-write (added later in P3a).
+then kept fresh by the collector dual-write
+(``curated_writer.mirror_curated_dimensions_to_clickhouse``). The PG-row → CH-row
+mapping is SHARED with that live mirror via ``curated_writer.end_user_to_row`` /
+``trace_session_to_row`` (one definition; this backfill passes
+``version_from_updated_at=True``).
 
 P3a IDENTITY — STRAIGHT MIRROR, NO RE-KEY. ``end_user_id`` / ``trace_session_id``
 are copied verbatim from the PG ``id`` (the random PG-minted uuid4). The
@@ -52,48 +56,22 @@ Operator UX:
 
 from __future__ import annotations
 
-from typing import Any
-
 from django.core.management.base import BaseCommand
 
 from tracer.services.clickhouse.v2 import get_v2_config
 
-# Column order for the INSERTs — must match the schema (017 / 018).
-_END_USER_COLUMNS: tuple[str, ...] = (
-    "project_id",
-    "end_user_id",
-    "organization_id",
-    "user_id",
-    "user_id_type",
-    "user_id_hash",
-    "metadata",
-    "first_seen",
-    "version",
-    "is_deleted",
+# Shared row-mapping contract with the LIVE collector dual-write. Both the
+# backfill (here) and ``curated_writer.mirror_curated_dimensions_to_clickhouse``
+# map a PG model instance → CH row through these, so the column order and the
+# id/version/first_seen/coercion rules have ONE definition (DRY). The backfill
+# passes ``version_from_updated_at=True`` so a re-run is an idempotent latest-
+# wins no-op that never out-versions a live now()-based mirror.
+from tracer.services.clickhouse.v2.curated_writer import (
+    _END_USER_COLUMNS,
+    _TRACE_SESSION_COLUMNS,
+    end_user_to_row,
+    trace_session_to_row,
 )
-_TRACE_SESSION_COLUMNS: tuple[str, ...] = (
-    "project_id",
-    "trace_session_id",
-    "external_session_id",
-    "first_seen",
-    "version",
-    "is_deleted",
-)
-
-
-def _metadata_to_text(v: Any) -> str:
-    """PG ``EndUser.metadata`` is a JSONField (dict / list / str / None).
-
-    The CH ``end_users.metadata`` column is a non-null String holding JSON, so
-    coerce: None → '{}', dict/list → json.dumps, str → trust as-is.
-    """
-    import json
-
-    if v is None:
-        return "{}"
-    if isinstance(v, str):
-        return v
-    return json.dumps(v, default=str, ensure_ascii=False)
 
 
 class Command(BaseCommand):
@@ -170,9 +148,12 @@ class Command(BaseCommand):
         bs = opts["batch_size"]
         written = 0
         batch: list[list] = []
-        # values() avoids touching FK relations (organization/project) and keeps
-        # the read on the source DB only — pure SELECT, no related fetches.
-        rows = qs.values(
+        # Iterate model INSTANCES (not .values()) so the SHARED mapper
+        # ``end_user_to_row`` is the single row definition with the live mirror.
+        # ``.only()`` keeps the read a pure SELECT of local cols + the raw FK ids
+        # (project_id/organization_id) — the mapper reads those *_id attrs, never
+        # eu.project/eu.organization, so no related fetch fires.
+        rows = qs.only(
             "id",
             "project_id",
             "organization_id",
@@ -184,21 +165,8 @@ class Command(BaseCommand):
             "updated_at",
             "deleted",
         )
-        for r in rows.iterator(chunk_size=bs):
-            batch.append(
-                [
-                    str(r["project_id"]),
-                    str(r["id"]),  # end_user_id = PG id (no re-key)
-                    str(r["organization_id"]),
-                    r["user_id"] or "",
-                    r["user_id_type"],  # Nullable — keep None as-is
-                    r["user_id_hash"] or "",  # non-null String → '' on NULL
-                    _metadata_to_text(r["metadata"]),
-                    r["created_at"],  # first_seen
-                    r["updated_at"],  # version (RMT dedup)
-                    1 if r["deleted"] else 0,
-                ]
-            )
+        for eu in rows.iterator(chunk_size=bs):
+            batch.append(end_user_to_row(eu, version_from_updated_at=True))
             if len(batch) >= bs:
                 client.insert("end_users", batch, column_names=list(_END_USER_COLUMNS))
                 written += len(batch)
@@ -239,20 +207,14 @@ class Command(BaseCommand):
         bs = opts["batch_size"]
         written = 0
         batch: list[list] = []
-        rows = qs.values(
+        # Iterate INSTANCES + SHARED mapper ``trace_session_to_row`` (see the
+        # end_users note). ``.only()`` reads local cols + the raw FK id project_id
+        # (the mapper reads s.project_id, never s.project) → pure SELECT.
+        rows = qs.only(
             "id", "project_id", "name", "created_at", "updated_at", "deleted"
         )
-        for r in rows.iterator(chunk_size=bs):
-            batch.append(
-                [
-                    str(r["project_id"]),
-                    str(r["id"]),  # trace_session_id = PG id (no re-key)
-                    r["name"] or "",  # external_session_id = PG name
-                    r["created_at"],  # first_seen
-                    r["updated_at"],  # version (RMT dedup)
-                    1 if r["deleted"] else 0,
-                ]
-            )
+        for s in rows.iterator(chunk_size=bs):
+            batch.append(trace_session_to_row(s, version_from_updated_at=True))
             if len(batch) >= bs:
                 client.insert(
                     "trace_sessions", batch, column_names=list(_TRACE_SESSION_COLUMNS)

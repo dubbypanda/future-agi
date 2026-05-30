@@ -111,6 +111,7 @@ def upsert_langfuse_trace(
 
         # TraceSession
         session_id = assembled_trace.get("sessionId")
+        session = None
         if session_id:
             try:
                 session, _ = TraceSession.no_workspace_objects.get_or_create(
@@ -313,8 +314,22 @@ def upsert_langfuse_trace(
         mirror_traces_to_clickhouse,
     )
 
-    transaction.on_commit(
-        lambda tid=str(trace.id): mirror_traces_to_clickhouse([tid])
-    )
+    transaction.on_commit(lambda tid=str(trace.id): mirror_traces_to_clickhouse([tid]))
+
+    # CH25 (P3a): mirror the curated EndUser / TraceSession resolved above into
+    # CH `end_users` / `trace_sessions` — alongside (NOT replacing) the PG
+    # get_or_create, which stays the id source until P3b. One mirror per upsert
+    # (Langfuse is one trace per call); post-commit + best-effort.
+    if end_user is not None or session is not None:
+        from tracer.services.clickhouse.v2.curated_writer import (
+            mirror_curated_dimensions_to_clickhouse,
+        )
+
+        transaction.on_commit(
+            lambda eu=end_user, s=session: mirror_curated_dimensions_to_clickhouse(
+                [eu] if eu is not None else None,
+                [s] if s is not None else None,
+            )
+        )
 
     return created, spans_count, scores_count

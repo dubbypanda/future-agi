@@ -6,13 +6,12 @@ import traceback
 import uuid
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
 from django.db import connection, models, transaction
 from django.utils import timezone
 
-logger = structlog.get_logger(__name__)
 from model_hub.models.prompt_label import PromptLabel
 from model_hub.models.run_prompt import PromptVersion
 from tfc.temporal import temporal_activity
@@ -27,6 +26,8 @@ from tracer.utils.parsers import deserialize_trace_payload
 from tracer.utils.pii_scrubber import scrub_pii_in_span_batch
 from tracer.utils.pii_settings import get_pii_settings_for_projects
 from tracer.utils.usage_emit import emit_span_ingestion_usage
+
+logger = structlog.get_logger(__name__)
 
 OTLP_STATUS_MAP = {
     "STATUS_CODE_UNSET": "UNSET",
@@ -331,8 +332,8 @@ def _fetch_or_create_end_users(
 
 
 def _fetch_prompt_versions(
-    parsed_data_list: List[Dict[str, Any]], organization_id: str
-) -> Dict[tuple, Dict]:
+    parsed_data_list: list[dict[str, Any]], organization_id: str
+) -> dict[tuple, dict]:
     """Fetches all required prompt versions."""
     prompt_version_filters = []
     for d in parsed_data_list:
@@ -636,13 +637,13 @@ def _trigger_trace_scanner(spans: list[ObservationSpan]):
     if not complete_traces_by_project:
         return
 
-    observe_project_ids = set(
+    observe_project_ids = {
         str(pid)
         for pid in Project.objects.filter(
             id__in=complete_traces_by_project.keys(),
             trace_type="observe",
         ).values_list("id", flat=True)
-    )
+    }
 
     for project_id, trace_ids in complete_traces_by_project.items():
         if project_id not in observe_project_ids:
@@ -786,12 +787,29 @@ def bulk_create_observation_span_task(
                     lambda ids=_ch_trace_ids: mirror_traces_to_clickhouse(ids)
                 )
 
+            # CH25 (P3a): mirror this batch's curated EndUser / TraceSession rows
+            # into CH `end_users` / `trace_sessions` — alongside (NOT replacing)
+            # the PG get_or_create above, which stays the id source until P3b.
+            # `all_end_users`/`all_sessions` are already one-per-identity dicts, so
+            # this is one batched insert each; post-commit + best-effort so a CH
+            # hiccup never breaks or slows ingestion.
+            if all_end_users or all_sessions:
+                from tracer.services.clickhouse.v2.curated_writer import (
+                    mirror_curated_dimensions_to_clickhouse,
+                )
+
+                _ch_endusers = list(all_end_users.values())
+                _ch_sessions = list(all_sessions.values())
+                transaction.on_commit(
+                    lambda eus=_ch_endusers, ss=_ch_sessions: (
+                        mirror_curated_dimensions_to_clickhouse(eus, ss)
+                    )
+                )
+
             # 5. Trigger scanner for completed traces (root span with end_time)
             _trigger_trace_scanner(observation_spans_to_create)
 
-        num_traces = len(
-            set(p.get("trace") for p in parsed_data_list if p.get("trace"))
-        )
+        num_traces = len({p.get("trace") for p in parsed_data_list if p.get("trace")})
         emit_span_ingestion_usage(
             organization_id=organization_id,
             num_traces=num_traces,

@@ -6,12 +6,10 @@ create is a dual-write source-of-truth operation (D-027). CH receives
 the row via PeerDB CDC after the PG transaction commits. There is no
 CH-write path by design; CHSpanReader cannot be applied here.
 """
-import json
 
 import structlog
 from django.db import IntegrityError, transaction
 
-logger = structlog.get_logger(__name__)
 from model_hub.models.prompt_label import PromptLabel
 from model_hub.models.run_prompt import PromptVersion
 from tracer.models.observation_span import EndUser, ObservationSpan
@@ -20,6 +18,8 @@ from tracer.models.trace import Trace
 from tracer.models.trace_session import TraceSession
 from tracer.utils.helper import get_default_project_session_config
 from tracer.utils.otel import convert_otel_span_to_observation_span
+
+logger = structlog.get_logger(__name__)
 
 
 def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
@@ -111,7 +111,6 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
             prompt_version = PromptVersion.objects.filter(**filters).first()
 
             if prompt_version:
-
                 prompt_labels_ids = prompt_version.labels.through.objects.filter(
                     promptversion_id=prompt_version
                 ).values_list("promptlabel_id", flat=True)
@@ -149,6 +148,7 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
             trace.output = output_val
     trace.save()
 
+    trace_session = None
     if parsed_data["session_name"] is not None:
         try:
             trace_session = TraceSession.objects.get(
@@ -192,5 +192,30 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
         transaction.on_commit(
             lambda tid=str(trace.id): mirror_traces_to_clickhouse([tid])
         )
+
+        # CH25 (P3a): mirror the curated EndUser / TraceSession resolved above
+        # (val["end_user"] set ~L90, trace.session set ~L157/166) into CH
+        # `end_users` / `trace_sessions` — alongside (NOT replacing) the PG
+        # get_or_create, which stays the id source until P3b. Gated on the ROOT
+        # span like the trace mirror so it fires ~once per trace, not per span;
+        # post-commit + best-effort so a CH hiccup never breaks ingestion.
+        # Reference the locally-resolved objects (val["end_user"], trace_session)
+        # — NOT trace.session, whose FK descriptor would lazy-fetch a PG row when
+        # session_name was absent (the hot-path round-trip this migration avoids).
+        _ch_end_user = val.get("end_user")
+        _ch_session = trace_session
+        if _ch_end_user is not None or _ch_session is not None:
+            from tracer.services.clickhouse.v2.curated_writer import (
+                mirror_curated_dimensions_to_clickhouse,
+            )
+
+            transaction.on_commit(
+                lambda eu=_ch_end_user, s=_ch_session: (
+                    mirror_curated_dimensions_to_clickhouse(
+                        [eu] if eu is not None else None,
+                        [s] if s is not None else None,
+                    )
+                )
+            )
 
     return observation_span
