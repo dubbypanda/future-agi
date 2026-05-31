@@ -51,6 +51,13 @@ log = structlog.get_logger("ch25.end_user_dict_reader")
 _DICT_NAME = "end_users_dict"
 _LABEL_ATTR = "user_id"
 
+# Extra curated attributes the session-detail read (`_fetch_end_user_info`)
+# needs beyond the bare `user_id` label. Both are exposed by `end_users_dict`
+# (schema 017): `user_id_type` is Nullable(String) — round-trips None/'' faith-
+# fully; `user_id_hash` is a non-null String (PG NULL coerced to '' on write).
+_TYPE_ATTR = "user_id_type"
+_HASH_ATTR = "user_id_hash"
+
 _client = None
 _client_lock = threading.Lock()
 
@@ -127,4 +134,68 @@ def resolve_user_ids(end_user_ids: Iterable[object]) -> dict[str, str | None]:
     out: dict[str, str | None] = {}
     for row in result.result_rows:
         out[row[0]] = row[1]
+    return out
+
+
+def resolve_end_user_fields(
+    end_user_ids: Iterable[object],
+) -> dict[str, dict[str, str | None]]:
+    """Batch-resolve ``{end_user_id (str) -> {user_id, user_id_type,
+    user_id_hash}}`` from the CH ``end_users_dict`` — the curated fields the
+    session-detail read (``_fetch_end_user_info``) used to traverse the PG
+    ``ObservationSpan.end_user`` FK for (DESIGN §4.3, §5.2).
+
+    Faithfulness to the old ``end_user__user_id``/``__user_id_type``/
+    ``__user_id_hash`` FK reads (the parity contract):
+
+    • A key MISSING from the dict (orphan / no curated row) → every field
+      ``None``, via ``dictGetOrNull`` — exactly like the old FK miss.
+    • ``user_id`` and ``user_id_hash`` are non-null String columns: the writer
+      coerces PG NULL → ``''`` (schema 017 / ``curated_writer``). The old FK read
+      surfaced those NULLs as ``None``, so we normalize ``''`` → ``None`` here to
+      match. (A genuine empty-string value would also collapse to ``None`` —
+      accepted; both are display labels and the case is unobserved on the box.)
+    • ``user_id_type`` is ``Nullable(String)`` in BOTH the column and the dict,
+      so ``dictGetOrNull`` round-trips None-vs-``''`` faithfully — it is **NOT**
+      normalized (a row with a genuine ``''`` type must stay ``''`` to match the
+      old FK value, NOT collapse to ``None``).
+
+    • Input ids are coerced to ``str`` and de-duplicated; ``None``/empty are
+      dropped (the caller maps those to an all-``None`` record without a lookup).
+    • Returns ``{}`` for empty input (no CH round-trip). Callers must treat an
+      absent key the same as an all-``None`` record.
+    """
+    ids = {str(e) for e in end_user_ids if e}
+    if not ids:
+        return {}
+
+    client = _get_client()
+    try:
+        # arrayJoin over the literal id list resolves the whole batch in ONE
+        # round-trip. dictGetOrNull keeps the missing-key → NULL semantics for
+        # every attribute.
+        result = client.query(
+            (
+                f"SELECT toString(eid), "
+                f"dictGetOrNull('{_DICT_NAME}', '{_LABEL_ATTR}', eid), "
+                f"dictGetOrNull('{_DICT_NAME}', '{_TYPE_ATTR}', eid), "
+                f"dictGetOrNull('{_DICT_NAME}', '{_HASH_ATTR}', eid) "
+                f"FROM (SELECT arrayJoin(%(ids)s::Array(UUID)) AS eid)"
+            ),
+            parameters={"ids": list(ids)},
+        )
+    except Exception:
+        _reset_client()
+        raise
+
+    out: dict[str, dict[str, str | None]] = {}
+    for row in result.result_rows:
+        out[row[0]] = {
+            # NULL hash/user_id coerced to '' on write → back to None (parity
+            # with the old FK-NULL). user_id_type is Nullable end-to-end → keep
+            # the dict value verbatim (None stays None, '' stays '').
+            "user_id": row[1] or None,
+            "user_id_type": row[2],
+            "user_id_hash": row[3] or None,
+        }
     return out
