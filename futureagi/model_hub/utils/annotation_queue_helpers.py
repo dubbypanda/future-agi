@@ -1,6 +1,6 @@
-import structlog
 from datetime import datetime, timedelta
 
+import structlog
 from django.db.models import DateTimeField, Exists, F, FloatField, OuterRef, Q
 from django.db.models.functions import Cast
 
@@ -363,8 +363,8 @@ def _ensure_default_queue_member_can_manage(queue, user):
         return None
 
     from model_hub.models.annotation_queues import (
-        AnnotationQueueAnnotator,
         FULL_ACCESS_QUEUE_ROLES,
+        AnnotationQueueAnnotator,
     )
     from model_hub.models.choices import AnnotatorRole
 
@@ -757,7 +757,9 @@ def resolve_source_content(item):
                 "status": (
                     trace_status
                     if trace_status is not None
-                    else getattr(primary_span, "status", None) if primary_span else None
+                    else getattr(primary_span, "status", None)
+                    if primary_span
+                    else None
                 ),
                 "span_attributes": (
                     getattr(primary_span, "span_attributes", {}) if primary_span else {}
@@ -945,7 +947,6 @@ def auto_assign_items(queue, items):
     elif queue.assignment_strategy == "load_balanced":
         # Assign to annotator with fewest pending + in_progress items
         from django.db.models import Count
-        from django.db.models import Q as DQ
 
         counts = dict.fromkeys(annotator_ids, 0)
         qs = (
@@ -1037,7 +1038,7 @@ def calculate_agreement(queue):
     # Overall agreement
     total_pairs = 0
     agree_pairs = 0
-    for (qi_id, lid), entries in item_label_map.items():
+    for (_qi_id, _lid), entries in item_label_map.items():
         if len(entries) < 2:
             continue
         total_pairs += 1
@@ -1080,12 +1081,11 @@ def _cohens_kappa(item_label_map, label_id):
     When there are 3+ annotators on an item, every pair is compared using
     ``itertools.combinations`` rather than only the first two entries.
     """
-    from collections import Counter
     from itertools import combinations
 
     all_values = []
     pairs = []
-    for (qi_id, lid), entries in item_label_map.items():
+    for (_qi_id, lid), entries in item_label_map.items():
         if lid != label_id or len(entries) < 2:
             continue
         # Compare ALL annotator pairs, not just the first two
@@ -1123,7 +1123,7 @@ def _annotator_pair_agreement(item_label_map):
 
     pair_data = defaultdict(lambda: {"agree": 0, "total": 0})
 
-    for (qi_id, lid), entries in item_label_map.items():
+    for (_qi_id, _lid), entries in item_label_map.items():
         if len(entries) < 2:
             continue
         for (a1_id, v1), (a2_id, v2) in combinations(entries, 2):
@@ -1173,7 +1173,11 @@ FIELD_MAPPING = {
         "trace_id": "trace_id",
         "trace_name": "trace__name",  # trace's name via FK
         "node_type": "observation_type",
-        "user_id": "end_user__user_id",
+        # CH-derived-dimensions cutover (DESIGN §4.3): EndUser moved to CH, so
+        # the old ``end_user__user_id`` FK join into ``tracer_enduser`` is gone.
+        # ``user_id`` is now an annotation (see ``_annotate_span_for_rules``) that
+        # resolves the span's OWN ``end_user_id`` soft-id through the CH dict.
+        "user_id": "user_id",  # annotated from the span's own end_user_id
         "project_name": "project__name",
         "name": "name",
         "observation_type": "observation_type",
@@ -1226,6 +1230,10 @@ FIELD_MAPPING = {
 # ORM field names that require queryset annotation (not stored on model).
 _NEEDS_ANNOTATION = {
     QueueItemSourceType.TRACE.value: {"node_type", "status", "user_id"},
+    # ``user_id`` is annotated post EndUser→CH cutover (DESIGN §4.3): it used to
+    # be a direct ``end_user__user_id`` FK-join filter, now it is resolved from
+    # the span's own ``end_user_id`` via the CH dict.
+    QueueItemSourceType.OBSERVATION_SPAN.value: {"user_id"},
     QueueItemSourceType.TRACE_SESSION.value: {
         "duration_seconds",
         "total_cost",
@@ -1245,13 +1253,27 @@ def _annotate_for_rules(qs, source_type, needed_orm_fields):
 
     if source_type == QueueItemSourceType.TRACE.value:
         return _annotate_trace_for_rules(qs, to_annotate)
+    if source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
+        return _annotate_span_for_rules(qs, to_annotate)
     if source_type == QueueItemSourceType.TRACE_SESSION.value:
         return _annotate_session_for_rules(qs, to_annotate)
     return qs
 
 
 def _annotate_trace_for_rules(qs, fields):
-    """Annotate Trace queryset with computed fields derived from root spans."""
+    """Annotate Trace queryset with computed fields derived from root spans.
+
+    ``user_id`` is the CH-derived-dimensions cutover (DESIGN §4.3). The old
+    annotation traversed the PG ``end_user`` FK
+    (``Subquery(root_span_qs.values("end_user__user_id"))``); EndUser now lives
+    in CH, so the FK target ``tracer_enduser`` is gone. We keep the EXACT same
+    correlated ``Subquery(root_span_qs...)`` shape — so the annotation stays lazy
+    and the downstream ``qs.filter(user_id__…)`` / ``exclude`` rule loop, the
+    ``qs[:cap+1]`` capped scan, and ``rules_applied`` accounting are untouched —
+    but swap the FK column for the span's OWN ``end_user_id`` soft-id mapped
+    through a CASE that carries the CH ``end_users_dict`` label (built once,
+    bounded by enduser count, NOT by trace count). See ``_user_id_label_case``.
+    """
     from django.db.models import (
         Case,
         CharField,
@@ -1297,9 +1319,59 @@ def _annotate_trace_for_rules(qs, fields):
         )
 
     if "user_id" in fields:
-        qs = qs.annotate(user_id=Subquery(root_span_qs.values("end_user__user_id")[:1]))
+        # Distinct end_user_ids reachable from these traces' root spans (bounded
+        # by enduser count). dictGet their labels and fold into a CASE the
+        # correlated subquery evaluates per root span — matching the OLD
+        # ``root_span_qs.values("end_user__user_id")[:1]`` exactly: no added
+        # order_by / null-exclusion, so it picks the SAME arbitrary root span and
+        # yields NULL on a null/orphan end_user_id, just as the FK join did.
+        end_user_ids = (
+            ObservationSpan.objects.filter(
+                trace_id__in=qs.values("id"), parent_span_id__isnull=True
+            )
+            .exclude(end_user_id__isnull=True)
+            .values_list("end_user_id", flat=True)
+            .distinct()
+        )
+        label_case = _user_id_label_case(end_user_ids)
+        qs = qs.annotate(
+            user_id=Subquery(
+                root_span_qs.annotate(_uid_label=label_case).values("_uid_label")[:1]
+            )
+        )
 
     return qs
+
+
+def _annotate_span_for_rules(qs, fields):
+    """Annotate an ObservationSpan queryset with ``user_id`` (CH cutover).
+
+    OLD: the span rule used ``user_id`` as a DIRECT FK-join filter
+    (``end_user__user_id`` → ``tracer_enduser.user_id``). After EndUser→CH that
+    table is gone (DESIGN §4.3). The entity here IS the span, so unlike the
+    trace/session paths there is no correlation: we annotate ``user_id`` directly
+    from the span's OWN ``end_user_id`` column via a CASE that carries the CH
+    ``end_users_dict`` label (bounded by enduser count). The annotated
+    ``user_id`` is a normal CharField, so the downstream filter loop, cap scan,
+    and accounting are unchanged.
+
+    NULL fidelity: a span with NULL ``end_user_id`` → no CASE arm → NULL (old
+    inner FK join produced no/NULL match → the row was filtered/NULL the same
+    way); an orphan ``end_user_id`` (missing dict key) → NULL via the CASE
+    default (old FK miss → NULL too).
+    """
+    if "user_id" not in fields:
+        return qs
+
+    from tracer.models.observation_span import ObservationSpan  # noqa: F401
+
+    end_user_ids = (
+        qs.exclude(end_user_id__isnull=True)
+        .values_list("end_user_id", flat=True)
+        .distinct()
+    )
+    label_case = _user_id_label_case(end_user_ids)
+    return qs.annotate(user_id=label_case)
 
 
 def _annotate_session_for_rules(qs, fields):
@@ -1356,15 +1428,79 @@ def _annotate_session_for_rules(qs, fields):
         )
 
     if "user_id" in fields:
+        # CH-derived-dimensions cutover (DESIGN §4.3). OLD:
+        # ``spans_qs.exclude(end_user__isnull=True).order_by("start_time")
+        #   .values("end_user__user_id")[:1]`` — first non-null-enduser span by
+        # start_time, then the FK label. We keep that EXACT correlated shape
+        # (exclude + order_by + ``[:1]``) so the picked span is identical, and
+        # the annotation stays a lazy Subquery (cap/accounting untouched); only
+        # the FK-label column is swapped for the span's OWN ``end_user_id`` mapped
+        # through a CASE carrying the CH ``end_users_dict`` label (bounded by
+        # enduser count). ``end_user__isnull`` → ``end_user_id__isnull`` is a
+        # column NULL check, NOT an FK join.
+        end_user_ids = (
+            ObservationSpan.objects.filter(trace__session_id__in=qs.values("id"))
+            .exclude(end_user_id__isnull=True)
+            .values_list("end_user_id", flat=True)
+            .distinct()
+        )
+        label_case = _user_id_label_case(end_user_ids)
         qs = qs.annotate(
             user_id=Subquery(
-                spans_qs.exclude(end_user__isnull=True)
+                spans_qs.exclude(end_user_id__isnull=True)
                 .order_by("start_time")
-                .values("end_user__user_id")[:1]
+                .annotate(_uid_label=label_case)
+                .values("_uid_label")[:1]
             )
         )
 
     return qs
+
+
+def _user_id_label_case(end_user_ids):
+    """Build a Django ``Case`` mapping a span's ``end_user_id`` → its CH
+    ``user_id`` label, for the EndUser reads cutover (DESIGN §4.3).
+
+    ``end_user_ids`` is an iterable (typically a lazy ``ValuesList`` queryset) of
+    the DISTINCT non-null ``end_user_id``s reachable from the queryset's spans —
+    bounded by enduser count, NOT by trace/session count, so the resulting CASE
+    stays small even on a million-row span scan. The labels are fetched from CH
+    ``end_users_dict`` in ONE batched ``dictGet`` and folded into
+    ``When(end_user_id=eu, then=Value(label))`` arms.
+
+    Used INSIDE a correlated ``Subquery`` over the spans (``.annotate(...)
+    .values(...)[:1]``), so the host annotation stays lazy — the cap-and-scan
+    machinery in ``_evaluate_rule_inner`` is preserved.
+
+    NULL fidelity vs the old ``end_user__user_id`` FK join:
+      • a span whose ``end_user_id`` is NULL → no ``When`` matches → CASE
+        ``default=None`` → NULL (old FK was NULL too).
+      • a span whose ``end_user_id`` is an ORPHAN (no dict row — possible under
+        ``db_constraint=False``) → ``dictGetOrNull`` returned ``None`` →
+        we emit NO arm for it → CASE default → NULL (old FK miss → NULL too).
+    Both reproduce the old subquery's NULL exactly.
+    """
+    from django.db.models import Case, CharField, Value, When
+
+    from tracer.services.clickhouse.v2.end_user_dict_reader import resolve_user_ids
+
+    ids = list(end_user_ids)
+    label_by_end_user = resolve_user_ids(ids)
+
+    whens = []
+    for end_user_id in ids:
+        label = label_by_end_user.get(str(end_user_id))
+        if label is None:
+            # Orphan / missing dict key → leave to default=None (FK-miss → NULL).
+            continue
+        whens.append(When(end_user_id=end_user_id, then=Value(label)))
+
+    if not whens:
+        # No resolvable labels → a constant-NULL CharField, so the subquery still
+        # yields NULL for every span (identical to an all-NULL FK join).
+        return Value(None, output_field=CharField())
+
+    return Case(*whens, default=Value(None), output_field=CharField())
 
 
 RULE_TRIGGER_INTERVALS = {
@@ -1994,7 +2130,8 @@ def evaluate_rule(rule, dry_run=False, user=None, cap=1000):
     Returns dict with 'matched', 'added', 'duplicates' counts.
     """
     from django.db import transaction
-    from model_hub.models.annotation_queues import AutomationRule, QueueItem
+
+    from model_hub.models.annotation_queues import AutomationRule
 
     if dry_run:
         return _evaluate_rule_inner(rule, dry_run, user, cap)
