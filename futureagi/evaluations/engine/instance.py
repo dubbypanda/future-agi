@@ -299,7 +299,14 @@ def prepare_eval_config(
         if eval_template.config.get("messages"):
             config["messages"] = eval_template.config.get("messages")
         if eval_template.config.get("few_shot_examples"):
-            config["few_shot_examples"] = eval_template.config.get("few_shot_examples")
+            from model_hub.utils.few_shot_examples import (
+                expand_static_few_shot_examples,
+            )
+
+            config["few_shot_examples"] = expand_static_few_shot_examples(
+                eval_template.config.get("few_shot_examples"),
+                organization=eval_template.organization,
+            )
 
         # Resolve model
         raw_model = model or eval_template.config.get("model")
