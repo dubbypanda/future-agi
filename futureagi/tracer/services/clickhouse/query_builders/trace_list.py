@@ -20,6 +20,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
 
+#TODO: switch this to "start_time" once we create an index on that column .
+TIME_FILTER_COLUMN = "created_at"  # Options: "created_at" | "start_time"
+
 
 class TraceListQueryBuilder(BaseQueryBuilder):
     """Build queries for the paginated trace list view.
@@ -209,8 +212,8 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         {self.project_where()}
           AND (parent_span_id IS NULL OR parent_span_id = '')
           AND created_at >= %(start_date)s - INTERVAL 1 DAY
-          AND start_time >= %(start_date)s
-          AND start_time < %(end_date)s
+          AND {TIME_FILTER_COLUMN} >= %(start_date)s
+          AND {TIME_FILTER_COLUMN} < %(end_date)s
           {pv_fragment}
           {search_fragment}
           {filter_fragment}
@@ -311,14 +314,15 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         # prunes old partitions. Drops 7d count from 716ms/3.5M rows to
         # 255ms/306K rows on a 3.5M-span project, without dropping any
         # rows that legitimately match the user's `start_time` window.
+
         query = f"""
         SELECT uniq(trace_id) AS total
         FROM {self.TABLE}
         {self.project_where()}
           AND (parent_span_id IS NULL OR parent_span_id = '')
           AND created_at >= %(start_date)s - INTERVAL 1 DAY
-          AND start_time >= %(start_date)s
-          AND start_time < %(end_date)s
+          AND {TIME_FILTER_COLUMN} >= %(start_date)s
+          AND {TIME_FILTER_COLUMN} < %(end_date)s
           {pv_fragment}
           {search_fragment}
           {filter_fragment}
@@ -514,14 +518,20 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         query = f"""
         SELECT
             trace_id,
-            any(dictGetOrDefault('enduser_dict', 'user_id', end_user_id, '')) AS user_id
-        FROM {self.TABLE}
-        PREWHERE trace_id IN %(user_trace_ids)s
-        WHERE {self.project_filter_sql()}
-          AND _peerdb_is_deleted = 0
-          AND end_user_id IS NOT NULL
-          AND end_user_id != toUUID('00000000-0000-0000-0000-000000000000')
-        GROUP BY trace_id
+            dictGetOrDefault('enduser_dict', 'user_id', end_user_id, '') AS user_id
+        FROM (
+            SELECT
+                trace_id,
+                any(end_user_id) AS end_user_id
+            FROM {self.TABLE}
+            PREWHERE trace_id IN %(user_trace_ids)s
+            WHERE {self.project_filter_sql()}
+              AND _peerdb_is_deleted = 0
+              AND end_user_id IS NOT NULL
+              AND end_user_id != toUUID('00000000-0000-0000-0000-000000000000')
+            GROUP BY trace_id
+        )
+        WHERE user_id != ''
         """
         return query, params
 
