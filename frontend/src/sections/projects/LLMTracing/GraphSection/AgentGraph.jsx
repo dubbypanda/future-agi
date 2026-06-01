@@ -12,7 +12,6 @@ import PropTypes from "prop-types";
 import {
   Box,
   CircularProgress,
-  Dialog,
   IconButton,
   Typography,
   useTheme,
@@ -32,6 +31,7 @@ import "@xyflow/react/dist/style.css";
 import Dagre from "@dagrejs/dagre";
 import Iconify from "src/components/iconify";
 import CustomTooltip from "src/components/tooltip";
+import FullscreenGraphDialog from "./FullscreenGraphDialog";
 
 // ---------------------------------------------------------------------------
 // Node type → color + icon
@@ -578,7 +578,12 @@ const ZoomControls = ({ isFullscreen, onToggleFullscreen }) => {
       >
         <Iconify icon="mdi:crosshairs-gps" width={14} />
       </IconButton>
-      <IconButton size="small" onClick={onToggleFullscreen} sx={btnSx}>
+      <IconButton
+        size="small"
+        title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        onClick={onToggleFullscreen}
+        sx={btnSx}
+      >
         <Iconify
           icon={isFullscreen ? "mdi:fullscreen-exit" : "mdi:fullscreen"}
           width={14}
@@ -728,37 +733,21 @@ AgentGraphInner.propTypes = {
   onToggleFullscreen: PropTypes.func,
 };
 
-const AgentGraph = (props) => {
-  const { onNodeClick } = props;
-  const [fsOpen, setFsOpen] = useState(false);
-  return (
-    <>
+const AgentGraph = (props) => (
+  <FullscreenGraphDialog
+    onNodeClick={props.onNodeClick}
+    renderGraph={({ isFullscreen, onToggleFullscreen, onNodeClick }) => (
       <ReactFlowProvider>
-        <AgentGraphInner {...props} onToggleFullscreen={() => setFsOpen(true)} />
+        <AgentGraphInner
+          {...props}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={onToggleFullscreen}
+          onNodeClick={onNodeClick}
+        />
       </ReactFlowProvider>
-      <Dialog
-        fullScreen
-        open={fsOpen}
-        onClose={() => setFsOpen(false)}
-        PaperProps={{ sx: { borderRadius: 0, bgcolor: "background.paper" } }}
-      >
-        <Box sx={{ height: "100vh", width: "100%" }}>
-          <ReactFlowProvider>
-            <AgentGraphInner
-              {...props}
-              isFullscreen
-              onToggleFullscreen={() => setFsOpen(false)}
-              onNodeClick={(node) => {
-                onNodeClick?.(node);
-                setFsOpen(false);
-              }}
-            />
-          </ReactFlowProvider>
-        </Box>
-      </Dialog>
-    </>
-  );
-};
+    )}
+  />
+);
 
 AgentGraph.propTypes = {
   data: PropTypes.object,

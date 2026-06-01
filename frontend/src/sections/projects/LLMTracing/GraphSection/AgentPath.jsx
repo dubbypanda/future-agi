@@ -9,13 +9,13 @@ import PropTypes from "prop-types";
 import {
   Box,
   CircularProgress,
-  Dialog,
   IconButton,
   Typography,
   useTheme,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Iconify from "src/components/iconify";
+import FullscreenGraphDialog from "./FullscreenGraphDialog";
 
 // Node type → color mapping (matches AgentGraph)
 const TYPE_COLORS = {
@@ -413,6 +413,7 @@ const AgentPathInner = ({
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(900);
   const [containerHeight, setContainerHeight] = useState(200);
+  const [isHovering, setIsHovering] = useState(false);
   const layout = useMemo(() => computeSankeyLayout(data), [data]);
 
   useEffect(() => {
@@ -462,6 +463,8 @@ const AgentPathInner = ({
   return (
     <Box
       ref={containerRef}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
       sx={{
         position: "relative",
         bgcolor: "background.paper",
@@ -470,34 +473,36 @@ const AgentPathInner = ({
           : { mx: 2, my: 1 }),
       }}
     >
-      {/* Fullscreen control, top right (matches AgentGraph) */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          zIndex: 10,
-          display: "flex",
-          bgcolor: "background.paper",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: "6px",
-          boxShadow: (t) => `0 1px 3px ${alpha(t.palette.common.black, 0.06)}`,
-          overflow: "hidden",
-        }}
-      >
-        <IconButton
-          size="small"
-          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          onClick={onToggleFullscreen}
-          sx={{ p: 0.5, borderRadius: 0, color: "text.secondary" }}
+      {/* Reveal on hover */}
+      {(isHovering || isFullscreen) && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 10,
+            display: "flex",
+            bgcolor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: "6px",
+            boxShadow: (t) => `0 1px 3px ${alpha(t.palette.common.black, 0.06)}`,
+            overflow: "hidden",
+          }}
         >
-          <Iconify
-            icon={isFullscreen ? "mdi:fullscreen-exit" : "mdi:fullscreen"}
-            width={14}
-          />
-        </IconButton>
-      </Box>
+          <IconButton
+            size="small"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            onClick={onToggleFullscreen}
+            sx={{ p: 0.5, borderRadius: 0, color: "text.secondary" }}
+          >
+            <Iconify
+              icon={isFullscreen ? "mdi:fullscreen-exit" : "mdi:fullscreen"}
+              width={14}
+            />
+          </IconButton>
+        </Box>
+      )}
 
       <SankeyChart
         layout={layout}
@@ -518,33 +523,19 @@ AgentPathInner.propTypes = {
   onToggleFullscreen: PropTypes.func,
 };
 
-const AgentPath = (props) => {
-  const { onNodeClick } = props;
-  const [fsOpen, setFsOpen] = useState(false);
-  return (
-    <>
-      <AgentPathInner {...props} onToggleFullscreen={() => setFsOpen(true)} />
-      <Dialog
-        fullScreen
-        open={fsOpen}
-        onClose={() => setFsOpen(false)}
-        PaperProps={{ sx: { borderRadius: 0, bgcolor: "background.paper" } }}
-      >
-        <Box sx={{ height: "100vh", width: "100%" }}>
-          <AgentPathInner
-            {...props}
-            isFullscreen
-            onToggleFullscreen={() => setFsOpen(false)}
-            onNodeClick={(node) => {
-              onNodeClick?.(node);
-              setFsOpen(false);
-            }}
-          />
-        </Box>
-      </Dialog>
-    </>
-  );
-};
+const AgentPath = (props) => (
+  <FullscreenGraphDialog
+    onNodeClick={props.onNodeClick}
+    renderGraph={({ isFullscreen, onToggleFullscreen, onNodeClick }) => (
+      <AgentPathInner
+        {...props}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={onToggleFullscreen}
+        onNodeClick={onNodeClick}
+      />
+    )}
+  />
+);
 
 AgentPath.propTypes = {
   data: PropTypes.object,
