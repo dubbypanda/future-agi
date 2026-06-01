@@ -164,6 +164,19 @@ func translateRequest(req *models.ChatCompletionRequest) (*geminiRequest, string
 		}
 
 		gc := translateMessage(msg)
+
+		// Coalesce consecutive tool-result messages into a single Gemini user
+		// turn. Gemini requires a turn's functionResponse part count to equal
+		// the preceding model turn's functionCall part count, so parallel tool
+		// calls (one assistant turn -> N tool results) must become ONE user
+		// content with N functionResponse parts, not N separate contents.
+		if msg.Role == "tool" && len(gr.Contents) > 0 {
+			last := &gr.Contents[len(gr.Contents)-1]
+			if isFunctionResponseContent(last) {
+				last.Parts = append(last.Parts, gc.Parts...)
+				continue
+			}
+		}
 		gr.Contents = append(gr.Contents, gc)
 	}
 
@@ -297,6 +310,22 @@ func buildThinkingConfig(extra map[string]json.RawMessage) *geminiThinkingConfig
 		return nil
 	}
 	return tc
+}
+
+// isFunctionResponseContent reports whether c is a Gemini user turn whose
+// parts are all functionResponse parts (the translated form of one or more
+// OpenAI tool-result messages). Used to merge parallel tool results into one
+// turn so the functionResponse count matches the model's functionCall count.
+func isFunctionResponseContent(c *geminiContent) bool {
+	if c.Role != "user" || len(c.Parts) == 0 {
+		return false
+	}
+	for _, p := range c.Parts {
+		if p.FunctionResponse == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func translateMessage(msg models.Message) geminiContent {
