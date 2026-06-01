@@ -1334,27 +1334,291 @@ def _apply_session_filters(base_sessions_qs, filters, *, project_id, organizatio
     return aggregated
 
 
-def resolve_filtered_session_ids(
+def _session_score_label_ids(project_id) -> set[str]:
+    """Project-scoped annotation-label ids — the discriminator that splits a
+    score-based session filter (``col_id`` is a label id) from a system-metric
+    one. Mirrors ``_apply_session_filters`` / ``list_sessions`` exactly."""
+    return {
+        str(lbl.id)
+        for lbl in AnnotationsLabels.objects.filter(
+            project_id=project_id, deleted=False
+        )
+    }
+
+
+def _split_session_score_filters(
+    filters: list[dict], score_label_ids: set[str]
+) -> tuple[list[dict], list[dict]]:
+    """Partition ``filters`` into (non-score, score) by whether the filter's
+    ``col_id`` names a project annotation label. Score filters are applied in PG
+    against ``Score`` (which carries ``trace_session_id`` as a soft id, so it is
+    net-new-correct); everything else flows to the CH session-list builder."""
+    non_score: list[dict] = []
+    score: list[dict] = []
+    for f in filters or []:
+        if _filter_column_id(f) in score_label_ids:
+            score.append(f)
+        else:
+            non_score.append(f)
+    return non_score, score
+
+
+def _prepare_session_ch_filters(
+    non_score_filters: list[dict],
+    *,
+    project_id,
+    organization,
+) -> list[dict]:
+    """Translate a ``user_id`` session filter into the synthetic ``end_user_id``
+    IN(...) filter the CH ``SessionListQueryBuilder`` understands, mirroring the
+    live ``_list_sessions_clickhouse`` prep.
+
+    P3b step2 precondition (PG_ORM_READ_MIGRATION, Slice B/F): the reverse
+    resolve goes through the curated CH ``end_users`` dimension, NOT PG
+    ``EndUser.objects`` (which is stale for a NET-NEW user post-flip). The
+    resolved ids are bound to the id-remap-RESOLVED ``end_user_id`` span column
+    by the builder (``_build_resolved_user_clause``), so a straddler unifies and
+    a net-new user's sessions are reachable. Other filter columns (time,
+    span-attribute, aggregate-metric, session-id) pass through untouched — the
+    builder already routes each to the right CH predicate, remap-aware.
+    """
+    prepared: list[dict] = []
+    user_id_values: list[str] = []
+    for f in non_score_filters or []:
+        col_id = _filter_column_id(f)
+        cfg = _filter_config(f)
+        col_type = cfg.get("col_type", "NORMAL")
+        if col_id == "user_id" and col_type == "NORMAL":
+            raw = cfg.get("filter_value")
+            vals = raw if isinstance(raw, list) else [raw]
+            user_id_values.extend(str(v) for v in vals if v)
+            continue
+        prepared.append(f)
+
+    for raw_user_id in user_id_values:
+        from tracer.services.clickhouse.v2.end_user_dict_reader import (
+            resolve_end_user_ids_by_user_id,
+        )
+
+        ids = resolve_end_user_ids_by_user_id(
+            raw_user_id,
+            organization_id=getattr(organization, "id", None),
+            project_id=project_id,
+        )
+        # Empty → match nothing (NIL_UUID sentinel), mirroring the live view.
+        from tracer.services.clickhouse.query_builders.base import NIL_UUID
+
+        prepared.append(
+            {
+                "column_id": "end_user_id",
+                "filter_config": {
+                    "filter_type": "text",
+                    "filter_op": "in",
+                    "filter_value": ids or [NIL_UUID],
+                },
+            }
+        )
+    return prepared
+
+
+def _apply_session_score_filters_pg(
+    session_ids: list[str], score_filters: list[dict]
+) -> list[str]:
+    """Intersect a CH-derived candidate session-id list with PG ``Score``-based
+    filters, preserving input order.
+
+    Reproduces ``_apply_session_filters``'s score branches (lines 1298-1332)
+    exactly, but as an explicit-id membership check rather than an ``OuterRef``
+    Subquery — so it composes with the CH base set. ``Score`` keys session
+    annotations by the soft ``trace_session_id`` string, so a NET-NEW session's
+    scores are reachable here WITHOUT a PG ``trace_session`` row (the whole
+    point of the cutover). Each successive filter narrows the surviving set.
+    """
+    surviving = list(session_ids)
+    for sf in score_filters:
+        if not surviving:
+            break
+        col_id = _filter_column_id(sf)
+        fc = _filter_config(sf)
+        filter_op = fc.get("filter_op") or "equals"
+        filter_val = fc.get("filter_value")
+
+        base_q = Score.objects.filter(
+            trace_session_id__in=surviving,
+            label_id=col_id,
+            deleted=False,
+        )
+        if filter_op == "is_not_null":
+            match_q = base_q
+            negate = False
+        elif filter_op == "is_null":
+            match_q = base_q
+            negate = True
+        elif filter_op == "equals":
+            match_q = base_q.filter(value=filter_val)
+            negate = False
+        elif filter_op == "not_equals":
+            match_q = base_q.filter(value=filter_val)
+            negate = True
+        elif filter_op == "in" and isinstance(filter_val, list):
+            match_q = base_q.filter(value__in=filter_val)
+            negate = False
+        elif filter_op == "not_in" and isinstance(filter_val, list):
+            match_q = base_q.filter(value__in=filter_val)
+            negate = True
+        elif filter_op == "contains":
+            match_q = base_q.filter(value__icontains=filter_val)
+            negate = False
+        else:
+            match_q = base_q
+            negate = False
+
+        matched = {
+            str(sid) for sid in match_q.values_list("trace_session_id", flat=True)
+        }
+        if negate:
+            surviving = [s for s in surviving if s not in matched]
+        else:
+            surviving = [s for s in surviving if s in matched]
+    return surviving
+
+
+def _resolve_session_ids_clickhouse(
+    *,
+    project_id,
+    non_score_filters: list[dict],
+    score_filters: list[dict],
+    exclude_ids: set,
+    organization,
+    cap: int,
+) -> ResolveResult | None:
+    """Re-derive the filter-matched session-id set from ClickHouse.
+
+    P3b step2 precondition (PG_ORM_READ_MIGRATION, Slice F): the PG base
+    derivation (``_build_session_base_queryset`` →
+    ``TraceSession.objects.filter(project_id=…)``) goes STALE post-flip — a
+    NET-NEW session (first seen after the ingest ``get_or_create`` is dropped)
+    has NO ``trace_session`` row, so a "select all sessions matching this
+    filter" bulk-add SILENTLY OMITTED it. The CH ``spans``-derived session list
+    (the SAME ``SessionListQueryBuilder`` the live grid uses) includes it, and
+    is remap-aware so a cross-cutover straddler's old + new session ids unify to
+    ONE survivor row (counted once).
+
+    Non-score filters (time / span-attribute / aggregate-metric / session-id /
+    user_id) are translated by the builder. Score-label filters are applied in
+    PG afterward (``_apply_session_score_filters_pg``) — the builder/CH
+    ``spans`` path cannot host a session-level ``Score`` predicate (the CH
+    annotation subquery matches by ``trace_id``/span ``id``, never
+    ``trace_session_id``), so this preserves the PG path's score semantics while
+    staying net-new-correct. Returns ``None`` when CH is unavailable so the
+    caller can fall back to the PG aggregate path.
+    """
+    try:
+        from tracer.services.clickhouse.query_service import AnalyticsQueryService
+        from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
+    except ImportError:
+        return None
+
+    BuilderCls = get_query_builder_class("SESSION_LIST")  # noqa: N806
+    ch_filters = _prepare_session_ch_filters(
+        non_score_filters, project_id=project_id, organization=organization
+    )
+
+    # Parity: the PG aggregate path imposes NO time window (it selects every
+    # session unless the payload carries a `created_at` filter). The CH builder's
+    # `parse_time_range` instead DEFAULTS to now-30d when no time bound is sent
+    # (base.py — a dashboard-perf default), which would silently drop older
+    # sessions a "select all matching this filter" must include. So when the
+    # payload has no explicit time filter, inject a wide-open `start_time`
+    # window to disable the default narrowing (mirrors the same all-history
+    # selection the PG path gives). An explicit user time filter passes through
+    # untouched and prunes normally.
+    if not _has_explicit_time_filter(non_score_filters):
+        ch_filters.append(
+            {
+                "column_id": "start_time",
+                "filter_config": {
+                    "filter_type": "datetime",
+                    "filter_op": "between",
+                    "filter_value": [
+                        "1970-01-01T00:00:00",
+                        "2099-12-31T23:59:59",
+                    ],
+                },
+            }
+        )
+
+    analytics = AnalyticsQueryService()
+    # page_size=cap → the builder's LIMIT cap+1 gives the truncation sentinel
+    # without a separate COUNT scan (same trick as the voice/ trace CH paths).
+    # When score filters are present we must over-fetch so the post-PG-intersect
+    # set can still reach the cap — fetch the full page (no extra +k heuristic;
+    # the cap is already the hard ceiling and truncation is reported honestly).
+    builder = BuilderCls(
+        project_id=str(project_id),
+        page_number=0,
+        page_size=cap,
+        filters=ch_filters,
+        sort_params=[],
+    )
+    try:
+        query, params = builder.build()
+        result = analytics.execute_ch_query(query, params, timeout_ms=15_000)
+    except Exception:
+        # CH reachable-but-failing (transient/timeout) → fall back to the PG
+        # aggregate, mirroring the live grid's `except Exception` at
+        # trace_session.py. Returning None lets the caller take the PG path
+        # rather than 500 the bulk-add.
+        logger.exception(
+            "bulk_selection_resolve_session_ch_query_failed",
+            project_id=str(project_id),
+        )
+        return None
+    ids = [
+        str(row.get("session_id", "")) for row in result.data if row.get("session_id")
+    ]
+    raw_truncated = len(ids) > cap
+
+    if score_filters:
+        ids = _apply_session_score_filters_pg(ids, score_filters)
+
+    if exclude_ids:
+        excl = {str(i) for i in exclude_ids}
+        ids = [i for i in ids if i not in excl]
+
+    truncated = raw_truncated or len(ids) > cap
+    ids = ids[:cap]
+    total_matching = len(ids) + (1 if truncated else 0)
+
+    logger.info(
+        "bulk_selection_resolve_session_ch",
+        project_id=str(project_id),
+        filter_count=len(non_score_filters or []) + len(score_filters or []),
+        score_filter_count=len(score_filters or []),
+        exclude_count=len(exclude_ids or set()),
+        total_matching=total_matching,
+        returned=len(ids),
+        truncated=truncated,
+    )
+
+    return ResolveResult(ids=ids, total_matching=total_matching, truncated=truncated)
+
+
+def _resolve_filtered_session_ids_pg(
     *,
     project_id,
     filters: list[dict],
-    exclude_ids: Iterable | None = None,
+    exclude_ids: Iterable | None,
     organization,
-    workspace=None,
-    cap: int = 10_000,
-    user=None,
+    workspace,
+    cap: int,
 ) -> ResolveResult:
-    """Return TraceSession IDs matching ``filters`` in ``project_id``.
+    """The legacy PG aggregate derivation — CH-unavailable fallback ONLY.
 
-    Mirrors ``list_sessions`` filter semantics (non-ClickHouse PG path).
-    Ordering: ``-start_time, -trace__session_id`` for determinism.
-
-    Raises:
-        Project.DoesNotExist: if the project is not in the org.
-        ValueError: if filters reference user-scoped columns but user is None.
+    STALE for post-flip NET-NEW sessions (no ``trace_session`` row), so it is no
+    longer the primary path; ``_resolve_session_ids_clickhouse`` is. Kept as the
+    CH-outage fallback (consistent with the other bulk resolvers' PG fallbacks).
     """
-    _validate_user_scoped_filters(filters or [], user)
-
     base = _build_session_base_queryset(project_id, organization, workspace)
     aggregated = _apply_session_filters(
         base, filters or [], project_id=project_id, organization=organization
@@ -1389,6 +1653,78 @@ def resolve_filtered_session_ids(
     return ResolveResult(ids=ids, total_matching=total_matching, truncated=truncated)
 
 
+def resolve_filtered_session_ids(
+    *,
+    project_id,
+    filters: list[dict],
+    exclude_ids: Iterable | None = None,
+    organization,
+    workspace=None,
+    cap: int = 10_000,
+    user=None,
+) -> ResolveResult:
+    """Return session IDs matching ``filters`` in ``project_id``.
+
+    P3b step2 precondition (PG_ORM_READ_MIGRATION, Slice F): the matched session
+    set is re-derived from ClickHouse (``_resolve_session_ids_clickhouse``,
+    backed by the same remap-aware ``SessionListQueryBuilder`` the live session
+    grid uses) so a "select all sessions matching this filter" bulk-add to a
+    queue INCLUDES net-new sessions (first seen after the ingest
+    ``get_or_create`` is dropped, so they have NO PG ``trace_session`` row and
+    were silently omitted by the old PG aggregate). A cross-cutover straddler's
+    old + new session ids unify to ONE survivor (counted once). Score-label
+    filters are applied in PG against ``Score`` (net-new-correct via the soft
+    ``trace_session_id``); everything else is translated by the CH builder. The
+    PG aggregate path remains only as the CH-outage fallback.
+
+    Raises:
+        Project.DoesNotExist: if the project is not in the org.
+        ValueError: if filters reference user-scoped columns but user is None.
+    """
+    _validate_user_scoped_filters(filters or [], user)
+
+    # Resolve + scope-check the project up front (the CH builder keys spans by
+    # project_id but does NOT enforce org membership or the SIMULATOR carve-out).
+    # Raising Project.DoesNotExist here preserves the caller's 404 mapping.
+    project = Project.objects.get(id=project_id, organization=organization)
+    if project.source == ProjectSourceChoices.SIMULATOR.value:
+        return ResolveResult(ids=[], total_matching=0, truncated=False)
+    if workspace is not None and project.workspace_id != getattr(
+        workspace, "id", workspace
+    ):
+        # Workspace mismatch — the PG base queryset would have filtered to empty.
+        return ResolveResult(ids=[], total_matching=0, truncated=False)
+
+    score_label_ids = _session_score_label_ids(project_id)
+    non_score_filters, score_filters = _split_session_score_filters(
+        filters or [], score_label_ids
+    )
+
+    ch_result = _resolve_session_ids_clickhouse(
+        project_id=project_id,
+        non_score_filters=non_score_filters,
+        score_filters=score_filters,
+        exclude_ids=set(exclude_ids or set()),
+        organization=organization,
+        cap=cap,
+    )
+    if ch_result is not None:
+        return ch_result
+
+    logger.warning(
+        "bulk_selection_resolve_session_ch_unavailable_pg_fallback",
+        project_id=str(project_id),
+    )
+    return _resolve_filtered_session_ids_pg(
+        project_id=project_id,
+        filters=filters or [],
+        exclude_ids=exclude_ids,
+        organization=organization,
+        workspace=workspace,
+        cap=cap,
+    )
+
+
 # --------------------------------------------------------------------------
 # Phase 8 — source_type = call_execution
 #
@@ -1418,11 +1754,7 @@ _CALL_EXECUTION_FIELD_MAP = {
 
 
 def _is_call_execution_eval_filter(col, cfg, eval_config_ids):
-    return (
-        cfg.get("col_type") == "EVAL_METRIC"
-        and col
-        and str(col) in eval_config_ids
-    )
+    return cfg.get("col_type") == "EVAL_METRIC" and col and str(col) in eval_config_ids
 
 
 def _coerce_eval_number(value):
@@ -1493,9 +1825,7 @@ def _call_execution_json_output_filter(qs, output_field, eval_id, cfg):
         return qs.filter(**has_key, **{f"{output_path}__in": values})
     if op in ("not_in", "not_equals"):
         if len(values) == 1 and op == "not_equals":
-            return qs.filter(**has_key).exclude(
-                **{f"{output_path}__iexact": values[0]}
-            )
+            return qs.filter(**has_key).exclude(**{f"{output_path}__iexact": values[0]})
         return qs.filter(**has_key).exclude(**{f"{output_path}__in": values})
     if op == "contains":
         condition = Q()

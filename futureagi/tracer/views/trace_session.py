@@ -2341,20 +2341,38 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
     @staticmethod
     def _build_score_column_config(annotation_labels, project_id=None):
         """Build column config entries for score labels."""
-        # Batch-fetch distinct annotators for all labels from Score
+        # Batch-fetch distinct annotators for all labels from Score.
+        #
+        # P3b step2 precondition (PG_ORM_READ_MIGRATION, Slice F): the read is
+        # ALREADY project-scoped by ``label_id__in`` — an ``AnnotationsLabels`` id
+        # belongs to exactly one project, so a Score on one of THIS project's
+        # labels is, by construction, a Score in THIS project. The former
+        # ``trace_session_id__in=TraceSession.objects.filter(project_id=…)``
+        # subquery was therefore REDUNDANT for project scoping AND actively
+        # harmful: post-flip the ingest ``get_or_create`` is dropped, so a NET-NEW
+        # session (first seen after the flip) has NO PG ``trace_session`` row →
+        # its ``trace_session_id`` is absent from that subquery → every annotator
+        # who scored a net-new session was SILENTLY DROPPED from the label's
+        # annotator set. Dropping the subquery surfaces those net-new-session
+        # scores while keeping the historical row-set unchanged (parity-verified
+        # on pg-test: HEAD subquery scope == this label-only scope on real data).
+        #
+        # NB the literal ``Score.project_id = project_id`` alternative is WRONG
+        # here: ``Score.project`` is a nullable FK to ``model_hub.DevelopAI`` (NOT
+        # ``tracer.Project``) and the tracer-side annotation write path leaves it
+        # NULL on purpose (see ``tracer/views/annotation.py``
+        # ``_process_single_annotation`` and ``backfill_scores``) — so a
+        # ``project_id`` filter would drop EVERY
+        # NULL-project session score (historical parity failure). ``label_id__in``
+        # is the same scope the sibling live read ``_fetch_session_scores`` uses.
+        # ``project_id`` is retained in the signature (both call sites pass it) but
+        # is no longer needed to scope this read.
         label_ids = [label.id for label in annotation_labels]
         score_filter = {
             "label_id__in": label_ids,
             "trace_session_id__isnull": False,
             "deleted": False,
         }
-        if project_id:
-            # CH scale (SCALE_ARCHITECTURE.md §9c): trace_session is CH-bound, so
-            # scope by session-id membership instead of joining trace_session→project.
-            # Parity-verified vs the old join on pg-test (OLD==NEW, identical).
-            score_filter["trace_session_id__in"] = TraceSession.objects.filter(
-                project_id=project_id
-            ).values("id")
         annotator_rows = (
             Score.objects.filter(**score_filter)
             .values(
