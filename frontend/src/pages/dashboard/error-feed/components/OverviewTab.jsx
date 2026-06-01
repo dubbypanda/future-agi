@@ -889,7 +889,15 @@ function TraceGraphView({ traceId, mode }) {
   }
 
   return (
-    <Box sx={{ height: 340 }}>
+    <Box
+      sx={{
+        height: 340,
+        borderRadius: "8px",
+        overflow: "hidden",
+        bgcolor: (theme) =>
+          theme.palette.mode === "dark" ? "#0a0a0c" : "background.paper",
+      }}
+    >
       {mode === "path" ? (
         <AgentPath data={graphData} isLoading={false} />
       ) : (
@@ -1067,7 +1075,19 @@ function CompareColumn({ title, accentColor, traceShortId, children }) {
           </Typography>
         )}
       </Stack>
-      <Box sx={{ flex: 1, minHeight: 0 }}>{children}</Box>
+      {/* Graph-canvas area — pinned to a near-black bg in dark mode so the
+          colored node fills and the diff halos pop. Light mode stays close
+          to background.paper to preserve readability. */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          bgcolor: (theme) =>
+            theme.palette.mode === "dark" ? "#0a0a0c" : "background.paper",
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }
