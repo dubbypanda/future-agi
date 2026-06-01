@@ -42,6 +42,39 @@ empty-string external id — none observed on the box — would also collapse to
 This module is read-only: a failure here is a real read error (parity reads must
 surface problems, unlike the best-effort ingest dual-write), so it does NOT
 swallow exceptions.
+
+EXISTENCE + FIELDS (P3b step2 — the Slice C/D/E/F building block)
+----------------------------------------------------------------
+``resolve_external_session_ids`` above is *forward id → display label* only and
+reads the dict (a 60–120s-stale label cache is fine for a name back-fill). Step2
+needs two MORE resolutions that the dict cannot serve:
+
+  • ``session_exists(project_id, trace_session_id)`` — does this id name a known
+    session? Used by the annotation-queue / eval-dispatch validation branches
+    (Slices C/E) that today do a PG ``TraceSession`` ``.get``/``.first`` — which
+    404s a *net-new* session (no PG row post-flip) and a *straddler* queried by
+    its NEW deterministic id.
+  • ``resolve_session_fields(trace_session_ids)`` — the curated identity
+    (``external_session_id``, ``first_seen``) PLUS the PG overlay
+    (``bookmarked``, ``display_name``) for a batch of ids (Slices C/D).
+
+Both read the ``trace_sessions`` TABLE (``FINAL``), **not** ``trace_sessions_dict``,
+for two reasons the dict cannot satisfy: (a) the dict (schema 018) exposes only
+``external_session_id`` — it has **no ``first_seen``**, which the fields read must
+return; (b) the dict's ``LIFETIME(60,120)`` means a just-written net-new row is
+invisible for up to 120 s, which would make an eval-dispatch existence check
+flap. Reading the RMT with ``FINAL`` gives ``first_seen`` AND immediate
+visibility of the collector's dual-write row. Both resolutions are **remap-aware**
+(``id_remap_sql``): a straddler answers true / resolves to ONE unified entity
+whether queried by its OLD curated id or its NEW deterministic id.
+
+``resolve_session_fields`` is therefore NOT CH-only — it overlays PG
+``TraceSessionOverlay`` (the UI-sourced ``bookmarked``/``display_name``, DESIGN
+§5) by the **resolved** (old/survivor) ``trace_session_id``, exactly the
+Score/annotation soft-id overlay pattern. (Keying the overlay by the resolved id
+— not the input id — is load-bearing: a bookmark is written on the OLD PG id, so
+a straddler queried by its NEW id must resolve to the old id BEFORE the overlay
+lookup or the bookmark is silently missed.)
 """
 
 from __future__ import annotations
@@ -52,8 +85,19 @@ from collections.abc import Iterable
 import structlog
 
 from tracer.services.clickhouse.v2 import get_v2_config
+from tracer.services.clickhouse.v2.id_remap_sql import (
+    remap_left_join,
+    resolved_id_expr,
+)
 
 log = structlog.get_logger("ch25.trace_session_dict_reader")
+
+# The curated-identity TABLE (schema 018) + the id-remap TABLE (schema 019) that
+# the existence/fields reads resolve against. Unqualified names: resolved in the
+# connection's configured database (CH25_DATABASE) — the single dev/test/prod
+# switch, same rule as the dict name above and ``end_user_dict_reader``.
+_SESSIONS_TABLE = "trace_sessions"
+_SESSION_REMAP = "trace_session_id_remap"
 
 # Dictionary + attribute the external session id is read from. Unqualified dict
 # name: the query runs against the connection's configured database
@@ -146,4 +190,215 @@ def resolve_external_session_ids(
         # Normalize the non-null-String '' (PG NULL name coerced on write) back
         # to None — matches the old back-fill that read NULL straight off PG.
         out[row[0]] = row[1] or None
+    return out
+
+
+def _resolve_existing_ids(trace_session_ids: Iterable[object]) -> dict[str, str]:
+    """Core CH resolution shared by ``session_exists`` + ``resolve_session_fields``:
+    map each input ``trace_session_id`` to the ``trace_session_id`` of the
+    ``trace_sessions`` row it identifies (its OLD/survivor id), or omit it if no
+    such row exists.
+
+    Resolution (DESIGN §3 / ``id_remap_sql``) — ONE backbone for all three states:
+
+      • historical (old id): no ``trace_session_id_remap`` match → resolves to
+        itself → found as the ``trace_sessions`` row keyed by that old id.
+      • straddler queried by NEW id: matches ``remap.new_id`` → resolves to its
+        ``old_id`` (the still-primary curated key) → found, UNIFIED with the
+        historical rows. Queried by the OLD id: no match → itself → same row.
+      • net-new (deterministic id, collector dual-write): no remap row → resolves
+        to itself → found as the ``trace_sessions`` row the dual-write keyed by
+        that deterministic id.
+
+    Returns ``{input_id (str) -> resolved_id (str)}`` containing ONLY ids that
+    name a live (``is_deleted = 0``) session. The ``resolved_id`` is what the
+    overlay must be keyed by (a straddler's bookmark lives on the OLD id).
+
+    Reads ``trace_sessions FINAL`` (NOT the dict): immediate visibility of a
+    just-dual-written net-new row + access to the table's own key. Project scope
+    is applied by the caller (``session_exists``) or left to the caller's id set
+    (``resolve_session_fields`` ids are already project-derived); the resolution
+    itself is project-agnostic because the surrogate id is globally unique.
+    """
+    ids = {str(s) for s in trace_session_ids if s}
+    if not ids:
+        return {}
+
+    client = _get_client()
+    # Resolve new→old in an INNER subquery that yields (input_id, resolved_id) as
+    # plain columns, THEN join the curated table on the resolved id as a plain
+    # column equality — keeping the ``if(...)`` resolved expression OUT of the
+    # JOIN ON (CH is finicky about expression-keyed joins; this is robust).
+    resolved = resolved_id_expr("ids.sid")
+    remap_join = remap_left_join("ids.sid", _SESSION_REMAP)
+    try:
+        result = client.query(
+            (
+                f"SELECT toString(r.input_id), toString(r.resolved_id) "
+                f"FROM ("
+                f"  SELECT ids.sid AS input_id, {resolved} AS resolved_id "
+                f"  FROM (SELECT arrayJoin(%(ids)s::Array(UUID)) AS sid) AS ids "
+                f"  {remap_join}"
+                f") AS r "
+                # `AS <alias> FINAL` (alias BEFORE FINAL) — the only order CH
+                # accepts; `FINAL AS` is a syntax error. Matches remap_left_join.
+                f"INNER JOIN {_SESSIONS_TABLE} AS ts FINAL "
+                f"  ON ts.trace_session_id = r.resolved_id "
+                f"WHERE ts.is_deleted = 0"
+            ),
+            parameters={"ids": list(ids)},
+        )
+    except Exception:
+        # A read error is real (parity must not silently degrade). Reset the
+        # cached handle so a transient CH blip doesn't wedge it, then re-raise.
+        _reset_client()
+        raise
+
+    return {row[0]: row[1] for row in result.result_rows}
+
+
+def session_exists(project_id: object, trace_session_id: object) -> bool:
+    """Return ``True`` iff ``trace_session_id`` names a known, live session in
+    ``project_id`` — straddler-safe and net-new-aware (P3b step2, the Slice C/E
+    validation building block).
+
+    Replaces the PG ``TraceSession.objects.filter(id=…, project=…).exists()`` /
+    ``.get`` existence checks that 404 a session with no PG row (every net-new
+    session post-flip) or one queried by its NEW deterministic id (a straddler).
+
+    ``True`` for: a historical session by its old id, a straddler by EITHER its
+    old or its new id (both resolve to the one curated row via
+    ``trace_session_id_remap``), and a net-new session by its deterministic id
+    (the collector's ``trace_sessions`` dual-write row). ``False`` for an unknown
+    id, a tombstoned (``is_deleted=1``) session, or a session in a DIFFERENT
+    project (the surrogate id is globally unique, so this read is project-scoped
+    to stop a cross-tenant existence leak).
+    """
+    if not trace_session_id or not project_id:
+        return False
+
+    resolved = _resolve_existing_ids([trace_session_id])
+    if not resolved:
+        return False
+
+    # _resolve_existing_ids is project-agnostic (the id is globally unique); pin
+    # the project here so the check can't answer True for another tenant's
+    # session. Re-read the single resolved id under the project filter (one cheap
+    # point lookup; FINAL for the same just-dual-written visibility).
+    resolved_id = next(iter(resolved.values()))
+    client = _get_client()
+    try:
+        result = client.query(
+            (
+                f"SELECT 1 FROM {_SESSIONS_TABLE} FINAL "
+                f"WHERE trace_session_id = %(sid)s AND project_id = %(pid)s "
+                f"  AND is_deleted = 0 LIMIT 1"
+            ),
+            parameters={"sid": resolved_id, "pid": str(project_id)},
+        )
+    except Exception:
+        _reset_client()
+        raise
+    return bool(result.result_rows)
+
+
+def resolve_session_fields(
+    trace_session_ids: Iterable[object],
+) -> dict[str, dict[str, object]]:
+    """Batch-resolve ``{trace_session_id (str) -> {external_session_id,
+    first_seen, bookmarked, display_name}}`` — the curated CH identity overlaid
+    with the PG user fields (P3b step2, the Slice C/D building block).
+
+    Replaces the PG ``TraceSession.objects.get(...)`` field reads that 404 a
+    net-new / straddler-by-new-id session. The record unifies:
+
+      • ``external_session_id`` / ``first_seen`` — from the CH ``trace_sessions``
+        RMT (``FINAL``), resolved through ``trace_session_id_remap`` so a
+        straddler returns its (old) survivor row whether queried by old or new
+        id, and a net-new session returns its dual-write row.
+      • ``bookmarked`` / ``display_name`` — overlaid from PG ``TraceSessionOverlay``
+        (DESIGN §5), one cheap soft-id query keyed by the **resolved** id. A
+        session with no overlay row → ``bookmarked=False`` / ``display_name=None``
+        (the un-bookmarked, un-renamed default). The overlay is keyed by the
+        OLD/survivor id, so a straddler's UI bookmark (written on the old PG id)
+        is still found when the session is queried by its NEW id.
+
+    Semantics:
+      • Input ids are coerced to ``str`` + de-duplicated; ``None``/empty dropped.
+      • A MISSING id (no live ``trace_sessions`` row) is **absent** from the
+        result — the caller decides 404 (mirrors the old ``.get`` raising).
+      • ``external_session_id`` ``''`` (PG NULL ``name`` coerced on write) is
+        normalized back to ``None`` — same as ``resolve_external_session_ids``.
+      • When several input ids resolve to the SAME survivor (straddler old+new
+        both passed), each input id maps to its own copy of the one entity.
+      • Returns ``{}`` for empty input (no CH round-trip).
+    """
+    ids = {str(s) for s in trace_session_ids if s}
+    if not ids:
+        return {}
+
+    client = _get_client()
+    resolved = resolved_id_expr("ids.sid")
+    remap_join = remap_left_join("ids.sid", _SESSION_REMAP)
+    try:
+        # Resolve new→old in the inner subquery (plain (input_id, resolved_id)
+        # columns), join the curated table on the resolved id as a plain column,
+        # and pull external_session_id/first_seen off the survivor row. FINAL for
+        # immediate visibility of the net-new dual-write + RMT latest-wins.
+        result = client.query(
+            (
+                f"SELECT toString(r.input_id), toString(r.resolved_id), "
+                f"ts.external_session_id, ts.first_seen "
+                f"FROM ("
+                f"  SELECT ids.sid AS input_id, {resolved} AS resolved_id "
+                f"  FROM (SELECT arrayJoin(%(ids)s::Array(UUID)) AS sid) AS ids "
+                f"  {remap_join}"
+                f") AS r "
+                # alias BEFORE FINAL (CH syntax); see _resolve_existing_ids.
+                f"INNER JOIN {_SESSIONS_TABLE} AS ts FINAL "
+                f"  ON ts.trace_session_id = r.resolved_id "
+                f"WHERE ts.is_deleted = 0"
+            ),
+            parameters={"ids": list(ids)},
+        )
+    except Exception:
+        _reset_client()
+        raise
+
+    out: dict[str, dict[str, object]] = {}
+    resolved_by_input: dict[str, str] = {}
+    for row in result.result_rows:
+        input_id, resolved_id, external, first_seen = row
+        resolved_by_input[input_id] = resolved_id
+        out[input_id] = {
+            # '' (PG NULL name coerced on write) → None, parity with the old
+            # PG-name read. Overlay defaults filled below.
+            "external_session_id": external or None,
+            "first_seen": first_seen,
+            "bookmarked": False,
+            "display_name": None,
+        }
+
+    if not out:
+        return out
+
+    # Overlay the PG user fields by the RESOLVED (old/survivor) id — one query.
+    # Lazy import: this module is otherwise CH-only and import-cycle-sensitive.
+    from tracer.models.trace_session import TraceSessionOverlay
+
+    survivor_ids = set(resolved_by_input.values())
+    overlay_by_resolved: dict[str, dict[str, object]] = {}
+    for tsid, bookmarked, display_name in TraceSessionOverlay.objects.filter(
+        trace_session_id__in=survivor_ids
+    ).values_list("trace_session_id", "bookmarked", "display_name"):
+        overlay_by_resolved[str(tsid)] = {
+            "bookmarked": bool(bookmarked),
+            "display_name": display_name,
+        }
+
+    for input_id, record in out.items():
+        ov = overlay_by_resolved.get(resolved_by_input[input_id])
+        if ov is not None:
+            record["bookmarked"] = ov["bookmarked"]
+            record["display_name"] = ov["display_name"]
     return out
