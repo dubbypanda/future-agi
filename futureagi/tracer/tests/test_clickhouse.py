@@ -2592,7 +2592,11 @@ class TestSessionListQueryBuilder:
         assert "trace_session_id IS NOT NULL" in query
 
     def test_session_id_filter_casts_uuid_column_to_string(self):
-        """Session picker values are strings; ClickHouse stores session ids as UUIDs."""
+        """Session picker values are strings; the session_id filter resolves them
+        new→old through the trace_session_id remap (P3b step1.5) so a cross-cutover
+        straddler unifies under the OLD curated id, passing the ids as a bound
+        UUID-set param — replacing the legacy ``toString(trace_session_id) IN`` cast.
+        """
         from tracer.services.clickhouse.query_builders import SessionListQueryBuilder
 
         session_id = "003b76f1-2b4a-4af5-b0dc-224d687374d4"
@@ -2615,9 +2619,13 @@ class TestSessionListQueryBuilder:
 
         query, params = builder.build()
 
-        assert "toString(trace_session_id) IN %(col_" in query
+        # Resolved-membership form (id_remap_sql), not the legacy toString cast.
+        assert "trace_session_id_remap" in query
+        assert "id_remap.new_id" in query
+        assert "IN %(sess_1)s" in query
+        assert "toString(trace_session_id) IN" not in query
         assert session_id in next(
-            value for key, value in params.items() if key.startswith("col_")
+            value for key, value in params.items() if key.startswith("sess_")
         )
 
     def test_build_uses_uniq_not_uniqExact(self):
