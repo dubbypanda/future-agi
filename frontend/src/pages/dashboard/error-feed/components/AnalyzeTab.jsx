@@ -4,7 +4,9 @@ import {
   Button,
   Chip,
   Collapse,
+  IconButton,
   Stack,
+  TextField,
   Tooltip,
   Typography,
   alpha,
@@ -13,11 +15,13 @@ import {
 import PropTypes from "prop-types";
 import Iconify from "src/components/iconify";
 import { useErrorFeedStore } from "../store";
+import { useFollowUpRunner } from "../useAnalyzeRunner";
 
 // Run-sequence definitions + makeStepMessage / buildSynthesis live in
 // `../useAnalyzeRunner` now — that hook owns the actual streaming so
 // both the headline card and this tab observe the same thread state.
-// Follow-up Q&A is handed off to Falcon, so there's no in-tab chat input.
+// Follow-up Q&A is handled in-tab via useFollowUpRunner (mounted below);
+// it streams a sub-agent's steps + answer + suggestion chips per question.
 
 // ── Visual primitives ─────────────────────────────────────────────────────
 
@@ -399,6 +403,410 @@ function RunHeader({ label, timestamp }) {
 }
 RunHeader.propTypes = { label: PropTypes.string, timestamp: PropTypes.string };
 
+// ── Follow-up message renderers ──────────────────────────────────────────
+
+// User-submitted question — right-aligned chat bubble.
+function UserQuestionBubble({ text }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  return (
+    <Stack direction="row" justifyContent="flex-end" sx={{ pl: 6 }}>
+      <Box
+        sx={{
+          px: 1.5,
+          py: 1,
+          borderRadius: "12px 12px 4px 12px",
+          maxWidth: "85%",
+          bgcolor: isDark ? alpha("#fff", 0.07) : alpha(ACCENT, 0.08),
+          border: "1px solid",
+          borderColor: isDark ? alpha("#fff", 0.1) : alpha(ACCENT, 0.16),
+        }}
+      >
+        <Typography fontSize="13px" color="text.primary" sx={{ lineHeight: 1.55 }}>
+          {text}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+UserQuestionBubble.propTypes = { text: PropTypes.string.isRequired };
+
+// Falcon's short pre-sub-agent intro line.
+function AssistantIntro({ text }) {
+  return (
+    <Stack direction="row" alignItems="flex-start" gap={1} sx={{ pl: 0.5 }}>
+      <Iconify
+        icon="mdi:star-four-points"
+        width={14}
+        sx={{ color: ACCENT, mt: "3px", flexShrink: 0 }}
+      />
+      <Typography
+        fontSize="13px"
+        color="text.primary"
+        sx={{ lineHeight: 1.55 }}
+      >
+        {text}
+      </Typography>
+    </Stack>
+  );
+}
+AssistantIntro.propTypes = { text: PropTypes.string.isRequired };
+
+// One row inside the sub-agent's mini step list — denser than StepCard
+// because we're nested inside a card already. Same status semantics
+// (queued / running / done).
+function SubagentStepRow({ step }) {
+  const status = step.status ?? "queued";
+  const isDone = status === "done";
+  const isRunning = status === "running";
+  return (
+    <Stack direction="row" alignItems="flex-start" gap={1} sx={{ py: 0.4 }}>
+      <Box
+        sx={{
+          width: 14,
+          height: 14,
+          mt: "2px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {isDone ? (
+          <Iconify icon="mdi:check" width={13} sx={{ color: "#5ACE6D" }} />
+        ) : isRunning ? (
+          <Box
+            sx={{
+              width: 11,
+              height: 11,
+              borderRadius: "50%",
+              border: "2px solid",
+              borderColor: alpha(ACCENT, 0.25),
+              borderTopColor: ACCENT,
+              animation: "spin 0.8s linear infinite",
+              "@keyframes spin": { to: { transform: "rotate(360deg)" } },
+            }}
+          />
+        ) : (
+          <Iconify
+            icon="mdi:circle-outline"
+            width={11}
+            sx={{ color: "text.disabled" }}
+          />
+        )}
+      </Box>
+      <Stack gap={0.15} sx={{ minWidth: 0 }}>
+        <Typography
+          fontSize="12.5px"
+          fontWeight={isRunning ? 600 : 500}
+          color={isRunning ? "text.primary" : isDone ? "text.primary" : "text.secondary"}
+          sx={{ lineHeight: 1.4 }}
+        >
+          {step.title}
+        </Typography>
+        {isDone && step.detail && step.detail !== "—" && (
+          <Typography fontSize="11.5px" color="text.secondary" sx={{ lineHeight: 1.45 }}>
+            {step.detail}
+          </Typography>
+        )}
+      </Stack>
+    </Stack>
+  );
+}
+SubagentStepRow.propTypes = { step: PropTypes.object.isRequired };
+
+// Light **bold** parsing for the sub-agent answer body — minimal markdown.
+function MiniMarkdown({ text }) {
+  const segments = useMemo(() => {
+    const out = [];
+    const re = /\*\*([^*]+)\*\*|`([^`]+)`/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) out.push({ t: text.slice(last, m.index) });
+      if (m[1] != null) out.push({ t: m[1], b: true });
+      else if (m[2] != null) out.push({ t: m[2], code: true });
+      last = re.lastIndex;
+    }
+    if (last < text.length) out.push({ t: text.slice(last) });
+    return out;
+  }, [text]);
+  return (
+    <Typography
+      component="div"
+      fontSize="13px"
+      color="text.primary"
+      sx={{ lineHeight: 1.6, whiteSpace: "pre-wrap" }}
+    >
+      {segments.map((s, i) =>
+        s.b ? (
+          <Box key={i} component="span" sx={{ fontWeight: 700 }}>
+            {s.t}
+          </Box>
+        ) : s.code ? (
+          <Box
+            key={i}
+            component="code"
+            sx={{
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              fontSize: "12px",
+              px: 0.5,
+              py: 0.1,
+              borderRadius: "3px",
+              bgcolor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? alpha("#fff", 0.07)
+                  : alpha("#000", 0.05),
+            }}
+          >
+            {s.t}
+          </Box>
+        ) : (
+          <React.Fragment key={i}>{s.t}</React.Fragment>
+        ),
+      )}
+    </Typography>
+  );
+}
+MiniMarkdown.propTypes = { text: PropTypes.string.isRequired };
+
+// The sub-agent container: header strip + sub-step list + final answer.
+function SubagentCard({ msg }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const isStreaming = msg.status === "streaming";
+  return (
+    <Stack gap={1.25} sx={{ pl: 3 }}>
+      <Box
+        sx={{
+          border: "1px solid",
+          borderColor: isDark ? alpha("#fff", 0.08) : "divider",
+          borderRadius: "10px",
+          overflow: "hidden",
+          bgcolor: isDark ? alpha("#fff", 0.02) : alpha("#000", 0.015),
+        }}
+      >
+        {/* Header */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap={0.85}
+          sx={{
+            px: 1.5,
+            py: 0.85,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            bgcolor: isDark ? alpha(ACCENT, 0.08) : alpha(ACCENT, 0.05),
+          }}
+        >
+          <Iconify icon="mdi:robot-outline" width={14} sx={{ color: ACCENT }} />
+          <Typography
+            fontSize="10.5px"
+            fontWeight={700}
+            sx={{
+              color: ACCENT,
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Sub-agent · {msg.title}
+          </Typography>
+          {msg.traceShortId && (
+            <>
+              <Box
+                sx={{
+                  width: 3,
+                  height: 3,
+                  borderRadius: "50%",
+                  bgcolor: "text.disabled",
+                }}
+              />
+              <Typography
+                fontSize="10.5px"
+                color="text.disabled"
+                sx={{
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                }}
+              >
+                {msg.traceShortId}
+              </Typography>
+            </>
+          )}
+          <Box sx={{ flex: 1 }} />
+          {isStreaming && (
+            <Typography
+              fontSize="10.5px"
+              fontWeight={600}
+              color="text.disabled"
+              sx={{ textTransform: "uppercase", letterSpacing: "0.07em" }}
+            >
+              running
+            </Typography>
+          )}
+        </Stack>
+
+        {/* Sub-steps */}
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Stack gap={0}>
+            {msg.steps?.map((s) => <SubagentStepRow key={s.id} step={s} />)}
+          </Stack>
+        </Box>
+      </Box>
+
+      {/* Final answer — appears once all steps are done. */}
+      {msg.answer && <MiniMarkdown text={msg.answer} />}
+    </Stack>
+  );
+}
+SubagentCard.propTypes = { msg: PropTypes.object.isRequired };
+
+// "Try asking" suggestion chips — clicking one submits it as the next
+// follow-up. Disabled while the parent is streaming.
+function SuggestionChips({ items, disabled, onPick }) {
+  if (!items?.length) return null;
+  return (
+    <Stack gap={0.75} sx={{ pl: 3, pt: 0.5 }}>
+      <Typography
+        fontSize="9.5px"
+        fontWeight={700}
+        color="text.disabled"
+        sx={{ textTransform: "uppercase", letterSpacing: "0.09em" }}
+      >
+        Try asking
+      </Typography>
+      <Stack direction="row" gap={0.75} flexWrap="wrap">
+        {items.map((q) => (
+          <Chip
+            key={q}
+            label={q}
+            size="small"
+            disabled={disabled}
+            onClick={() => onPick?.(q)}
+            sx={{
+              height: 26,
+              borderRadius: "13px",
+              fontSize: "12px",
+              fontWeight: 500,
+              cursor: "pointer",
+              bgcolor: (theme) =>
+                theme.palette.mode === "dark"
+                  ? alpha("#fff", 0.05)
+                  : alpha("#000", 0.04),
+              color: "text.primary",
+              border: "1px solid",
+              borderColor: "divider",
+              "&:hover": {
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? alpha("#fff", 0.09)
+                    : alpha("#000", 0.06),
+              },
+            }}
+          />
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+SuggestionChips.propTypes = {
+  items: PropTypes.array,
+  disabled: PropTypes.bool,
+  onPick: PropTypes.func,
+};
+
+// Sticky input bar at the bottom of the tab. Disabled until the main run
+// finishes (so the user can't fork a sub-agent mid-cluster-analysis) and
+// while a sub-agent is streaming (to avoid stacking parallel runs).
+function FollowUpInput({ disabled, placeholder, onSubmit }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const [text, setText] = useState("");
+  const submit = () => {
+    const t = text.trim();
+    if (!t || disabled) return;
+    onSubmit?.(t);
+    setText("");
+  };
+  return (
+    <Box
+      sx={{
+        flexShrink: 0,
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "10px",
+        bgcolor: isDark ? alpha("#fff", 0.025) : "background.paper",
+        px: 1.25,
+        py: 0.5,
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <Iconify
+        icon="mdi:star-four-points"
+        width={15}
+        sx={{ color: ACCENT, ml: 0.25, flexShrink: 0 }}
+      />
+      <TextField
+        fullWidth
+        multiline
+        maxRows={4}
+        size="small"
+        variant="standard"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        disabled={disabled}
+        placeholder={placeholder}
+        InputProps={{
+          disableUnderline: true,
+          sx: { fontSize: "13px", lineHeight: 1.5, py: 0.5 },
+        }}
+      />
+      <Tooltip title={disabled ? "Waiting for current run…" : "Send (Enter)"} arrow>
+        <span>
+          <IconButton
+            size="small"
+            onClick={submit}
+            disabled={disabled || !text.trim()}
+            sx={{
+              width: 28,
+              height: 28,
+              borderRadius: "6px",
+              bgcolor: text.trim() && !disabled ? ACCENT : "transparent",
+              color: text.trim() && !disabled ? "#fff" : "text.disabled",
+              "&:hover": {
+                bgcolor:
+                  text.trim() && !disabled
+                    ? "#6845E8"
+                    : isDark
+                      ? alpha("#fff", 0.05)
+                      : alpha("#000", 0.04),
+              },
+              "&.Mui-disabled": {
+                color: "text.disabled",
+              },
+            }}
+          >
+            <Iconify icon="mdi:arrow-up" width={14} />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
+  );
+}
+FollowUpInput.propTypes = {
+  disabled: PropTypes.bool,
+  placeholder: PropTypes.string,
+  onSubmit: PropTypes.func,
+};
+
 // ── Main AnalyzeTab ───────────────────────────────────────────────────────
 
 export default function AnalyzeTab({ error }) {
@@ -411,30 +819,30 @@ export default function AnalyzeTab({ error }) {
   const setAnalyzePendingStart = useErrorFeedStore(
     (s) => s.setAnalyzePendingStart,
   );
+  // Owns the follow-up Q&A streaming. Independent of the main analyze
+  // runner (which is mounted at the parent / headline-card layer) so the
+  // two flows don't share timer state.
+  const { runFollowUp } = useFollowUpRunner(clusterId, error);
 
   const messages = thread?.messages ?? [];
   const runState = thread?.runState ?? "idle";
+  const followUpRunState = thread?.followUpRunState ?? "idle";
   const isStreaming = runState === "streaming";
+  const isFollowUpStreaming = followUpRunState === "streaming";
+  const mainRunDone = runState === "done";
 
-  // Render order: completed synthesis on top, then the steps / run headers
-  // below it. While streaming there's no synthesis yet, so it's just steps.
-  const orderedMessages = useMemo(
-    () => [
-      ...messages.filter((m) => m.type === "synthesis"),
-      ...messages.filter((m) => m.type !== "synthesis"),
-    ],
-    [messages],
-  );
-
+  // Chronological order — the cluster steps build the case, the synthesis
+  // is the headline, follow-ups continue the conversation below it.
+  // (Earlier this tab pushed the synthesis to the top; that was fine while
+  // there were no follow-ups but reads awkwardly once the user is mid-Q&A.)
   const scrollerRef = useRef(null);
 
-  // While streaming, follow the latest step (scroll to bottom). Once the
-  // run finishes, jump to the top so the synthesis (now on top) is visible.
+  // Always follow the latest message — for streaming runs AND for follow-ups
+  // the user just submitted, the bottom is where the action is.
   useEffect(() => {
     if (!scrollerRef.current) return;
-    scrollerRef.current.scrollTop =
-      runState === "streaming" ? scrollerRef.current.scrollHeight : 0;
-  }, [messages.length, runState]);
+    scrollerRef.current.scrollTop = scrollerRef.current.scrollHeight;
+  }, [messages.length, runState, followUpRunState]);
 
   // Both empty-state CTA and Re-run dispatch via the pending flag so the
   // shared runner (and therefore the headline card) sees the same trigger.
@@ -581,17 +989,48 @@ export default function AnalyzeTab({ error }) {
               </Button>
             </Stack>
           ) : (
-            orderedMessages.map((m) => {
+            messages.map((m) => {
               if (m.type === "step") return <StepCard key={m.id} step={m} />;
               if (m.type === "synthesis")
                 return <SynthesisCard key={m.id} synthesis={m} />;
               if (m.type === "run_header")
-                return <RunHeader key={m.id} label={m.label} timestamp={m.timestamp} />;
+                return (
+                  <RunHeader key={m.id} label={m.label} timestamp={m.timestamp} />
+                );
+              if (m.type === "user_question")
+                return <UserQuestionBubble key={m.id} text={m.text} />;
+              if (m.type === "assistant_intro")
+                return <AssistantIntro key={m.id} text={m.text} />;
+              if (m.type === "subagent")
+                return <SubagentCard key={m.id} msg={m} />;
+              if (m.type === "suggestions")
+                return (
+                  <SuggestionChips
+                    key={m.id}
+                    items={m.items}
+                    disabled={isFollowUpStreaming}
+                    onPick={runFollowUp}
+                  />
+                );
               return null;
             })
           )}
         </Stack>
       </Box>
+
+      {/* Sticky follow-up input — visible once the main run has produced a
+          synthesis. Disabled while a sub-agent is mid-stream. */}
+      {mainRunDone && (
+        <FollowUpInput
+          disabled={isFollowUpStreaming}
+          placeholder={
+            isFollowUpStreaming
+              ? "Falcon is investigating…"
+              : "Ask Falcon a follow-up…"
+          }
+          onSubmit={runFollowUp}
+        />
+      )}
     </Stack>
   );
 }
