@@ -8,17 +8,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models.workspace import Workspace
-from common.utils.data_injection import normalize as _di_normalize
 
-logger = structlog.get_logger(__name__)
-from agentic_eval.core_evals.fi_evals import *
-from model_hub.models.choices import StatusType
-from model_hub.models.evals_metric import EvalTemplate
 # NOTE: trigger_error_localization_for_span is imported lazily inside the
 # function that uses it (see line ~1358). Eager import here re-enters
 # model_hub.tasks.__init__ which imports tracer.utils.eval_tasks, which imports
 # back from this module — a cycle that surfaces under settings where the
 # ClickHouse client warms up at startup. Keep it lazy.
+from agentic_eval.core_evals.fi_evals import *  # noqa: F403
+from common.utils.data_injection import normalize as _di_normalize
+from model_hub.models.choices import StatusType
+from model_hub.models.evals_metric import EvalTemplate
 from sdk.utils.helpers import _get_api_call_type
 from tfc.constants.api_calls import APICallStatusChoices
 from tfc.temporal import temporal_activity
@@ -32,6 +31,9 @@ from tracer.utils.helper import (
     get_default_project_version_config,
     get_default_trace_config,
 )
+
+logger = structlog.get_logger(__name__)
+
 try:
     from ee.usage.utils.usage_entries import log_and_deduct_cost_for_api_request
 except ImportError:
@@ -367,7 +369,9 @@ def build_session_context(session) -> dict | None:
                     "name": s.name,
                     "observation_type": s.observation_type,
                     "status": s.status,
-                    "parent_span_id": str(s.parent_span_id) if s.parent_span_id else None,
+                    "parent_span_id": str(s.parent_span_id)
+                    if s.parent_span_id
+                    else None,
                 }
             )
 
@@ -578,9 +582,9 @@ def _dual_write_eval_value(value, config_output, logger_kwargs):
         if isinstance(value, dict):
             logger_kwargs["output_str"] = json.dumps(value)
             score = value.get("score")
-            if isinstance(score, (int, float)) and not isinstance(score, bool):
+            if isinstance(score, int | float) and not isinstance(score, bool):
                 logger_kwargs["output_float"] = float(score)
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             logger_kwargs["output_float"] = float(value)
         elif isinstance(value, list):
             # Score evals never store a list — collapse to the mean so the FE
@@ -594,11 +598,11 @@ def _dual_write_eval_value(value, config_output, logger_kwargs):
             for v in value:
                 if isinstance(v, bool):
                     continue
-                if isinstance(v, (int, float)):
+                if isinstance(v, int | float):
                     numerics.append(v)
                 elif isinstance(v, dict):
                     s = v.get("score")
-                    if isinstance(s, (int, float)) and not isinstance(s, bool):
+                    if isinstance(s, int | float) and not isinstance(s, bool):
                         numerics.append(s)
             if numerics:
                 logger_kwargs["output_float"] = sum(numerics) / len(numerics)
@@ -640,14 +644,14 @@ def _dual_write_eval_value(value, config_output, logger_kwargs):
                     elif isinstance(inner_choices, list):
                         collected.extend(c for c in inner_choices if isinstance(c, str))
             logger_kwargs["output_str_list"] = _dedupe_preserve_order(collected)
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             logger_kwargs["output_float"] = float(value)
         else:
             logger_kwargs["output_str"] = str(value)
         return
 
     # Other output types — preserve today's dispatch verbatim.
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         logger_kwargs["output_float"] = float(value)
     elif isinstance(value, list):
         logger_kwargs["output_str_list"] = value
@@ -732,7 +736,9 @@ def _run_evaluation(
                 workspace=workspace,
             )
             if not api_call_log_row:
-                raise ValueError("API call not allowed : Error validating the api call.")
+                raise ValueError(
+                    "API call not allowed : Error validating the api call."
+                )
 
             if api_call_log_row.status != APICallStatusChoices.PROCESSING.value:
                 raise ValueError("API call not allowed : ", api_call_log_row.status)
@@ -813,9 +819,13 @@ def _run_evaluation(
                         properties={
                             "source": "tracer" if not feedback_id else "feedback",
                             "source_id": str(eval_model.id),
-                            "model": custom_eval_config.model if custom_eval_config else "",
+                            "model": custom_eval_config.model
+                            if custom_eval_config
+                            else "",
                             "workspace_id": str(workspace.id) if workspace else "",
-                            "log_id": str(api_call_log_row.log_id) if api_call_log_row else None,
+                            "log_id": str(api_call_log_row.log_id)
+                            if api_call_log_row
+                            else None,
                             "raw_cost_usd": str(actual_cost),
                         },
                     )
@@ -918,6 +928,7 @@ def _execute_composite_on_span(
         # and project/organization/workspace lazy-load from PG on attribute
         # access in the CH path.
         from tracer.services.clickhouse.v2.eval_loader import get_observation_span
+
         observation_span = get_observation_span(
             observation_span_id,
             select_related=("project", "project__organization", "project__workspace"),
@@ -1238,7 +1249,9 @@ def _execute_composite_on_session(
             "target_type": EvalTargetType.SESSION.value,
             "trace": None,
             "observation_span": None,
-            "trace_session": trace_session,
+            # Unsaved CH vehicle → write the FK by id column (db_constraint=False);
+            # see ``_execute_evaluation_for_session`` for the full rationale.
+            "trace_session_id": str(trace_session.id),
             "output_metadata": response["metadata"],
             "eval_explanation": outcome.summary or "",
             "results_explanation": response,
@@ -1252,7 +1265,8 @@ def _execute_composite_on_session(
             "target_type": EvalTargetType.SESSION.value,
             "trace": None,
             "observation_span": None,
-            "trace_session": trace_session,
+            # Unsaved CH vehicle → id-column FK write (see success branch).
+            "trace_session_id": str(trace_session.id),
             "output_metadata": {
                 "error": str(e),
                 "composite_id": str(parent.id),
@@ -1290,6 +1304,7 @@ def _execute_evaluation(
     raw_mapping = run_params.copy()
     try:
         from tracer.services.clickhouse.v2.eval_loader import get_observation_span
+
         observation_span = get_observation_span(
             observation_span_id,
             select_related=("project", "project__organization", "project__workspace"),
@@ -1679,15 +1694,16 @@ def evaluate_observation_span(
     try:
         custom_eval_config = CustomEvalConfig.objects.get(id=custom_eval_config_id)
         from tracer.services.clickhouse.v2.eval_loader import get_observation_span
+
         observation_span = get_observation_span(observation_span_id)
     except CustomEvalConfig.DoesNotExist:
         raise ValueError(
             f"CustomEvalConfig with id {custom_eval_config_id} does not exist."
-        )
+        ) from None
     except ObservationSpan.DoesNotExist:
         raise ValueError(
             f"ObservationSpan with id {observation_span_id} does not exist."
-        )
+        ) from None
 
     # mark all previous eval_logger as deleted
     EvalLogger.objects.filter(
@@ -1765,15 +1781,16 @@ def evaluate_observation_span_observe(
     try:
         custom_eval_config = CustomEvalConfig.objects.get(id=custom_eval_config_id)
         from tracer.services.clickhouse.v2.eval_loader import get_observation_span
+
         observation_span = get_observation_span(observation_span_id)
     except CustomEvalConfig.DoesNotExist:
         raise ValueError(
             f"CustomEvalConfig with id {custom_eval_config_id} does not exist."
-        )
+        ) from None
     except ObservationSpan.DoesNotExist:
         raise ValueError(
             f"ObservationSpan with id {observation_span_id} does not exist."
-        )
+        ) from None
 
     if EvalLogger.objects.filter(
         observation_span_id=observation_span_id,
@@ -1903,6 +1920,7 @@ def eval_observation_span_runner(observation_span_id, eval_tags):
         # falls back to PG ORM otherwise. Raises ObservationSpan.DoesNotExist
         # in both modes — downstream `except` blocks unchanged.
         from tracer.services.clickhouse.v2.eval_loader import get_observation_span
+
         observation_span = get_observation_span(observation_span_id)
         if not observation_span or not eval_tags:
             return
@@ -2468,7 +2486,7 @@ def _process_trace_mapping(
             f"EvalTemplate {eval_template_id} not found while processing "
             f"trace mapping for trace {trace.id}"
         )
-        raise ValueError(f"EvalTemplate {eval_template_id} not found")
+        raise ValueError(f"EvalTemplate {eval_template_id} not found") from None
 
     for key, attribute in mapping.items():
         value = _resolve_trace_path(trace, attribute) if attribute else _MISSING
@@ -2517,7 +2535,7 @@ def _process_session_mapping(
             f"EvalTemplate {eval_template_id} not found while processing "
             f"session mapping for session {trace_session.id}"
         )
-        raise ValueError(f"EvalTemplate {eval_template_id} not found")
+        raise ValueError(f"EvalTemplate {eval_template_id} not found") from None
 
     for key, attribute in mapping.items():
         value = (
@@ -2741,9 +2759,7 @@ def _execute_evaluation_for_trace(
             if api_call_log_row is not None:
                 api_call_log_row.status = APICallStatusChoices.ERROR.value
                 current_config = json.loads(api_call_log_row.config)
-                current_config.update(
-                    {"output": {"output": None, "reason": str(e)}}
-                )
+                current_config.update({"output": {"output": None, "reason": str(e)}})
                 api_call_log_row.config = json.dumps(current_config)
                 api_call_log_row.save()
         except Exception:
@@ -2949,7 +2965,12 @@ def _execute_evaluation_for_session(
             "target_type": EvalTargetType.SESSION.value,
             "trace": None,
             "observation_span": None,
-            "trace_session": trace_session,
+            # Write the session FK by its id column (db_constraint=False) — the
+            # ``trace_session`` here is an UNSAVED CH-sourced vehicle with no PG
+            # row, so the relation can't be assigned, but the soft id is exactly
+            # what the column needs (same pattern as the already-CH-only
+            # trace/observation_span FKs on this row).
+            "trace_session_id": str(trace_session.id),
             "output_metadata": _output_metadata,
             "eval_explanation": result.reason,
             "results_explanation": response,
@@ -2964,9 +2985,7 @@ def _execute_evaluation_for_session(
             if api_call_log_row is not None:
                 api_call_log_row.status = APICallStatusChoices.ERROR.value
                 current_config = json.loads(api_call_log_row.config)
-                current_config.update(
-                    {"output": {"output": None, "reason": str(e)}}
-                )
+                current_config.update({"output": {"output": None, "reason": str(e)}})
                 api_call_log_row.config = json.dumps(current_config)
                 api_call_log_row.save()
         except Exception:
@@ -2975,7 +2994,8 @@ def _execute_evaluation_for_session(
             "target_type": EvalTargetType.SESSION.value,
             "trace": None,
             "observation_span": None,
-            "trace_session": trace_session,
+            # See success branch: id-column FK write for the unsaved CH vehicle.
+            "trace_session_id": str(trace_session.id),
             "output_metadata": {
                 "error": error_message,
                 "custom_eval_config_name": custom_eval_config.name,
@@ -3038,7 +3058,10 @@ def _create_error_eval_logger_for_session(
         target_type=EvalTargetType.SESSION.value,
         trace=None,
         observation_span=None,
-        trace_session=trace_session,
+        # ``trace_session`` is the unsaved CH-sourced vehicle (no PG row) —
+        # write the FK by its id column (db_constraint=False), never the
+        # relation. See ``_execute_evaluation_for_session``.
+        trace_session_id=str(trace_session.id),
         output_metadata={"error": error_message},
         eval_explanation=f"Error during evaluation: {error_message}",
         results_explanation={"reason": error_message},
@@ -3085,9 +3108,9 @@ def evaluate_trace_observe(
     except CustomEvalConfig.DoesNotExist:
         raise ValueError(
             f"CustomEvalConfig with id {custom_eval_config_id} does not exist."
-        )
+        ) from None
     except Trace.DoesNotExist:
-        raise ValueError(f"Trace with id {trace_id} does not exist.")
+        raise ValueError(f"Trace with id {trace_id} does not exist.") from None
 
     # Idempotency: the dispatcher writes one row per (trace, eval_config, task).
     # ``eval_task_id`` already scopes the check to this task's row_type — every
@@ -3205,16 +3228,58 @@ def evaluate_trace_session_observe(
         raise ValueError("session_id and custom_eval_config_id are required parameters")
 
     try:
-        custom_eval_config = CustomEvalConfig.objects.get(id=custom_eval_config_id)
-        trace_session = TraceSession.objects.select_related(
+        # select_related the project chain: the session vehicle below borrows
+        # the eval CONFIG's project/org/workspace (the eval's own org-scope,
+        # used for cost-deduction + workspace-context). The session's PG
+        # project FK no longer exists post-flip, so the config's project — not
+        # the session's — is the anchor for org-scope, and it's always present.
+        custom_eval_config = CustomEvalConfig.objects.select_related(
             "project", "project__organization", "project__workspace"
-        ).get(id=session_id)
+        ).get(id=custom_eval_config_id)
     except CustomEvalConfig.DoesNotExist:
         raise ValueError(
             f"CustomEvalConfig with id {custom_eval_config_id} does not exist."
-        )
-    except TraceSession.DoesNotExist:
+        ) from None
+
+    # Resolve the eval TARGET's identity from CH (DESIGN §5 / Slice C), NOT the
+    # PG ``TraceSession`` table: a net-new session (first seen post-flip) has no
+    # PG row, and a straddler queried by its NEW deterministic id would 404 the
+    # old ``.get``. ``resolve_session_fields`` is remap-aware (straddler old|new
+    # id → ONE survivor) and returns {external_session_id, first_seen,
+    # bookmarked, display_name}. Lazy import keeps the eval.py↔eval_tasks.py
+    # cycle (see module-top NOTE) and the CH client warm-up off this module's
+    # import path, mirroring the existing ``get_reader`` lazy imports.
+    from tracer.services.clickhouse.v2.trace_session_dict_reader import (
+        resolve_session_fields,
+    )
+
+    _fields = resolve_session_fields([session_id]).get(str(session_id))
+    if not _fields:
+        # Parity with the old ``.get`` raising DoesNotExist: no live curated
+        # session names this id (unknown / tombstoned / wrong project's id that
+        # never landed in this island).
         raise ValueError(f"TraceSession with id {session_id} does not exist.")
+
+    # Build an UNSAVED TraceSession vehicle so the unchanged downstream
+    # (``_process_session_mapping`` / ``_execute_evaluation_for_session`` /
+    # composite / ``build_session_context``) keeps reading session fields by
+    # attribute — but every field is now sourced from CH + the PG overlay, not a
+    # PG ``trace_session`` row that may not exist:
+    #   • name      ← display_name override else external_session_id (DESIGN
+    #                 §5.2 COALESCE); feeds ``_SESSION_PUBLIC_FIELDS`` mapping.
+    #   • bookmarked← PG overlay (``_SESSION_PUBLIC_FIELDS`` + build_session_ctx).
+    #   • created_at← first_seen (DESIGN §5.2: the session's creation IS its
+    #                 first observed activity; build_session_context reads it).
+    #   • project   ← the eval CONFIG's project (org/workspace org-scope anchor).
+    # The instance is NEVER saved; the EvalLogger FK is written by id column
+    # (db_constraint=False) so no PG ``trace_session`` row is required.
+    trace_session = TraceSession(
+        id=session_id,
+        name=_fields["display_name"] or _fields["external_session_id"],
+        bookmarked=bool(_fields["bookmarked"]),
+        created_at=_fields["first_seen"],
+        project=custom_eval_config.project,
+    )
 
     # Same idempotency rationale as the trace evaluator: eval_task_id alone
     # scopes the check to this task's row_type (target_type='session'), so a

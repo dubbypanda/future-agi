@@ -898,7 +898,7 @@ class CHSpanReader:
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
         if observation_type:
-            if isinstance(observation_type, (list, tuple, set)):
+            if isinstance(observation_type, list | tuple | set):
                 if len(observation_type) == 0:
                     return 0
                 where.append("observation_type IN %(otypes)s")
@@ -928,6 +928,91 @@ class CHSpanReader:
             parameters=params,
         ).result_rows
         return int(rows[0][0]) if rows else 0
+
+    # ─── Candidate session ids for a session-level eval (P3b step2, Slice C) ──
+    def distinct_session_ids_with_filters(
+        self,
+        *,
+        project_id: str | None = None,
+        trace_ids: list[str] | None = None,
+        observation_type: list[str] | str | None = None,
+        session_id: str | None = None,
+        created_at_gte: datetime | None = None,
+        created_at_range: tuple[datetime, datetime] | None = None,
+    ) -> list[str]:
+        """Distinct ``trace_session_id`` of the sessions whose spans match the
+        eval-task filters — the CH re-derivation of ``process_eval_task``'s
+        SESSIONS candidate set (Slice C, DESIGN §5 / PG_ORM_READ_MIGRATION).
+
+        Replaces ``Trace.objects.filter(span matches).exclude(session=None)
+        .values('session_id').distinct()`` — the ``Trace.session`` FK is ``None``
+        post-flip (only spans carry ``trace_session_id``), so the PG derivation
+        silently omits every net-new session. Same filter kwargs as
+        ``count_with_filters`` (the eval-task filter shape, produced by
+        ``parsing_evaltask_filters_for_ch``); selects off raw ``spans`` (NOT
+        ``spans_per_session``, which carries no ``observation_type``/attribute
+        columns to scope a filtered task on).
+
+        Remap-aware (``id_remap_sql``): each span's ``trace_session_id`` is
+        resolved new→old BEFORE the DISTINCT, so a cross-cutover straddler's old
+        AND new id spans collapse to ONE survivor id (it appears once, and the
+        id handed to the per-session dispatch is the canonical/old one). A
+        net-new session's deterministic id has no remap row → resolves to itself
+        → included. Pre-flip every span is old-id → no ``new_id`` match → the
+        resolve is a no-op (gate B). ``project_id`` SHOULD be pinned (the spans
+        table is multi-tenant) so the candidate set can't leak another tenant's
+        sessions — mirrors ``trace_session_dict_reader.session_exists``.
+
+        Limit (same as the CH filter translator): ``span_attributes_filters``
+        are NOT handled here — the caller must fall back to the v2 FilterEngine
+        path for that subset (or confirm the task carries none).
+        """
+        # The remap join is ALWAYS present (the SELECT resolves new→old); a
+        # session_id filter, if any, reuses the SAME ``ts_remap`` alias rather
+        # than adding a second join.
+        session_join, session_pred = self._session_filter_remap()
+        resolved_ts = resolved_id_expr("spans.trace_session_id", "ts_remap")
+        # A session candidate must carry a session id (mirrors the
+        # spans_per_session MV's ``WHERE trace_session_id IS NOT NULL``).
+        where = ["is_deleted = 0", "trace_session_id IS NOT NULL"]
+        params: dict[str, Any] = {}
+        if project_id:
+            where.append("project_id = %(pid)s")
+            params["pid"] = project_id
+        if trace_ids is not None:
+            # Explicit empty-list = match nothing (Django .filter(trace_id__in=[])).
+            if len(trace_ids) == 0:
+                return []
+            where.append("trace_id IN %(tids)s")
+            params["tids"] = tuple(trace_ids)
+        if observation_type:
+            if isinstance(observation_type, list | tuple | set):
+                if len(observation_type) == 0:
+                    return []
+                where.append("observation_type IN %(otypes)s")
+                params["otypes"] = tuple(observation_type)
+            else:
+                where.append("observation_type = %(otype)s")
+                params["otype"] = observation_type
+        if session_id:
+            # Filter to ONE session by its OLD curated id while still resolving
+            # straddler new-id spans (same predicate count_with_filters uses);
+            # reuses the unconditional ts_remap join above.
+            where.append(session_pred)
+            params["sid"] = session_id
+        if created_at_gte:
+            where.append("created_at >= %(cag)s")
+            params["cag"] = created_at_gte
+        if created_at_range:
+            where.append("created_at BETWEEN %(cr_s)s AND %(cr_e)s")
+            params["cr_s"], params["cr_e"] = created_at_range
+        rows = self._client.query(
+            f"SELECT DISTINCT {resolved_ts} AS sid "
+            f"FROM spans FINAL {session_join} "
+            f"WHERE {' AND '.join(where)}",
+            parameters=params,
+        ).result_rows
+        return [str(r[0]) for r in rows]
 
     # ─── Group-by name with aggregates (error_analysis tool patterns) ────────
     def per_project_group_by_name(
@@ -1009,7 +1094,7 @@ class CHSpanReader:
         if sid := filters.get("session_id"):
             out["session_id"] = str(sid)
         if dr := filters.get("date_range"):
-            if isinstance(dr, (list, tuple)) and len(dr) == 2:
+            if isinstance(dr, list | tuple) and len(dr) == 2:
                 out["created_at_range"] = (dr[0], dr[1])
         if cag := filters.get("created_at"):
             out["created_at_gte"] = cag
@@ -1068,7 +1153,7 @@ class CHSpanReader:
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
         if observation_type is not None:
-            if isinstance(observation_type, (list, tuple, set)):
+            if isinstance(observation_type, list | tuple | set):
                 # Codex wave-3 P2: empty list = match nothing (matches
                 # the Django .filter(observation_type__in=[]) semantic).
                 if len(observation_type) == 0:
@@ -1144,7 +1229,7 @@ class CHSpanReader:
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
         if observation_type is not None:
-            if isinstance(observation_type, (list, tuple, set)):
+            if isinstance(observation_type, list | tuple | set):
                 # Codex wave-3 P2: empty list = match nothing.
                 if len(observation_type) == 0:
                     return {
