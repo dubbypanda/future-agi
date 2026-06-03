@@ -4980,18 +4980,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             row["metadata_map"] = content.get("metadata_map", {})
             row["trace_tags"] = content.get("trace_tags", [])
 
-        # Resolve user_id for this page of traces via PG
-        user_id_map = {}
-        if trace_ids:
-            _eu_rows = (
-                ObservationSpan.objects.filter(
-                    trace_id__in=trace_ids, end_user__isnull=False
-                )
-                .order_by("trace_id", "start_time")
-                .distinct("trace_id")
-                .values_list("trace_id", "end_user__user_id")
-            )
-            user_id_map = {str(tid): uid for tid, uid in _eu_rows}
+        user_id_map = builder.resolve_user_ids(trace_ids, analytics)
 
         # Phase 2: Eval scores
         eval_map = {}
@@ -5558,18 +5547,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             trace_ids, annotation_label_ids, label_types
         )
 
-        # Resolve user_id for this page of traces via PG
-        user_id_map = {}
-        if trace_ids:
-            _eu_rows = (
-                ObservationSpan.objects.filter(
-                    trace_id__in=trace_ids, end_user__isnull=False
-                )
-                .order_by("trace_id", "start_time")
-                .distinct("trace_id")
-                .values_list("trace_id", "end_user__user_id")
-            )
-            user_id_map = {str(tid): uid for tid, uid in _eu_rows}
+        user_id_map = builder.resolve_user_ids(trace_ids, analytics)
 
         # Build column config
         column_config = get_default_trace_config()
