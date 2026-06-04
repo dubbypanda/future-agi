@@ -452,17 +452,19 @@ const TestDetailSideDrawerChild = ({
         />
       </ShowComponent>
 
-      {/* TH-4530: chat simulate rows now route to the revamped
-          ChatDetailDrawerV2 instead of falling through to the legacy
-          LeftSection + LeftSectionBottom grid below. Gated on the
-          simulate module + compareReplay off — comparison flow still
-          uses the legacy path for now. */}
+      {/* TH-4530: chat simulate rows render in the revamped
+          ChatDetailDrawerV2 — including the Compare with baseline
+          flow, which now lives inside the drawer (body swaps;
+          chrome stays). The drawer reads `compareReplay` and toggles
+          its content between the two-panel chat layout and the
+          ChatCompareView, with `onExitCompare` for the back-arrow
+          affordance. The legacy fallback branch's condition still
+          excludes chat sims so we don't render two drawers. */}
       <ShowComponent
         condition={
           isFetching !== "initial" &&
           urlModule === "simulate" &&
-          isChatSim &&
-          !compareReplay
+          isChatSim
         }
       >
         <ChatDetailDrawerV2
@@ -475,6 +477,8 @@ const TestDetailSideDrawerChild = ({
           isFetching={isFetching}
           onAnnotate={() => setAnnotationSidebarOpen(true)}
           onCompareBaseline={setCompareReplay}
+          compareReplay={compareReplay}
+          onExitCompare={() => setCompareReplay(false)}
           scenarioId={scenarioId}
           isLoading={isVoiceDetailLoading}
         />
@@ -484,7 +488,7 @@ const TestDetailSideDrawerChild = ({
         condition={
           isFetching !== "initial" &&
           !(isVoiceCall && !compareReplay) &&
-          !(urlModule === "simulate" && isChatSim && !compareReplay)
+          !(urlModule === "simulate" && isChatSim)
         }
       >
         <Box

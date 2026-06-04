@@ -208,10 +208,7 @@ const useChatMetrics = (data) => {
       })();
 
     const duration =
-      data?.duration_seconds ??
-      data?.duration ??
-      data?.durationSeconds ??
-      null;
+      data?.duration_seconds ?? data?.duration ?? data?.durationSeconds ?? null;
 
     return {
       duration,

@@ -1,32 +1,43 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Box, Stack } from "@mui/material";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { enqueueSnackbar } from "notistack";
+import axios from "src/utils/axios";
 import { fDateTime } from "src/utils/format-time";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
+import Iconify from "src/components/iconify";
+import TagChip from "src/components/traceDetail/TagChip";
+import TagInput from "src/components/traceDetail/TagInput";
+import { normalizeTags } from "src/components/traceDetail/tagUtils";
+import { useGetTraceDetail } from "src/api/project/trace-detail";
 import VoiceActionsDropdown, {
   VOICE_ACTIONS,
 } from "src/components/VoiceDetailDrawerV2/VoiceActionsDropdown";
 
 /**
- * Chat-specific top bar for the chat detail drawer. Renders the action
- * dropdown + a compact metric-chip strip, mirroring `CallDetailsBar` from
- * the voice drawer but only showing fields that make sense for chat
- * (no Phone, no Provider, no "Type: Inbound" since every chat is a text
- * session, no trace-tag editing for now — out of scope per TH-4530).
+ * Chat top bar — chip strip + actions dropdown + inline tags row.
+ * Mirrors `CallDetailsBar` from the voice drawer but only shows fields
+ * that make sense for chat (no Phone, no Provider, no "Type: Inbound"
+ * — every chat is a text session). The inline tags row was added in
+ * the "feature parity with voice" pass: chat traces persist tags on
+ * the trace record via the same backend endpoint voice uses.
  */
+
+// Action ids that operate on the trace record (and therefore require
+// `data.trace_id` to be a real tracer trace — CallExecution ids would
+// 404). Mirrors the gating in `VoiceDetailDrawerV2/CallDetailsBar.jsx`.
+const TRACE_GATED_ACTION_IDS = new Set(["tags", "dataset"]);
 
 /**
  * Responsive metric chip. The value cell gets a `min-width: 0` + ellipsis
  * so long strings (notably ended_reason, which is a free-form sentence)
- * truncate instead of blowing past the drawer's right edge. The max-width
- * scales with the drawer via container queries: wider drawer → longer
- * visible value. Full text is always available via tooltip on hover.
+ * truncate instead of blowing past the drawer's right edge. Full text is
+ * always available via tooltip on hover.
  */
 const MetricChip = ({ label, value }) => {
   const fullText =
-    typeof value === "string" || typeof value === "number"
-      ? String(value)
-      : "";
+    typeof value === "string" || typeof value === "number" ? String(value) : "";
   return (
     <CustomTooltip
       show={!!fullText}
@@ -48,9 +59,6 @@ const MetricChip = ({ label, value }) => {
           borderColor: "divider",
           borderRadius: "2px",
           minWidth: 64,
-          // Chip itself shouldn't outgrow the parent row. Clamp to the
-          // drawer width and let the parent flex-wrap break to a new
-          // line once there's no room.
           maxWidth: "100%",
           fontSize: 11,
           color: "text.primary",
@@ -75,7 +83,6 @@ const MetricChip = ({ label, value }) => {
     </CustomTooltip>
   );
 };
-
 MetricChip.propTypes = {
   label: PropTypes.string.isRequired,
   value: PropTypes.node.isRequired,
@@ -106,10 +113,110 @@ const formatCost = (cost) => {
   return `$${n.toFixed(2)}`;
 };
 
-// Out of the voice action set, chat only wires Annotate + Download for now.
-const CHAT_ACTIONS = VOICE_ACTIONS.filter((a) =>
-  ["annotate", "download"].includes(a.id),
-);
+/**
+ * Inline tags row with add/edit/remove — ported from
+ * `VoiceDetailDrawerV2/CallDetailsBar.jsx`. Tags persist on the chat
+ * row's underlying trace record via the same `/tracer/trace/{id}/tags/`
+ * PATCH that voice uses.
+ */
+const InlineTagsRow = ({ tags = [], traceId }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const queryClient = useQueryClient();
+
+  const normalized = useMemo(() => normalizeTags(tags), [tags]);
+
+  const { mutate: saveTags, isPending } = useMutation({
+    mutationFn: (newTags) =>
+      axios.patch(`/tracer/trace/${traceId}/tags/`, { tags: newTags }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chatCallDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["voiceCallDetail"] });
+      queryClient.invalidateQueries({ queryKey: ["trace-detail"] });
+    },
+    onError: () => {
+      enqueueSnackbar("Failed to update tags", { variant: "error" });
+    },
+  });
+
+  const persist = useCallback((next) => saveTags(next), [saveTags]);
+
+  return (
+    <Stack
+      direction="row"
+      sx={{ flexWrap: "wrap", gap: 0.5, alignItems: "center" }}
+    >
+      <Iconify
+        icon="mdi:tag-outline"
+        width={13}
+        sx={{ color: "text.disabled" }}
+      />
+      {normalized.map((tag, idx) => (
+        <TagChip
+          key={`${tag.name}-${idx}`}
+          name={tag.name}
+          color={tag.color}
+          size="small"
+          onRemove={() => persist(normalized.filter((_, i) => i !== idx))}
+          onColorChange={(c) =>
+            persist(
+              normalized.map((t, i) => (i === idx ? { ...t, color: c } : t)),
+            )
+          }
+          onRename={(n) => {
+            if (normalized.some((t, i) => i !== idx && t.name === n)) return;
+            persist(
+              normalized.map((t, i) => (i === idx ? { ...t, name: n } : t)),
+            );
+          }}
+        />
+      ))}
+      {isAdding ? (
+        <Box
+          sx={{ minWidth: 130 }}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setIsAdding(false);
+          }}
+        >
+          <TagInput
+            onAdd={(newTag) => {
+              persist([...normalized, newTag]);
+              setIsAdding(false);
+            }}
+            existingNames={normalized.map((t) => t.name)}
+            disabled={isPending}
+            placeholder="tag name"
+          />
+        </Box>
+      ) : (
+        <Box
+          onClick={() => setIsAdding(true)}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "2px",
+            px: 0.5,
+            py: "1px",
+            borderRadius: "3px",
+            border: "1px dashed",
+            borderColor: "divider",
+            fontSize: 11,
+            color: "text.disabled",
+            cursor: "pointer",
+            lineHeight: "16px",
+            "&:hover": { borderColor: "primary.main", color: "primary.main" },
+          }}
+        >
+          <Iconify icon="mdi:plus" width={12} />
+          tag
+        </Box>
+      )}
+    </Stack>
+  );
+};
+InlineTagsRow.propTypes = {
+  tags: PropTypes.array,
+  traceId: PropTypes.string,
+};
 
 const ChatDetailsBar = ({ data, onAction }) => {
   const chips = useMemo(() => {
@@ -154,7 +261,22 @@ const ChatDetailsBar = ({ data, onAction }) => {
     return out;
   }, [data]);
 
-  if (chips.length === 0 && !onAction) return null;
+  // Tags persist on the trace record so we need a real `trace_id`
+  // (CallExecution ids 404 against the tag endpoint). For the
+  // simulate module we read tags from the data payload directly; for
+  // observe (project) we fall back to fetching the canonical trace
+  // detail so the chip row stays in sync.
+  const traceId = data?.trace_id;
+  const isObserve = data?.module === "project";
+  const { data: traceDetail } = useGetTraceDetail(isObserve ? traceId : null);
+  const tags =
+    traceDetail?.trace?.tags ||
+    traceDetail?.tags ||
+    data?.tags ||
+    data?.trace?.tags ||
+    [];
+
+  if (chips.length === 0 && !onAction && !traceId) return null;
 
   return (
     <Box
@@ -169,7 +291,16 @@ const ChatDetailsBar = ({ data, onAction }) => {
     >
       {onAction && (
         <Stack direction="row" justifyContent="flex-end" sx={{ mb: 0.75 }}>
-          <VoiceActionsDropdown onAction={onAction} actions={CHAT_ACTIONS} />
+          <VoiceActionsDropdown
+            onAction={onAction}
+            // Trace-gated actions (tags, dataset) are hidden when there's
+            // no real trace_id so the menu doesn't render dead clicks.
+            actions={
+              data?.trace_id
+                ? VOICE_ACTIONS
+                : VOICE_ACTIONS.filter((a) => !TRACE_GATED_ACTION_IDS.has(a.id))
+            }
+          />
         </Stack>
       )}
 
@@ -180,10 +311,6 @@ const ChatDetailsBar = ({ data, onAction }) => {
           gap={0.5}
           sx={{
             flexWrap: "wrap",
-            // Constrain the row to the bar's content width so children
-            // with maxWidth: 100% have something to clamp against; lets
-            // long chips (e.g. "Ended: ...") wrap to a new line instead
-            // of overflowing horizontally.
             minWidth: 0,
             width: "100%",
           }}
@@ -192,6 +319,12 @@ const ChatDetailsBar = ({ data, onAction }) => {
             <MetricChip key={c.label} label={c.label} value={c.value} />
           ))}
         </Stack>
+      )}
+
+      {traceId && (
+        <Box sx={{ mt: 0.75 }}>
+          <InlineTagsRow tags={tags} traceId={traceId} />
+        </Box>
       )}
     </Box>
   );

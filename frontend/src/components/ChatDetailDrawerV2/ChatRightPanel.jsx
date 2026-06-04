@@ -17,7 +17,6 @@ import ScoresListSection from "src/components/ScoresListSection/ScoresListSectio
 import EvalsTabView from "src/components/traceDetail/EvalsTabView";
 import { openFixWithFalcon } from "src/sections/falcon-ai/helpers/openFixWithFalcon";
 import LoadingStateComponent from "src/components/CallLogsDetailDrawer/LoadingStateComponent";
-import { getSpanAttributes } from "src/components/traceDetailDrawer/DrawerRightRenderer/getSpanData";
 import ChatAnalyticsView from "./ChatAnalyticsView";
 import ChatDetailsBar from "./ChatDetailsBar";
 
@@ -60,8 +59,7 @@ const ChatRightPanel = ({ data, onCompareBaseline, onAction }) => {
     );
   }, [data?.observation_span]);
 
-  const canCompare =
-    isSimulate && !!onCompareBaseline && !!data?.session_id;
+  const canCompare = isSimulate && !!onCompareBaseline && !!data?.session_id;
 
   const { isCallInProgress, message: loadingMessage } =
     getLoadingStateWithRespectiveStatus(
@@ -308,8 +306,7 @@ const ChatRightPanel = ({ data, onCompareBaseline, onAction }) => {
                       trace_id: traceId,
                       call_id: callId,
                       span_id: ev.spanId || ev.observation_span_id,
-                      eval_log_id:
-                        ev.eval_log_id || ev.cell_id || ev.log_id,
+                      eval_log_id: ev.eval_log_id || ev.cell_id || ev.log_id,
                       custom_eval_config_id:
                         ev.custom_eval_config_id || ev.eval_config_id,
                       eval_name: ev.eval_name,
@@ -363,9 +360,7 @@ const ChatRightPanel = ({ data, onCompareBaseline, onAction }) => {
                   <Button
                     size="small"
                     variant="outlined"
-                    startIcon={
-                      <Iconify icon="mingcute:add-line" width={14} />
-                    }
+                    startIcon={<Iconify icon="mingcute:add-line" width={14} />}
                     onClick={() => onAction("annotate")}
                     sx={{
                       textTransform: "none",

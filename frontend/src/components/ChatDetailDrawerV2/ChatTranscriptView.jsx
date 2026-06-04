@@ -55,9 +55,7 @@ const SkeletonBubble = ({ align, delay = 0, width }) => (
         width={width}
         sx={{
           borderRadius:
-            align === "right"
-              ? "12px 12px 4px 12px"
-              : "12px 12px 12px 4px",
+            align === "right" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
           bgcolor: (theme) =>
             theme.palette.mode === "dark"
               ? "rgba(255,255,255,0.06)"

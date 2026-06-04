@@ -1,32 +1,64 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { Box, CircularProgress, Stack } from "@mui/material";
+import { Box, Button, CircularProgress, Stack } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import { enqueueSnackbar } from "notistack";
+import { useParams } from "react-router";
+
+import DrawerToolbar from "src/components/traceDetail/DrawerToolbar";
+import ImagineTab from "src/components/imagine/ImagineTab";
+import ConfirmDialog from "src/components/custom-dialog/confirm-dialog";
+import { ShareDialog } from "src/components/share-dialog";
+import AddTagsPopover from "src/components/traceDetail/AddTagsPopover";
+import AddToQueueDialog from "src/sections/annotations/queues/components/add-to-queue-dialog";
+import AddDataset from "src/components/traceDetailDrawer/addToDataset/add-dataset";
+import { LLM_TABS } from "src/sections/projects/LLMTracing/common";
+import useImagineStore from "src/components/imagine/useImagineStore";
+import {
+  useGetSavedViews,
+  useDeleteSavedView,
+  useReorderSavedViews,
+} from "src/api/project/saved-views";
 
 import VoiceDrawerHeader from "src/components/VoiceDetailDrawerV2/VoiceDrawerHeader";
 import ChatLeftPanel from "./ChatLeftPanel";
 import ChatRightPanel from "./ChatRightPanel";
+import ChatCompareView from "./Compare/ChatCompareView";
+
+// Chat-tailored Imagine prompts — same shape as `VOICE_IMAGINE_PROMPTS`
+// in `VoiceDetailDrawerV2.jsx`. Surfaced as suggested-prompt chips inside
+// an unsaved Imagine tab.
+const CHAT_IMAGINE_PROMPTS = [
+  { label: "Summarize this chat", icon: "mdi:text-box-outline" },
+  { label: "Show the conversation flow", icon: "mdi:message-text-outline" },
+  {
+    label: "Where did the user get frustrated?",
+    icon: "mdi:emoticon-sad-outline",
+  },
+  { label: "What's the cost breakdown?", icon: "mdi:currency-usd" },
+  { label: "Compare tone across turns", icon: "mdi:chart-line" },
+  {
+    label: "Evaluate chat quality",
+    icon: "mdi:checkbox-marked-circle-outline",
+  },
+];
 
 /**
- * Chat-specific peer of `VoiceDetailDrawerV2`. Shares the same outer shell
- * (header, resizable drawer width, resizable inner divider, fullscreen)
- * so chat and voice simulations look like sibling surfaces.
+ * Chat-specific peer of `VoiceDetailDrawerV2`. Shares the same outer
+ * shell (header, resizable drawer width, resizable inner divider,
+ * fullscreen) and now matches voice for every cross-cutting feature:
  *
- * Intentionally narrower scope than the voice drawer — out of scope for
- * this PR (tracked as follow-ups): Imagine/Saved Views tabs, Share dialog,
- * Add-to-dataset, Add-to-queue, full-page chat route, and tag editing on
- * trace records.
+ *  - Imagine / Saved Views via `DrawerToolbar` + `ImagineTab`
+ *  - Share dialog (trace-record sharing)
+ *  - Add to dataset (trace as a row in a dataset)
+ *  - Add to annotation queue
+ *  - Add tags + inline tags row (persisted to the trace record)
+ *  - **Compare with baseline** body (lives inside the drawer; pressing
+ *    Compare swaps the two-panel body for a side-by-side diff and a
+ *    back-to-chat affordance, without unmounting the drawer chrome)
  *
- * Content-only: rendered inside the outer MUI flex container provided by
- * `TestDetailSideDrawer`, same way `VoiceDetailDrawerV2` is.
- *
- * Layout:
- *   ┌─ Header ─────────────────────────────────┐
- *   │  ┌─────────────┐  │  ┌─────────────────┐ │
- *   │  │ Transcript/ │  │  │ Call Analytics  │ │
- *   │  │ Path tabs   │  │  │ / Evals / ...   │ │
- *   │  └─────────────┘  │  └─────────────────┘ │
- *   └──────────────────────────────────────────┘
+ * Content-only: rendered inside the outer MUI flex container provided
+ * by `TestDetailSideDrawer`, same way `VoiceDetailDrawerV2` is.
  */
 const ChatDetailDrawerV2 = ({
   data,
@@ -38,19 +70,125 @@ const ChatDetailDrawerV2 = ({
   isFetching,
   onAnnotate,
   onCompareBaseline,
+  onExitCompare,
+  compareReplay = false,
   scenarioId,
   isLoading = false,
   initialFullscreen = false,
   // When embedded (e.g. inside the annotation workspace content panel),
-  // hide the outer drawer chrome — the header bar — and just render the
-  // chat body so it fits the host's layout. Mirrors VoiceDetailDrawerV2.
+  // hide the outer drawer chrome — the DrawerToolbar (Imagine tabs)
+  // and the VoiceDrawerHeader (close/nav/fullscreen) — and just render
+  // the chat body so it fits the host's layout.
   embedded = false,
 }) => {
-  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // percentage
+  const queryClient = useQueryClient();
+  const { observeId } = useParams();
+  const projectId = observeId || data?.project_id;
+
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50);
   const [isFullscreen, setIsFullscreen] = useState(initialFullscreen);
   const [drawerWidth, setDrawerWidth] = useState(60);
 
-  // ── Drag handler for resizable inner divider ──────────────────────────
+  // Cross-cutting dialog state — same set as voice.
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [tagsAnchorEl, setTagsAnchorEl] = useState(null);
+  const [queueAnchorEl, setQueueAnchorEl] = useState(null);
+  const [datasetDrawerOpen, setDatasetDrawerOpen] = useState(false);
+  const [deleteTabId, setDeleteTabId] = useState(null);
+
+  // ── Saved views / Imagine tabs ───────────────────────────────────────
+  const { data: savedViewsData } = useGetSavedViews(projectId);
+  const { mutate: deleteSavedView } = useDeleteSavedView(projectId);
+  const { mutate: reorderSavedViews } = useReorderSavedViews(projectId);
+  const customViews = savedViewsData?.custom_views || [];
+
+  const [activeDrawerTab, setActiveDrawerTab] = useState("chat");
+
+  const drawerTabs = useMemo(() => {
+    const tabs = [
+      {
+        id: "chat",
+        label: "Chat",
+        icon: "mdi:message-text-outline",
+        isDefault: true,
+      },
+    ];
+    customViews
+      .filter((v) => (v.tab_type || v.tabType) === "imagine")
+      .forEach((v) => {
+        tabs.push({
+          id: v.id,
+          label: v.name,
+          icon: "mdi:creation",
+          isDefault: false,
+          config: v.config,
+          visibility: v.visibility,
+          tabType: "imagine",
+        });
+      });
+    if (activeDrawerTab === "__new_imagine__") {
+      tabs.push({
+        id: "__new_imagine__",
+        label: "Imagine",
+        icon: "mdi:creation",
+        isDefault: false,
+        tabType: "imagine",
+      });
+    }
+    return tabs;
+  }, [customViews, activeDrawerTab]);
+
+  const isImagineActive =
+    activeDrawerTab === "__new_imagine__" ||
+    drawerTabs.find((t) => t.id === activeDrawerTab)?.tabType === "imagine";
+
+  const activeTabConfig = drawerTabs.find(
+    (t) => t.id === activeDrawerTab,
+  )?.config;
+
+  const imagineReadOnly =
+    activeDrawerTab !== "__new_imagine__" &&
+    drawerTabs.find((t) => t.id === activeDrawerTab)?.tabType === "imagine";
+
+  const handleCreateImagineTab = useCallback(() => {
+    useImagineStore.getState().reset();
+    setActiveDrawerTab("__new_imagine__");
+  }, []);
+
+  const handleCloseTab = useCallback((tabId) => {
+    if (tabId === "chat") return;
+    if (tabId === "__new_imagine__") {
+      setActiveDrawerTab("chat");
+      return;
+    }
+    setDeleteTabId(tabId);
+  }, []);
+
+  const handleCreateView = useCallback((e) => {
+    e?.stopPropagation?.();
+    enqueueSnackbar("Use Imagine to save a custom view", { variant: "info" });
+  }, []);
+
+  const handleReorderTabs = useCallback(
+    (orderedIds) => {
+      const imagineIdSet = new Set(orderedIds);
+      const imaginePosById = Object.fromEntries(
+        orderedIds.map((id, i) => [id, i]),
+      );
+      const nonImagine = customViews.filter((v) => !imagineIdSet.has(v.id));
+      const merged = [
+        ...nonImagine.map((v, i) => ({ id: v.id, position: i })),
+        ...orderedIds.map((id) => ({
+          id,
+          position: nonImagine.length + imaginePosById[id],
+        })),
+      ];
+      reorderSavedViews({ project_id: projectId, order: merged });
+    },
+    [customViews, projectId, reorderSavedViews],
+  );
+
+  // ── Drag handler for resizable inner divider ─────────────────────────
   const handleDragStart = useCallback(
     (e) => {
       e.preventDefault();
@@ -79,7 +217,7 @@ const ChatDetailDrawerV2 = ({
     [leftPanelWidth],
   );
 
-  // ── Download raw data ─────────────────────────────────────────────────
+  // ── Download raw data ────────────────────────────────────────────────
   const handleDownload = useCallback(() => {
     if (!data) return;
     try {
@@ -98,8 +236,10 @@ const ChatDetailDrawerV2 = ({
     }
   }, [data]);
 
-  // Unified action handler — routes the Actions dropdown. Only two
-  // actions are wired for chat in this PR: annotate + download.
+  // Routes the actions dropdown — full set now (annotate, download,
+  // tags, queue, dataset). Anchor for tags/queue popovers is the
+  // VoiceActionsDropdown trigger button (it tags itself with the
+  // `data-voice-actions-button` attribute).
   const handleChatAction = useCallback(
     (actionId) => {
       switch (actionId) {
@@ -108,6 +248,23 @@ const ChatDetailDrawerV2 = ({
           break;
         case "download":
           handleDownload();
+          break;
+        case "tags": {
+          const el =
+            document.querySelector("[data-voice-actions-button]") ||
+            document.body;
+          setTagsAnchorEl(el);
+          break;
+        }
+        case "queue": {
+          const el =
+            document.querySelector("[data-voice-actions-button]") ||
+            document.body;
+          setQueueAnchorEl(el);
+          break;
+        }
+        case "dataset":
+          setDatasetDrawerOpen(true);
           break;
         default:
           break;
@@ -129,8 +286,7 @@ const ChatDetailDrawerV2 = ({
         overflow: "hidden",
       }}
     >
-      {/* Left-edge resize handle — drag to resize the drawer. Matches
-          VoiceDetailDrawerV2's drag-to-resize interaction. */}
+      {/* Left-edge resize handle */}
       {!isFullscreen && !initialFullscreen && (
         <Box
           onMouseDown={(e) => {
@@ -166,29 +322,48 @@ const ChatDetailDrawerV2 = ({
         />
       )}
 
-      {/* Header — omitted in embedded mode so the host view owns its own chrome. */}
+      {/* Header + DrawerToolbar — omitted in embedded mode. */}
       {!embedded && (
-        <VoiceDrawerHeader
-          callId={data?.provider_call_id || data?.id || data?.trace_id}
-          onClose={onClose}
-          onPrev={onPrev}
-          onNext={onNext}
-          hasPrev={hasPrev}
-          hasNext={hasNext}
-          onFullscreen={
-            initialFullscreen
-              ? undefined
-              : () => setIsFullscreen((prev) => !prev)
-          }
-          isFullscreen={isFullscreen}
-          onDownload={handleDownload}
-          // Relabel the shared header row / tooltip / toast for chat.
-          idLabel="Chat ID"
-          copyTooltip="Copy Chat ID"
-          copyToastMessage="Chat ID copied"
-          // Share + open-in-new-tab are voice-only for now; omit so those
-          // header buttons don't render.
-        />
+        <>
+          <VoiceDrawerHeader
+            callId={data?.provider_call_id || data?.id || data?.trace_id}
+            onClose={onClose}
+            onPrev={onPrev}
+            onNext={onNext}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onFullscreen={
+              initialFullscreen
+                ? undefined
+                : () => setIsFullscreen((prev) => !prev)
+            }
+            isFullscreen={isFullscreen}
+            onDownload={handleDownload}
+            onShare={
+              data?.trace_id || data?.id
+                ? () => setShareDialogOpen(true)
+                : undefined
+            }
+            // No chat full-page route exists yet — omit `onOpenNewTab`
+            // entirely so the header button hides. Wire this up once a
+            // route lands.
+            idLabel="Chat ID"
+            copyTooltip="Copy Chat ID"
+            copyToastMessage="Chat ID copied"
+          />
+
+          <DrawerToolbar
+            tabs={drawerTabs}
+            activeTabId={activeDrawerTab}
+            onTabChange={setActiveDrawerTab}
+            onCloseTab={handleCloseTab}
+            onCreateTab={handleCreateView}
+            onCreateImagineTab={handleCreateImagineTab}
+            onReorderTabs={handleReorderTabs}
+            hideFilter
+            hideDisplay
+          />
+        </>
       )}
 
       {/* Main content */}
@@ -197,7 +372,7 @@ const ChatDetailDrawerV2 = ({
         sx={{
           flex: 1,
           display: "flex",
-          flexDirection: "row",
+          flexDirection: isImagineActive || compareReplay ? "column" : "row",
           overflow: "hidden",
           minHeight: 0,
         }}
@@ -213,6 +388,47 @@ const ChatDetailDrawerV2 = ({
           >
             <CircularProgress size={28} />
           </Box>
+        ) : compareReplay ? (
+          // Compare body owns the whole content area; back-to-chat
+          // affordance lives inside it.
+          <ChatCompareView data={data} onBack={onExitCompare} />
+        ) : isImagineActive ? (
+          <ImagineTab
+            traceId={data?.trace_id || data?.id}
+            projectId={projectId}
+            entityType="chat"
+            suggestedPrompts={CHAT_IMAGINE_PROMPTS}
+            traceData={{
+              spans: data?.observation_span || data?.observation_spans || [],
+              summary: data?.summary || {},
+              transcript: data?.transcript || [],
+              trace: {
+                id: data?.trace_id || data?.id,
+                transcript: data?.transcript,
+                call_summary: data?.call_summary,
+                provider: data?.provider,
+                status: data?.status,
+                module: data?.module,
+                customerLatencyMetrics: data?.customer_latency_metrics,
+                customerCostBreakdown: data?.customer_cost_breakdown,
+                evalOutputs: data?.eval_metrics,
+                endedReason: data?.ended_reason,
+                callType: data?.call_type,
+              },
+            }}
+            readOnly={imagineReadOnly}
+            savedViewId={imagineReadOnly ? activeDrawerTab : null}
+            savedWidgets={activeTabConfig?.widgets}
+            savedConversationId={
+              activeTabConfig?.conversation_id ||
+              activeTabConfig?.conversationId
+            }
+            onSaved={() =>
+              queryClient.invalidateQueries({
+                queryKey: ["saved-views", projectId],
+              })
+            }
+          />
         ) : (
           <>
             {/* Left Panel */}
@@ -282,6 +498,88 @@ const ChatDetailDrawerV2 = ({
           </>
         )}
       </Box>
+
+      {/* Share dialog — chat shares by trace_id (same backend as
+          voice). Fallback URL is omitted because there's no chat
+          full-page route yet. */}
+      {(data?.trace_id || data?.id) && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          resourceType="trace"
+          resourceId={data?.trace_id || data?.id}
+        />
+      )}
+
+      {/* Add tags popover — only mounted when a real trace exists.
+          The trace-tag PATCH 404s for CallExecution ids. */}
+      {data?.trace_id && (
+        <AddTagsPopover
+          anchorEl={tagsAnchorEl}
+          open={Boolean(tagsAnchorEl)}
+          onClose={() => setTagsAnchorEl(null)}
+          traceId={data.trace_id}
+          currentTags={data?.tags || data?.trace?.tags || []}
+          onSuccess={() =>
+            queryClient.invalidateQueries({ queryKey: ["chatCallDetail"] })
+          }
+        />
+      )}
+
+      {/* Add to annotation queue — accepts both `trace` and
+          `call_execution` source types, so simulate-only rows still work
+          via the CallExecution id fallback. */}
+      <AddToQueueDialog
+        anchorEl={queueAnchorEl}
+        onClose={() => setQueueAnchorEl(null)}
+        sourceType={data?.trace_id ? "trace" : "call_execution"}
+        sourceIds={data?.trace_id ? [data.trace_id] : data?.id ? [data.id] : []}
+        itemName={data?.customer_name || "Chat"}
+      />
+
+      {/* Move to dataset — gated by ChatDetailsBar (action is hidden
+          when there's no trace_id). The drawer still mounts the dialog
+          unconditionally so opening it always works. */}
+      <AddDataset
+        handleClose={() => setDatasetDrawerOpen(false)}
+        actionToDataset={datasetDrawerOpen}
+        currentTab={LLM_TABS.TRACE}
+        selectedTraces={data?.trace_id ? [data.trace_id] : []}
+      />
+
+      {/* Delete saved-view confirmation */}
+      <ConfirmDialog
+        open={Boolean(deleteTabId)}
+        onClose={() => setDeleteTabId(null)}
+        title="Delete view"
+        content={`Are you sure you want to delete "${
+          drawerTabs.find((t) => t.id === deleteTabId)?.label || "this view"
+        }"? This action cannot be undone.`}
+        action={
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            onClick={() => {
+              const tabId = deleteTabId;
+              setDeleteTabId(null);
+              deleteSavedView(tabId, {
+                onSuccess: () => {
+                  if (activeDrawerTab === tabId) setActiveDrawerTab("chat");
+                  enqueueSnackbar("View deleted", { variant: "info" });
+                },
+                onError: () => {
+                  enqueueSnackbar("Failed to delete view", {
+                    variant: "error",
+                  });
+                },
+              });
+            }}
+          >
+            Delete
+          </Button>
+        }
+      />
     </Box>
   );
 };
@@ -296,6 +594,8 @@ ChatDetailDrawerV2.propTypes = {
   isFetching: PropTypes.string,
   onAnnotate: PropTypes.func,
   onCompareBaseline: PropTypes.func,
+  onExitCompare: PropTypes.func,
+  compareReplay: PropTypes.bool,
   scenarioId: PropTypes.string,
   isLoading: PropTypes.bool,
   initialFullscreen: PropTypes.bool,
