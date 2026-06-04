@@ -7509,6 +7509,7 @@ class GetEvalStructureView(APIView):
                 template.config.get("config_params_option", {})
             ),
             "run_config": eval.config.get("run_config", {}),
+            "pinned_version_id": str(eval.pinned_version_id) if eval.pinned_version_id else None,
         }
 
         return self._gm.success_response({"eval": eval_data})
@@ -7983,6 +7984,49 @@ class EditAndRunUserEvalView(APIView):
                 new_template.save()
                 eval_metric.template_id = new_template.id
                 eval_metric.save()
+
+            # --- Version creation on prompt edit ---
+            _req_config = request_data.get("config") or {}
+            _inner_config = _req_config.get("config", {})
+            _edited_rule_prompt = _inner_config.get("rule_prompt")
+            if (
+                _edited_rule_prompt
+                and eval_metric.template.owner == OwnerChoices.USER.value
+            ):
+                from model_hub.models.evals_metric import EvalTemplateVersion
+                from model_hub.utils.prompt_migration import config_to_prompt_messages
+
+                _tpl = eval_metric.template
+                # Start from template config, then overlay ALL fields the FE sent
+                _snap = dict(_tpl.config or {})
+                _snap.update(_inner_config)
+                # Top-level fields and run_config aren't in config.config — merge them
+                _run_config = _req_config.get("run_config", {})
+                if _run_config:
+                    _snap.update(_run_config)
+                _resolved_model = request_data.get("model") or eval_metric.model or _tpl.model or ""
+                _snap["model"] = _resolved_model
+                # Keep messages in sync with the edited prompt
+                _snap["messages"] = [
+                    {"role": "system", "content": _edited_rule_prompt}
+                ]
+                _criteria = _edited_rule_prompt
+                _pm = config_to_prompt_messages(
+                    _snap,
+                    criteria=_criteria,
+                    eval_type_id=_snap.get("eval_type_id"),
+                )
+                _ver = EvalTemplateVersion.objects.create_version(
+                    eval_template=_tpl,
+                    prompt_messages=_pm,
+                    config_snapshot=_snap,
+                    criteria=_criteria,
+                    model=request_data.get("model") or eval_metric.model or _tpl.model or "",
+                    user=request.user,
+                    organization=organization,
+                    workspace=getattr(request, "workspace", None),
+                )
+                eval_metric.pinned_version = _ver
 
             # Update the config if provided in request
             new_config = request_data.get("config")

@@ -912,7 +912,9 @@ class EvaluationRunner:
 
     def _initialize_eval_metric(self):
         """Initialize and set status of user eval metric"""
-        self.user_eval_metric = UserEvalMetric.objects.get(id=self.user_eval_metric_id)
+        self.user_eval_metric = UserEvalMetric.objects.select_related(
+            "pinned_version",
+        ).get(id=self.user_eval_metric_id)
         self.dataset = self.user_eval_metric.dataset
 
         if not self.organization_id and self.dataset:
@@ -920,6 +922,9 @@ class EvaluationRunner:
             self.workspace_id = (
                 self.dataset.workspace.id if self.dataset.workspace else None
             )
+
+        if self.version_number is None and self.user_eval_metric.pinned_version_id:
+            self.version_number = self.user_eval_metric.pinned_version.version_number
 
         self.user_eval_metric.status = StatusType.RUNNING.value
         self.user_eval_metric.save(update_fields=["status"])

@@ -143,7 +143,9 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
   const createVersion = useCreateEvalVersion(templateId);
 
   // ── Editable state (mirrors EvalDetailPage) ──
-  const [selectedVersionId, setSelectedVersionId] = useState(null);
+  const [selectedVersionId, setSelectedVersionId] = useState(
+    evalData?.pinned_version_id ?? evalData?.pinnedVersionId ?? null,
+  );
   const [instructions, setInstructions] = useState("");
   const [code, setCode] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("python");
@@ -369,7 +371,43 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
     () => evalType !== "llm" || hasNonEmptyPromptMessage(messages),
     [evalType, messages],
   );
-  // ── Populate from eval detail ──
+  // ── Load pinned version content on mount (edit mode) ──
+  const pinnedVersionLoadDone = useRef(false);
+  useEffect(() => {
+    if (
+      selectedVersionId &&
+      versions.length > 0 &&
+      !pinnedVersionLoadDone.current &&
+      !isDirty
+    ) {
+      const version = versions.find((v) => v.id === selectedVersionId);
+      if (version) {
+        pinnedVersionLoadDone.current = true;
+        const config = version.config_snapshot || version.configSnapshot || {};
+        const promptText = config.rule_prompt || version.criteria || "";
+        const _type =
+          normalizedFullEval?.evalType || normalizedEvalData?.evalType || "llm";
+        if (_type === "code") {
+          setInstructions("");
+          setCode(config.code || "");
+        } else {
+          setInstructions(promptText);
+          setCode("");
+        }
+        setModel(config.model || fullEval?.model || "turing_large");
+        if (config.messages?.length > 0) {
+          setMessages(config.messages);
+        } else if (_type === "llm" && promptText) {
+          setMessages([{ role: "system", content: promptText }]);
+        }
+        if (isEditMode) setEvalName(evalData?.name || fullEval?.name || "");
+        setIsDirty(false);
+        setDataReady(true);
+        initialLoadDone.current = true;
+      }
+    }
+  }, [selectedVersionId, versions, isDirty, fullEval, normalizedFullEval, normalizedEvalData, isEditMode, evalData]);
+
   // ── Populate from eval detail (same logic as EvalDetailPage) ──
   const initialLoadDone = useRef(false);
   useEffect(() => {
@@ -650,7 +688,7 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
       const version = versions.find((v) => v.id === vId);
       if (version) {
         const config = version.config_snapshot || version.configSnapshot || {};
-        const promptText = version.criteria || config.rule_prompt || "";
+        const promptText = config.rule_prompt || version.criteria || "";
         // Type-aware split — version snapshot's `criteria` is the code
         // text for code evals, the prompt for agent/llm.
         const _type =
