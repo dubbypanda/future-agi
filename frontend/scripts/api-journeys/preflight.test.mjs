@@ -97,63 +97,67 @@ describe("api journey preflight CLI", () => {
     expect(authContext.detail).toContain("No FUTURE_AGI_EMAIL");
   });
 
-  it("public mode checks only API reachability and public health", async () => {
-    const api = await startApiServer((request, response) => {
-      if (request.url === "/accounts/user-info/") {
-        response.writeHead(401, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ detail: "Authentication required" }));
-        return;
-      }
+  for (const publicFlag of ["--public", "--public-only"]) {
+    it(`${publicFlag} checks only API reachability and public health`, async () => {
+      const api = await startApiServer((request, response) => {
+        if (request.url === "/accounts/user-info/") {
+          response.writeHead(401, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ detail: "Authentication required" }));
+          return;
+        }
 
-      if (request.url === "/tracer/v1/health") {
-        response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(
-          JSON.stringify({
-            status: "healthy",
-            service: "otlp-trace-receiver",
-          }),
-        );
-        return;
-      }
+        if (request.url === "/tracer/v1/health") {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(
+            JSON.stringify({
+              status: "healthy",
+              service: "otlp-trace-receiver",
+            }),
+          );
+          return;
+        }
 
-      response.writeHead(404, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ detail: "not found" }));
-    });
-    cleanup.push({ type: "server", server: api.server });
+        response.writeHead(404, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ detail: "not found" }));
+      });
+      cleanup.push({ type: "server", server: api.server });
 
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "preflight-cli-"));
-    cleanup.push({ type: "dir", path: tempDir });
-    const jsonPath = path.join(tempDir, "preflight-public.json");
+      const tempDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), "preflight-cli-"),
+      );
+      cleanup.push({ type: "dir", path: tempDir });
+      const jsonPath = path.join(tempDir, "preflight-public.json");
 
-    const result = await execFileAsync(
-      process.execPath,
-      ["scripts/api-journeys/preflight.mjs", "--public", "--json", jsonPath],
-      {
-        cwd: process.cwd(),
-        env: {
-          ...process.env,
-          API_BASE: api.baseUrl,
-          FUTURE_AGI_ACCESS_TOKEN: "",
-          FUTURE_AGI_TOKEN_FILE: "",
-          FUTURE_AGI_EMAIL: "",
-          FUTURE_AGI_PASSWORD: "",
+      const result = await execFileAsync(
+        process.execPath,
+        ["scripts/api-journeys/preflight.mjs", publicFlag, "--json", jsonPath],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            API_BASE: api.baseUrl,
+            FUTURE_AGI_ACCESS_TOKEN: "",
+            FUTURE_AGI_TOKEN_FILE: "",
+            FUTURE_AGI_EMAIL: "",
+            FUTURE_AGI_PASSWORD: "",
+          },
         },
-      },
-    );
-    const summary = JSON.parse(result.stdout);
-    const persisted = JSON.parse(await fs.readFile(jsonPath, "utf8"));
+      );
+      const summary = JSON.parse(result.stdout);
+      const persisted = JSON.parse(await fs.readFile(jsonPath, "utf8"));
 
-    expect(summary).toMatchObject({
-      status: "passed",
-      mode: "public",
-      api_base: api.baseUrl,
+      expect(summary).toMatchObject({
+        status: "passed",
+        mode: "public",
+        api_base: api.baseUrl,
+      });
+      expect(summary.checks.map((check) => check.name)).toEqual([
+        "api_reachable",
+        "api_health",
+      ]);
+      expect(persisted).toMatchObject(summary);
     });
-    expect(summary.checks.map((check) => check.name)).toEqual([
-      "api_reachable",
-      "api_health",
-    ]);
-    expect(persisted).toMatchObject(summary);
-  });
+  }
 
   it("fails full preflight when host disk is exhausted", async () => {
     const api = await startApiServer((request, response) => {
@@ -233,9 +237,7 @@ describe("api journey preflight CLI", () => {
       ]),
     );
 
-    const hostDisk = summary.checks.find(
-      (check) => check.name === "host_disk",
-    );
+    const hostDisk = summary.checks.find((check) => check.name === "host_disk");
     expect(hostDisk.filesystems[0]).toMatchObject({
       available_kib: 524288,
       capacity_percent: 100,

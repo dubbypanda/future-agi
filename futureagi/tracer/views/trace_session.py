@@ -665,6 +665,12 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             "spans.trace_session_id", "trace_session_id_remap", "ts_remap"
         )
         ts_resolved = resolved_id_expr("spans.trace_session_id", "ts_remap")
+        # A caller can arrive with either member of a remap pair; bind the same
+        # survivor id that the span side resolves to before comparing.
+        requested_session_id = str(trace_session_id)
+        canonical_session_id = _resolve_session_ids_to_canonical(
+            analytics, [requested_session_id]
+        ).get(requested_session_id, requested_session_id)
 
         # Get session-level aggregates from CH
         agg_query = f"""
@@ -682,7 +688,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         """
         agg_result = analytics.execute_ch_query(
             agg_query,
-            {"project_id": str(project_id), "session_id": str(trace_session_id)},
+            {"project_id": str(project_id), "session_id": canonical_session_id},
             timeout_ms=5000,
         )
 
@@ -733,7 +739,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             trace_query,
             {
                 "project_id": str(project_id),
-                "session_id": str(trace_session_id),
+                "session_id": canonical_session_id,
                 "limit": page_size + 1,
                 "offset": page_start,
             },
@@ -1249,6 +1255,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             bookmark_filter = self._build_bookmark_filter(
                 bookmarked,
                 org_project_ids if org_scope else [project_id],
+                analytics=analytics,
             )
             try:
                 return self._list_sessions_clickhouse(
@@ -1885,7 +1892,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         return out
 
     @staticmethod
-    def _build_bookmark_filter(bookmarked, project_ids):
+    def _build_bookmark_filter(bookmarked, project_ids, analytics=None):
         """Build the synthetic ``trace_session_id`` IN/NOT-IN filter for the
         three-state ``bookmarked`` flag (DESIGN §5.2), or ``None`` for no filter.
 
@@ -1916,6 +1923,15 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         if proj_list:
             overlay_qs = overlay_qs.filter(project_id__in=proj_list)
         ids = [str(t) for t in overlay_qs.values_list("trace_session_id", flat=True)]
+        if ids and analytics is not None:
+            try:
+                canonical_ids = _resolve_session_ids_to_canonical(analytics, ids)
+                ids = sorted({canonical_ids.get(sid, sid) for sid in ids})
+            except Exception as e:
+                logger.warning(
+                    "bookmark_filter_session_canonicalization_failed",
+                    error=str(e)[:200],
+                )
 
         if bookmarked:
             # IN over an empty set must match nothing — use the NIL sentinel

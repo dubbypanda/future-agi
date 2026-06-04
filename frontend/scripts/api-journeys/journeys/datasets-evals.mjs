@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   apiPath,
@@ -13,9 +14,12 @@ import {
   skip,
   unwrapApiData,
 } from "../lib/api-client.mjs";
-import { queuePath, resolveQueue, resolveQueueItem } from "../lib/fixtures.mjs";
+import { queuePath } from "../lib/fixtures.mjs";
 
 const execFileAsync = promisify(execFile);
+const backendRoot = fileURLToPath(
+  new URL("../../../../futureagi/", import.meta.url),
+);
 
 export const datasetEvalJourneys = [
   {
@@ -318,6 +322,91 @@ export const datasetEvalJourneys = [
         "Legacy optimize-dataset list accepted another workspace model.",
       );
 
+      const modelCreateGuardNames = [
+        `api journey blocked optimize unknown field ${runId}`,
+        `api journey blocked optimize mismatched model ${runId}`,
+        `api journey blocked optimize other model ${runId}`,
+      ];
+      const kbCreateGuardNames = [
+        `api journey blocked optimize kb unknown field ${runId}`,
+      ];
+      const baseModelCreatePayload = {
+        start_date: "2026-01-01T00:00:00",
+        end_date: "2026-01-02T00:00:00",
+        model: fixture.model_id,
+        optimize_type: "PromptTemplate",
+        environment: "training",
+        version: "v1",
+        metrics: [fixture.metric_id],
+        prompt: "Answer {{input}}",
+        variables: { input: "question" },
+      };
+      const modelCreatePath = apiPath(
+        "/model-hub/optimize-dataset/{model_id}/",
+        { model_id: fixture.model_id },
+      );
+      const modelCreateUnknownFieldError = await expectApiErrorStatus(
+        () =>
+          client.post(modelCreatePath, {
+            ...baseModelCreatePayload,
+            name: modelCreateGuardNames[0],
+            unexpected_guard_field: true,
+          }),
+        400,
+        "Legacy optimize-dataset model create accepted an unknown field.",
+      );
+      const modelCreateMismatchError = await expectApiErrorStatus(
+        () =>
+          client.post(modelCreatePath, {
+            ...baseModelCreatePayload,
+            name: modelCreateGuardNames[1],
+            model: fixture.other_model_id,
+          }),
+        400,
+        "Legacy optimize-dataset model create accepted URL/body model mismatch.",
+      );
+      const modelCreateOtherWorkspaceError = await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/optimize-dataset/{model_id}/", {
+              model_id: fixture.other_model_id,
+            }),
+            {
+              ...baseModelCreatePayload,
+              name: modelCreateGuardNames[2],
+              model: fixture.other_model_id,
+              metrics: [fixture.other_metric_id],
+            },
+          ),
+        404,
+        "Legacy optimize-dataset model create accepted another workspace model.",
+      );
+      const kbCreateUnknownFieldError = await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/optimize-dataset/knowledge-base/"), {
+            name: kbCreateGuardNames[0],
+            knowledge_base_metrics: ["Metric A"],
+            knowledge_base_filters: ["topic"],
+            prompt: "Improve retrieval",
+            variables: { topic: "support" },
+            unexpected_guard_field: true,
+          }),
+        400,
+        "Legacy optimize-dataset KB create accepted an unknown field.",
+      );
+      const createGuardAudit = await loadLegacyOptimizeCreateGuardAudit({
+        modelCreateGuardNames,
+        kbCreateGuardNames,
+      });
+      assert(
+        Number(createGuardAudit.model_create_guard_persisted_count) === 0,
+        "Legacy optimize-dataset guarded model create left persisted rows.",
+      );
+      assert(
+        Number(createGuardAudit.kb_create_guard_persisted_count) === 0,
+        "Legacy optimize-dataset guarded KB create left persisted rows.",
+      );
+
       const baseColumns = await client.get(
         apiPath("/model-hub/optimize-dataset/{model_id}/column-config/", {
           model_id: fixture.model_id,
@@ -335,15 +424,14 @@ export const datasetEvalJourneys = [
         },
       );
 
-      const rightColumns = await client.get(
-        apiPath(
-          "/model-hub/optimize-dataset/{model_id}/column-config/right-answers/{optimization_id}/",
-          {
-            model_id: fixture.model_id,
-            optimization_id: fixture.optimization_id,
-          },
-        ),
+      const rightColumnConfigPath = apiPath(
+        "/model-hub/optimize-dataset/{model_id}/column-config/right-answers/{optimization_id}/",
+        {
+          model_id: fixture.model_id,
+          optimization_id: fixture.optimization_id,
+        },
       );
+      const rightColumns = await client.get(rightColumnConfigPath);
       assertLegacyOptimizeColumns(
         rightColumns,
         "right-answer optimize-dataset columns",
@@ -360,16 +448,42 @@ export const datasetEvalJourneys = [
         ),
         "Right-answer column config did not include new metric column.",
       );
-
-      const promptColumns = await client.get(
-        apiPath(
-          "/model-hub/optimize-dataset/{model_id}/column-config/prompt-template-explore/{optimization_id}/",
+      await client.post(rightColumnConfigPath, {
+        columns: [
           {
-            model_id: fixture.model_id,
-            optimization_id: fixture.optimization_id,
+            label: "Old metric hidden by live journey",
+            value: `${fixture.metric_id}-old`,
+            enabled: false,
           },
-        ),
+          {
+            label: "New metric visible by live journey",
+            value: `${fixture.metric_id}-new`,
+            enabled: true,
+          },
+        ],
+      });
+      const updatedRightColumns = await client.get(rightColumnConfigPath);
+      assertLegacyOptimizeColumns(
+        updatedRightColumns,
+        "updated right-answer optimize-dataset columns",
       );
+      assert(
+        updatedRightColumns.columns.some(
+          (column) =>
+            column.value === `${fixture.metric_id}-old` &&
+            column.enabled === false,
+        ),
+        "Right-answer column config POST did not persist disabled old metric column.",
+      );
+
+      const promptColumnConfigPath = apiPath(
+        "/model-hub/optimize-dataset/{model_id}/column-config/prompt-template-explore/{optimization_id}/",
+        {
+          model_id: fixture.model_id,
+          optimization_id: fixture.optimization_id,
+        },
+      );
+      const promptColumns = await client.get(promptColumnConfigPath);
       assertLegacyOptimizeColumns(
         promptColumns,
         "prompt-template optimize-dataset columns",
@@ -385,6 +499,33 @@ export const datasetEvalJourneys = [
           (column) => column.value === `${fixture.metric_id}-original`,
         ),
         "Prompt-template column config did not include original metric column.",
+      );
+      await client.post(promptColumnConfigPath, {
+        columns: [
+          {
+            label: "Optimized prompt hidden by live journey",
+            value: `${fixture.metric_id}-0`,
+            enabled: false,
+          },
+          {
+            label: "Original prompt visible by live journey",
+            value: `${fixture.metric_id}-original`,
+            enabled: true,
+          },
+        ],
+      });
+      const updatedPromptColumns = await client.get(promptColumnConfigPath);
+      assertLegacyOptimizeColumns(
+        updatedPromptColumns,
+        "updated prompt-template optimize-dataset columns",
+      );
+      assert(
+        updatedPromptColumns.columns.some(
+          (column) =>
+            column.value === `${fixture.metric_id}-0` &&
+            column.enabled === false,
+        ),
+        "Prompt-template column config POST did not persist disabled optimized prompt metric column.",
       );
 
       for (const [pathName, payload, label] of [
@@ -487,6 +628,26 @@ export const datasetEvalJourneys = [
         legacy_optimize_dataset_other_workspace_id: fixture.other_workspace_id,
         legacy_optimize_dataset_column_config_count:
           Number(audit.column_config_count) || 0,
+        legacy_optimize_dataset_right_answer_persisted_value_count:
+          Number(audit.right_answer_persisted_value_count) || 0,
+        legacy_optimize_dataset_right_answer_disabled_old_count:
+          Number(audit.right_answer_disabled_old_count) || 0,
+        legacy_optimize_dataset_prompt_template_persisted_value_count:
+          Number(audit.prompt_template_persisted_value_count) || 0,
+        legacy_optimize_dataset_prompt_template_disabled_optimized_count:
+          Number(audit.prompt_template_disabled_optimized_count) || 0,
+        legacy_optimize_dataset_model_create_guard_persisted_count:
+          Number(createGuardAudit.model_create_guard_persisted_count) || 0,
+        legacy_optimize_dataset_kb_create_guard_persisted_count:
+          Number(createGuardAudit.kb_create_guard_persisted_count) || 0,
+        legacy_optimize_dataset_model_create_unknown_field_status:
+          modelCreateUnknownFieldError.status,
+        legacy_optimize_dataset_model_create_mismatch_status:
+          modelCreateMismatchError.status,
+        legacy_optimize_dataset_model_create_other_workspace_status:
+          modelCreateOtherWorkspaceError.status,
+        legacy_optimize_dataset_kb_create_unknown_field_status:
+          kbCreateUnknownFieldError.status,
       });
     },
   },
@@ -2256,11 +2417,21 @@ export const datasetEvalJourneys = [
       user,
     }) {
       requireMutations();
+      if (!workspaceId) {
+        skip(
+          "Legacy experiment create/update scope journey requires a workspace id.",
+        );
+      }
+      const userId = currentUserId(user);
+      assert(
+        isUuid(userId),
+        "Legacy experiment scope journey requires user id.",
+      );
       const fixture = await seedLegacyExperimentCreateUpdateFixture({
         runId,
         organizationId,
         workspaceId,
-        userId: currentUserId(user),
+        userId,
       });
       assert(
         fixture?.fixture_created,
@@ -2489,6 +2660,8 @@ export const datasetEvalJourneys = [
         updated_name: updatedAudit.experiment_name,
         create_metric_id: fixture.eval_metric_id,
         update_metric_id: fixture.second_eval_metric_id,
+        other_workspace_id: fixture.other_workspace_id,
+        created_other_workspace: fixture.created_other_workspace === true,
         blocked_column_guard: "passed",
         blocked_metric_guard: "passed",
         other_workspace_create_status: otherWorkspaceCreateStatus,
@@ -5263,13 +5436,17 @@ export const datasetEvalJourneys = [
       evidence,
       organizationId,
       workspaceId,
+      user,
     }) {
       requireMutations();
       if (!workspaceId) {
         skip("Dataset helper scope journey requires a workspace id.");
       }
+      const userId = currentUserId(user);
+      assert(isUuid(userId), "Dataset helper scope journey requires user id.");
       const fixture = await seedDatasetHelperRoutesFixture({
         runId,
+        userId,
         organizationId,
         workspaceId,
       });
@@ -15372,27 +15549,26 @@ export const datasetEvalJourneys = [
         isUuid(workspaceId),
         "Score journey requires authenticated workspace id.",
       );
-      const queue = await resolveQueue(client, evidence);
-      const item = await resolveQueueItem(client, queue.id, evidence, {
-        status: ["pending", "in_progress", "skipped", "completed"],
-      });
-      const detail = await client.get(
-        queuePath(
-          "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
-          queue.id,
-          { id: item.id },
-        ),
-        {
-          query: {
-            include_completed: true,
-            include_all_annotations: true,
-          },
-        },
+      const marker = scoreGeneratedRoutesMarker(runId);
+      const scoreIdsForCleanup = [];
+      cleanup.defer("hard-delete score generated route fixtures", () =>
+        hardDeleteScoreGeneratedRoutesDb({
+          marker,
+          organizationId,
+          scoreIds: scoreIdsForCleanup,
+        }),
       );
-      const source = resolveQueueItemSource(item, detail);
-      if (!source.sourceId) {
-        skip(`Could not resolve source id for queue item ${item.id}.`);
-      }
+
+      const { queue, item, source, fixtureMode } =
+        await resolveScoreQueueItemSource({
+          client,
+          evidence,
+          marker,
+          runId,
+          userId,
+          organizationId,
+          workspaceId,
+        });
 
       const labelName = `api journey direct score ${runId}`;
       const label = await client.post(
@@ -15422,19 +15598,12 @@ export const datasetEvalJourneys = [
         ),
       );
 
-      let activeScoreId = null;
       const hiddenFixture = await seedScoreGeneratedRoutesHiddenTraceDb({
         runId,
         userId,
         organizationId,
+        marker,
       });
-      cleanup.defer("hard-delete score generated route fixtures", () =>
-        hardDeleteScoreGeneratedRoutesDb({
-          marker: hiddenFixture.marker,
-          organizationId,
-          scoreIds: [activeScoreId].filter(Boolean),
-        }),
-      );
 
       const hiddenCreateError = await expectApiErrorStatus(
         () =>
@@ -15473,7 +15642,7 @@ export const datasetEvalJourneys = [
         queue_item_id: item.id,
       });
       assert(created?.id, "Direct score create did not return id.");
-      activeScoreId = created.id;
+      scoreIdsForCleanup.push(created.id);
       cleanup.defer("delete direct score", () =>
         ignoreNotFound(() =>
           client.delete(apiPath("/model-hub/scores/{id}/", { id: created.id })),
@@ -15647,6 +15816,8 @@ export const datasetEvalJourneys = [
       evidence.push({
         queue_id: queue.id,
         item_id: item.id,
+        fixture_mode: fixtureMode,
+        fixture_marker: marker,
         score_id: created.id,
         source_type: source.sourceType,
         source_id: source.sourceId,
@@ -20208,17 +20379,21 @@ SELECT COALESCE((
 
 async function seedDatasetHelperRoutesFixture({
   runId,
+  userId,
   organizationId,
   workspaceId,
 }) {
+  assert(isUuid(userId), "userId must be a UUID for DB audit.");
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
-  const otherWorkspaceId = await findOtherWorkspaceId(
+  let otherWorkspaceId = await findOtherWorkspaceId(
     organizationId,
     workspaceId,
   );
+  let createdOtherWorkspace = false;
   if (!otherWorkspaceId) {
-    skip("Dataset helper scope journey requires a second workspace.");
+    otherWorkspaceId = randomUUID();
+    createdOtherWorkspace = true;
   }
   const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
   const datasetId = randomUUID();
@@ -20235,10 +20410,51 @@ async function seedDatasetHelperRoutesFixture({
   const otherMetricId = randomUUID();
   const datasetName = `api journey helper dataset ${suffix}`;
   const otherDatasetName = `api journey helper other dataset ${suffix}`;
+  const otherWorkspaceName = `api journey helper other workspace ${suffix}`;
   const activeValue = `active helper value ${suffix}`;
   const otherValue = `other helper value ${suffix}`;
+  const otherWorkspaceCte = createdOtherWorkspace
+    ? `
+inserted_other_workspace AS (
+  INSERT INTO accounts_workspace (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    display_name,
+    description,
+    organization_id,
+    is_active,
+    is_default,
+    created_by_id
+  )
+  VALUES (
+    ${sqlUuid(otherWorkspaceId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(otherWorkspaceName)},
+    ${sqlTextLiteral(otherWorkspaceName)},
+    'Temporary workspace for DPE-API-036 isolation coverage.',
+    ${sqlUuid(organizationId)},
+    true,
+    false,
+    ${sqlUuid(userId)}
+  )
+  RETURNING id
+),
+`
+    : `
+inserted_other_workspace AS (
+  SELECT ${sqlUuid(otherWorkspaceId)}::uuid AS id
+),
+`;
   const sql = `
-WITH inserted_datasets AS (
+WITH ${otherWorkspaceCte}
+inserted_datasets AS (
   INSERT INTO model_hub_dataset (
     id,
     created_at,
@@ -20615,6 +20831,7 @@ SELECT json_build_object(
   'organization_id', ${sqlUuid(organizationId)}::text,
   'workspace_id', ${sqlUuid(workspaceId)}::text,
   'other_workspace_id', ${sqlUuid(otherWorkspaceId)}::text,
+  'created_other_workspace', ${createdOtherWorkspace ? "true" : "false"},
   'dataset_id', ${sqlUuid(datasetId)}::text,
   'column_id', ${sqlUuid(columnId)}::text,
   'row_id', ${sqlUuid(rowId)}::text,
@@ -20767,6 +20984,12 @@ deleted_datasets AS (
   DELETE FROM model_hub_dataset
   WHERE id IN (SELECT id FROM target_datasets)
   RETURNING 1
+),
+deleted_other_workspace AS (
+  DELETE FROM accounts_workspace
+  WHERE id = ${sqlUuid(fixture.other_workspace_id)}
+    AND ${fixture.created_other_workspace === true ? "true" : "false"}
+  RETURNING 1
 )
 SELECT json_build_object(
   'deleted_metric_count', (SELECT count(*) FROM deleted_metrics),
@@ -20774,7 +20997,8 @@ SELECT json_build_object(
   'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
   'deleted_row_count', (SELECT count(*) FROM deleted_rows),
   'deleted_column_count', (SELECT count(*) FROM deleted_columns),
-  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets),
+  'deleted_other_workspace_count', (SELECT count(*) FROM deleted_other_workspace)
 );
 `;
   return runPostgresJson(sql);
@@ -21999,12 +22223,18 @@ async function seedLegacyExperimentCreateUpdateFixture({
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   if (workspaceId)
     assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  assert(isUuid(userId), "userId must be a UUID for DB audit.");
   const activeWorkspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
-  const userSql = userId && isUuid(userId) ? sqlUuid(userId) : "NULL::uuid";
-  const otherWorkspaceId = await findOtherWorkspaceId(
+  const userSql = sqlUuid(userId);
+  let otherWorkspaceId = await findOtherWorkspaceId(
     organizationId,
     workspaceId,
   );
+  let createdOtherWorkspace = false;
+  if (!otherWorkspaceId) {
+    otherWorkspaceId = randomUUID();
+    createdOtherWorkspace = true;
+  }
   const datasetId = randomUUID();
   const outputColumnId = randomUUID();
   const blockedDatasetId = randomUUID();
@@ -22013,9 +22243,9 @@ async function seedLegacyExperimentCreateUpdateFixture({
   const evalMetricId = randomUUID();
   const secondEvalMetricId = randomUUID();
   const blockedEvalMetricId = randomUUID();
-  const otherDatasetId = otherWorkspaceId ? randomUUID() : null;
-  const otherColumnId = otherWorkspaceId ? randomUUID() : null;
-  const otherExperimentId = otherWorkspaceId ? randomUUID() : null;
+  const otherDatasetId = randomUUID();
+  const otherColumnId = randomUUID();
+  const otherExperimentId = randomUUID();
   const datasetName = `api journey legacy exp dataset ${runId}`;
   const blockedDatasetName = `api journey legacy blocked dataset ${runId}`;
   const evalTemplateName = `api journey legacy exp eval ${runId}`;
@@ -22023,8 +22253,47 @@ async function seedLegacyExperimentCreateUpdateFixture({
   const blockedColumnExperimentName = `api journey legacy blocked column ${runId}`;
   const blockedMetricExperimentName = `api journey legacy blocked metric ${runId}`;
   const otherWorkspaceCreateName = `api journey legacy other create ${runId}`;
-  const otherDatasetSql = otherWorkspaceId
-    ? `,
+  const otherWorkspaceName = `api journey legacy exp other workspace ${runId}`;
+  const otherWorkspaceCte = createdOtherWorkspace
+    ? `
+inserted_other_workspace AS (
+  INSERT INTO accounts_workspace (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    display_name,
+    description,
+    organization_id,
+    is_active,
+    is_default,
+    created_by_id
+  )
+  VALUES (
+    ${sqlUuid(otherWorkspaceId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(otherWorkspaceName)},
+    ${sqlTextLiteral(otherWorkspaceName)},
+    'Temporary workspace for EXP-API-004 isolation coverage.',
+    ${sqlUuid(organizationId)},
+    true,
+    false,
+    ${userSql}
+  )
+  RETURNING id
+),
+`
+    : `
+inserted_other_workspace AS (
+  SELECT ${sqlUuid(otherWorkspaceId)}::uuid AS id
+),
+`;
+  const otherDatasetSql = `,
   (
     ${sqlUuid(otherDatasetId)},
     now(),
@@ -22042,10 +22311,8 @@ async function seedLegacyExperimentCreateUpdateFixture({
     '{}'::jsonb,
     '[]'::jsonb,
     'pending'
-  )`
-    : "";
-  const otherColumnSql = otherWorkspaceId
-    ? `,
+  )`;
+  const otherColumnSql = `,
   (
     ${sqlUuid(otherColumnId)},
     now(),
@@ -22059,10 +22326,8 @@ async function seedLegacyExperimentCreateUpdateFixture({
     ${sqlUuid(otherDatasetId)},
     '{}'::jsonb,
     'NotStarted'
-  )`
-    : "";
-  const otherExperimentSql = otherWorkspaceId
-    ? `,
+  )`;
+  const otherExperimentSql = `,
 inserted_other_experiment AS (
   INSERT INTO model_hub_experimentstable (
     id,
@@ -22095,10 +22360,10 @@ inserted_other_experiment AS (
     NULL::uuid
   )
   RETURNING id
-)`
-    : "";
+)`;
   const sql = `
-WITH inserted_datasets AS (
+WITH ${otherWorkspaceCte}
+inserted_datasets AS (
   INSERT INTO model_hub_dataset (
     id,
     created_at,
@@ -22368,7 +22633,7 @@ inserted_eval_metrics AS (
   RETURNING id
 )${otherExperimentSql}
 SELECT json_build_object(
-  'fixture_created', (SELECT count(*) FROM inserted_datasets) >= 2,
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) = 3,
   'organization_id', ${sqlUuid(organizationId)}::text,
   'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL"},
   'dataset_id', ${sqlUuid(datasetId)}::text,
@@ -22381,10 +22646,11 @@ SELECT json_build_object(
   'blocked_eval_metric_id', ${sqlUuid(blockedEvalMetricId)}::text,
   'blocked_column_experiment_name', ${sqlTextLiteral(blockedColumnExperimentName)},
   'blocked_metric_experiment_name', ${sqlTextLiteral(blockedMetricExperimentName)},
-  'other_workspace_id', ${otherWorkspaceId ? `${sqlUuid(otherWorkspaceId)}::text` : "NULL"},
-  'other_dataset_id', ${otherDatasetId ? `${sqlUuid(otherDatasetId)}::text` : "NULL"},
-  'other_column_id', ${otherColumnId ? `${sqlUuid(otherColumnId)}::text` : "NULL"},
-  'other_experiment_id', ${otherExperimentId ? `${sqlUuid(otherExperimentId)}::text` : "NULL"},
+  'other_workspace_id', ${sqlUuid(otherWorkspaceId)}::text,
+  'created_other_workspace', ${createdOtherWorkspace ? "true" : "false"},
+  'other_dataset_id', ${sqlUuid(otherDatasetId)}::text,
+  'other_column_id', ${sqlUuid(otherColumnId)}::text,
+  'other_experiment_id', ${sqlUuid(otherExperimentId)}::text,
   'other_experiment_name', ${sqlTextLiteral(otherExperimentName)},
   'other_workspace_create_name', ${sqlTextLiteral(otherWorkspaceCreateName)}
 );
@@ -22649,6 +22915,12 @@ deleted_datasets AS (
   DELETE FROM model_hub_dataset
   WHERE id IN (SELECT id FROM target_datasets)
   RETURNING 1
+),
+deleted_other_workspace AS (
+  DELETE FROM accounts_workspace
+  WHERE id = ${sqlUuid(fixture.other_workspace_id)}
+    AND ${fixture.created_other_workspace === true ? "true" : "false"}
+  RETURNING 1
 )
 SELECT json_build_object(
   'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
@@ -22663,7 +22935,8 @@ SELECT json_build_object(
   'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
   'deleted_row_count', (SELECT count(*) FROM deleted_rows),
   'deleted_column_count', (SELECT count(*) FROM deleted_columns),
-  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets),
+  'deleted_other_workspace_count', (SELECT count(*) FROM deleted_other_workspace)
 );
 `;
   return runPostgresJson(sql);
@@ -26807,6 +27080,22 @@ function assertLegacyOptimizeDatasetAudit(
     );
   }
   assert(
+    Number(audit.right_answer_persisted_value_count) === 2,
+    "Legacy optimize-dataset right-answer column POST did not persist both metric values.",
+  );
+  assert(
+    Number(audit.right_answer_disabled_old_count) === 1,
+    "Legacy optimize-dataset right-answer column POST did not persist disabled old metric state.",
+  );
+  assert(
+    Number(audit.prompt_template_persisted_value_count) === 2,
+    "Legacy optimize-dataset prompt-template column POST did not persist both metric values.",
+  );
+  assert(
+    Number(audit.prompt_template_disabled_optimized_count) === 1,
+    "Legacy optimize-dataset prompt-template column POST did not persist disabled optimized metric state.",
+  );
+  assert(
     Number(audit.metric_link_count) === 1,
     "Legacy optimize-dataset audit metric link count mismatch.",
   );
@@ -28398,6 +28687,7 @@ async function loadLegacyOptimizeDatasetAudit(fixture) {
     fixture.optimization_id,
     fixture.kb_optimization_id,
     fixture.model_id,
+    fixture.metric_id,
     fixture.workspace_id,
   ];
   for (const id of requiredIds) {
@@ -28407,6 +28697,14 @@ async function loadLegacyOptimizeDatasetAudit(fixture) {
     fixture.model_id,
     `${fixture.model_id}-${fixture.optimization_id}-right-answers-explore`,
     `${fixture.model_id}-${fixture.optimization_id}-prompt-template-explore`,
+  ];
+  const rightMetricValues = [
+    `${fixture.metric_id}-old`,
+    `${fixture.metric_id}-new`,
+  ];
+  const promptMetricValues = [
+    `${fixture.metric_id}-0`,
+    `${fixture.metric_id}-original`,
   ];
   const sql = `
 WITH selected_run AS (
@@ -28423,6 +28721,16 @@ column_configs AS (
   SELECT *
   FROM model_hub_columnconfig
   WHERE identifier = ANY(${sqlTextArray(columnConfigIdentifiers)})
+),
+right_answer_config AS (
+  SELECT columns::jsonb AS columns
+  FROM column_configs
+  WHERE table_name = 'OptimizeDatasetRightAnswer'
+),
+prompt_template_config AS (
+  SELECT columns::jsonb AS columns
+  FROM column_configs
+  WHERE table_name = 'OptimizeDatasetPromptTemplateExplore'
 )
 SELECT json_build_object(
   'optimization_id', (SELECT id::text FROM selected_run),
@@ -28440,6 +28748,28 @@ SELECT json_build_object(
     SELECT count(*) FROM column_configs
     WHERE workspace_id = ${sqlUuid(fixture.workspace_id)}
   ),
+  'right_answer_persisted_value_count', (
+    SELECT count(*)
+    FROM right_answer_config, jsonb_array_elements(columns) AS item
+    WHERE item->>'value' = ANY(${sqlTextArray(rightMetricValues)})
+  ),
+  'right_answer_disabled_old_count', (
+    SELECT count(*)
+    FROM right_answer_config, jsonb_array_elements(columns) AS item
+    WHERE item->>'value' = ${sqlText(`${fixture.metric_id}-old`)}
+      AND item->>'enabled' = 'false'
+  ),
+  'prompt_template_persisted_value_count', (
+    SELECT count(*)
+    FROM prompt_template_config, jsonb_array_elements(columns) AS item
+    WHERE item->>'value' = ANY(${sqlTextArray(promptMetricValues)})
+  ),
+  'prompt_template_disabled_optimized_count', (
+    SELECT count(*)
+    FROM prompt_template_config, jsonb_array_elements(columns) AS item
+    WHERE item->>'value' = ${sqlText(`${fixture.metric_id}-0`)}
+      AND item->>'enabled' = 'false'
+  ),
   'other_workspace_active_count', (
     SELECT count(*)
     FROM model_hub_optimizedataset
@@ -28448,6 +28778,37 @@ SELECT json_build_object(
       ${sqlUuid(fixture.other_kb_optimization_id)}
     )
       AND deleted = false
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyOptimizeCreateGuardAudit({
+  modelCreateGuardNames,
+  kbCreateGuardNames,
+}) {
+  assert(
+    Array.isArray(modelCreateGuardNames) &&
+      modelCreateGuardNames.every((name) => typeof name === "string"),
+    "Legacy optimize model create guard names must be strings.",
+  );
+  assert(
+    Array.isArray(kbCreateGuardNames) &&
+      kbCreateGuardNames.every((name) => typeof name === "string"),
+    "Legacy optimize KB create guard names must be strings.",
+  );
+  const sql = `
+SELECT json_build_object(
+  'model_create_guard_persisted_count', (
+    SELECT count(*)
+    FROM model_hub_optimizedataset
+    WHERE name = ANY(${sqlTextArray(modelCreateGuardNames)})
+  ),
+  'kb_create_guard_persisted_count', (
+    SELECT count(*)
+    FROM model_hub_optimizedataset
+    WHERE name = ANY(${sqlTextArray(kbCreateGuardNames)})
   )
 );
 `;
@@ -30594,17 +30955,424 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
-async function seedScoreGeneratedRoutesHiddenTraceDb({
+function scoreGeneratedRoutesMarker(runId) {
+  return `api_journey_score_${runId}`;
+}
+
+async function resolveScoreQueueItemSource({
+  client,
+  evidence,
+  marker,
   runId,
   userId,
   organizationId,
+  workspaceId,
+}) {
+  const existing = await tryResolveExistingScoreQueueItemSource(
+    client,
+    evidence,
+  );
+  if (existing) {
+    return { ...existing, fixtureMode: "existing" };
+  }
+
+  const seeded = await seedScoreGeneratedRoutesActiveTraceQueueDb({
+    marker,
+    runId,
+    userId,
+    organizationId,
+    workspaceId,
+  });
+  const queue = {
+    id: seeded.queue_id,
+    name: seeded.queue_name,
+    status: "active",
+  };
+  const item = {
+    id: seeded.item_id,
+    source_type: "trace",
+    source_id: seeded.trace_id,
+    trace_id: seeded.trace_id,
+  };
+  const detail = await loadScoreQueueItemAnnotateDetail(client, {
+    queueId: queue.id,
+    itemId: item.id,
+  });
+  const source = resolveQueueItemSource(item, detail);
+  assert(
+    source.sourceType === "trace" && source.sourceId === seeded.trace_id,
+    `Seeded score queue item source mismatch: ${JSON.stringify(source)}`,
+  );
+  evidence.push({
+    endpoint: "score source queue fixture",
+    fixture_mode: "seeded",
+    fixture_marker: marker,
+    queue_id: queue.id,
+    item_id: item.id,
+    source_type: source.sourceType,
+    source_id: source.sourceId,
+  });
+  return { queue, item, detail, source, fixtureMode: "seeded" };
+}
+
+async function tryResolveExistingScoreQueueItemSource(client, evidence) {
+  const queues = await listScoreSourceCandidateQueues(client);
+  for (const queue of queues) {
+    const itemsPayload = await client.get(
+      queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+      {
+        query: {
+          limit: 25,
+          status: ["pending", "in_progress", "skipped", "completed"],
+        },
+      },
+    );
+    const items = asArray(itemsPayload).filter((item) => item?.id);
+    for (const item of items) {
+      let detail;
+      try {
+        detail = await loadScoreQueueItemAnnotateDetail(client, {
+          queueId: queue.id,
+          itemId: item.id,
+        });
+      } catch (error) {
+        if (![403, 404].includes(Number(error?.status))) throw error;
+        continue;
+      }
+      const source = resolveQueueItemSource(item, detail);
+      if (source.sourceType && source.sourceId) {
+        evidence.push({
+          endpoint: "score source queue fixture",
+          fixture_mode: "existing",
+          queue_id: queue.id,
+          item_id: item.id,
+          source_type: source.sourceType,
+          source_id: source.sourceId,
+        });
+        return { queue, item, detail, source };
+      }
+    }
+  }
+  return null;
+}
+
+async function listScoreSourceCandidateQueues(client) {
+  if (process.env.ANNOTATION_QUEUE_ID) {
+    const queue = await client.get(
+      apiPath("/model-hub/annotation-queues/{id}/", {
+        id: process.env.ANNOTATION_QUEUE_ID,
+      }),
+    );
+    return queue?.id ? [queue] : [];
+  }
+
+  const queuesPayload = await client.get(
+    apiPath("/model-hub/annotation-queues/"),
+    {
+      query: { limit: 25 },
+    },
+  );
+  const queues = asArray(queuesPayload).filter((queue) => queue?.id);
+  return [
+    ...queues.filter(
+      (queue) => queue.status === "active" && Number(queue.item_count) > 0,
+    ),
+    ...queues.filter(
+      (queue) => queue.status !== "active" && Number(queue.item_count) > 0,
+    ),
+    ...queues.filter((queue) => Number(queue.item_count) <= 0),
+  ];
+}
+
+async function loadScoreQueueItemAnnotateDetail(client, { queueId, itemId }) {
+  return client.get(
+    queuePath(
+      "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+      queueId,
+      { id: itemId },
+    ),
+    {
+      query: {
+        include_completed: true,
+        include_all_annotations: true,
+      },
+    },
+  );
+}
+
+async function seedScoreGeneratedRoutesActiveTraceQueueDb({
+  marker,
+  runId,
+  userId,
+  organizationId,
+  workspaceId,
 }) {
   assert(isUuid(userId), "userId must be a UUID for score fixture seed.");
   assert(
     isUuid(organizationId),
     "organizationId must be a UUID for score fixture seed.",
   );
-  const marker = `api_journey_score_${runId}`;
+  assert(isUuid(workspaceId), "workspaceId must be a UUID for score fixture.");
+  const projectId = randomUUID();
+  const traceId = randomUUID();
+  const queueId = randomUUID();
+  const itemId = randomUUID();
+  const memberId = randomUUID();
+  const projectName = `${marker}_active_project`;
+  const queueName = `${marker}_active_queue`;
+  const traceName = `${marker}_active_trace`;
+  const roles = ["manager", "reviewer", "annotator"];
+  const sql = `
+WITH inserted_project AS (
+  INSERT INTO tracer_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    model_type,
+    name,
+    trace_type,
+    metadata,
+    config,
+    session_config,
+    user_id,
+    source,
+    tags
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(projectId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    'GenerativeLLM',
+    ${sqlTextLiteral(projectName)},
+    'observe',
+    '{}'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb,
+    ${sqlUuid(userId)},
+    'prototype',
+    '[]'::jsonb
+  )
+  RETURNING id
+),
+inserted_trace AS (
+  INSERT INTO tracer_trace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    name,
+    metadata,
+    input,
+    output,
+    error,
+    session_id,
+    external_id,
+    tags,
+    error_analysis_status
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(traceId)},
+    ${sqlUuid(projectId)},
+    NULL,
+    ${sqlTextLiteral(traceName)},
+    ${sqlJsonLiteral({ journey: "SCORE-API-001", run_id: runId })},
+    ${sqlJsonLiteral({ prompt: "active score source" })},
+    ${sqlJsonLiteral({ response: "active score source" })},
+    NULL,
+    NULL,
+    NULL,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_queue AS (
+  INSERT INTO model_hub_annotationqueue (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    instructions,
+    status,
+    assignment_strategy,
+    annotations_required,
+    reservation_timeout_minutes,
+    requires_review,
+    created_by_id,
+    organization_id,
+    workspace_id,
+    project_id,
+    is_default,
+    dataset_id,
+    agent_definition_id,
+    auto_assign
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(queueId)},
+    ${sqlTextLiteral(queueName)},
+    ${sqlTextLiteral("Disposable queue for generated score route coverage.")},
+    ${sqlTextLiteral("Verify direct score route lifecycle.")},
+    'active',
+    'manual',
+    1,
+    30,
+    false,
+    ${sqlUuid(userId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    ${sqlUuid(projectId)},
+    false,
+    NULL,
+    NULL,
+    false
+  )
+  RETURNING id
+),
+inserted_member AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(memberId)},
+    'manager',
+    ${sqlJsonLiteral(roles)},
+    ${sqlUuid(queueId)},
+    ${sqlUuid(userId)}
+  )
+  RETURNING id
+),
+inserted_item AS (
+  INSERT INTO model_hub_queueitem (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    source_type,
+    status,
+    priority,
+    "order",
+    metadata,
+    reserved_at,
+    reservation_expires_at,
+    review_status,
+    reviewed_at,
+    review_notes,
+    assigned_to_id,
+    call_execution_id,
+    dataset_row_id,
+    observation_span_id,
+    organization_id,
+    prototype_run_id,
+    queue_id,
+    reserved_by_id,
+    reviewed_by_id,
+    trace_id,
+    workspace_id,
+    trace_session_id
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(itemId)},
+    'trace',
+    'pending',
+    0,
+    0,
+    ${sqlJsonLiteral({ journey: "SCORE-API-001", run_id: runId })},
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    ${sqlUuid(organizationId)},
+    NULL,
+    ${sqlUuid(queueId)},
+    NULL,
+    NULL,
+    ${sqlUuid(traceId)},
+    ${sqlUuid(workspaceId)},
+    NULL
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'marker', ${sqlTextLiteral(marker)},
+  'project_id', ${sqlTextLiteral(projectId)},
+  'trace_id', ${sqlTextLiteral(traceId)},
+  'queue_id', ${sqlTextLiteral(queueId)},
+  'queue_name', ${sqlTextLiteral(queueName)},
+  'item_id', ${sqlTextLiteral(itemId)},
+  'inserted_project_count', (SELECT count(*) FROM inserted_project),
+  'inserted_trace_count', (SELECT count(*) FROM inserted_trace),
+  'inserted_queue_count', (SELECT count(*) FROM inserted_queue),
+  'inserted_member_count', (SELECT count(*) FROM inserted_member),
+  'inserted_item_count', (SELECT count(*) FROM inserted_item)
+);
+`;
+  const seeded = await runPostgresJson(sql);
+  assert(
+    Number(seeded.inserted_project_count) === 1 &&
+      Number(seeded.inserted_trace_count) === 1 &&
+      Number(seeded.inserted_queue_count) === 1 &&
+      Number(seeded.inserted_member_count) === 1 &&
+      Number(seeded.inserted_item_count) === 1,
+    `Score active fixture seed failed: ${JSON.stringify(seeded)}`,
+  );
+  return seeded;
+}
+
+async function seedScoreGeneratedRoutesHiddenTraceDb({
+  runId,
+  userId,
+  organizationId,
+  marker = scoreGeneratedRoutesMarker(runId),
+}) {
+  assert(isUuid(userId), "userId must be a UUID for score fixture seed.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for score fixture seed.",
+  );
   const workspaceId = randomUUID();
   const projectId = randomUUID();
   const traceId = randomUUID();
@@ -35971,7 +36739,7 @@ async function runBackendShellJson(script) {
       { maxBuffer: 20 * 1024 * 1024 },
     ));
   } else {
-    const backendDir = process.env.API_JOURNEY_BACKEND_DIR;
+    const backendDir = process.env.API_JOURNEY_BACKEND_DIR || backendRoot;
     ({ stdout } = await execFileAsync(
       "uv",
       ["run", "python", "manage.py", "shell", "-c", script],

@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { Buffer } from "node:buffer";
 import { createHmac, randomUUID } from "node:crypto";
+import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import {
@@ -8152,7 +8153,14 @@ export const appCoreJourneys = [
       "data-integrity",
       "safe",
     ],
-    async run({ client, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       assert(
         isUuid(organizationId),
         "Authenticated context did not resolve an organization id.",
@@ -8162,24 +8170,97 @@ export const appCoreJourneys = [
         "Authenticated context did not resolve a workspace id.",
       );
 
-      const providerStatus = await client.get(
+      let providerStatus = await client.get(
         apiPath("/model-hub/develops/provider-status/"),
       );
-      const providers = Array.isArray(providerStatus?.providers)
+      let providers = Array.isArray(providerStatus?.providers)
         ? providerStatus.providers
         : [];
       assert(providers.length > 0, "Provider status did not return providers.");
       assertNoRawProviderSecretLeak(providerStatus, "provider status");
 
-      const configuredProviders = providers.filter(
+      let configuredProviders = providers.filter(
         (provider) => provider?.has_key,
       );
       if (!configuredProviders.length) {
-        evidence.push({
-          provider_count: providers.length,
-          configured_provider_count: 0,
+        if (!envFlag("API_JOURNEY_MUTATIONS")) {
+          evidence.push({
+            provider_count: providers.length,
+            configured_provider_count: 0,
+          });
+          skip(
+            "Provider status did not report any configured providers; set API_JOURNEY_MUTATIONS=1 to create a disposable provider key fixture.",
+          );
+        }
+
+        const existingKeys = asArray(
+          await client.get(apiPath("/model-hub/api-keys/")),
+        );
+        const existingProviders = new Set(
+          existingKeys.map((key) => key.provider).filter(Boolean),
+        );
+        const setupProvider =
+          providers.find(
+            (provider) =>
+              provider?.type === "text" &&
+              provider?.provider &&
+              !existingProviders.has(provider.provider),
+          )?.provider ||
+          ["rime", "lmnt", "cartesia", "hume", "neuphonic"].find(
+            (candidate) => !existingProviders.has(candidate),
+          );
+        assert(
+          setupProvider,
+          "No safe unconfigured provider candidate was available for CORE-API-010 setup.",
+        );
+
+        const rawSetupKey = `core-api-010-secret-${runId}`;
+        const setupKey = await client.post(apiPath("/model-hub/api-keys/"), {
+          provider: setupProvider,
+          key: rawSetupKey,
         });
-        skip("Provider status did not report any configured providers.");
+        assert(setupKey?.id, "CORE-API-010 setup provider key lacked an id.");
+        assertProviderKeyResponseIsMaskedOnly(
+          setupKey,
+          "CORE-API-010 setup provider key create",
+          [rawSetupKey],
+        );
+        cleanup.defer("hard-delete CORE-API-010 provider key fixture", () =>
+          hardDeleteProviderApiKeyFixturesDb({
+            organizationId,
+            keyIds: [setupKey.id],
+          }),
+        );
+        cleanup.defer("delete CORE-API-010 provider key fixture", () =>
+          ignoreNotFound(() =>
+            client.delete(
+              apiPath("/model-hub/api-keys/{id}/", { id: setupKey.id }),
+            ),
+          ),
+        );
+
+        providerStatus = await client.get(
+          apiPath("/model-hub/develops/provider-status/"),
+        );
+        providers = Array.isArray(providerStatus?.providers)
+          ? providerStatus.providers
+          : [];
+        assertNoRawProviderSecretLeak(
+          providerStatus,
+          "provider status after disposable provider key setup",
+        );
+        configuredProviders = providers.filter((provider) => provider?.has_key);
+        assert(
+          configuredProviders.some(
+            (provider) => provider.provider === setupProvider,
+          ),
+          "Provider status did not mark the disposable setup provider as configured.",
+        );
+        evidence.push({
+          setup_provider: setupProvider,
+          setup_provider_key_id: setupKey.id,
+          setup_provider_created_for_empty_workspace: true,
+        });
       }
       for (const provider of providers) {
         assertProviderStatusRow(provider);
@@ -19851,25 +19932,52 @@ async function runBackendShellJson(script) {
     ));
   } else {
     const backendDir = process.env.API_JOURNEY_BACKEND_DIR || "futureagi";
-    ({ stdout } = await execFileAsync(
-      "uv",
-      ["run", "python", "manage.py", "shell", "-c", script],
-      {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          EE_LICENSE_KEY: process.env.EE_LICENSE_KEY || "test-license-key",
-          PGBOUNCER_HOST: process.env.PGBOUNCER_HOST || "127.0.0.1",
-          PGBOUNCER_PORT: process.env.PGBOUNCER_PORT || "5436",
-          REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6382/0",
-          REDIS_CACHE_URL:
-            process.env.REDIS_CACHE_URL || "redis://127.0.0.1:6382/0",
-          UV_PROJECT_ENVIRONMENT:
-            process.env.UV_PROJECT_ENVIRONMENT || ".venv-th5064-py311",
+    const backendEnv = {
+      ...process.env,
+      EE_LICENSE_KEY: process.env.EE_LICENSE_KEY || "test-license-key",
+      PGBOUNCER_HOST: process.env.PGBOUNCER_HOST || "127.0.0.1",
+      PGBOUNCER_PORT: process.env.PGBOUNCER_PORT || "5436",
+      REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6382/0",
+      REDIS_CACHE_URL:
+        process.env.REDIS_CACHE_URL || "redis://127.0.0.1:6382/0",
+      UV_PROJECT_ENVIRONMENT:
+        process.env.UV_PROJECT_ENVIRONMENT || ".venv-th5064-py311",
+    };
+    const backendPython = process.env.API_JOURNEY_BACKEND_PYTHON;
+    if (backendPython) {
+      const backendPythonPath = path.isAbsolute(backendPython)
+        ? backendPython
+        : path.resolve(backendDir, backendPython);
+      ({ stdout } = await execFileAsync(
+        backendPythonPath,
+        ["manage.py", "shell", "-c", script],
+        {
+          cwd: backendDir,
+          env: backendEnv,
+          maxBuffer: 20 * 1024 * 1024,
         },
-        maxBuffer: 20 * 1024 * 1024,
-      },
-    ));
+      ));
+    } else {
+      const command = [
+        'PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin"',
+        "if command -v uv >/dev/null 2>&1; then",
+        '  exec uv run python manage.py shell -c "$1"',
+        "elif [ -x .venv/bin/python ]; then",
+        '  exec .venv/bin/python manage.py shell -c "$1"',
+        "else",
+        '  exec python manage.py shell -c "$1"',
+        "fi",
+      ].join("\n");
+      ({ stdout } = await execFileAsync(
+        "sh",
+        ["-lc", command, "api-journey-backend-shell", script],
+        {
+          cwd: backendDir,
+          env: backendEnv,
+          maxBuffer: 20 * 1024 * 1024,
+        },
+      ));
+    }
   }
   const jsonLine = stdout
     .trim()

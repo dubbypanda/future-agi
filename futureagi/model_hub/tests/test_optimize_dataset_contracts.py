@@ -3,7 +3,6 @@ import uuid
 import pytest
 from rest_framework import status
 
-from accounts.models import Organization, User
 from accounts.models.workspace import Workspace
 from model_hub.models.ai_model import AIModel
 from model_hub.models.column_config import ColumnConfig
@@ -259,7 +258,9 @@ def test_legacy_optimize_dataset_model_routes_scope_detail_and_column_configs(
         f"/model-hub/optimize-dataset/{model.id}/column-config/right-answers/{visible_run.id}/"
     )
     assert right_columns_response.status_code == status.HTTP_200_OK
-    right_values = {column["value"] for column in right_columns_response.json()["columns"]}
+    right_values = {
+        column["value"] for column in right_columns_response.json()["columns"]
+    }
     assert f"{metric.id}-old" in right_values
     assert f"{metric.id}-new" in right_values
 
@@ -339,6 +340,49 @@ def test_legacy_optimize_dataset_result_routes_scope_and_tolerate_empty_clickhou
         format="json",
     )
     assert guarded_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_legacy_optimize_dataset_result_routes_tolerate_clickhouse_read_errors(
+    auth_client, organization, workspace, monkeypatch
+):
+    class MissingEventsClickHouseClient:
+        def execute(self, query):
+            raise RuntimeError("ClickHouse events table is unavailable")
+
+    monkeypatch.setattr(
+        "model_hub.views.optimize_dataset.ClickHouseClientSingleton",
+        MissingEventsClickHouseClient,
+    )
+
+    model = create_ai_model(organization, workspace)
+    metric = create_metric(model)
+    visible_run = create_legacy_optimize_run(
+        model,
+        metric,
+        organization=organization,
+        workspace=workspace,
+    )
+
+    page_payload = {"page": 1, "limit": 10}
+    for path in [
+        f"/model-hub/optimize-dataset/{model.id}/prompt-template-explore/{visible_run.id}/",
+        f"/model-hub/optimize-dataset/{model.id}/right-answers/{visible_run.id}/",
+    ]:
+        response = auth_client.post(path, page_payload, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body["results"] == []
+        assert body["count"] == 0
+
+    result_response = auth_client.post(
+        f"/model-hub/optimize-dataset/{model.id}/prompt-template-result/{visible_run.id}/",
+        {},
+        format="json",
+    )
+    assert result_response.status_code == status.HTTP_200_OK
+    assert result_response.json()["k_prompts"] == visible_run.optimized_k_prompts
+    assert result_response.json()["results"] == []
 
 
 @pytest.mark.django_db

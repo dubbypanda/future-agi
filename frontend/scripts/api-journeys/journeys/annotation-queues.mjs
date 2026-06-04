@@ -3314,11 +3314,21 @@ export const annotationQueueJourneys = [
         skip("Alternate token resolved to the reviewer user.");
       }
 
-      const sample = await resolveTraceAndSpanSample(client);
-      const queue = await resolveReviewQueueWithAnnotator(
+      const sample = await resolveTraceAndSpanSample(client, {
+        cleanup,
+        evidence,
+        organizationId,
+        runId,
+        userId: reviewerId,
+        workspaceId,
+      });
+      const queue = await resolveOrCreateReviewQueueWithAnnotator(
         client,
         altUserId,
+        reviewerId,
+        cleanup,
         evidence,
+        runId,
       );
       if (Number(queue.annotations_required || 1) !== 1) {
         skip(
@@ -3334,11 +3344,13 @@ export const annotationQueueJourneys = [
       });
 
       for (const index of [0, 1]) {
+        const sourceSpanId = asArray(sample.spanIds)[index] || sample.spanId;
+        assert(sourceSpanId, `No source span id available for item ${index}.`);
         const item = await client.post(
           queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
           {
             source_type: "observation_span",
-            source_id: sample.spanId,
+            source_id: sourceSpanId,
             status: "pending",
             priority: 4,
             order: 8800 + index,
@@ -3568,6 +3580,9 @@ export const annotationQueueJourneys = [
         queue_id: queueId,
         queue_name: queue.name,
         source_span_id: sample.spanId,
+        source_span_ids: asArray(sample.spanIds).length
+          ? sample.spanIds
+          : [sample.spanId],
         reviewer_id: reviewerId,
         annotator_id: altUserId,
         item_ids: createdItems.map((item) => item.id),
@@ -9259,6 +9274,22 @@ async function findAnnotationLabelByName(client, name) {
 }
 
 async function resolveReviewQueueWithAnnotator(client, annotatorId, evidence) {
+  const selected = await tryResolveReviewQueueWithAnnotator(
+    client,
+    annotatorId,
+    evidence,
+  );
+  if (selected) return selected;
+  skip(
+    "No active requires-review queue is available where the primary user can review and alternate user can annotate.",
+  );
+}
+
+async function tryResolveReviewQueueWithAnnotator(
+  client,
+  annotatorId,
+  evidence,
+) {
   const queues = asArray(
     await client.get(apiPath("/model-hub/annotation-queues/"), {
       query: { limit: 100, include_counts: true },
@@ -9311,9 +9342,107 @@ async function resolveReviewQueueWithAnnotator(client, annotatorId, evidence) {
     });
     return selected.detail;
   }
-  skip(
-    "No active requires-review queue is available where the primary user can review and alternate user can annotate.",
+  return null;
+}
+
+async function resolveOrCreateReviewQueueWithAnnotator(
+  client,
+  annotatorId,
+  reviewerId,
+  cleanup,
+  evidence,
+  runId,
+) {
+  const existing = await tryResolveReviewQueueWithAnnotator(
+    client,
+    annotatorId,
+    evidence,
   );
+  if (existing) return existing;
+
+  const namePrefix = `api journey bulk review ${runId}`;
+  const queueName = `${namePrefix} queue`;
+  const labelName = `${namePrefix} text label`;
+  cleanup.defer("hard-delete bulk-review queue DB fixtures", () =>
+    deleteQueueCreateFixturesDb(namePrefix),
+  );
+
+  const labelResponse = await client.post(
+    apiPath("/model-hub/annotations-labels/"),
+    {
+      name: labelName,
+      type: "text",
+      description: "Disposable label for bulk review API coverage.",
+      settings: {
+        placeholder: "Bulk review coverage",
+        min_length: 0,
+        max_length: 500,
+      },
+      allow_notes: true,
+    },
+  );
+  const label = labelResponse?.id
+    ? labelResponse
+    : await findAnnotationLabelByName(client, labelName);
+  assert(label?.id, "Could not resolve created bulk-review label.");
+  cleanup.defer("delete bulk-review label", () =>
+    deleteAnnotationLabelIfPresent(client, label.id),
+  );
+
+  let queue;
+  let createMode = "api";
+  try {
+    queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+      name: queueName,
+      description: "Disposable queue for bulk review and discussion coverage.",
+      instructions: "Verify bulk review and discussion comment edit/delete.",
+      annotations_required: 1,
+      reservation_timeout_minutes: 30,
+      requires_review: true,
+      auto_assign: false,
+      label_ids: [label.id],
+      annotator_ids: [reviewerId, annotatorId],
+      annotator_roles: {
+        [String(reviewerId)]: ["manager", "reviewer", "annotator"],
+        [String(annotatorId)]: ["annotator"],
+      },
+    });
+  } catch (error) {
+    if (![402, 403].includes(error.status)) throw error;
+    createMode = `db_seeded_after_review_create_${error.status}`;
+    evidence.push({
+      bulk_review_queue_create_entitlement_status: error.status,
+      bulk_review_queue_create_entitlement_body: error.body,
+    });
+    queue = await insertBulkReviewQueueFixtureDb({
+      queueName,
+      labelId: label.id,
+      reviewerId,
+      annotatorId,
+    });
+  }
+  assert(
+    queue?.id,
+    "Bulk-review queue create/seed did not produce a queue id.",
+  );
+  cleanup.defer("hard-delete bulk-review queue", () =>
+    hardDeleteQueueIfPresent(client, queue.id, queueName),
+  );
+
+  await restoreQueueStatusIfNeeded(client, queue.id, "active");
+  const detail = await client.get(
+    apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+  );
+  evidence.push({
+    review_queue_id: detail.id,
+    review_queue_name: detail.name,
+    review_queue_item_count: Number(detail.item_count || 0),
+    review_queue_label_count: asArray(detail.labels || detail.queue_labels)
+      .length,
+    review_queue_requires_review: Boolean(detail.requires_review),
+    review_queue_fixture_mode: createMode,
+  });
+  return detail;
 }
 
 async function ensureTemporaryAnnotatorMember(
@@ -10930,6 +11059,174 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
+async function insertBulkReviewQueueFixtureDb({
+  queueName,
+  labelId,
+  reviewerId,
+  annotatorId,
+}) {
+  const queueId = randomUUID();
+  const queueLabelId = randomUUID();
+  const reviewerMemberId = randomUUID();
+  const annotatorMemberId = randomUUID();
+  const reviewerRoles = ["manager", "reviewer", "annotator"];
+  const annotatorRoles = ["annotator"];
+  const sql = `
+WITH label AS (
+  SELECT id, organization_id, workspace_id
+  FROM model_hub_annotationslabels
+  WHERE id = ${sqlUuid(labelId, "labelId")} AND deleted = false
+),
+inserted_queue AS (
+  INSERT INTO model_hub_annotationqueue (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    instructions,
+    status,
+    assignment_strategy,
+    annotations_required,
+    reservation_timeout_minutes,
+    requires_review,
+    created_by_id,
+    organization_id,
+    workspace_id,
+    project_id,
+    is_default,
+    dataset_id,
+    agent_definition_id,
+    auto_assign
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(queueId, "queueId")},
+    ${sqlString(queueName)},
+    ${sqlString("Disposable review queue for API journey bulk-review coverage.")},
+    ${sqlString("Verify bulk review and discussion comment edit/delete.")},
+    'active',
+    'manual',
+    1,
+    30,
+    true,
+    ${sqlUuid(reviewerId, "reviewerId")},
+    label.organization_id,
+    label.workspace_id,
+    NULL,
+    false,
+    NULL,
+    NULL,
+    false
+  FROM label
+  RETURNING id::text, name, organization_id::text, workspace_id::text, status, requires_review
+),
+inserted_queue_label AS (
+  INSERT INTO model_hub_annotationqueuelabel (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    required,
+    "order",
+    label_id,
+    queue_id
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(queueLabelId, "queueLabelId")},
+    true,
+    0,
+    ${sqlUuid(labelId, "labelId")},
+    ${sqlUuid(queueId, "queueId")}
+  FROM inserted_queue
+  RETURNING id::text
+),
+inserted_reviewer_member AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(reviewerMemberId, "reviewerMemberId")},
+    'manager',
+    ${sqlJson(reviewerRoles)},
+    ${sqlUuid(queueId, "queueId")},
+    ${sqlUuid(reviewerId, "reviewerId")}
+  FROM inserted_queue
+  RETURNING id::text
+),
+inserted_annotator_member AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(annotatorMemberId, "annotatorMemberId")},
+    'annotator',
+    ${sqlJson(annotatorRoles)},
+    ${sqlUuid(queueId, "queueId")},
+    ${sqlUuid(annotatorId, "annotatorId")}
+  FROM inserted_queue
+  RETURNING id::text
+)
+SELECT coalesce(
+  (
+    SELECT json_build_object(
+      'id', inserted_queue.id,
+      'name', inserted_queue.name,
+      'status', inserted_queue.status,
+      'requires_review', inserted_queue.requires_review,
+      'organization_id', inserted_queue.organization_id,
+      'workspace_id', inserted_queue.workspace_id,
+      'queue_label_id', (SELECT id FROM inserted_queue_label),
+      'reviewer_member_id', (SELECT id FROM inserted_reviewer_member),
+      'annotator_member_id', (SELECT id FROM inserted_annotator_member)
+    )
+    FROM inserted_queue
+  ),
+  '{}'::json
+)::text;
+`;
+  const queue = await runPostgresJson(sql);
+  assert(
+    queue?.id,
+    `Bulk-review DB seed did not create queue for label ${labelId}.`,
+  );
+  return queue;
+}
+
 async function insertOtherWorkspaceQueueLabelFixtureDb({
   namePrefix,
   organizationId,
@@ -11086,6 +11383,296 @@ SELECT coalesce(
   const audit = await runPostgresJson(sql);
   assert(audit?.id, `Queue ${queueId} was not found in create DB audit.`);
   return audit;
+}
+
+async function insertTraceSpanSampleFixtureDb({
+  namePrefix,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const projectId = randomUUID();
+  const traceId = randomUUID();
+  const spanIds = [randomUUID(), randomUUID()];
+  const sql = `
+WITH inserted_project AS (
+  INSERT INTO tracer_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    model_type,
+    name,
+    trace_type,
+    metadata,
+    config,
+    session_config,
+    user_id,
+    source,
+    tags
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(projectId, "projectId")},
+    ${sqlUuid(organizationId, "organizationId")},
+    ${sqlUuid(workspaceId, "workspaceId")},
+    'GenerativeLLM',
+    ${sqlString(`${namePrefix} trace project`)},
+    'observe',
+    ${sqlJson({ source: "api-journey", fixture: "annotation-queue-sample" })},
+    '[]'::jsonb,
+    '[]'::jsonb,
+    ${sqlUuid(userId, "userId")},
+    'prototype',
+    '[]'::jsonb
+  )
+  RETURNING id
+),
+inserted_trace AS (
+  INSERT INTO tracer_trace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    name,
+    metadata,
+    input,
+    output,
+    error,
+    session_id,
+    external_id,
+    tags,
+    error_analysis_status
+  )
+  SELECT
+    now() - interval '1 minute',
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(traceId, "traceId")},
+    p.id,
+    NULL,
+    ${sqlString(`${namePrefix} trace`)},
+    ${sqlJson({ source: "api-journey", fixture: "annotation-queue-sample" })},
+    ${sqlJson({ prompt: "seeded annotation queue trace sample" })},
+    ${sqlJson({ response: "seeded annotation queue trace response" })},
+    NULL,
+    NULL,
+    ${sqlString(`${namePrefix} trace external`)},
+    '[]'::jsonb,
+    'completed'
+  FROM inserted_project p
+  RETURNING id, project_id
+),
+inserted_span AS (
+  INSERT INTO tracer_observation_span (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    trace_id,
+    parent_span_id,
+    name,
+    observation_type,
+    operation_name,
+    start_time,
+    end_time,
+    input,
+    output,
+    model,
+    model_parameters,
+    latency_ms,
+    org_id,
+    org_user_id,
+    prompt_tokens,
+    completion_tokens,
+    total_tokens,
+    response_time,
+    eval_id,
+    cost,
+    status,
+    status_message,
+    tags,
+    metadata,
+    span_events,
+    provider,
+    input_images,
+    eval_input,
+    eval_attributes,
+    custom_eval_config_id,
+    eval_status,
+    end_user_id,
+    prompt_version_id,
+    prompt_label_id,
+    span_attributes,
+    resource_attributes,
+    semconv_source
+  )
+  SELECT
+    now() - interval '1 minute',
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlString(spanIds[0])},
+    t.project_id,
+    NULL::uuid,
+    t.id,
+    NULL::text,
+    ${sqlString(`${namePrefix} span`)},
+    'llm',
+    'chat',
+    now() - interval '1 minute',
+    now(),
+    ${sqlJson({ prompt: "seeded annotation queue trace sample" })},
+    ${sqlJson({ response: "seeded annotation queue trace response" })},
+    'gpt-4o-mini',
+    '{}'::jsonb,
+    1000,
+    ${sqlUuid(organizationId, "organizationId")},
+    NULL::uuid,
+    4,
+    8,
+    12,
+    1.0,
+    NULL::text,
+    0,
+    'OK',
+    NULL::text,
+    '[]'::jsonb,
+    ${sqlJson({ source: "api-journey", fixture: "annotation-queue-sample" })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    '{}'::jsonb,
+    NULL::uuid,
+    'inactive',
+    NULL::uuid,
+    NULL::uuid,
+    NULL::uuid,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'traceai'
+  FROM inserted_trace t
+  UNION ALL
+  SELECT
+    now() - interval '55 seconds',
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlString(spanIds[1])},
+    t.project_id,
+    NULL::uuid,
+    t.id,
+    NULL::text,
+    ${sqlString(`${namePrefix} second span`)},
+    'llm',
+    'chat',
+    now() - interval '55 seconds',
+    now(),
+    ${sqlJson({ prompt: "seeded annotation queue second trace sample" })},
+    ${sqlJson({ response: "seeded annotation queue second trace response" })},
+    'gpt-4o-mini',
+    '{}'::jsonb,
+    1000,
+    ${sqlUuid(organizationId, "organizationId")},
+    NULL::uuid,
+    4,
+    8,
+    12,
+    1.0,
+    NULL::text,
+    0,
+    'OK',
+    NULL::text,
+    '[]'::jsonb,
+    ${sqlJson({ source: "api-journey", fixture: "annotation-queue-sample" })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    '{}'::jsonb,
+    NULL::uuid,
+    'inactive',
+    NULL::uuid,
+    NULL::uuid,
+    NULL::uuid,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'traceai'
+  FROM inserted_trace t
+  RETURNING id::text, trace_id::text, project_id::text
+)
+SELECT json_build_object(
+  'project_id', ${sqlString(projectId)},
+  'trace_id', ${sqlString(traceId)},
+  'span_id', ${sqlString(spanIds[0])},
+  'span_ids', ${sqlJson(spanIds)},
+  'inserted_project_count', (SELECT count(*) FROM inserted_project),
+  'inserted_trace_count', (SELECT count(*) FROM inserted_trace),
+  'inserted_span_count', (SELECT count(*) FROM inserted_span)
+)::text;
+`;
+  const sample = await runPostgresJson(sql);
+  assert(
+    Number(sample.inserted_project_count) === 1 &&
+      Number(sample.inserted_trace_count) === 1 &&
+      Number(sample.inserted_span_count) === spanIds.length,
+    `Trace sample DB seed failed: ${JSON.stringify(sample)}.`,
+  );
+  return sample;
+}
+
+async function deleteTraceSpanFixtureDb(namePrefix) {
+  const sql = `
+WITH matching_projects AS (
+  SELECT id
+  FROM tracer_project
+  WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+),
+matching_traces AS (
+  SELECT id
+  FROM tracer_trace
+  WHERE project_id IN (SELECT id FROM matching_projects)
+     OR name LIKE ${sqlString(`${namePrefix}%`)}
+     OR external_id LIKE ${sqlString(`${namePrefix}%`)}
+),
+deleted_spans AS (
+  DELETE FROM tracer_observation_span
+  WHERE project_id IN (SELECT id FROM matching_projects)
+     OR trace_id IN (SELECT id FROM matching_traces)
+     OR name LIKE ${sqlString(`${namePrefix}%`)}
+  RETURNING id
+),
+deleted_traces AS (
+  DELETE FROM tracer_trace
+  WHERE id IN (SELECT id FROM matching_traces)
+  RETURNING id
+),
+deleted_projects AS (
+  DELETE FROM tracer_project
+  WHERE id IN (SELECT id FROM matching_projects)
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_spans', (SELECT count(*) FROM deleted_spans),
+  'deleted_traces', (SELECT count(*) FROM deleted_traces),
+  'deleted_projects', (SELECT count(*) FROM deleted_projects)
+)::text;
+`;
+  return runPostgresJson(sql);
 }
 
 async function loadQueueListDuplicateDbAudit({
@@ -13907,7 +14494,7 @@ function firstArray(...values) {
   return values.find((value) => Array.isArray(value)) || [];
 }
 
-async function resolveTraceAndSpanSample(client) {
+async function resolveTraceAndSpanSample(client, fixture = {}) {
   const projects = asArray(
     await client.get(apiPath("/tracer/project/list_projects/"), {
       query: { page_number: 0, page_size: 25 },
@@ -13944,16 +14531,25 @@ async function resolveTraceAndSpanSample(client) {
 
   for (const project of projects) {
     if (!project?.id) continue;
-    const list = await client.get(
-      apiPath("/tracer/trace/list_traces_of_session/"),
-      {
-        query: {
-          project_id: project.id,
-          page_number: 0,
-          page_size: 10,
+    let list;
+    try {
+      list = await client.get(
+        apiPath("/tracer/trace/list_traces_of_session/"),
+        {
+          query: {
+            project_id: project.id,
+            page_number: 0,
+            page_size: 10,
+          },
         },
-      },
-    );
+      );
+    } catch (error) {
+      fixture.evidence?.push?.({
+        trace_sample_discovery_skipped_project_id: project.id,
+        trace_sample_discovery_status: error.status,
+      });
+      continue;
+    }
     for (const trace of asArray(list.table || list)) {
       const traceId = trace.trace_id || trace.id;
       if (!traceId) continue;
@@ -13973,6 +14569,39 @@ async function resolveTraceAndSpanSample(client) {
         // Try the next trace.
       }
     }
+  }
+
+  if (
+    fixture.cleanup &&
+    fixture.organizationId &&
+    fixture.workspaceId &&
+    fixture.userId &&
+    fixture.runId
+  ) {
+    const namePrefix = `api journey trace sample ${fixture.runId}`;
+    fixture.cleanup.defer("hard-delete trace sample DB fixture", () =>
+      deleteTraceSpanFixtureDb(namePrefix),
+    );
+    const sample = await insertTraceSpanSampleFixtureDb({
+      namePrefix,
+      organizationId: fixture.organizationId,
+      workspaceId: fixture.workspaceId,
+      userId: fixture.userId,
+    });
+    fixture.evidence?.push?.({
+      trace_sample_fixture_mode:
+        "db_seeded_after_empty_or_unavailable_trace_api",
+      trace_sample_project_id: sample.project_id,
+      trace_sample_trace_id: sample.trace_id,
+      trace_sample_span_id: sample.span_id,
+      trace_sample_span_ids: sample.span_ids,
+    });
+    return {
+      traceId: sample.trace_id,
+      spanId: sample.span_id,
+      spanIds: asArray(sample.span_ids),
+      projectId: sample.project_id,
+    };
   }
 
   skip(

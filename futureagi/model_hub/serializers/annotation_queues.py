@@ -270,7 +270,9 @@ class AnnotationQueueSerializer(serializers.ModelSerializer):
                 )
                 if organization:
                     users = users.filter(organization=organization)
-                visible = {str(user_id) for user_id in users.values_list("id", flat=True)}
+                visible = {
+                    str(user_id) for user_id in users.values_list("id", flat=True)
+                }
 
             if requested - visible:
                 raise serializers.ValidationError(
@@ -563,6 +565,24 @@ class QueueItemSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError(
                         f"Source object not found: {source_type}={source_id}"
+                    )
+
+                queue = validated_data.get("queue")
+                if (
+                    queue
+                    and QueueItem.objects.filter(
+                        queue=queue,
+                        deleted=False,
+                        **{fk_field: source_obj},
+                    ).exists()
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "source_id": (
+                                "An active queue item already exists for this "
+                                f"{source_type} source."
+                            )
+                        }
                     )
 
         return super().create(validated_data)

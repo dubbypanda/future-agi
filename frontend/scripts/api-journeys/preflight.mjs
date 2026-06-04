@@ -1110,7 +1110,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--json") {
       parsed.jsonPath = argv[++index] || "";
-    } else if (arg === "--public") {
+    } else if (arg === "--public" || arg === "--public-only") {
       parsed.publicOnly = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);

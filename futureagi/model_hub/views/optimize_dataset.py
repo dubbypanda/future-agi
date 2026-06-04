@@ -124,6 +124,18 @@ def _validate_request(serializer_class, data):
     return serializer.validated_data, None
 
 
+def _execute_clickhouse_read_or_empty(clickhouse_client, query, *, operation):
+    try:
+        return clickhouse_client.execute(query)
+    except Exception as exc:
+        logger.warning(
+            "legacy_optimize_dataset_clickhouse_read_failed",
+            operation=operation,
+            error=str(exc),
+        )
+        return []
+
+
 class OptimizedDatasetView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
@@ -566,7 +578,8 @@ class RightAnswerResultsView(APIView):
         # sort_key = request.data["sort_key"]
 
         clickhouse_client = ClickHouseClientSingleton()
-        raw_data_points = clickhouse_client.execute(
+        raw_data_points = _execute_clickhouse_read_or_empty(
+            clickhouse_client,
             self.construct_query(
                 model_id,
                 environment,
@@ -575,13 +588,16 @@ class RightAnswerResultsView(APIView):
                 end_date,
                 limit,
                 offset,
-            )
+            ),
+            operation="right_answers_rows",
         )
 
-        data_points_count = clickhouse_client.execute(
+        data_points_count = _execute_clickhouse_read_or_empty(
+            clickhouse_client,
             self.construct_count_query(
                 model_id, environment, version, start_date, end_date
-            )
+            ),
+            operation="right_answers_count",
         )
 
         total_count = int(data_points_count[0][0]) if data_points_count else 0
@@ -834,7 +850,11 @@ class TemplateResultsView(APIView):
                     num_templates,
                 )
 
-                query_results = clickhouse_client.execute(dynamic_query)
+                query_results = _execute_clickhouse_read_or_empty(
+                    clickhouse_client,
+                    dynamic_query,
+                    operation="prompt_template_result",
+                )
                 if not query_results:
                     continue
                 res = query_results[0]
@@ -1065,7 +1085,8 @@ class TemplateExploreView(APIView):
         # sort_key = request.data["sort_key"]
 
         clickhouse_client = ClickHouseClientSingleton()
-        raw_data_points = clickhouse_client.execute(
+        raw_data_points = _execute_clickhouse_read_or_empty(
+            clickhouse_client,
             self.construct_query(
                 model_id,
                 environment,
@@ -1074,13 +1095,16 @@ class TemplateExploreView(APIView):
                 end_date,
                 limit,
                 offset,
-            )
+            ),
+            operation="prompt_template_explore_rows",
         )
 
-        data_points_count = clickhouse_client.execute(
+        data_points_count = _execute_clickhouse_read_or_empty(
+            clickhouse_client,
             self.construct_count_query(
                 model_id, environment, version, start_date, end_date
-            )
+            ),
+            operation="prompt_template_explore_count",
         )
 
         total_count = int(data_points_count[0][0]) if data_points_count else 0
