@@ -26,6 +26,31 @@ let pingTimer = null; // keepalive interval; cleared on close
 // conversationId → handler(parsed) — routes inbound frames to the right run.
 const handlers = new Map();
 
+// Tear the socket down so the next ensureSocket() builds a fresh one. Used when
+// a send lands on a dead-but-readyState-OPEN socket (half-open after a server
+// drop) or when the delivery watchdog fires.
+function forceReconnect() {
+  try {
+    if (socket) socket.close();
+  } catch {
+    /* already closed */
+  }
+  clearInterval(pingTimer);
+  socket = null;
+  socketReady = null;
+}
+
+// Vite HMR hot-swaps this module on edit, resetting `socket`/`socketReady` to
+// null while the *old* socket stays open and orphaned — the engine then holds a
+// stale reference and sends into the void (run hangs, no frames on the wire).
+// Close it cleanly on dispose so dev gets one live socket, not a split-brain.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    forceReconnect();
+    handlers.clear();
+  });
+}
+
 function buildWsUrl(token, workspaceId) {
   const isSecure = HOST_API.includes("https");
   const wsHost = HOST_API.replace(/^https?:\/\//, "").replace(/\/+$/, "");
@@ -87,8 +112,24 @@ function ensureSocket(token, workspaceId) {
 }
 
 async function send(payload, token, workspaceId) {
-  const ws = await ensureSocket(token, workspaceId);
+  let ws = await ensureSocket(token, workspaceId);
+  // The awaited socket can be stale (closed/closing, or a half-open OPEN after a
+  // server drop). Rebuild once if it isn't cleanly OPEN so the frame doesn't go
+  // into the void.
+  if (ws.readyState !== WebSocket.OPEN) {
+    forceReconnect();
+    ws = await ensureSocket(token, workspaceId);
+  }
   ws.send(JSON.stringify(payload));
+}
+
+// Open + heartbeat-warm the socket ahead of time (called when the Fix tab
+// mounts) so the first run's chat frame lands on a live connection instead of
+// a cold/stale one — that cold-socket round-trip was the 20-30s-to-first-paint.
+// Idempotent: reuses an already-open socket.
+export function prewarmSocket({ token, workspaceId }) {
+  if (!token) return;
+  ensureSocket(token, workspaceId).catch(() => {});
 }
 
 // ── Store helpers ───────────────────────────────────────────────────────────
@@ -127,7 +168,9 @@ function humanizeStepTitle(tool, args = {}) {
     case "aggregate":
       return `Grouping by ${args.group_by ?? args.metric ?? "dimension"}`;
     case "search":
-      return args.query ? `Searching "${truncate(args.query, 40)}"` : "Searching";
+      return args.query
+        ? `Searching "${truncate(args.query, 40)}"`
+        : "Searching";
     default:
       return TOOL_TITLES[tool] ?? tool;
   }
@@ -180,7 +223,11 @@ function summarizeResult(tool, result) {
   }
 }
 
-const CONF_CATEGORY = { H: "high confidence", M: "medium confidence", L: "low confidence" };
+const CONF_CATEGORY = {
+  H: "high confidence",
+  M: "medium confidence",
+  L: "low confidence",
+};
 
 // ── Replay a persisted trail → thread messages ───────────────────────────────
 
@@ -213,7 +260,12 @@ function buildMessagesFromFrames(frames, clusterId) {
         detail: "",
         chips: [],
         details: [
-          { kind: "tool", name: f.tool, input: truncate(f.args, 120), output: null },
+          {
+            kind: "tool",
+            name: f.tool,
+            input: truncate(f.args, 120),
+            output: null,
+          },
         ],
       });
     } else if (f.type === "step_result") {
@@ -291,8 +343,8 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
   // Guard against duplicate kicks (rapid clicks / StrictMode double-invoke) —
   // a run already in flight for this cluster owns the conversation.
   if (
-    useErrorFeedStore.getState().analyzeThreadsByCluster[clusterId]?.runState ===
-    "streaming"
+    useErrorFeedStore.getState().analyzeThreadsByCluster[clusterId]
+      ?.runState === "streaming"
   ) {
     return;
   }
@@ -352,7 +404,8 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
         {
           id: `err-${Date.now()}`,
           type: "synthesis",
-          headline: "Couldn't start the analysis — the server didn't return a conversation id.",
+          headline:
+            "Couldn't start the analysis — the server didn't return a conversation id.",
           fix: "",
           confidence: "L",
           category: "error",
@@ -366,16 +419,21 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
   // Per-run scratch state held in the handler closure.
   const openStepByCall = new Map(); // call_id → step message id
   let reasoningSeq = 0;
+  let firstFrameSeen = false; // delivery watchdog: did the run actually start?
 
   const handler = (parsed) => {
     const { type, data } = parsed;
     if (!data) return;
+    firstFrameSeen = true; // any frame proves the run actually started
 
     if (type === "rca_status") {
       // Setup progress ping (before the first LLM round-trip). Held on the
       // thread as a transient status line so the loader shows real activity
       // instead of dead-air; cleared once real frames start arriving.
-      patchThread(clusterId, (t) => ({ ...t, status: data.detail || data.phase }));
+      patchThread(clusterId, (t) => ({
+        ...t,
+        status: data.detail || data.phase,
+      }));
       return;
     }
 
@@ -473,7 +531,13 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
           // The agent's grounded "Try asking" set — the compose area reads the
           // latest suggestions message. Omitted when the agent returned none.
           ...(suggestions.length
-            ? [{ id: `sug-${Date.now()}`, type: "suggestions", items: suggestions }]
+            ? [
+                {
+                  id: `sug-${Date.now()}`,
+                  type: "suggestions",
+                  items: suggestions,
+                },
+              ]
             : []),
         ],
       }));
@@ -508,8 +572,8 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
 
   handlers.set(conversationId, handler);
 
-  try {
-    await send(
+  const sendChat = () =>
+    send(
       {
         type: "chat",
         message: "/cluster-rca",
@@ -524,6 +588,62 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
       token,
       workspaceId,
     );
+
+  // Only act while THIS run still owns the thread — a quick Re-run swaps in a
+  // new conversation, and a stale watchdog must not clobber it.
+  const isActiveRun = () => {
+    const t = useErrorFeedStore.getState().analyzeThreadsByCluster[clusterId];
+    return t?.runState === "streaming" && t?.conversationId === conversationId;
+  };
+
+  const failVisibly = () => {
+    handlers.delete(conversationId);
+    patchThread(clusterId, (t) => ({
+      ...t,
+      runState: "done",
+      status: null,
+      messages: [
+        ...t.messages,
+        {
+          id: `err-${Date.now()}`,
+          type: "synthesis",
+          headline:
+            "Couldn't reach the investigator — the connection dropped. Hit Re-run.",
+          fix: "",
+          confidence: "L",
+          category: "error",
+        },
+      ],
+    }));
+  };
+
+  // Delivery watchdog. A healthy run emits its first frame (rca_status) within
+  // ~1s — even a cold-start cluster-context build stays well under this — so if
+  // nothing arrives in 8s the frame was lost into a half-open/orphaned socket
+  // (and a dead socket means the chat never landed, so resending can't double-
+  // run). Rebuild + resend once, then fail visibly instead of spinning forever.
+  let retried = false;
+  const armWatchdog = () => {
+    setTimeout(async () => {
+      if (firstFrameSeen || !isActiveRun()) return;
+      if (retried) {
+        failVisibly();
+        return;
+      }
+      retried = true;
+      forceReconnect();
+      try {
+        await sendChat();
+        armWatchdog();
+      } catch {
+        failVisibly();
+      }
+    }, 8000);
+  };
+
+  try {
+    await sendChat();
+    armWatchdog();
   } catch {
     handlers.delete(conversationId);
     patchThread(clusterId, (t) => ({ ...t, runState: "done" }));
@@ -532,11 +652,18 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
 
 // ── Follow-up (Falcon takes over — plain chat, no skill) ─────────────────────
 
-export async function runFollowUp({ clusterId, question, projectId, token, workspaceId }) {
+export async function runFollowUp({
+  clusterId,
+  question,
+  projectId,
+  token,
+  workspaceId,
+}) {
   const text = String(question ?? "").trim();
   if (!clusterId || !text) return;
 
-  const thread = useErrorFeedStore.getState().analyzeThreadsByCluster[clusterId];
+  const thread =
+    useErrorFeedStore.getState().analyzeThreadsByCluster[clusterId];
   const conversationId = thread?.conversationId;
   if (!conversationId) return; // no run yet — nothing to follow up on
 
@@ -549,7 +676,11 @@ export async function runFollowUp({ clusterId, question, projectId, token, works
     messages: [
       ...t.messages,
       { id: `${baseId}-q`, type: "user_question", text },
-      { id: `${baseId}-i`, type: "assistant_intro", text: "Let me look into that." },
+      {
+        id: `${baseId}-i`,
+        type: "assistant_intro",
+        text: "Let me look into that.",
+      },
       {
         id: subagentMsgId,
         type: "subagent",
@@ -603,7 +734,11 @@ export async function runFollowUp({ clusterId, question, projectId, token, works
                 ...m,
                 steps: m.steps.map((s) =>
                   s.id === stepId
-                    ? { ...s, status: "done", detail: truncate(data.result_summary, 90) }
+                    ? {
+                        ...s,
+                        status: "done",
+                        detail: truncate(data.result_summary, 90),
+                      }
                     : s,
                 ),
               }
@@ -643,7 +778,11 @@ export async function runFollowUp({ clusterId, question, projectId, token, works
         followUpRunState: "done",
         messages: t.messages.map((m) =>
           m.id === subagentMsgId
-            ? { ...m, status: "done", answer: answer || data.error || "Something went wrong." }
+            ? {
+                ...m,
+                status: "done",
+                answer: answer || data.error || "Something went wrong.",
+              }
             : m,
         ),
       }));

@@ -4,6 +4,7 @@ import { useWorkspace } from "src/contexts/WorkspaceContext";
 import { useErrorFeedStore } from "./store";
 import {
   hydrateFromCache,
+  prewarmSocket,
   runFollowUp as engineRunFollowUp,
   startRun as engineStartRun,
 } from "./clusterAnalyzeSocket";
@@ -30,6 +31,18 @@ export function useAnalyzeRunner(clusterId, error) {
   const hasThread = useErrorFeedStore(
     (s) => !!s.analyzeThreadsByCluster[clusterId],
   );
+
+  // Open the socket as soon as the tab mounts so it's live + heartbeat-warm
+  // before the user clicks Analyze — the first chat frame then lands on a ready
+  // connection instead of a cold one (which cost 20-30s to first paint).
+  useEffect(() => {
+    if (user?.accessToken) {
+      prewarmSocket({
+        token: user.accessToken,
+        workspaceId: currentWorkspaceId,
+      });
+    }
+  }, [user?.accessToken, currentWorkspaceId]);
 
   // Already-analyzed cluster, fresh load (no live thread) → seed from the
   // cached synthesis so the tab shows the result instead of "No analysis yet".
