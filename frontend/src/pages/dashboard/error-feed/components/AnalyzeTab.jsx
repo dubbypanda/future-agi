@@ -1431,19 +1431,24 @@ export default function AnalyzeTab({ error }) {
   const isFollowUpStreaming = followUpRunState === "streaming";
   const mainRunDone = runState === "done";
 
-  // The compose-area chip set is contextual:
-  //   - Before the first follow-up → curated starter examples
-  //   - After each sub-agent answer → that answer's own "Try asking" set
-  // Suggestion messages stay in the thread for completeness/history but
-  // aren't rendered inline; the compose area is the single source of truth.
+  // "Try asking" chips are a starter affordance — grounded questions to kick
+  // off the conversation off the synthesis. Once the user has summoned Falcon
+  // (asked any follow-up), get out of the way: it's a normal chat from there,
+  // so the chips disappear rather than re-seeding after every answer.
+  const hasFollowedUp = useMemo(
+    () => messages.some((m) => m.type === "user_question"),
+    [messages],
+  );
   const latestSuggestionsMsg = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       if (messages[i].type === "suggestions") return messages[i];
     }
     return null;
   }, [messages]);
-  const composeSuggestions = latestSuggestionsMsg?.items ?? STARTER_SUGGESTIONS;
-  const composeHeader = latestSuggestionsMsg ? "Try asking" : "Try asking";
+  const composeSuggestions = hasFollowedUp
+    ? []
+    : (latestSuggestionsMsg?.items ?? STARTER_SUGGESTIONS);
+  const composeHeader = "Try asking";
 
   // Chronological order — the cluster steps build the case, the synthesis
   // is the headline, follow-ups continue the conversation below it.
