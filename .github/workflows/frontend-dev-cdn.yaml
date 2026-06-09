@@ -5,8 +5,8 @@ on:
     branches:
       - dev
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-dev-cdn.yaml"
+      - 'frontend/**'
+      - '.github/workflows/frontend-dev-cdn.yaml'
   workflow_dispatch:
     inputs:
       branch:
@@ -30,7 +30,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
+          node-version: "22.18"
           cache: "yarn"
           cache-dependency-path: frontend/yarn.lock
 

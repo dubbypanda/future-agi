@@ -4,13 +4,13 @@ on:
   push:
     branches: [develop, dev]
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-develop.yml"
+      - 'frontend/**'
+      - '.github/workflows/frontend-develop.yml'
   pull_request:
     branches: [main, develop, dev]
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-develop.yml"
+      - 'frontend/**'
+      - '.github/workflows/frontend-develop.yml'
   workflow_dispatch:
 
 jobs:
@@ -26,8 +26,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies
@@ -62,8 +62,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies
@@ -92,8 +92,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies
@@ -125,8 +125,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies

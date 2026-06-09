@@ -87,7 +87,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
+          node-version: "22.18"
           cache: "yarn"
           cache-dependency-path: frontend/yarn.lock
 
@@ -150,19 +150,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check EE checkout token
-        id: ee-token
+      - name: Require private EE checkout token
         working-directory: .
         run: |
           if [ -z "${EE_REPO_READ_TOKEN}" ]; then
-            echo "::notice::Skipping backend contract checks because EE_REPO_READ_TOKEN is not configured."
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "::error::EE_REPO_READ_TOKEN is required for backend contract CI because the generated Management API contract includes Enterprise routes."
+            exit 1
           fi
 
       - name: Checkout EE package
-        if: steps.ee-token.outputs.available == 'true'
         uses: actions/checkout@v4
         with:
           repository: future-agi/ee
@@ -172,7 +168,6 @@ jobs:
           fetch-depth: 1
 
       - name: Use matching EE branch when available
-        if: steps.ee-token.outputs.available == 'true'
         working-directory: futureagi/ee
         run: |
           if git ls-remote --exit-code --heads origin "${EE_REPO_BRANCH}" >/dev/null 2>&1; then
@@ -184,26 +179,21 @@ jobs:
           fi
 
       - name: Drop EE checkout credentials
-        if: steps.ee-token.outputs.available == 'true'
         working-directory: futureagi/ee
         run: git config --unset-all http.https://github.com/.extraheader || true
 
       - name: Setup Python
-        if: steps.ee-token.outputs.available == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install uv
-        if: steps.ee-token.outputs.available == 'true'
         uses: astral-sh/setup-uv@v5
 
       - name: Install backend dependencies
-        if: steps.ee-token.outputs.available == 'true'
         run: uv sync --frozen
 
       - name: Check generated Swagger schema
-        if: steps.ee-token.outputs.available == 'true'
         working-directory: .
         run: |
           if ! ./scripts/generate-openapi-schema.sh > /tmp/openapi-generation.log 2>&1; then
@@ -213,7 +203,6 @@ jobs:
           git diff --exit-code api_contracts/openapi/swagger.json
 
       - name: Run annotation/filter contract tests
-        if: steps.ee-token.outputs.available == 'true'
         run: >
           uv run pytest -q --tb=line
           tracer/tests/test_filter_contract.py

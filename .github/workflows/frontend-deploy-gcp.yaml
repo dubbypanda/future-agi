@@ -5,8 +5,8 @@ on:
     branches:
       - dev
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-deploy-gcp.yaml"
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy-gcp.yaml'
 
 jobs:
   deploy:
@@ -22,8 +22,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies

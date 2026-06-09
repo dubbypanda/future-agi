@@ -4,8 +4,8 @@ on:
   push:
     branches: [feat/*, fix/*, chore/*, docs/*, refactor/*, test/*, perf/*]
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-feature.yml"
+      - 'frontend/**'
+      - '.github/workflows/frontend-feature.yml'
 
 jobs:
   # Branch name validation
@@ -51,8 +51,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.18.0"
-          cache: "yarn"
+          node-version: '22.18'
+          cache: 'yarn'
           cache-dependency-path: frontend/yarn.lock
 
       - name: Install dependencies
