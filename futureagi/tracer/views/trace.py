@@ -4949,6 +4949,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         # Phase 1: Paginated traces (light columns only — no input/output)
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+        result.data = result.data[:page_size]
 
         # Count
         count_query, count_params = builder.build_count_query()
@@ -5226,6 +5227,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         # Phase 1: Paginated root conversation spans (light columns only)
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+        result.data = result.data[:page_size]
 
         # Phase 1b: Fetch span_attributes from the CH CDC table for the
         # paginated spans.  The denormalized `spans` table has empty
@@ -5520,6 +5522,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         # Phase 1: Get paginated traces
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+        result.data = result.data[:page_size]
 
         # Get count
         count_query, count_params = builder.build_count_query()
