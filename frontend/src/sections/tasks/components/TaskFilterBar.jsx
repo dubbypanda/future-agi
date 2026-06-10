@@ -14,7 +14,6 @@ const NO_VALUE_OPS = new Set(["is_null", "is_not_null"]);
 // `equals`/`not_equals`. Rewrite to `in`/`not_in` on read so the new
 // panel renders the row under the multi-value picker.
 const HYDRATE_STRING_OP = { equals: "in", not_equals: "not_in" };
-const LEGACY_OP_ALIAS = { is: "equals", is_not: "not_equals" };
 
 const isStringLike = (fieldType) =>
   fieldType === "text" || fieldType === "string";
@@ -173,7 +172,7 @@ function convertOldToNew(oldFilters) {
     const fieldType =
       ft === "number" ? "number" : ft === "boolean" ? "boolean" : "string";
 
-    let op = LEGACY_OP_ALIAS[rawOp] || rawOp;
+    let op = rawOp;
     const hydrated = isStringLike(fieldType) && HYDRATE_STRING_OP[op];
     if (hydrated) {
       op = HYDRATE_STRING_OP[op];

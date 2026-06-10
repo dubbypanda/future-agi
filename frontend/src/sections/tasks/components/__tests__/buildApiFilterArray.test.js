@@ -26,6 +26,35 @@ describe("buildApiFilterArray — task live-preview wire builder", () => {
     ]);
   });
 
+  it("does not merge same-column string-equals (`in`) rows — two rows stay two entries (backend ANDs → matches nothing)", () => {
+    const out = buildApiFilterArray([
+      attrRow("in", "enterprise"),
+      attrRow("in", "startup"),
+    ]);
+
+    expect(out).toHaveLength(2);
+    expect(out.every((f) => f.filter_config.filter_op === "in")).toBe(true);
+    expect(out.map((f) => f.filter_config.filter_value)).toEqual([
+      ["enterprise"],
+      ["startup"],
+    ]);
+  });
+
+  it("does not merge same-column number-equals rows — two `equals` rows stay two scalar entries (backend ANDs → matches nothing)", () => {
+    const numRow = (filterValue) => ({
+      property: "attributes",
+      propertyId: "token_count",
+      fieldCategory: "attribute",
+      filterConfig: { filterType: "number", filterOp: "equals", filterValue },
+    });
+
+    const out = buildApiFilterArray([numRow(5), numRow(7)]);
+
+    expect(out).toHaveLength(2);
+    expect(out.every((f) => f.filter_config.filter_op === "equals")).toBe(true);
+    expect(out.map((f) => f.filter_config.filter_value)).toEqual([5, 7]);
+  });
+
   it("coerces a scalar in value to a list so filter_value survives", () => {
     const out = buildApiFilterArray([attrRow("in", "enterprise")]);
 
