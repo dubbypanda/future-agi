@@ -1682,7 +1682,6 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                 ch_kwargs["project_id"] = tenant_project_id
                 with get_reader() as reader:
                     total_spans = reader.count_with_filters(**ch_kwargs)
-            )
 
             if total_spans == 0:
                 logger.warning(
