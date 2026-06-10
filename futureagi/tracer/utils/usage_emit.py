@@ -70,9 +70,23 @@ def emit_span_ingestion_usage(
 
         org_id_str = str(organization_id)
 
-        # Fill only the dimension this org is billed on: events mode →
-        # tracing_events (traces + spans), storage mode → storage bytes.
-        if _tracing_billing_mode(org_id_str) == "storage":
+        # Voice recording rehost lands real bytes in our S3 — bill storage
+        # regardless of the org's tracing billing mode.
+        if source == "voice_recording_rehost":
+            if payload_bytes:
+                emit(
+                    UsageEvent(
+                        org_id=org_id_str,
+                        event_type=BillingEventType.OBSERVE_ADD,
+                        amount=payload_bytes,
+                        properties={"source": source},
+                    )
+                )
+            return
+
+        mode = _tracing_billing_mode(org_id_str)
+
+        if mode == "storage":
             if payload_bytes:
                 props = {"source": source}
                 if num_spans:
@@ -87,27 +101,17 @@ def emit_span_ingestion_usage(
                 )
             return
 
+        # events mode: payload_bytes is intentionally ignored; span storage
+        # is not billed in events mode, and the only OBSERVE_ADD line in
+        # events mode comes from the voice_recording_rehost branch above.
         tracing_units = (num_traces or 0) + (num_spans or 0)
         if tracing_units:
             emit(
                 UsageEvent(
                     org_id=org_id_str,
                     event_type=BillingEventType.TRACING_EVENT,
-                    amount=num_traces,
-                    properties={"traces": num_traces, "source": source},
-                )
-            )
-
-        if payload_bytes:
-            props = {"source": source}
-            if num_spans:
-                props["spans"] = num_spans
-            emit(
-                UsageEvent(
-                    org_id=org_id_str,
-                    event_type=BillingEventType.OBSERVE_ADD,
-                    amount=payload_bytes,
-                    properties=props,
+                    amount=tracing_units,
+                    properties={"traces": tracing_units, "source": source},
                 )
             )
     except Exception:
