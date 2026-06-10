@@ -10,7 +10,16 @@ import { Box, Button, Typography } from "@mui/material";
 import { useWatch } from "react-hook-form";
 import Iconify from "src/components/iconify";
 import { getRandomId } from "src/utils/utils";
-import TraceFilterPanel from "src/sections/projects/LLMTracing/TraceFilterPanel";
+import TraceFilterPanel, {
+  useTraceFilterProperties,
+} from "src/sections/projects/LLMTracing/TraceFilterPanel";
+import { FIELD_CATEGORY_TO_COL_TYPE } from "src/sections/common/EvalsTasks/common";
+import { useDashboardFilterValues } from "src/hooks/useDashboards";
+import {
+  getPickerOptionValue,
+  getPickerOptionLabel,
+  getPickerOptionSecondaryLabel,
+} from "src/sections/projects/LLMTracing/filterValuePickerUtils";
 
 // ── Operator handling — canonical backend ops ──
 //
