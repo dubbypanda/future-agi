@@ -282,9 +282,7 @@ const DetailsEdit = ({
           new Date(startDateField.value).toISOString(),
           new Date(endDateField.value).toISOString(),
         ],
-        ...(observationTypes?.length > 0
-          ? { observation_type: observationTypes }
-          : {}),
+        ...systemFilters,
         ...(attributeFilters && attributeFilters?.length > 0
           ? { filters: attributeFilters }
           : {}),

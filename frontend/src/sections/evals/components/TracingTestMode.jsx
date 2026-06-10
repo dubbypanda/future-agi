@@ -52,6 +52,8 @@ import EvalResultDisplay from "./EvalResultDisplay";
 import SpanRowList from "./SpanRowList";
 import useErrorLocalizerPoll from "../hooks/useErrorLocalizerPoll";
 import { buildFlatValueMap, executeEvalForRow } from "../utils/evalExecution";
+import { buildCompositeRuntimeConfig } from "../Helpers/compositeRuntimeConfig";
+import { useExecuteCompositeEvalAdhoc } from "../hooks/useCompositeEval";
 
 const ROW_TYPE_OPTIONS = [
   { value: "Span", label: "Spans", icon: "solar:layers-outline" },
@@ -268,6 +270,7 @@ const TracingTestMode = React.forwardRef(
   ) => {
     const projectLocked = !!initialProjectId;
     const rowTypeLocked = !!initialRowType;
+    const executeCompositeAdhoc = useExecuteCompositeEvalAdhoc();
 
     // Project
     const [projects, setProjects] = useState([]);

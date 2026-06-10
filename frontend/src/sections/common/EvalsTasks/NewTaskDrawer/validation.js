@@ -117,7 +117,7 @@ const extractSiblingFilters = (filters) => {
   (filters || []).forEach((f) => {
     const beKey = TOP_LEVEL_SIBLING_KEY_BY_PROPERTY[f?.property];
     if (!beKey) return;
-    const apiKey = getTaskFilterApiKey(filter?.property);
+    const apiKey = getTaskFilterApiKey(f?.property);
     if (!apiKey) return;
     const val = f?.filterConfig?.filterValue;
     const vals = Array.isArray(val)

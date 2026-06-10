@@ -86,6 +86,7 @@ export default function ReplayDrawer({ activeRoute, projectDetail, gridApi }) {
 }
 
 ReplayDrawer.propTypes = {
+  activeRoute: PropTypes.string,
   currentTab: PropTypes.shape({
     id: PropTypes.string.isRequired,
   }),

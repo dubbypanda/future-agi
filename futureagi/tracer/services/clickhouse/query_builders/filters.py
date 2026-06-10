@@ -11,10 +11,6 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from tracer.services.clickhouse.v2.id_remap_sql import (
-    remap_left_join,
-    resolved_id_expr,
-)
 from tracer.utils.constants import (
     LIST_OPS,
     NO_VALUE_OPS,
@@ -24,6 +20,14 @@ from tracer.utils.constants import (
 )
 
 _SAFE_ATTR_KEY_RE = re.compile(r"^[a-zA-Z0-9._\-]+$")
+
+_LEGACY_OP_ALIAS = {"is": "equals", "is_not": "not_equals"}
+
+
+def normalize_filter_op(op: str | None) -> str | None:
+    if op is None:
+        return None
+    return _LEGACY_OP_ALIAS.get(op, op)
 
 
 def _sanitize_key(key: str) -> str:
@@ -42,9 +46,12 @@ def _coerce_strict_bool(v: Any) -> int:
     )
 
 
-_SPAN_ATTR_TYPE_META: Dict[str, Tuple[str, Callable[[Any], Any]]] = {
-    FilterType.TEXT.value:    ("span_attr_str",  lambda v: v if isinstance(v, str) else str(v)),
-    FilterType.NUMBER.value:  ("span_attr_num",  lambda v: float(v)),
+_SPAN_ATTR_TYPE_META: dict[str, tuple[str, Callable[[Any], Any]]] = {
+    FilterType.TEXT.value: (
+        "span_attr_str",
+        lambda v: v if isinstance(v, str) else str(v),
+    ),
+    FilterType.NUMBER.value: ("span_attr_num", lambda v: float(v)),
     FilterType.BOOLEAN.value: ("span_attr_bool", _coerce_strict_bool),
 }
 
@@ -122,8 +129,6 @@ class ClickHouseFilterBuilder:
     # ``_build_span_attr_condition`` and matching any-span (TH-4044).
     SYSTEM_METRIC_MAP: dict[str, str] = {
         "avg_latency": "latency_ms",
-
-    SYSTEM_METRIC_MAP: Dict[str, str] = {
         "latency": "latency_ms",
         "latency_ms": "latency_ms",
         "avg_cost": "cost",
@@ -157,8 +162,6 @@ class ClickHouseFilterBuilder:
         "end_user_id": "end_user_id",
         "session_id": "trace_session_id",
         "trace_session_id": "trace_session_id",
-        "trace_id": "trace_id",
-        "session": "trace_session_id",
         "name": "name",
         "span_name": "name",
         "trace_name": "trace_name",
@@ -668,7 +671,7 @@ class ClickHouseFilterBuilder:
         filter_value: Any,
     ) -> str | None:
         """Dispatch to the appropriate condition builder based on column type."""
-    
+
         # TODO: run migrations to normalize filter_op to canonical form , then remove this handling .
         if col_type != self.SPAN_ATTRIBUTE:
             filter_op = normalize_filter_op(filter_op)
@@ -690,7 +693,6 @@ class ClickHouseFilterBuilder:
         else:
             raise ValueError(f"Unsupported col_type: {col_type!r}")
 
-
     _ENDUSER_STRING_COLUMNS = {
         "user_id": "user_id",
         "user": "user_id",
@@ -700,9 +702,9 @@ class ClickHouseFilterBuilder:
     def _build_enduser_string_subquery(
         self,
         enduser_column: str,
-        filter_op: Optional[str],
+        filter_op: str | None,
         filter_value: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Resolve an end-user string field (user_id / user_id_type) on
         tracer_enduser, then map to end_user_id on spans."""
 
@@ -752,10 +754,10 @@ class ClickHouseFilterBuilder:
     def _build_system_metric_condition(
         self,
         col_id: str,
-        filter_type: Optional[str],
-        filter_op: Optional[str],
+        filter_type: str | None,
+        filter_op: str | None,
         filter_value: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         """SYSTEM_METRIC dispatch: voice metrics, denormalised columns, and
         the ``trace_id IN (...)`` wrap for trace-list mode.
         """
@@ -926,7 +928,7 @@ class ClickHouseFilterBuilder:
         filter_op: str,
         normalized_value: Any,
         case_insensitive: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Emit the row-level predicate; negation ops require key present.
 
         ``case_insensitive`` is set for text-typed span attributes:
@@ -1020,7 +1022,6 @@ class ClickHouseFilterBuilder:
 
         raise ValueError(f"Unhandled filter_op {filter_op!r}")
 
-
     _CASE_INSENSITIVE_COLUMNS = {
         "status",
         "observation_type",
@@ -1030,11 +1031,13 @@ class ClickHouseFilterBuilder:
         "provider",
     }
 
-    _NULLABLE_UUID_COLUMNS = frozenset({
-        "end_user_id",
-        "session_id",
-        "trace_session_id",
-    })
+    _NULLABLE_UUID_COLUMNS = frozenset(
+        {
+            "end_user_id",
+            "session_id",
+            "trace_session_id",
+        }
+    )
 
     def _build_column_condition(
         self,
@@ -1124,11 +1127,7 @@ class ClickHouseFilterBuilder:
             op = self._sql_op(filter_op)
             if op is None:
                 return "0 = 1"
-            if (
-                case_insensitive
-                and op in ("=", "!=")
-                and isinstance(filter_value, str)
-            ):
+            if case_insensitive and op in ("=", "!=") and isinstance(filter_value, str):
                 self._params[param] = filter_value.lower()
                 return f"lower({column}) {op} %({param})s"
             self._params[param] = filter_value

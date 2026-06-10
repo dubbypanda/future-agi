@@ -354,10 +354,6 @@ function renderTreeNode(node, onSelect) {
             e.stopPropagation();
             onSelect(node.path);
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(node.path);
-          }}
         >
           {node.label}
         </Typography>
@@ -450,10 +446,6 @@ function ColumnTreeSelect({
                 icon={open ? "mdi:chevron-up" : "mdi:chevron-down"}
                 width={16}
                 sx={{ color: "text.disabled", cursor: "pointer" }}
-                onClick={() => {
-                  setOpen((p) => !p);
-                  setTyping(false);
-                }}
                 onClick={() => {
                   setOpen((p) => !p);
                   setTyping(false);
