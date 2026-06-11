@@ -21,7 +21,9 @@ export const getTaskFilterApiKey = (property) =>
 const TOP_LEVEL_SIBLING_KEY_BY_PROPERTY = {
   observation_type: "observation_type",
   node_type: "observation_type",
+  span_kind: "observation_type",
   session_id: "session_id",
+  trace_id: "trace_id",
 };
 
 // Merge form rows for the same (column_id, op) into one wire entry. Scalar
@@ -117,8 +119,6 @@ const extractSiblingFilters = (filters) => {
   (filters || []).forEach((f) => {
     const beKey = TOP_LEVEL_SIBLING_KEY_BY_PROPERTY[f?.property];
     if (!beKey) return;
-    const apiKey = getTaskFilterApiKey(f?.property);
-    if (!apiKey) return;
     const val = f?.filterConfig?.filterValue;
     const vals = Array.isArray(val)
       ? val
@@ -126,10 +126,10 @@ const extractSiblingFilters = (filters) => {
         ? [val]
         : [];
     if (vals.length === 0) return;
-    if (apiKey in filters) {
-      filters[apiKey].push(...vals);
+    if (out[beKey]) {
+      out[beKey].push(...vals);
     } else {
-      filters[apiKey] = [...vals];
+      out[beKey] = [...vals];
     }
   });
   return out;
