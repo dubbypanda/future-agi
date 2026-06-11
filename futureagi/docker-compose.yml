@@ -328,7 +328,7 @@ services:
       - ./config/clickhouse/config.xml:/etc/clickhouse-server/config.d/custom.xml:ro
       - ./config/clickhouse/users.xml:/etc/clickhouse-server/users.d/custom.xml:ro
       - ./config/clickhouse/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
-      - ./.ci/clickhouse-storage-policy.xml:/etc/clickhouse-server/config.d/storage_policy.xml
+      - ./.ci/clickhouse-storage-policy.xml:/etc/clickhouse-server/config.d/storage_policy.xml:ro
     deploy:
       resources:
         limits:
