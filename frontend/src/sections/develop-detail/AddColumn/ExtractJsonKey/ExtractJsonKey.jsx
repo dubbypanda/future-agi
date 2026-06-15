@@ -1,5 +1,5 @@
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import Iconify from "src/components/iconify";
 import PropTypes from "prop-types";
@@ -21,6 +21,7 @@ import {
 } from "src/api/develop/develop-detail";
 import DynamicColumnSkeleton from "../DynamicColumnSkeleton";
 import { ShowComponent } from "../../../../components/show";
+import { isValidJson } from "src/utils/utils";
 
 const getDefaultValue = () => {
   return {
@@ -59,22 +60,47 @@ export const ExtractJsonKeyChild = ({
   );
   const rows = tableData?.data?.result?.table ?? [];
 
+  // Sample the page-0 unfiltered cache to decide whether an api_call column
+  // looks JSON-shaped. `useGetJsonColumnSchema` is the durable signal for
+  // dataset-level JSON columns, but it doesn't cover api_call response
+  // shapes; until it does, two-row sampling is the cheap stand-in. Fails
+  // OPEN on empty cache — the user landed via a filtered view or the cache
+  // got gc'd — so api_call columns aren't silently dropped from the dropdown.
   const isApiCallColumnWithValidJson = (column) => {
+    if (rows.length === 0) return true;
     for (const row of rows.slice(0, 2)) {
       const cell = row[column.field];
       const value = cell?.cell_value ?? cell?.cellValue;
-      if (value && typeof value === "object") return true;
-      if (value && typeof value === "string") {
-        try {
-          JSON.parse(value);
-          return true;
-        } catch {
-          // not valid JSON
-        }
+      if (
+        value &&
+        typeof value === "object" &&
+        !Array.isArray(value)
+      ) {
+        return true;
       }
+      if (typeof value === "string" && isValidJson(value)) return true;
     }
     return false;
   };
+
+  // Memoize so the predicate doesn't re-parse sampled cells on every
+  // keystroke inside the search-select.
+  const columnOptions = useMemo(
+    () =>
+      allColumns
+        ?.filter(
+          (column) =>
+            column.dataType === "json" ||
+            (column.originType === "api_call" &&
+              isApiCallColumnWithValidJson(column)),
+        )
+        ?.map((column) => ({
+          label: column.headerName,
+          value: column.field,
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allColumns, rows],
+  );
 
   useEffect(() => {
     if (initialData) {
@@ -226,17 +252,7 @@ export const ExtractJsonKeyChild = ({
             size="small"
             control={control}
             fieldName="columnId"
-            options={allColumns
-              ?.filter(
-                (column) =>
-                  column.dataType === "json" ||
-                  (column.originType === "api_call" &&
-                    isApiCallColumnWithValidJson(column)),
-              )
-              ?.map((column) => ({
-                label: column.headerName,
-                value: column.field,
-              }))}
+            options={columnOptions}
             noOptions={"No suitable column"}
           />
           <FormTextFieldV2
