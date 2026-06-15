@@ -82,12 +82,12 @@ urlpatterns = [
         TraceView.as_view({"get": "agent_graph"}),
         name="trace-agent-graph",
     ),
-    # Standard OTLP endpoints
-    path("v1/traces", OTLPTraceView.as_view(), name="otlp-traces"),
-    path("v1/traces/", OTLPTraceView.as_view(), name="otlp-traces-slash"),
+    # Legacy OTLP endpoints — fi-collector is the primary OTLP ingestion path (June 2026; root-level routes in tfc/urls.py also migrated)
+    # path("v1/traces", OTLPTraceView.as_view(), name="otlp-traces"),
+    # path("v1/traces/", OTLPTraceView.as_view(), name="otlp-traces-slash"),
     path("v1/health", OTLPHealthView.as_view(), name="otlp-health"),
     # Legacy endpoint (deprecated, use v1/traces)
-    path("otlp/v1/traces", OTLPTraceHTTPView.as_view(), name="otel-traces-http-legacy"),
+    # path("otlp/v1/traces", OTLPTraceHTTPView.as_view(), name="otel-traces-http-legacy"),
     path("bulk-annotation/", BulkAnnotationView.as_view(), name="bulk-annotations"),
     path(
         "get-annotation-labels/",

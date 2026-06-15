@@ -31,14 +31,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/future-agi/future-agi/fi-collector/pkg/auth"
 	"github.com/future-agi/future-agi/fi-collector/pkg/chwriter"
 	"github.com/future-agi/future-agi/fi-collector/pkg/server"
+	"github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
 )
 
 type rootConfig struct {
 	Writer chwriter.Config `yaml:"writer"`
 	Server server.Config   `yaml:"server"`
+	Auth   auth.Config     `yaml:"auth"`
 	Admin  struct {
 		Addr string `yaml:"addr"` // :9464 default
 	} `yaml:"admin"`
@@ -61,7 +64,28 @@ func main() {
 	}
 	defer writer.Close()
 
-	srv := server.New(cfg.Server, writer)
+	if !cfg.Auth.IsEnabled() {
+		log.Error("FI_PG_WRITE is required — without it the collector cannot resolve API keys or project IDs")
+		os.Exit(1)
+	}
+
+	authenticator, err := auth.New(context.Background(), cfg.Auth, log)
+	if err != nil {
+		log.Error("auth init failed", "err", err)
+		os.Exit(1)
+	}
+	defer authenticator.Close()
+
+	var rdb *redis.Client
+	if cfg.Auth.RedisAddr != "" {
+		rdb = redis.NewClient(&redis.Options{Addr: cfg.Auth.RedisAddr})
+		defer rdb.Close()
+	}
+
+	usageEmitter := auth.NewUsageEmitter(rdb, log)
+	metering := auth.NewMetering(rdb, authenticator.PGRead(), log)
+
+	srv := server.New(cfg.Server, writer, authenticator, usageEmitter, metering, server.WithLogger(log))
 
 	// Admin HTTP server (health + metrics). Kept tiny so it can't share
 	// blast radius with the OTLP receiver — even if it deadlocks, OTLP
@@ -69,7 +93,7 @@ func main() {
 	if cfg.Admin.Addr == "" {
 		cfg.Admin.Addr = ":9464"
 	}
-	go runAdmin(cfg.Admin.Addr, writer, log)
+	go runAdmin(cfg.Admin.Addr, writer, authenticator, log)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -142,12 +166,22 @@ func applyEnvOverrides(c *rootConfig) {
 	if v := os.Getenv("FI_ADMIN_ADDR"); v != "" {
 		c.Admin.Addr = v
 	}
+	// Auth overrides (auth is active when PG_WRITE is set)
+	if v := os.Getenv("FI_PG_WRITE"); v != "" {
+		c.Auth.PGWrite = v
+	}
+	if v := os.Getenv("FI_PG_READ"); v != "" {
+		c.Auth.PGRead = v
+	}
+	if v := os.Getenv("FI_AUTH_REDIS_ADDR"); v != "" {
+		c.Auth.RedisAddr = v
+	}
 }
 
 // runAdmin serves health + Prometheus-format metrics. Built without
 // pulling in github.com/prometheus/client_golang because the surface we
 // expose is two counters — handing back text is ~10 lines.
-func runAdmin(addr string, w *chwriter.Writer, log *slog.Logger) {
+func runAdmin(addr string, w *chwriter.Writer, a *auth.Authenticator, log *slog.Logger) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(rw http.ResponseWriter, r *http.Request) {
 		s := w.Snapshot()
@@ -174,6 +208,16 @@ func runAdmin(addr string, w *chwriter.Writer, log *slog.Logger) {
 		// tracked separately so it never affects /healthz (which is span-only).
 		fmt.Fprintf(rw, "# TYPE ficollector_curated_batches_inserted_total counter\nficollector_curated_batches_inserted_total %d\n", s.CuratedBatchesInserted)
 		fmt.Fprintf(rw, "# TYPE ficollector_curated_batches_failed_total counter\nficollector_curated_batches_failed_total %d\n", s.CuratedBatchesFailed)
+		// Auth stats
+		if a != nil {
+			as := a.Snapshot()
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_cache_hits_total counter\nficollector_auth_cache_hits_total %d\n", as.CacheHits)
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_cache_misses_total counter\nficollector_auth_cache_misses_total %d\n", as.CacheMisses)
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_stale_serves_total counter\nficollector_auth_stale_serves_total %d\n", as.StaleServes)
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_denied_total counter\nficollector_auth_denied_total %d\n", as.Denied)
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_pg_errors_total counter\nficollector_auth_pg_errors_total %d\n", as.PGErrors)
+			fmt.Fprintf(rw, "# TYPE ficollector_auth_cache_size gauge\nficollector_auth_cache_size %d\n", as.CacheSize)
+		}
 	})
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

@@ -60,7 +60,8 @@ urlpatterns = [
     # Standard OTLP Endpoints (OpenTelemetry Protocol)
     # https://opentelemetry.io/docs/specs/otlp/
     # ===========================================
-    re_path(r"^v1/traces/?$", OTLPTraceView.as_view(), name="otlp-traces"),
+    # Migrated to fi-collector service (June 2026)
+    # re_path(r"^v1/traces/?$", OTLPTraceView.as_view(), name="otlp-traces"),
     path("v1/health", OTLPHealthView.as_view(), name="otlp-health"),
     # ===========================================
     # Application Routes
