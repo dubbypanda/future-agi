@@ -213,7 +213,7 @@ class TestUsersExport:
 
         with (
             patch(
-                "tracer.views.trace.UserListQueryBuilder",
+                "tracer.services.users_list_manager.UserListQueryBuilder",
                 wraps=__import__(
                     "tracer.services.clickhouse.query_builders.user_list",
                     fromlist=["UserListQueryBuilder"],
@@ -351,7 +351,7 @@ class TestUsersExport:
 
         with (
             patch(
-                "tracer.views.trace.UserListQueryBuilder",
+                "tracer.services.users_list_manager.UserListQueryBuilder",
                 wraps=__import__(
                     "tracer.services.clickhouse.query_builders.user_list",
                     fromlist=["UserListQueryBuilder"],

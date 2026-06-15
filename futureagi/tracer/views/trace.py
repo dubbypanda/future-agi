@@ -3,7 +3,6 @@ import io
 import json
 import math
 import traceback
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -77,11 +76,11 @@ from tracer.services.clickhouse.graph_dispatch import (
 )
 from tracer.services.clickhouse.query_builders import (
     AgentGraphQueryBuilder,
-    UserListQueryBuilder,
 )
 from tracer.services.clickhouse.query_builders.base import NIL_UUID
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 from tracer.services.observability_providers import ObservabilityService
+from tracer.services.users_list_manager import UsersListManager
 from tracer.utils.annotations import (
     build_annotation_subqueries as _build_annotation_subqueries_impl,
 )
@@ -101,73 +100,6 @@ ERROR_RESPONSES = {
     400: ApiErrorResponseSerializer,
     500: ApiErrorResponseSerializer,
 }
-
-
-def _users_attr_enrichment_query(project_id=None):
-    """Build the Observe-Users span-attribute enrichment query (UsersView.get).
-
-    P3b step1.5 (DESIGN §3 / id_remap_sql) — DUAL id-remap resolution so a
-    cross-cutover straddler's attributes unify under the OLD curated id:
-
-      1. MATCH: the per-user filter is keyed by the OLD curated ``EndUser.id``
-         (``%(eu_ids)s``), but a straddler's NEW (deterministic-id) spans carry
-         ``end_user_id = new_id``. Resolve each span new→old through
-         ``end_user_id_remap`` and filter on the RESOLVED id, so the old-id set
-         pulls in the new-id spans too.
-      2. KEY: re-project the RESOLVED id AS ``end_user_id`` so the caller's
-         Python aggregation (``user_attrs[uid]``) buckets a straddler's new-id
-         spans under the OLD id — without this the attributes would land under
-         the raw new id and never merge into the (old-id) user row.
-
-    The committed read used ``PREWHERE end_user_id IN %(eu_ids)s``; PREWHERE
-    cannot reference a joined column, so the resolve+filter moves to a wrapped
-    scan's ``WHERE`` (``resolved_id_expr`` is the zero-uuid-guarded new→old map —
-    NOT a COALESCE; an unmatched LEFT JOIN fills ``old_id`` with the zero-uuid,
-    not NULL; see id_remap_sql). Pre-flip NO span matches a ``new_id`` so the
-    resolved id == the span's own id and this is result-identical to the
-    committed read (acceptance gate B).
-
-    Returns ``(sql, params)`` where ``params`` carries the project binding (if
-    any); the caller binds ``%(eu_ids)s`` (and ``%(attr_pid)s`` when scoped).
-    """
-    from tracer.services.clickhouse.v2.id_remap_sql import (
-        remap_left_join,
-        resolved_id_expr,
-    )
-
-    params: dict = {}
-    project_clause = ""
-    if project_id:
-        params["attr_pid"] = str(project_id)
-        project_clause = "AND project_id = toUUID(%(attr_pid)s)"
-
-    remap_join = remap_left_join("end_user_id", "end_user_id_remap")
-    resolved = resolved_id_expr("end_user_id")
-    sql = f"""
-    SELECT
-        resolved_end_user_id AS end_user_id,
-        attributes_extra,
-        attrs_string,
-        attrs_number
-    FROM (
-        SELECT
-            {resolved} AS resolved_end_user_id,
-            attributes_extra,
-            attrs_string,
-            attrs_number
-        FROM spans
-        {remap_join}
-        WHERE is_deleted = 0
-          {project_clause}
-          AND (
-            (attributes_extra != '{{}}' AND attributes_extra != '')
-            OR length(mapKeys(attrs_string)) > 0
-            OR length(mapKeys(attrs_number)) > 0
-          )
-    )
-    WHERE resolved_end_user_id IN %(eu_ids)s
-    """
-    return sql, params
 
 
 class TraceTagsUpdateSerializer(serializers.Serializer):
@@ -4684,70 +4616,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             return self._gm.bad_request("Failed to compute agent graph")
 
 
-USERS_EXPORT_COLUMNS = [
-    ("User ID", "user_id"),
-    ("User ID Type", "user_id_type"),
-    ("User ID Hash", "user_id_hash"),
-    ("First Active", "activated_at"),
-    ("Last Active", "last_active"),
-    ("No. of Traces", "num_traces"),
-    ("No. of Sessions", "num_sessions"),
-    ("Avg Session Duration (s)", "avg_session_duration"),
-    ("Total Tokens", "total_tokens"),
-    ("Total Cost ($)", "total_cost"),
-    ("Avg Latency / Trace (ms)", "avg_trace_latency"),
-    ("No. of LLM Calls", "num_llm_calls"),
-    ("Guardrails Triggered", "num_guardrails_triggered"),
-    ("Evals Pass Rate (%)", "bool_eval_pass_rate"),
-    ("Input Tokens", "input_tokens"),
-    ("Output Tokens", "output_tokens"),
-]
-
-
-# Characters that Excel / Google Sheets treat as the start of a formula. Any
-# cell beginning with one of these executes on open, so customer-controlled
-# strings (notably `user_id`) must be neutralized by prefixing a single quote.
-_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
-
-
-def _format_users_export_cell(value):
-    if value is None:
-        return ""
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, str) and value.startswith(_CSV_FORMULA_TRIGGERS):
-        return "'" + value
-    return value
-
-
-def _stream_users_csv(rows, project_id):
-    def generate():
-        buffer = io.StringIO()
-        writer = csv.writer(buffer)
-        writer.writerow([header for header, _ in USERS_EXPORT_COLUMNS])
-        yield buffer.getvalue()
-        buffer.seek(0)
-        buffer.truncate()
-        for row in rows:
-            writer.writerow(
-                [
-                    _format_users_export_cell(row.get(field))
-                    for _, field in USERS_EXPORT_COLUMNS
-                ]
-            )
-            yield buffer.getvalue()
-            buffer.seek(0)
-            buffer.truncate()
-
-    filename = (
-        f"users_{project_id or 'all'}_"
-        f"{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.csv"
-    )
-    response = StreamingHttpResponse(generate(), content_type="text/csv")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
-
-
 class UsersView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
@@ -4759,166 +4627,51 @@ class UsersView(APIView):
         produces=["application/json", "text/csv"],
     )
     def get(self, request, *args, **kwargs):
-        """
-        List traces filtered by project ID with optimized queries.
+        """List Observe end-users (JSON) or stream them as CSV (``export=true``).
+
+        Deserializes the request and delegates all work to ``UsersListManager``.
         """
         try:
             query_data = request.validated_query_data
 
-            project_id = query_data.get("project_id") or None
-            project_id = str(project_id) if project_id else None
-            search = query_data.get("search", "")
-            page_size = query_data.get("page_size", 30)
-            current_page = query_data.get("current_page_index", 0)
-            search_name = search.strip() if search else None
-            organization_id = request.user.organization.id
-            sort_params = query_data.get("sort_params", [])
-            filters = query_data.get("filters", [])
             export = bool(query_data.get("export"))
+            search = query_data.get("search", "")
 
-            # Convert string parameters to appropriate types
             try:
-                page_size = int(page_size)
-                current_page = int(current_page)
+                page_size = int(query_data.get("page_size", 30))
+                current_page = int(query_data.get("current_page_index", 0))
             except (ValueError, TypeError):
                 page_size = 10
                 current_page = 0
-            if export:
-                limit = None
-                offset = None
-            else:
-                limit = page_size
-                offset = current_page * page_size
 
-            # CH25 EndUser cutover (DESIGN §4.3): the curated source is now the
-            # v2 `end_users` RMT, which has NO `workspace_id` column (schema
-            # 017). The legacy `tracer_enduser.workspace_id` filter was this
-            # view's ONLY server-side workspace guard, so isolation must now
-            # route through the workspace's projects. Resolve the allowed
-            # project set (the is_default / null-workspace fan-out is encoded by
-            # `_project_queryset_for_request`); if a specific project_id was
-            # requested, keep it only when it is in scope (else the result is
-            # empty — never an org-wide scan).
-            allowed_project_ids = list(
-                _project_queryset_for_request(request).values_list("id", flat=True)
+            # Workspace isolation is request-bound, so resolve the allowed
+            # projects here and pass the plain list to the manager (CH25: the
+            # curated source has no workspace_id column to filter on).
+            manager = UsersListManager(
+                organization_id=request.user.organization.id,
+                allowed_project_ids=list(
+                    _project_queryset_for_request(request).values_list("id", flat=True)
+                ),
+                project_id=query_data.get("project_id") or None,
+                search=search.strip() if search else None,
+                filters=query_data.get("filters", []),
+                sort_params=query_data.get("sort_params", []),
             )
-            allowed_project_id_strs = {str(p) for p in allowed_project_ids}
-            empty_scope = False
-            if project_id:
-                if project_id in allowed_project_id_strs:
-                    scoped_project_ids = [project_id]
-                else:
-                    scoped_project_ids = []
-                    empty_scope = True
-            else:
-                scoped_project_ids = [str(p) for p in allowed_project_ids]
-                empty_scope = not scoped_project_ids
-
-            analytics = AnalyticsQueryService()
-            builder = UserListQueryBuilder(
-                organization_id=str(organization_id),
-                project_ids=scoped_project_ids,
-                search=search_name,
-                limit=limit,
-                offset=offset,
-                filters=filters,
-                sort_params=sort_params,
-                empty_scope=empty_scope,
-            )
-            query, params = builder.build()
-            result = analytics.execute_ch_query(query, params, timeout_ms=30000)
-            formatted = builder.format_rows(result.data)
-            output = formatted["table"]
-            count = formatted["total_count"]
 
             if export:
-                return _stream_users_csv(output, project_id)
+                response = StreamingHttpResponse(
+                    manager.iter_export_csv(manager.export_rows()),
+                    content_type="text/csv",
+                )
+                response["Content-Disposition"] = (
+                    f'attachment; filename="{manager.export_filename()}"'
+                )
+                return response
 
-            # Enrich with aggregated span attributes from ClickHouse
-            end_user_ids = [
-                r.get("end_user_id") for r in output if r.get("end_user_id")
-            ]
-            if end_user_ids:
-                try:
-                    analytics = AnalyticsQueryService()
-                    _SKIP_ATTR_PREFIXES = (
-                        "raw.",
-                        "llm.input_messages",
-                        "llm.output_messages",
-                        "input.value",
-                        "output.value",
-                    )
-                    # P3b step1.5: resolve end_user_id new→old (filter + key) so a
-                    # straddler's new-id span attributes unify under the OLD id.
-                    # See `_users_attr_enrichment_query`.
-                    attr_query, attr_params = _users_attr_enrichment_query(
-                        project_id=project_id
-                    )
-                    attr_params["eu_ids"] = tuple(str(e) for e in end_user_ids)
-                    attr_result = analytics.execute_ch_query(
-                        attr_query, attr_params, timeout_ms=30000
-                    )
-                    # Aggregate per user
-                    user_attrs: dict = {}
-                    for attr_row in attr_result.data:
-                        uid = str(attr_row.get("end_user_id", ""))
-                        raw = attr_row.get("attributes_extra", "{}")
-                        try:
-                            attrs = (
-                                json.loads(raw) if isinstance(raw, str) else (raw or {})
-                            )
-                        except (json.JSONDecodeError, TypeError):
-                            attrs = {}
-                        # Fallback: merge from typed Map columns when raw is empty
-                        if not attrs:
-                            str_map = attr_row.get("attrs_string") or {}
-                            num_map = attr_row.get("attrs_number") or {}
-                            if isinstance(str_map, dict):
-                                attrs.update(str_map)
-                            if isinstance(num_map, dict):
-                                for k, v in num_map.items():
-                                    if k not in attrs:
-                                        attrs[k] = v
-                        if uid not in user_attrs:
-                            user_attrs[uid] = {}
-                        for key, value in attrs.items():
-                            if key.startswith(_SKIP_ATTR_PREFIXES):
-                                continue
-                            if isinstance(value, str) and len(value) > 500:
-                                continue
-                            if key not in user_attrs[uid]:
-                                user_attrs[uid][key] = (
-                                    set()
-                                    if isinstance(value, (str, int, float, bool))
-                                    else []
-                                )
-                            if isinstance(value, (str, int, float, bool)):
-                                user_attrs[uid][key].add(
-                                    value
-                                    if not isinstance(value, bool)
-                                    else str(value).lower()
-                                )
-                    # Merge into output rows
-                    for entry in output:
-                        euid = str(entry.get("end_user_id", ""))
-                        for key, values in user_attrs.get(euid, {}).items():
-                            if key not in entry:
-                                if isinstance(values, set):
-                                    vals = sorted(values, key=str)
-                                    entry[key] = vals[0] if len(vals) == 1 else vals
-                                else:
-                                    entry[key] = values
-                except Exception as e:
-                    logger.warning(f"User span attribute enrichment failed: {e}")
-
-            final_output = {
-                "table": output,
-                "total_count": count,
-                "total_pages": (count // page_size)
-                + (1 if count % page_size > 0 else 0),
-            }
-
-            return self._gm.success_response(final_output)
+            payload = manager.list_payload(
+                page_size=page_size, current_page=current_page
+            )
+            return self._gm.success_response(payload)
 
         except Exception as e:
             logger.exception(f"ERROR {e}")
