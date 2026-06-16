@@ -43,6 +43,13 @@ import {
 } from "src/hooks/useDashboards";
 import { format } from "date-fns";
 import Iconify from "src/components/iconify";
+import {
+  DATE_PRESETS,
+  WIDTH_OPTIONS,
+  MIN_WIDGET_HEIGHT,
+  DEFAULT_WIDGET_HEIGHT,
+  DATE_CHIP_SX,
+} from "./constants";
 import CustomDateRangePicker from "src/components/custom-datepicker/DatePicker";
 import WidgetChart from "./WidgetChart";
 import { resolveGlobalDateRange } from "./dashboardDateRange";
@@ -56,38 +63,6 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const DATE_PRESETS = [
-  { label: "Custom", value: "custom" },
-  { label: "Today", value: "today" },
-  { label: "Yesterday", value: "yesterday" },
-  { label: "7D", value: "7D" },
-  { label: "30D", value: "30D" },
-  { label: "3M", value: "3M" },
-  { label: "6M", value: "6M" },
-  { label: "12M", value: "12M" },
-];
-
-const WIDTH_OPTIONS = [
-  { label: "1/4 width", value: 3, icon: "mdi:view-column-outline" },
-  { label: "1/3 width", value: 4, icon: "mdi:view-column-outline" },
-  { label: "1/2 width", value: 6, icon: "mdi:view-split-vertical" },
-  { label: "Full width", value: 12, icon: "mdi:view-sequential-outline" },
-];
-
-const MIN_WIDGET_HEIGHT = 120;
-const DEFAULT_WIDGET_HEIGHT = 320;
-
-// Shared style for the date-filter chips (font from theme, not hardcoded).
-const DATE_CHIP_SX = {
-  typography: "caption",
-  fontWeight: "fontWeightMedium",
-  height: 28,
-  borderRadius: "6px",
-};
 
 /** Group a flat sorted widget list into rows based on cumulative widths.
  *  Widgets in each row are normalized so their widths sum to exactly 12. */
