@@ -46,7 +46,7 @@ services:
       - "8888:8888"
       - "50051:50051"
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -56,8 +56,8 @@ services:
       - TEMPORAL_HOST=temporal:7233
       - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
       - FAST_STARTUP=${FAST_STARTUP:-true}
-      - AGENTCC_INTERNAL_URL=http://agentcc-gateway:8080
-      - AGENTCC_GATEWAY_INTERNAL_URL=http://agentcc-gateway:8080
+      - AGENTCC_INTERNAL_URL=http://agentcc-gateway:8090
+      - AGENTCC_GATEWAY_INTERNAL_URL=http://agentcc-gateway:8090
       - AGENTCC_INTERNAL_API_KEY=${AGENTCC_INTERNAL_API_KEY:-}
       - CH25_DATABASE=${CH25_DATABASE:-futureagi}
       # Read replica: uncomment to test read/write split locally (points to same DB).
@@ -141,7 +141,7 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: '2'
+          cpus: "2"
 
   # ===========================================
   # Celery Workers (commented - using Temporal instead)
@@ -327,12 +327,12 @@ services:
       - clickhouse_data:/var/lib/clickhouse
       - ./config/clickhouse/config.xml:/etc/clickhouse-server/config.d/custom.xml:ro
       - ./config/clickhouse/users.xml:/etc/clickhouse-server/users.d/custom.xml:ro
-      - ./config/clickhouse/default-user-override.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
+      - ./config/clickhouse/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
       - ./.ci/clickhouse-storage-policy.xml:/etc/clickhouse-server/config.d/storage_policy.xml:ro
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: "2.0"
           memory: 4G
     healthcheck:
       test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
@@ -507,7 +507,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -533,7 +533,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -559,7 +559,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -585,7 +585,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -611,7 +611,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
@@ -637,7 +637,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app/backend
     volumes:
-      - '.:/app/backend'
+      - ".:/app/backend"
     env_file:
       - .env
     environment:
