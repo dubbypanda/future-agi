@@ -25,6 +25,7 @@ Imports are lazy (inside the tests) to avoid importing the clickhouse package at
 collection time — see test_ch25_filter_compiler.py / the annotation_graph &
 time_series circular-import notes.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -152,7 +153,8 @@ class TestListBuilderOutputContract:
             method = getattr(builder, name)
             sig = inspect.signature(method)
             required = [
-                p for p in sig.parameters.values()
+                p
+                for p in sig.parameters.values()
                 if p.default is inspect.Parameter.empty
                 and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
             ]

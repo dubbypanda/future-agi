@@ -8,6 +8,7 @@ routes every inherited `build*` method's SQL through the v2 rewriter at one
 boundary. All of this builder's queries target the migrated `spans` schema, so
 there are no rewrite exclusions.
 """
+
 from __future__ import annotations
 
 from tracer.services.clickhouse.query_builders.session_list import (

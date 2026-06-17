@@ -15,7 +15,7 @@ Supports annotation output types:
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.expressions import (
@@ -52,12 +52,12 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
         project_id: str,
         annotation_label_id: str,
         annotation_name: str = "",
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         interval: str = "hour",
         output_type: str = "float",
         value: Any = None,
-        filters: Optional[List[Dict]] = None,
+        filters: list[dict] | None = None,
         observe_type: str = "trace",
         **kwargs: Any,
     ) -> None:
@@ -93,7 +93,7 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
     # Public API
     # ------------------------------------------------------------------
 
-    def build(self) -> Tuple[str, Dict[str, Any]]:
+    def build(self) -> tuple[str, dict[str, Any]]:
         """Build the annotation graph query."""
         if self.output_type == "float":
             return self._build_float_query()
@@ -109,9 +109,9 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
 
     def format_result(
         self,
-        rows: List[Tuple],
-        columns: List[str],
-    ) -> Dict[str, Any]:
+        rows: list[tuple],
+        columns: list[str],
+    ) -> dict[str, Any]:
         """Format the query results into the standard annotation graph response.
 
         Returns:
@@ -191,7 +191,7 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
           )
         """
 
-    def _build_float_query(self) -> Tuple[str, Dict[str, Any]]:
+    def _build_float_query(self) -> tuple[str, dict[str, Any]]:
         """Average numeric/star annotation value per time bucket."""
         bucket_fn = self.time_bucket_expr(self.interval)
         # Use the nullable extractor so rows whose JSON payload is missing
@@ -214,7 +214,7 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
         """
         return query, self.params
 
-    def _build_bool_query(self) -> Tuple[str, Dict[str, Any]]:
+    def _build_bool_query(self) -> tuple[str, dict[str, Any]]:
         """Percentage of annotations matching the requested bool value."""
         bucket_fn = self.time_bucket_expr(self.interval)
 
@@ -246,7 +246,7 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
         """
         return query, self.params
 
-    def _build_str_list_query(self) -> Tuple[str, Dict[str, Any]]:
+    def _build_str_list_query(self) -> tuple[str, dict[str, Any]]:
         """Percentage of annotations containing the requested choice."""
         bucket_fn = self.time_bucket_expr(self.interval)
 
@@ -280,7 +280,7 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
         """
         return query, self.params
 
-    def _build_text_query(self) -> Tuple[str, Dict[str, Any]]:
+    def _build_text_query(self) -> tuple[str, dict[str, Any]]:
         """Count of annotations per time bucket."""
         bucket_fn = self.time_bucket_expr(self.interval)
         query = f"""

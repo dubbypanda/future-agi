@@ -8,6 +8,7 @@ returns `[(sql, params, meta), …]`. `V2RewriteMixin` routes both through the v
 rewriter at one boundary (it handles both the `(sql, params)` and the
 list-of-triples return shapes).
 """
+
 from __future__ import annotations
 
 from tracer.services.clickhouse.query_builders.dashboard import DashboardQueryBuilder

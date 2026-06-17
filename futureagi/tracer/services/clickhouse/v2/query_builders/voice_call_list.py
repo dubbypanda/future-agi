@@ -11,6 +11,7 @@ by the voice observability surface. `V2RewriteMixin` routes every inherited
 `tracer_eval_logger` / `model_hub_score` tables (not part of the CH 25.3
 migration; still carry `_peerdb_is_deleted`) and are excluded from the rewrite.
 """
+
 from __future__ import annotations
 
 from tracer.services.clickhouse.query_builders.voice_call_list import (

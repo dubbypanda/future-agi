@@ -6,6 +6,7 @@ Subclass + post-rewrite. EvalMetrics powers the eval scoreboard panels
 tracer_eval_logger. `V2RewriteMixin` routes the inherited `build()` SQL through
 the v2 rewriter at one boundary.
 """
+
 from __future__ import annotations
 
 from tracer.services.clickhouse.query_builders.eval_metrics import (

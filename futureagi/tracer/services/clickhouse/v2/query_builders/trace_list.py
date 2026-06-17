@@ -16,9 +16,10 @@ NOT part of the CH 25.3 migration and still carry `_peerdb_is_deleted` (the
 spans-side `_peerdb_is_deleted` in those joins resolves via the schema-014
 ALIAS). Rewriting them would break those tables.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from tracer.services.clickhouse.query_builders.trace_list import TraceListQueryBuilder
 from tracer.services.clickhouse.v2.query_builders._rewrite import V2RewriteMixin
@@ -36,7 +37,7 @@ class TraceListQueryBuilderV2(V2RewriteMixin, TraceListQueryBuilder):
 
     _v2_rewrite_exclude = frozenset({"build_eval_query", "build_annotation_query"})
 
-    def build_count_query(self) -> Tuple[str, Dict[str, Any]]:
+    def build_count_query(self) -> tuple[str, dict[str, Any]]:
         """Pagination count.
 
         Fast path: when no per-row filter / search / project-version is set,
@@ -58,8 +59,10 @@ class TraceListQueryBuilderV2(V2RewriteMixin, TraceListQueryBuilder):
         # hour so the time range applies natively). Search/project_version
         # and any attribute filter still require raw scan.
         non_time_filters = [
-            f for f in (self.filters or [])
-            if (f.get("column_id") or f.get("columnId")) not in ("created_at", "start_time")
+            f
+            for f in (self.filters or [])
+            if (f.get("column_id") or f.get("columnId"))
+            not in ("created_at", "start_time")
         ]
         if not non_time_filters and not self.search and not self.project_version_id:
             # Ensure start_date / end_date are bound even if build() wasn't

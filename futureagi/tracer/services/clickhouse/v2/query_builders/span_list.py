@@ -13,6 +13,7 @@ tables are NOT part of the CH 25.3 migration (eval results stay in PG;
 annotations live in their own CDC'd table) and still carry `_peerdb_is_deleted`.
 They are excluded from the rewrite via `_v2_rewrite_exclude`.
 """
+
 from __future__ import annotations
 
 from tracer.services.clickhouse.query_builders.span_list import SpanListQueryBuilder

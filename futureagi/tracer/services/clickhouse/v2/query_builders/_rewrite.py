@@ -28,10 +28,11 @@ NOTE: the filter builder (`ClickHouseFilterBuilderV2`) deliberately does NOT use
 this mixin — its `translate` / `translate_sort` emit WHERE/ORDER *fragments* that
 must not carry a trailing SETTINGS clause (would be a syntax error).
 """
+
 from __future__ import annotations
 
 import functools
-from typing import Callable
+from collections.abc import Callable
 
 from tracer.services.clickhouse.v2.query_builders.filters import (
     rewrite_and_apply_v2_settings,
@@ -66,9 +67,13 @@ def _rewrite_sql_in(result: object) -> object:
         return rewrite_and_apply_v2_settings(sql), params
 
     # [(sql, params, meta), ...] — dashboard.build_all_queries.
-    if isinstance(result, list) and result and all(
-        isinstance(el, tuple) and len(el) >= 1 and isinstance(el[0], str)
-        for el in result
+    if (
+        isinstance(result, list)
+        and result
+        and all(
+            isinstance(el, tuple) and len(el) >= 1 and isinstance(el[0], str)
+            for el in result
+        )
     ):
         rewritten = []
         for el in result:
