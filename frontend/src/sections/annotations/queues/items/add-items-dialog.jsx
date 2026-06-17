@@ -42,6 +42,7 @@ import { isEqual } from "lodash";
 import "src/sections/develop-detail/DataTab/developDataGrid.css";
 import SvgColor from "src/components/svg-color";
 import axios, { endpoints } from "src/utils/axios";
+import { stripUiFilterKeys } from "src/components/ComplexFilter/common";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import { useTestRunsList } from "src/api/tests/testRuns";
@@ -4252,7 +4253,7 @@ function SimulationSelector({ onSetSelection }) {
   );
 
   const serializedFilters = useMemo(
-    () => JSON.stringify(validatedFilters || []),
+    () => JSON.stringify(stripUiFilterKeys(validatedFilters)),
     [validatedFilters],
   );
 
