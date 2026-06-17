@@ -110,13 +110,13 @@ export default function ErrorFeedDetailView() {
     return {
       ...detail.row,
       description: detail.description,
-      successTrace: detail.successTrace,
-      representativeTrace: detail.representativeTrace,
+      success_trace: detail.success_trace,
+      representative_trace: detail.representative_trace,
       rca: detail.rca,
     };
   }, [detail]);
 
-  useAnalyzeRunner(currentError?.clusterId, currentError);
+  useAnalyzeRunner(currentError?.cluster_id, currentError);
 
   if (isLoading || !currentError) {
     return <DetailSkeleton />;
@@ -245,7 +245,7 @@ export default function ErrorFeedDetailView() {
                 {/* Cluster badge */}
                 <Chip
                   icon={<Iconify icon="mdi:layers-outline" width={12} />}
-                  label={`${currentError.traceCount?.toLocaleString()} traces`}
+                  label={`${currentError.trace_count?.toLocaleString()} traces`}
                   size="small"
                   sx={{
                     height: 20,
@@ -300,7 +300,7 @@ export default function ErrorFeedDetailView() {
                 disabled={updateIssue.isPending}
                 onClick={() =>
                   updateIssue.mutate({
-                    clusterId: currentError.clusterId,
+                    clusterId: currentError.cluster_id,
                     status: "resolved",
                   })
                 }
@@ -324,7 +324,7 @@ export default function ErrorFeedDetailView() {
                 disabled={updateIssue.isPending}
                 onClick={() =>
                   updateIssue.mutate({
-                    clusterId: currentError.clusterId,
+                    clusterId: currentError.cluster_id,
                     status: "acknowledged",
                   })
                 }
@@ -346,7 +346,7 @@ export default function ErrorFeedDetailView() {
                 disabled={updateIssue.isPending}
                 onClick={() =>
                   updateIssue.mutate({
-                    clusterId: currentError.clusterId,
+                    clusterId: currentError.cluster_id,
                     status: "escalating",
                   })
                 }
@@ -406,7 +406,7 @@ export default function ErrorFeedDetailView() {
                     icon={tab.icon}
                     count={
                       tab.key === "traces"
-                        ? currentError?.traceCount
+                        ? currentError?.trace_count
                         : undefined
                     }
                   />
@@ -447,7 +447,7 @@ export default function ErrorFeedDetailView() {
                       error={currentError}
                       onOpenAnalyze={() => setActiveTab("analyze")}
                       onStartAnalysis={() => {
-                        setAnalyzePendingStart(currentError.clusterId, true);
+                        setAnalyzePendingStart(currentError.cluster_id, true);
                         setActiveTab("analyze");
                       }}
                       onCreateLinear={() => setLinearPickerOpen(true)}
@@ -475,7 +475,7 @@ export default function ErrorFeedDetailView() {
       <LinearTeamPicker
         open={linearPickerOpen}
         onClose={() => setLinearPickerOpen(false)}
-        clusterId={currentError?.clusterId}
+        clusterId={currentError?.cluster_id}
         traceId={null}
       />
     </Box>

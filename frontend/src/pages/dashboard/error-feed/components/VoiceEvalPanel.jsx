@@ -608,7 +608,7 @@ export default function VoiceEvalPanel({ trace, evalScore, successTraceId }) {
   const passCall = useVoiceCallData(splitView ? successTraceId : null);
 
   const evidence = trace?.evidence ?? {};
-  const judgeReason = evidence.judgeReason ?? evidence.judge_reason ?? null;
+  const judgeReason = evidence.judge_reason ?? null;
   const judgeScore =
     evidence.score ?? (typeof evalScore === "number" ? evalScore : null);
 

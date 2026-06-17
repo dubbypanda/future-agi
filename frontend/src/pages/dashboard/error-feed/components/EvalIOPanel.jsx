@@ -170,7 +170,7 @@ export default function EvalIOPanel({ trace, evalScore }) {
     return {
       input: ev.input ?? trace?.input ?? null,
       output: ev.output ?? trace?.output ?? null,
-      judgeReason: ev.judgeReason ?? trace?.judgeReason ?? null,
+      judgeReason: ev.judge_reason ?? trace?.judge_reason ?? null,
       score: evalScore ?? ev.score ?? null,
     };
   }, [trace, evalScore]);

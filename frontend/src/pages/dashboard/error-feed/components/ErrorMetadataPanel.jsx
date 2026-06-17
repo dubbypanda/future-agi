@@ -813,8 +813,8 @@ function CoOccurringList({ issues }) {
               </Typography>
               <Typography fontSize="10px" color="text.secondary">
                 {issue.count?.toLocaleString()} shared
-                {issue.coOccurrence != null &&
-                  ` · ${Math.round(issue.coOccurrence * 100)}%`}
+                {issue.co_occurrence != null &&
+                  ` · ${Math.round(issue.co_occurrence * 100)}%`}
               </Typography>
             </Stack>
           </Stack>
@@ -1174,34 +1174,34 @@ export default function ErrorMetadataPanel({ error }) {
 
   const setSeverity = (val) => {
     setSeverityLocal(val);
-    updateIssue.mutate({ clusterId: error?.clusterId, severity: val });
+    updateIssue.mutate({ clusterId: error?.cluster_id, severity: val });
   };
   const setAssignee = (val) => {
     setAssigneeLocal(val);
-    updateIssue.mutate({ clusterId: error?.clusterId, assignee: val });
+    updateIssue.mutate({ clusterId: error?.cluster_id, assignee: val });
   };
 
   const selectedTraceId = useErrorFeedStore(
-    (s) => s.selectedTraceIdByCluster[error?.clusterId] ?? null,
+    (s) => s.selectedTraceIdByCluster[error?.cluster_id] ?? null,
   );
   const { data: sidebar, isLoading: isSidebarLoading } = useErrorFeedSidebar(
-    error?.clusterId,
+    error?.cluster_id,
     selectedTraceId,
   );
   const sidebarPending = isSidebarLoading && !sidebar;
   // Must match OverviewTab's trace source or the two read different cache entries.
   const effectiveTraceId =
-    selectedTraceId ?? sidebar?.aiMetadata?.traceId ?? null;
+    selectedTraceId ?? sidebar?.ai_metadata?.trace_id ?? null;
 
   if (!error) return null;
 
-  // Prefer backend-computed ageDays; fall back to client calc if sidebar
+  // Prefer backend-computed age_days; fall back to client calc if sidebar
   // hasn't loaded yet so the UI still renders something.
-  const fallbackAgeMs = error.firstSeen
-    ? Date.now() - new Date(error.firstSeen).getTime()
+  const fallbackAgeMs = error.first_seen
+    ? Date.now() - new Date(error.first_seen).getTime()
     : null;
   const ageDays =
-    sidebar?.timeline?.ageDays ??
+    sidebar?.timeline?.age_days ??
     (fallbackAgeMs ? Math.floor(fallbackAgeMs / (1000 * 60 * 60 * 24)) : null);
 
   const qualityScores = (sidebar?.evaluations ?? []).map((ev) => ({
@@ -1211,14 +1211,14 @@ export default function ErrorMetadataPanel({ error }) {
     score: ev.score ?? undefined,
     value: ev.value ?? undefined,
   }));
-  const coOccurringIssues = sidebar?.coOccurringIssues ?? [];
+  const coOccurringIssues = sidebar?.co_occurring_issues ?? [];
 
-  const activityLog = error.firstSeen
+  const activityLog = error.first_seen
     ? [
         {
           color: "#F5A623",
           text: "First detected",
-          meta: `System · ${error.firstSeenHuman ?? humanizeTime(error.firstSeen)}${
+          meta: `System · ${error.firstSeenHuman ?? humanizeTime(error.first_seen)}${
             ageDays != null ? ` — ${ageDays} days open` : ""
           }`,
         },
@@ -1244,7 +1244,7 @@ export default function ErrorMetadataPanel({ error }) {
           <Stack gap={0.9}>
             <FieldRow label="Status">
               <StatusDropdown
-                clusterId={error.clusterId}
+                clusterId={error.cluster_id}
                 current={error.status}
               />
             </FieldRow>
@@ -1269,12 +1269,12 @@ export default function ErrorMetadataPanel({ error }) {
             {[
               {
                 label: "Traces",
-                value: error.traceCount?.toLocaleString(),
+                value: error.trace_count?.toLocaleString(),
                 icon: "mdi:counter",
               },
               {
                 label: "Users affected",
-                value: error.usersAffected?.toLocaleString(),
+                value: error.users_affected?.toLocaleString(),
                 icon: "mdi:account-group-outline",
               },
               {
@@ -1284,7 +1284,7 @@ export default function ErrorMetadataPanel({ error }) {
               },
               {
                 label: "Cluster ID",
-                value: error.clusterId,
+                value: error.cluster_id,
                 icon: "mdi:identifier",
               },
             ].map((item) => (
@@ -1326,12 +1326,12 @@ export default function ErrorMetadataPanel({ error }) {
           <Stack gap={0.5}>
             <MetaRow
               label="First seen"
-              value={error.firstSeenHuman ?? humanizeTime(error.firstSeen)}
+              value={error.firstSeenHuman ?? humanizeTime(error.first_seen)}
               icon="mdi:clock-start"
             />
             <MetaRow
               label="Last seen"
-              value={error.lastSeenHuman ?? humanizeTime(error.lastSeen)}
+              value={error.lastSeenHuman ?? humanizeTime(error.last_seen)}
               icon="mdi:clock-outline"
             />
             {ageDays != null && (
@@ -1349,13 +1349,13 @@ export default function ErrorMetadataPanel({ error }) {
           <Stack gap={0.5}>
             <MetaRow
               label="Model"
-              value={sidebar?.aiMetadata?.model ?? error.model}
+              value={sidebar?.ai_metadata?.model ?? error.model}
               icon="mdi:brain"
               monospace
             />
             <MetaRow
               label="Version"
-              value={sidebar?.aiMetadata?.modelVersion ?? error.modelVersion}
+              value={sidebar?.ai_metadata?.model_version ?? error.model_version}
               icon="mdi:tag-outline"
               monospace
             />
@@ -1375,21 +1375,21 @@ export default function ErrorMetadataPanel({ error }) {
             )}
             <MetaRow
               label="Project"
-              value={sidebar?.aiMetadata?.project ?? error.project}
+              value={sidebar?.ai_metadata?.project ?? error.project}
               icon="mdi:folder-outline"
             />
-            {(sidebar?.aiMetadata?.evalScore ?? error.evalScore) != null && (
+            {(sidebar?.ai_metadata?.eval_score ?? error.eval_score) != null && (
               <MetaRow
                 label="Eval score"
                 value={`${(
-                  sidebar?.aiMetadata?.evalScore ?? error.evalScore
+                  sidebar?.ai_metadata?.eval_score ?? error.eval_score
                 ).toFixed(2)} / 1.00`}
                 icon="mdi:chart-line"
               />
             )}
             <MetaRow
               label="Trace ID"
-              value={sidebar?.aiMetadata?.traceId ?? error.traceId}
+              value={sidebar?.ai_metadata?.trace_id ?? error.trace_id}
               icon="mdi:sitemap-outline"
               monospace
             />
@@ -1495,10 +1495,10 @@ export default function ErrorMetadataPanel({ error }) {
             Integrations
           </Typography>
           <Integrations
-            clusterId={error?.clusterId}
+            clusterId={error?.cluster_id}
             traceId={effectiveTraceId}
-            externalIssueUrl={error?.externalIssueUrl}
-            externalIssueId={error?.externalIssueId}
+            externalIssueUrl={error?.external_issue_url}
+            externalIssueId={error?.external_issue_id}
           />
         </Stack>
       </Stack>

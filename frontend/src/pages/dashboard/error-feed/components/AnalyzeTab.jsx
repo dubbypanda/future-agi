@@ -1454,7 +1454,7 @@ const STARTER_SUGGESTIONS = [
 export default function AnalyzeTab({ error }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const clusterId = error?.clusterId;
+  const clusterId = error?.cluster_id;
   const thread = useErrorFeedStore(
     (s) => s.analyzeThreadsByCluster[clusterId] ?? null,
   );
@@ -1576,7 +1576,7 @@ export default function AnalyzeTab({ error }) {
           {error?.error?.name ?? "Cluster"}
         </Typography>
         <Typography fontSize="11.5px" color="text.disabled">
-          · {error?.traceCount?.toLocaleString() ?? "—"} traces
+          · {error?.trace_count?.toLocaleString() ?? "—"} traces
         </Typography>
         {startedLabel && (
           <Typography fontSize="11.5px" color="text.disabled">

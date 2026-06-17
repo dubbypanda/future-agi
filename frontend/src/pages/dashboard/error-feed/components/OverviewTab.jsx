@@ -595,10 +595,10 @@ function TraceList({ traces, selectedIndex, onSelect, loading = false }) {
           minute: "2-digit",
         });
         const tokens =
-          (t.summary.inputTokens ?? 0) + (t.summary.outputTokens ?? 0);
+          (t.summary.input_tokens ?? 0) + (t.summary.output_tokens ?? 0);
         const cost = estimateTraceCost(
-          t.summary.inputTokens ?? 0,
-          t.summary.outputTokens ?? 0,
+          t.summary.input_tokens ?? 0,
+          t.summary.output_tokens ?? 0,
         ).toFixed(4);
 
         return (
@@ -665,7 +665,7 @@ function TraceList({ traces, selectedIndex, onSelect, loading = false }) {
                   sx={{ color: "text.disabled" }}
                 />
                 <Typography fontSize="10px" color="text.disabled">
-                  {t.summary.latencyMs}ms
+                  {t.summary.latency_ms}ms
                 </Typography>
               </Stack>
               <Stack direction="row" alignItems="center" gap={0.3}>
@@ -1787,8 +1787,8 @@ function TraceEvidence({ evidence, trace, traceId, workingTraceId }) {
     viewMode === "agentpath";
   const isGraphMode = viewMode === "agentgraph" || viewMode === "agentpath";
 
-  const failReel = evidence.failReel || [];
-  const passReel = evidence.passReel || [];
+  const failReel = evidence.fail_reel || [];
+  const passReel = evidence.pass_reel || [];
   const hasPassing = passReel.length > 0;
 
   const steps = activeReel === "fail" ? failReel : passReel;
@@ -1797,10 +1797,10 @@ function TraceEvidence({ evidence, trace, traceId, workingTraceId }) {
 
   const summary = trace?.summary ?? {};
   const tokens =
-    (summary.inputTokens ?? 0) + (summary.outputTokens ?? 0) || null;
+    (summary.input_tokens ?? 0) + (summary.output_tokens ?? 0) || null;
   const cost =
     summary.cost ??
-    (estimateTraceCost(summary.inputTokens ?? 0, summary.outputTokens ?? 0) ||
+    (estimateTraceCost(summary.input_tokens ?? 0, summary.output_tokens ?? 0) ||
       null);
   const shortId = traceId ? traceId.slice(0, 8) : null;
   // Fail explicitly — an undefined/loading status must not read as "Failing".
@@ -1808,9 +1808,9 @@ function TraceEvidence({ evidence, trace, traceId, workingTraceId }) {
 
   const metaItems = [
     shortId && { icon: "mdi:sitemap-outline", text: shortId, mono: true },
-    summary.latencyMs != null && {
+    summary.latency_ms != null && {
       icon: "mdi:timer-outline",
-      text: `${summary.latencyMs}ms`,
+      text: `${summary.latency_ms}ms`,
     },
     tokens != null && { icon: "mdi:text-box-outline", text: `${tokens} tok` },
     cost != null && { icon: "mdi:currency-usd", text: cost.toFixed(4) },
@@ -2089,7 +2089,7 @@ function CoOccurringIssues({ issues }) {
               </Typography>
             </Stack>
             <Chip
-              label={`${Math.round(issue.coOccurrence * 100)}% co-occurrence`}
+              label={`${Math.round(issue.co_occurrence * 100)}% co-occurrence`}
               size="small"
               sx={{
                 height: 16,
@@ -2209,7 +2209,7 @@ RecSectionLabel.propTypes = { icon: PropTypes.string, label: PropTypes.string };
 function RecommendationCard({ rec, rootCauses, isDark }) {
   const [expanded, setExpanded] = useState(false);
   const pm = PRIORITY_META[rec.priority] || PRIORITY_META.medium;
-  const linkedCause = rootCauses?.find((c) => c.rank === rec.rootCauseLink);
+  const linkedCause = rootCauses?.find((c) => c.rank === rec.root_cause_link);
 
   return (
     <Box
@@ -2339,7 +2339,7 @@ function RecommendationCard({ rec, rootCauses, isDark }) {
                     wordBreak: "break-word",
                   }}
                 >
-                  {rec.immediateFix}
+                  {rec.immediate_fix}
                 </Typography>
               </Box>
             </Box>
@@ -2516,22 +2516,19 @@ export default function OverviewTab({ _error: currentError }) {
   const isDraggingRef = useRef(false);
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const clusterId = currentError?.clusterId;
+  const clusterId = currentError?.cluster_id;
   // A cluster's modality (text vs voice) decides the per-trace surface —
   // the BE derives it from the project's voice agent definition.
   const isVoice = currentError?.modality === "voice";
   const { data: overview, isLoading: isOverviewLoading } =
     useErrorFeedOverview(clusterId);
   const traces = useMemo(
-    () => overview?.representativeTraces ?? [],
+    () => overview?.representative_traces ?? [],
     [overview],
   );
   // BE caps the card list (rep_limit, default 20); full membership lives in
-  // the Traces tab. Wire form is snake_case; camelCase is the axios alias.
-  const repTotal =
-    overview?.representative_total ??
-    overview?.representativeTotal ??
-    traces.length;
+  // the Traces tab.
+  const repTotal = overview?.representative_total ?? traces.length;
 
   // Per-cluster in Zustand so sidebar stays in sync.
   const selectedTraceId = useErrorFeedStore(
@@ -2555,8 +2552,8 @@ export default function OverviewTab({ _error: currentError }) {
     setSelectedTraceId(clusterId, traces[0].id);
   }, [clusterId, traces, selectedTraceId, setSelectedTraceId]);
 
-  const eventsOverTime = overview?.eventsOverTime ?? null;
-  const patternSummary = overview?.patternSummary ?? null;
+  const eventsOverTime = overview?.events_over_time ?? null;
+  const patternSummary = overview?.pattern_summary ?? null;
 
   const selectTrace = (i) => {
     const next = traces[i];
@@ -2800,14 +2797,11 @@ export default function OverviewTab({ _error: currentError }) {
                   {isVoice ? (
                     <VoiceEvalPanel
                       trace={trace}
-                      evalScore={trace?.evalScore}
-                      successTraceId={
-                        currentError?.successTrace?.traceId ??
-                        currentError?.successTrace?.trace_id
-                      }
+                      evalScore={trace?.eval_score}
+                      successTraceId={currentError?.success_trace?.trace_id}
                     />
                   ) : (
-                    <EvalIOPanel trace={trace} evalScore={trace?.evalScore} />
+                    <EvalIOPanel trace={trace} evalScore={trace?.eval_score} />
                   )}
                 </SectionCard>
               ) : (
@@ -2815,7 +2809,7 @@ export default function OverviewTab({ _error: currentError }) {
                   evidence={trace.evidence ?? {}}
                   trace={trace}
                   traceId={trace.id}
-                  workingTraceId={currentError?.successTrace?.traceId}
+                  workingTraceId={currentError?.success_trace?.trace_id}
                 />
               )}
             </Stack>
@@ -2828,11 +2822,10 @@ export default function OverviewTab({ _error: currentError }) {
 
 OverviewTab.propTypes = {
   _error: PropTypes.shape({
-    clusterId: PropTypes.string,
+    cluster_id: PropTypes.string,
     source: PropTypes.string,
     modality: PropTypes.string,
-    successTrace: PropTypes.shape({
-      traceId: PropTypes.string,
+    success_trace: PropTypes.shape({
       trace_id: PropTypes.string,
     }),
   }),

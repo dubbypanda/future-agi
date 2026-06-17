@@ -20,7 +20,7 @@ function useRunnerContext(error) {
   return {
     token: user?.accessToken,
     workspaceId: currentWorkspaceId,
-    projectId: error?.projectId,
+    projectId: error?.project_id,
   };
 }
 

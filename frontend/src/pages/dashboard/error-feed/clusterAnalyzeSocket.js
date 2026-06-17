@@ -322,7 +322,7 @@ export function hydrateFromCache({ clusterId, rca }) {
   if (!clusterId || !rca?.synthesis) return;
   const store = useErrorFeedStore.getState();
   if (store.analyzeThreadsByCluster[clusterId]) return;
-  const analyzedAtIso = rca.analyzed_at ?? rca.analyzedAt;
+  const analyzedAtIso = rca.analyzed_at;
   // Replay the full trail if persisted; else fall back to synthesis-only.
   const trail = Array.isArray(rca.trace) ? rca.trace : [];
   const messages = trail.length

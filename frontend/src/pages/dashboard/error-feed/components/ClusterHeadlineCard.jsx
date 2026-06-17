@@ -38,8 +38,8 @@ function cachedRcaFrom(error) {
     synthesis: rca.synthesis,
     fix: rca.fix,
     confidence: rca.confidence ?? CONFIDENCE.MEDIUM,
-    analyzedAt: formatAnalyzedAt(rca.analyzed_at ?? rca.analyzedAt),
-    failuresAtRun: rca.failures_at_run ?? rca.failuresAtRun ?? null,
+    analyzedAt: formatAnalyzedAt(rca.analyzed_at),
+    failuresAtRun: rca.failures_at_run ?? null,
   };
 }
 
@@ -337,7 +337,7 @@ export default function ClusterHeadlineCard({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const cachedRca = useMemo(() => cachedRcaFrom(error), [error]);
-  const clusterId = error?.clusterId;
+  const clusterId = error?.cluster_id;
 
   const thread = useErrorFeedStore(
     (s) => s.analyzeThreadsByCluster[clusterId] ?? null,
@@ -350,7 +350,7 @@ export default function ClusterHeadlineCard({
     (s) => s.toggleClusterAnalysisCollapsed,
   );
 
-  const category = error?.fixLayer ?? error?.fix_layer ?? "root cause";
+  const category = error?.fix_layer ?? "root cause";
 
   // Runner emits 5 steps; collapse to 3 visual phases (~2 runner steps each).
   const stepMessages = (thread?.messages ?? []).filter(
@@ -575,13 +575,10 @@ export default function ClusterHeadlineCard({
             <AnalyzedState
               data={data}
               linkedIssue={
-                error?.external_issue_url || error?.externalIssueUrl
+                error?.external_issue_url
                   ? {
-                      id:
-                        error?.external_issue_id ??
-                        error?.externalIssueId ??
-                        null,
-                      url: error?.external_issue_url ?? error?.externalIssueUrl,
+                      id: error?.external_issue_id ?? null,
+                      url: error?.external_issue_url,
                     }
                   : null
               }
