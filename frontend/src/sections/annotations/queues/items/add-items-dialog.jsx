@@ -4461,7 +4461,7 @@ function SimulationSelector({ onSetSelection }) {
             </MenuItem>
           )}
           {tests.map((t) => (
-            <MenuItem key={t.id} value={t.id} sx={{ maxWidth: 300 }}>
+            <MenuItem key={t.id} value={t.id} sx={{ width: "100%" }}>
               <CustomTooltip
                 size="small"
                 arrow
@@ -4537,7 +4537,7 @@ function SimulationSelector({ onSetSelection }) {
             {(executionRuns || []).map((run) => {
               const label = formatExecutionRunLabel(run);
               return (
-                <MenuItem key={run.id} value={run.id} sx={{ maxWidth: 340 }}>
+                <MenuItem key={run.id} value={run.id} sx={{ width: "100%" }}>
                   <CustomTooltip
                     size="small"
                     arrow
