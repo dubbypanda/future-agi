@@ -28,6 +28,7 @@ import { useCreditExhaustion } from "src/hooks/use-credit-exhaustion";
 import axios, { endpoints } from "src/utils/axios";
 import { extractCodeEvaluateParams } from "src/utils/codeEvalParams";
 import { extractJinjaVariables } from "src/utils/jinjaVariables";
+import logger from "src/utils/logger";
 import { canonicalEntries } from "src/utils/utils";
 import { camelCaseToTitleCase } from "src/utils/utils";
 import CodeEditor from "./CodeEditor";
@@ -260,7 +261,7 @@ const CustomJsonInput = ({
           setTimeout(() => followUpRef.current?.focus(), 100);
         }
       } catch (err) {
-        console.error("Falcon test-data generation failed", err);
+        logger.error("Falcon test-data generation failed", err);
         enqueueSnackbar("Couldn't generate test data. Please try again.", {
           variant: "error",
         });
