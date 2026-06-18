@@ -1,14 +1,13 @@
-import { NULL_OPERATORS } from "src/components/ComplexFilter/common";
 import { getNumberValidation } from "src/utils/validation";
 import { z } from "zod";
 import {
   ANNOTATION_COLUMN_IDS,
   FIELD_CATEGORY_TO_COL_TYPE,
+  RANGE_OPS,
+  LIST_OPS,
+  NO_VALUE_OPS,
 } from "src/sections/common/EvalsTasks/common";
 
-const RANGE_OPS = new Set(["between", "not_between"]);
-const LIST_OPS = new Set(["in", "not_in"]);
-const NO_VALUE_OPS = new Set(NULL_OPERATORS);
 const TASK_FILTER_PROPERTY_TO_API = {
   span_kind: "observation_type",
   observation_type: "observation_type",

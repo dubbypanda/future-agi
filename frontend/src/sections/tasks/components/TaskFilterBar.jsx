@@ -13,7 +13,12 @@ import { getRandomId } from "src/utils/utils";
 import TraceFilterPanel, {
   useTraceFilterProperties,
 } from "src/sections/projects/LLMTracing/TraceFilterPanel";
-import { FIELD_CATEGORY_TO_COL_TYPE } from "src/sections/common/EvalsTasks/common";
+import {
+  FIELD_CATEGORY_TO_COL_TYPE,
+  RANGE_OPS,
+  LIST_OPS,
+  NO_VALUE_OPS,
+} from "src/sections/common/EvalsTasks/common";
 import { useDashboardFilterValues } from "src/hooks/useDashboards";
 import {
   getPickerOptionValue,
@@ -28,10 +33,6 @@ import {
 // `not_contains`, `starts_with`, `ends_with`, `is_null`, `is_not_null`,
 // `greater_than`, `greater_than_or_equal`, `less_than`,
 // `less_than_or_equal`, `between`, `not_between`.
-const RANGE_OPS = new Set(["between", "not_between"]);
-const LIST_OPS = new Set(["in", "not_in"]);
-const NO_VALUE_OPS = new Set(["is_null", "is_not_null"]);
-
 const resolveApiColType = (apiColType, fieldCategory) =>
   apiColType || FIELD_CATEGORY_TO_COL_TYPE[fieldCategory] || "SPAN_ATTRIBUTE";
 
