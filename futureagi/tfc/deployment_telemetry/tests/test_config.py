@@ -5,7 +5,6 @@ import pytest
 from tfc.deployment_telemetry.config import (
     detect_deployment_type,
     get_telemetry_interval_hours,
-    get_telemetry_interval_seconds_override,
     get_telemetry_jitter_seconds,
     get_version,
     is_self_hosted_deployment,
@@ -30,13 +29,6 @@ def test_invalid_intervals_fall_back_to_six(monkeypatch, interval):
     monkeypatch.setenv("FUTURE_AGI_TELEMETRY_INTERVAL_HOURS", interval)
     assert get_telemetry_interval_hours() == 6
 
-
-@pytest.mark.parametrize(
-    ("value", "expected"), [("120", 120), ("0", None), ("bad", None)]
-)
-def test_interval_seconds_override(monkeypatch, value, expected):
-    monkeypatch.setenv("FUTURE_AGI_TELEMETRY_INTERVAL_SECONDS", value)
-    assert get_telemetry_interval_seconds_override() == expected
 
 
 def test_default_jitter_is_thirty_minutes(monkeypatch):

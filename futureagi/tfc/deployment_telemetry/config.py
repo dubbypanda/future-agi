@@ -67,16 +67,6 @@ def get_telemetry_jitter_seconds() -> int:
     return jitter_seconds
 
 
-def get_telemetry_interval_seconds_override() -> int | None:
-    raw = os.getenv("FUTURE_AGI_TELEMETRY_INTERVAL_SECONDS")
-    if raw is None:
-        return None
-    try:
-        val = int(raw)
-        return val if val > 0 else None
-    except (TypeError, ValueError):
-        return None
-
 
 def get_telemetry_url() -> str:
     return os.getenv(

@@ -2,7 +2,6 @@ from temporalio.client import ScheduleOverlapPolicy
 
 from tfc.deployment_telemetry.config import (
     get_telemetry_interval_hours,
-    get_telemetry_interval_seconds_override,
     get_telemetry_jitter_seconds,
 )
 from tfc.deployment_telemetry.sender import run_telemetry_cycle
@@ -15,9 +14,7 @@ def send_deployment_telemetry_heartbeat():
     return run_telemetry_cycle()
 
 
-_interval = get_telemetry_interval_seconds_override() or (
-    get_telemetry_interval_hours() * 3600
-)
+_interval = get_telemetry_interval_hours() * 3600
 
 DEPLOYMENT_TELEMETRY_SCHEDULES: list[ScheduleConfig] = [
     ScheduleConfig(

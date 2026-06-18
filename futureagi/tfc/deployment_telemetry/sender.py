@@ -23,7 +23,6 @@ from tfc.deployment_telemetry.config import (
     MAX_PAYLOAD_BYTES,
     REGISTRATION_CLAIM_TIMEOUT_SECONDS,
     get_telemetry_interval_hours,
-    get_telemetry_interval_seconds_override,
     get_telemetry_timeout_seconds,
     get_telemetry_url,
     is_self_hosted_deployment,
@@ -247,16 +246,8 @@ def attempt_registration() -> bool:
 def compute_previous_utc_window(
     now: datetime | None = None,
     interval_hours: int | None = None,
-    interval_seconds: int | None = None,
 ) -> tuple[datetime, datetime]:
     current = (now or datetime.now(UTC)).astimezone(UTC)
-    override = interval_seconds or get_telemetry_interval_seconds_override()
-    if override:
-        epoch = current.replace(hour=0, minute=0, second=0, microsecond=0)
-        elapsed = int((current - epoch).total_seconds())
-        boundary = (elapsed // override) * override
-        window_end = epoch + timedelta(seconds=boundary)
-        return window_end - timedelta(seconds=override), window_end
     interval = interval_hours or get_telemetry_interval_hours()
     boundary_hour = (current.hour // interval) * interval
     window_end = current.replace(

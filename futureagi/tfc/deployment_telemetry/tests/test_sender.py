@@ -67,16 +67,6 @@ def test_previous_fixed_utc_window(
     )
 
 
-def test_previous_fixed_utc_window_with_seconds_override(monkeypatch):
-    monkeypatch.delenv("FUTURE_AGI_TELEMETRY_INTERVAL_SECONDS", raising=False)
-    assert compute_previous_utc_window(
-        datetime(2026, 6, 7, 8, 5, 59, tzinfo=UTC),
-        interval_seconds=120,
-    ) == (
-        datetime(2026, 6, 7, 8, 2, tzinfo=UTC),
-        datetime(2026, 6, 7, 8, 4, tzinfo=UTC),
-    )
-
 
 def test_schedule_disables_temporal_retries():
     schedule = DEPLOYMENT_TELEMETRY_SCHEDULES[0]
