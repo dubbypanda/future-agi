@@ -66,6 +66,7 @@ const CustomJsonInput = ({
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState(null);
   const followUpRef = useRef(null);
+  const { enqueueSnackbar } = useSnackbar();
 
   // AI bar state
   const [aiOpen, setAiOpen] = useState(false);
@@ -258,13 +259,16 @@ const CustomJsonInput = ({
           setAiPrompt(prompt.trim());
           setTimeout(() => followUpRef.current?.focus(), 100);
         }
-      } catch {
-        // silent
+      } catch (err) {
+        console.error("Falcon test-data generation failed", err);
+        enqueueSnackbar("Couldn't generate test data. Please try again.", {
+          variant: "error",
+        });
       } finally {
         setAiLoading(false);
       }
     },
-    [jsonText, originalJson, callAI, handleJsonChange],
+    [jsonText, originalJson, callAI, handleJsonChange, enqueueSnackbar],
   );
 
   const handleAccept = useCallback(() => {
