@@ -416,15 +416,30 @@ def build_eval_list_queryset(
                     combined |= p
                 qs = qs.filter(combined)
 
-        # Tags filter — case-insensitive via variant expansion so GIN index
-        # on eval_tags is preserved. Covers lower/upper/title — all real-world
-        # cases for tag values (e.g. "code", "CODE", "Code").
-        if _f("tags"):
-            expanded = {v for t in _f("tags") for v in (t, t.lower(), t.upper(), t.title())}
-            qs = qs.filter(eval_tags__overlap=list(expanded))
-        if _f("tags_not"):
-            expanded_not = {v for t in _f("tags_not") for v in (t, t.lower(), t.upper(), t.title())}
-            qs = qs.exclude(eval_tags__overlap=list(expanded_not))
+        # Tags filter — case-insensitive by lowercasing both sides.
+        # The DB expression ARRAY(SELECT LOWER(u) FROM UNNEST(eval_tags) u)
+        # normalises stored tags at query time so any casing (iOS, coDe,
+        # GPT4, ...) matches a lowercased filter value.
+        if _f("tags") or _f("tags_not"):
+            from django.contrib.postgres.fields import ArrayField as PGArrayField
+            from django.db.models import Func, TextField
+            from django.db.models.functions import Cast
+
+            class _LowerArray(Func):
+                function = "ARRAY"
+                template = (
+                    "%(function)s(SELECT LOWER(u) FROM UNNEST(%(expressions)s) u)"
+                )
+                output_field = PGArrayField(TextField())
+
+            qs = qs.annotate(_tags_lower=_LowerArray("eval_tags"))
+
+            if _f("tags"):
+                lower_filter = [t.lower() for t in _f("tags")]
+                qs = qs.filter(_tags_lower__overlap=lower_filter)
+            if _f("tags_not"):
+                lower_not = [t.lower() for t in _f("tags_not")]
+                qs = qs.exclude(_tags_lower__overlap=lower_not)
 
         # Template type filter (single/composite)
         if _f("template_type"):

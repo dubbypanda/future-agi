@@ -832,8 +832,8 @@ class TestEvalListOutputTypeFilter:
 class TestTagFilterCaseInsensitive:
     """Tag filters must match regardless of how the tag was stored (TH-5638).
 
-    The fix expands each filter tag to lower/upper/title variants before
-    passing to eval_tags__overlap so the GIN index is preserved.
+    The fix lowercases both the stored tags (via DB ARRAY/UNNEST/LOWER) and
+    the filter values so any casing (iOS, coDe, GPT4, ...) matches correctly.
     """
 
     def _make(self, organization, workspace, name, tags):
@@ -876,6 +876,21 @@ class TestTagFilterCaseInsensitive:
             filters={"tags": ["CODE"]},
         )
         assert qs.filter(name="eval_stored_title").exists()
+
+    def test_arbitrary_mixed_case_filter_matches(self, organization, workspace):
+        """Filter 'iOS' matches stored 'ios', 'IOS', 'iOS' — not just lower/upper/title."""
+        self._make(organization, workspace, "eval_ios_lower", ["ios"])
+        self._make(organization, workspace, "eval_ios_upper", ["IOS"])
+        self._make(organization, workspace, "eval_ios_mixed", ["iOS"])
+        qs = build_eval_list_queryset(
+            organization=organization,
+            workspace=workspace,
+            filters={"tags": ["iOS"]},
+        )
+        names = set(qs.values_list("name", flat=True))
+        assert "eval_ios_lower" in names
+        assert "eval_ios_upper" in names
+        assert "eval_ios_mixed" in names
 
     def test_tags_not_filter_is_also_case_insensitive(self, organization, workspace):
         """Exclusion filter 'tags_not' works case-insensitively."""
