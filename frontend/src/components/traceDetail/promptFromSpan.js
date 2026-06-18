@@ -1,3 +1,5 @@
+import { groupFlattenedMessageAttrs } from "src/components/traceDetailDrawer/DrawerRightRenderer/flattenedMessageAttrs";
+
 const INPUT_MESSAGE_PREFIXES = [
   "llm.input_messages",
   "llm.inputMessages",
@@ -116,39 +118,27 @@ function normalizeMessageObject(msg) {
 }
 
 function fromFlattenedAttrs(attrs) {
-  const temp = {};
-  for (const key of Object.keys(attrs)) {
-    const prefix = INPUT_MESSAGE_PREFIXES.find((p) => key.startsWith(`${p}.`));
-    if (!prefix) continue;
-    const rest = key.slice(prefix.length + 1);
-    const firstDot = rest.indexOf(".");
-    if (firstDot === -1) continue;
-    const index = rest.slice(0, firstDot);
-    const prop = rest.slice(firstDot + 1);
-    if (!temp[index])
-      temp[index] = { role: undefined, content: null, parts: {} };
+  return groupFlattenedMessageAttrs(attrs, "input")
+    .map(({ entries }) => {
+      const m = { role: undefined, content: null, parts: {} };
+      for (const { property: prop, value } of entries) {
+        if (prop === "message.role" || prop === "role") {
+          m.role = value;
+          continue;
+        }
+        // nested structured content: (message.)contents.N.message_content.<field>
+        const nested = prop.match(
+          /^(?:message\.)?contents?\.(\d+)\.message_content\.(\w+)$/,
+        );
+        if (nested) {
+          if (nested[2] === "text") m.parts[nested[1]] = value;
+          continue;
+        }
+        if (prop === "message.content" || prop === "content") {
+          m.content = value;
+        }
+      }
 
-    if (prop === "message.role" || prop === "role") {
-      temp[index].role = attrs[key];
-      continue;
-    }
-    // nested structured content: (message.)contents.N.message_content.<field>
-    const nested = prop.match(
-      /^(?:message\.)?contents?\.(\d+)\.message_content\.(\w+)$/,
-    );
-    if (nested) {
-      if (nested[2] === "text") temp[index].parts[nested[1]] = attrs[key];
-      continue;
-    }
-    if (prop === "message.content" || prop === "content") {
-      temp[index].content = attrs[key];
-    }
-  }
-
-  return Object.keys(temp)
-    .sort((a, b) => Number(a) - Number(b))
-    .map((i) => {
-      const m = temp[i];
       const partKeys = Object.keys(m.parts);
       const content = partKeys.length
         ? partKeys

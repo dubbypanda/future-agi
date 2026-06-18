@@ -14,6 +14,7 @@ import { useGetTraceDetail } from "src/api/project/trace-detail";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { modelCatalogQuery } from "src/api/model/model";
+import { useCreatePromptDraft } from "src/api/develop/prompt";
 import { getOutputFormatFromCatalogType } from "src/sections/develop-detail/RunPrompt/common";
 import logger from "src/utils/logger";
 import DrawerHeader from "./DrawerHeader";
@@ -98,10 +99,8 @@ const TraceDetailDrawerV2 = ({
 }) => {
   const navigate = useNavigate();
 
-  const { mutate: createPromptDraft, isPending: isCreatingDraft } = useMutation(
-    {
-      mutationFn: (body) =>
-        axios.post(endpoints.develop.runPrompt.createPromptDraft, body),
+  const { mutate: createPromptDraft, isPending: isCreatingDraft } =
+    useCreatePromptDraft({
       onSuccess: (res) => {
         const newId =
           res?.data?.result?.rootTemplate ||
@@ -116,8 +115,7 @@ const TraceDetailDrawerV2 = ({
           variant: "error",
         });
       },
-    },
-  );
+    });
 
   const { mutate: createGraphFromTrace, isPending: isCreatingGraph } =
     useMutation({
@@ -688,13 +686,7 @@ const TraceDetailDrawerV2 = ({
                   model_detail: resolved,
                 }),
               };
-              createPromptDraft({
-                name: "",
-                prompt_config: [{ configuration, messages }],
-                ...(Object.keys(variableNames).length > 0 && {
-                  variable_names: variableNames,
-                }),
-              });
+              createPromptDraft({ configuration, messages, variableNames });
             } catch {
               enqueueSnackbar(CREATE_PROMPT_ERROR, {
                 variant: "error",
