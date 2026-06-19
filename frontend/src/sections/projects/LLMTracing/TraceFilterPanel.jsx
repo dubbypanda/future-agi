@@ -1722,7 +1722,7 @@ const TraceFilterPanel = ({
     const staticProps = getTraceFilterFields(tab).map((f) => {
       if (isSpansView && f.value === "name") {
         return {
-          id: "name",
+          id: "span_name",
           name: "Span Name",
           category: "system",
           type: "string",
