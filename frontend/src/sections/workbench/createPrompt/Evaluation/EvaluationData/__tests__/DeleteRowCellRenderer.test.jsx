@@ -14,7 +14,7 @@ vi.mock("src/components/svg-color", () => ({
 }));
 
 const E = CELL_STATE.EMPTY;
-const emptyRow = { id: "1", TOPIC: E, "Output-v2": E };
+const emptyRow = { id: "1", _isLocal: true, TOPIC: E, "Output-v2": E };
 const apiWith = (count) => ({ getDisplayedRowCount: () => count });
 
 const renderRenderer = (props = {}) =>
@@ -49,6 +49,11 @@ describe("DeleteRowCellRenderer", () => {
     renderRenderer({
       data: { id: "0", TOPIC: "UNICORN", "Output-v2": "a story" },
     });
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("renders nothing for an empty row without the _isLocal flag", () => {
+    renderRenderer({ data: { id: "0", TOPIC: E, "Output-v2": E } });
     expect(screen.queryByRole("button")).toBeNull();
   });
 

@@ -12,7 +12,11 @@ const DeleteRowCellRenderer = ({ data, api, onDelete }) => {
   const isViewer = role === ROLES.VIEWER || role === ROLES.WORKSPACE_VIEWER;
 
   // Keep at least one row so the grid (which reads rows[0] / rows.at(-1)) stays valid.
-  if (isViewer || !isUnsavedRow(data) || api.getDisplayedRowCount() <= 1) {
+  if (
+    isViewer ||
+    !isUnsavedRow(data) ||
+    (api?.getDisplayedRowCount?.() ?? 1) <= 1
+  ) {
     return null;
   }
 

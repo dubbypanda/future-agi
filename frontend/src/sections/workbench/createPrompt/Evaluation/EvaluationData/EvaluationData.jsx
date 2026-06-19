@@ -179,11 +179,12 @@ const EvaluationData = () => {
      * @returns
      */
     mutationFn: (payload) => {
+      const { _runRowId, ...wirePayload } = payload;
       return new Promise((resolve, reject) => {
         // @ts-ignore
         const socket = runPromptOverSocket({
           url: promptStreamUrl,
-          payload,
+          payload: wirePayload,
           onMessage: (data) => {
             setWsData(data);
             if (data?.streaming_status === "all_completed") {
@@ -191,21 +192,21 @@ const EvaluationData = () => {
             }
           },
           onError: (err) => {
-            if (payload.run_index in activeSocketsRef.current) {
-              activeSocketsRef.current[payload.run_index]?.close();
-              delete activeSocketsRef.current[payload.run_index];
-            }
+            activeSocketsRef.current[_runRowId]?.close();
+            delete activeSocketsRef.current[_runRowId];
             reject(err);
           },
         });
-        activeSocketsRef.current[payload.run_index] = socket;
+        if (_runRowId != null) activeSocketsRef.current[_runRowId] = socket;
       });
     },
   });
 
   const resultSetter = useCallback(
     (id, index, status, chunk) => {
-      const rowNode = gridApiRef.current?.api?.getRowNode(`${index}`);
+      // run_index is positional, and row ids drift from position after a
+      // middle-row delete — resolve the streaming target by position.
+      const rowNode = gridApiRef.current?.api?.getDisplayedRowAtIndex(index);
       switch (status) {
         case "started": {
           rowNode?.setDataValue(id, CELL_STATE.LOADING);
@@ -220,12 +221,14 @@ const EvaluationData = () => {
         }
         case "completed":
           break;
-        case "all_completed":
-          if (index in activeSocketsRef.current) {
-            activeSocketsRef.current[index]?.close();
-            delete activeSocketsRef.current[index];
+        case "all_completed": {
+          const rowId = rowNode?.data?.id;
+          if (rowId != null && rowId in activeSocketsRef.current) {
+            activeSocketsRef.current[rowId]?.close();
+            delete activeSocketsRef.current[rowId];
           }
           break;
+        }
         default:
           break;
       }
@@ -275,23 +278,10 @@ const EvaluationData = () => {
   //   }
   // }, [socket, setWsData]);
 
-  const getVariablesValue = (index, variable_names, variableKeys) => {
-    const rowdata = gridApiRef.current.api.getDisplayedRowAtIndex(index);
-    variableKeys.forEach((item) => {
-      const current = variable_names[item];
-      variable_names[item] = current.map((temp, ind) =>
-        ind == index ? rowdata.data[item].trim() : temp.trim(),
-      );
-    });
-    return variable_names;
-  };
-
   const handleCellClick = useCallback(
     (originType, index, version, evalTemplateId = "") => {
-      gridApiRef?.current?.api?.stopEditing();
-      const lastRowIndex = gridApiRef?.current?.api?.getLastDisplayedRowIndex();
-      const lastRowNode =
-        gridApiRef?.current?.api?.getDisplayedRowAtIndex(lastRowIndex);
+      const api = gridApiRef?.current?.api;
+      api?.stopEditing();
       const { variables } = evaluationData;
       const runPromptPayload = {
         type: "run_template",
@@ -299,28 +289,32 @@ const EvaluationData = () => {
         run_index: index,
         is_run: "prompt",
         template_id: id,
+        // FE-only: stable row id to key the active socket (stripped before send).
+        _runRowId: api?.getDisplayedRowAtIndex(index)?.data?.id,
       };
       let emptyField = false;
       if (variables !== null) {
+        const rowCount = api?.getDisplayedRowCount?.() ?? 0;
         const variableKeys = Object.keys(variables ?? {});
-        const variableValues = Object.values(variables ?? {});
-        if (lastRowIndex === variableValues[0]?.length) {
-          for (let i = 0; i < variableKeys.length; i++) {
-            const key = variableKeys[i];
-            variables[key].push(showVariables ? lastRowNode.data[key] : "");
-          }
+        // Build positionally from the live grid rows so the arrays cover every
+        // row — reusing evaluationData.variables crashed on added/deleted rows.
+        const variableNames = {};
+        for (const key of variableKeys) {
+          const persisted = variables[key] ?? [];
+          variableNames[key] = Array.from({ length: rowCount }, (_, i) => {
+            const cell = showVariables
+              ? api?.getDisplayedRowAtIndex(i)?.data?.[key]
+              : persisted[i];
+            // EMPTY sentinel counts as empty so the run is blocked, not sent.
+            return cell == null || cell === CELL_STATE.EMPTY
+              ? ""
+              : `${cell}`.trim();
+          });
         }
-        runPromptPayload["variable_names"] = variables;
-        if (showVariables) {
-          runPromptPayload["variable_names"] = getVariablesValue(
-            index,
-            runPromptPayload["variable_names"],
-            variableKeys,
-          );
-        }
-        emptyField = Object.values(
-          runPromptPayload["variable_names"] || {},
-        ).some((item) => !item[index].trim());
+        runPromptPayload["variable_names"] = variableNames;
+        emptyField = Object.values(variableNames).some(
+          (item) => !item[index]?.trim(),
+        );
       }
       // else if (
       //   (variables === null || variables === null) &&
@@ -525,6 +519,9 @@ const EvaluationData = () => {
   }, []);
 
   const handleDeleteRow = useCallback((rowId) => {
+    // Close any in-flight run for this row so it can't stream onto a stale row.
+    activeSocketsRef.current[rowId]?.close();
+    delete activeSocketsRef.current[rowId];
     setRows((prev) =>
       prev.length > 1 ? prev.filter((row) => row.id !== rowId) : prev,
     );
@@ -633,11 +630,13 @@ const EvaluationData = () => {
             ...Object.keys(rows[0]).reduce((acc, key) => {
               if (key === "id") {
                 acc["id"] = `${nextId++}`;
-              } else {
+              } else if (key !== "_isLocal") {
                 acc[key] = CELL_STATE.EMPTY;
               }
               return acc;
             }, {}),
+            // Mark as a locally-added (unsaved) row — deletable until persisted.
+            _isLocal: true,
           }));
           return [...prev, ...newRows];
         });
