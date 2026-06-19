@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { render, screen } from "src/utils/test-utils";
 import FixedTab from "../FixedTab";
 
@@ -35,5 +36,11 @@ describe("FixedTab", () => {
   it("renders without icon when icon prop is not provided", () => {
     render(<FixedTab {...defaultProps} icon={undefined} />);
     expect(screen.getByText("Trace")).toBeInTheDocument();
+  });
+
+  it("shows the keyboard shortcut hint ('Press <n>') on hover, not an index like '(n)'", async () => {
+    render(<FixedTab {...defaultProps} shortcut="3" />);
+    await userEvent.hover(screen.getByRole("button"));
+    expect(await screen.findByText("Press 3")).toBeInTheDocument();
   });
 });
