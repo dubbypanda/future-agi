@@ -157,8 +157,10 @@ const ObserveListView = forwardRef(
           header: "Alerts",
           size: 80,
           enableSorting: false,
-          cell: ({ getValue }) => {
-            const count = getValue() ?? 0;
+          // Read the row directly: the grid's value accessor keys off the
+          // column `id` ("alerts"), but the data field is `issues`.
+          cell: ({ row }) => {
+            const count = row.original?.issues ?? 0;
             if (count === 0) {
               return (
                 <Typography

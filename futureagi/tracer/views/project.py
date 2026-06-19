@@ -667,6 +667,23 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 except Exception as e:
                     logger.warning(f"Run count query failed: {e}")
 
+            # Alert counts — number of alert monitors configured per project
+            # (drives the "Alerts" column). Same shape/scoping as run_count.
+            alert_count_map = {}
+            if project_ids:
+                try:
+                    alert_counts = (
+                        UserAlertMonitor.objects.db_manager(DATABASE_FOR_PROJECT_LIST)
+                        .filter(project_id__in=project_ids, deleted=False)
+                        .values("project_id")
+                        .annotate(count=Count("id"))
+                    )
+                    alert_count_map = {
+                        str(c["project_id"]): c["count"] for c in alert_counts
+                    }
+                except Exception as e:
+                    logger.warning(f"Alert count query failed: {e}")
+
             result = [
                 {
                     "name": project["name"],
@@ -676,7 +693,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                     "updated_at": project["updated_at"],
                     "last_active": last_active_map.get(str(project["id"])),
                     "run_count": run_count_map.get(str(project["id"]), 0),
-                    "issues": 0,
+                    "issues": alert_count_map.get(str(project["id"]), 0),
                     "tags": project.get("tags") or [],
                     "id": project["id"],
                 }
