@@ -27,6 +27,7 @@ from accounts.models.auth_token import (
 )
 from accounts.models.organization import Organization
 from accounts.models.workspace import Workspace, WorkspaceMembership
+from accounts.services.workspace_membership import create_workspace_membership
 from tfc.constants.roles import OrganizationRoles
 from tfc.utils.api_errors import (
     build_error_envelope,
@@ -42,17 +43,13 @@ IP_BLOCK_DURATION: int = getattr(settings, "IP_BLOCK_DURATION", 3600)
 
 ANNOTATION_QUEUE_ROLE_SCOPED_WRITE_PATHS = (
     re.compile(
-        r"/model-hub/annotation-queues/[^/]+/items/"
-        r"(?:assign|bulk-review)/?$"
+        r"/model-hub/annotation-queues/[^/]+/items/" r"(?:assign|bulk-review)/?$"
     ),
     re.compile(
         r"/model-hub/annotation-queues/[^/]+/items/[^/]+/"
         r"(?:annotations/submit|complete|skip|release|review)/?$"
     ),
-    re.compile(
-        r"/model-hub/annotation-queues/[^/]+/items/[^/]+/"
-        r"discussion/?$"
-    ),
+    re.compile(r"/model-hub/annotation-queues/[^/]+/items/[^/]+/" r"discussion/?$"),
     re.compile(
         r"/model-hub/annotation-queues/[^/]+/items/[^/]+/"
         r"discussion/comments/[^/]+(?:/reaction)?/?$"
@@ -482,7 +479,7 @@ class APIKeyAuthentication(BaseAuthentication):
             user=user, workspace=default_workspace, is_active=True
         ).exists():
             try:
-                WorkspaceMembership.no_workspace_objects.create(
+                create_workspace_membership(
                     workspace=default_workspace,
                     user=user,
                     role=OrganizationRoles.WORKSPACE_ADMIN,

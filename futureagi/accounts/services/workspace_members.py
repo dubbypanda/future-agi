@@ -20,6 +20,40 @@ _ALLOWED_SORT_FIELDS = {
 }
 
 
+def _member_row(
+    *,
+    row_id,
+    name,
+    email,
+    ws_level,
+    status,
+    created_at,
+    member_type,
+    org_level=None,
+    auto_access=False,
+):
+    """Single source of the member-row shape (was hand-built in 3 places).
+
+    Derives the ws/org role strings from the integer levels so the columns
+    can't drift between the explicit-member, auto-access-admin and pending-
+    invite sources. Shape is contracted by
+    ``accounts.serializers.rbac.WorkspaceMemberRowSerializer``.
+    """
+    return {
+        "id": str(row_id),
+        "name": name or "",
+        "email": email,
+        "ws_level": ws_level,
+        "ws_role": Level.to_ws_string(ws_level) if ws_level is not None else None,
+        "org_level": org_level,
+        "org_role": Level.to_org_string(org_level) if org_level is not None else None,
+        "status": status,
+        "created_at": created_at or "",
+        "type": member_type,
+        "auto_access": auto_access,
+    }
+
+
 def list_workspace_members(
     *,
     workspace,
@@ -73,24 +107,20 @@ def _explicit_members(workspace, organization):
             org_mem = org_membership_by_user.get(user.id)
             fallback_user_ids.append(str(user.id))
         rows.append(
-            {
-                "id": str(user.id),
-                "name": user.name or "",
-                "email": user.email,
-                "ws_level": ws_mem.level_or_legacy,
-                "ws_role": Level.to_ws_string(ws_mem.level_or_legacy),
-                "org_level": org_mem.level_or_legacy if org_mem else None,
-                "org_role": (
-                    Level.to_org_string(org_mem.level_or_legacy) if org_mem else None
-                ),
-                "status": "Active",
-                "created_at": (
+            _member_row(
+                row_id=user.id,
+                name=user.name,
+                email=user.email,
+                ws_level=ws_mem.level_or_legacy,
+                org_level=org_mem.level_or_legacy if org_mem else None,
+                status="Active",
+                created_at=(
                     ws_mem.created_at.isoformat()
-                    if hasattr(ws_mem, "created_at") and ws_mem.created_at
+                    if getattr(ws_mem, "created_at", None)
                     else ""
                 ),
-                "type": "member",
-            }
+                member_type="member",
+            )
         )
 
     if fallback_user_ids:
@@ -121,21 +151,17 @@ def _auto_access_admins(organization, explicit_user_ids):
             continue
         user = org_mem.user
         rows.append(
-            {
-                "id": str(user.id),
-                "name": user.name or "",
-                "email": user.email,
-                "ws_level": Level.WORKSPACE_ADMIN,
-                "ws_role": "Workspace Admin",
-                "org_level": org_mem.level_or_legacy,
-                "org_role": Level.to_org_string(org_mem.level_or_legacy),
-                "status": "Active",
-                "created_at": (
-                    org_mem.joined_at.isoformat() if org_mem.joined_at else ""
-                ),
-                "type": "member",
-                "auto_access": True,
-            }
+            _member_row(
+                row_id=user.id,
+                name=user.name,
+                email=user.email,
+                ws_level=Level.WORKSPACE_ADMIN,
+                org_level=org_mem.level_or_legacy,
+                status="Active",
+                created_at=(org_mem.joined_at.isoformat() if org_mem.joined_at else ""),
+                member_type="member",
+                auto_access=True,
+            )
         )
     return rows
 
@@ -170,18 +196,16 @@ def _pending_invites(organization, workspace):
             else Level.WORKSPACE_ADMIN
         )
         results.append(
-            {
-                "id": str(inv.id),
-                "name": inv.target_email.split("@")[0],
-                "email": inv.target_email,
-                "ws_level": ws_level,
-                "ws_role": Level.to_ws_string(ws_level),
-                "org_level": inv.level,
-                "org_role": Level.to_org_string(inv.level),
-                "status": inv.effective_status,
-                "created_at": inv.created_at.isoformat() if inv.created_at else "",
-                "type": "invite",
-            }
+            _member_row(
+                row_id=inv.id,
+                name=inv.target_email.split("@")[0],
+                email=inv.target_email,
+                ws_level=ws_level,
+                org_level=inv.level,
+                status=inv.effective_status,
+                created_at=inv.created_at.isoformat() if inv.created_at else "",
+                member_type="invite",
+            )
         )
     return results
 

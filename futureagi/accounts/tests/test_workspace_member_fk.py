@@ -206,3 +206,89 @@ class TestWorkspaceMembershipFKInvariant:
         ).count()
 
         assert null_count == 0
+
+
+@pytest.mark.django_db
+class TestCreateWorkspaceMembershipFactory:
+    """The single create path must always resolve + set the org FK — the
+    invariant that prevents the NULL-FK drift this PR fixes."""
+
+    def test_factory_sets_org_fk(self, organization, workspace):
+        from accounts.services.workspace_membership import create_workspace_membership
+
+        member, om = _make_member(organization, "factory@futureagi.com")
+        ws_mem = create_workspace_membership(
+            workspace=workspace,
+            user=member,
+            role="workspace_member",
+            level=Level.WORKSPACE_MEMBER,
+            invited_by=member,
+        )
+        ws_mem.refresh_from_db()
+        assert ws_mem.organization_membership_id == om.id
+
+    def test_factory_no_fk_when_no_active_org_membership(self, organization, workspace):
+        from accounts.services.workspace_membership import create_workspace_membership
+
+        member, om = _make_member(organization, "noactive@futureagi.com")
+        # Only an inactive org membership -> nothing legitimate to attach.
+        OrganizationMembership.objects.filter(pk=om.pk).update(is_active=False)
+        ws_mem = create_workspace_membership(
+            workspace=workspace,
+            user=member,
+            role="workspace_member",
+            level=Level.WORKSPACE_MEMBER,
+            invited_by=member,
+        )
+        ws_mem.refresh_from_db()
+        assert ws_mem.organization_membership_id is None
+
+    def test_resolve_skips_inactive_membership(self, organization):
+        from accounts.services.workspace_membership import resolve_org_membership
+
+        member, om = _make_member(organization, "resolve@futureagi.com")
+        assert resolve_org_membership(member, organization).id == om.id
+        # An inactive/cancelled membership must never be resolved (the migration
+        # bug the review flagged: attaching it would *hide* the member).
+        OrganizationMembership.objects.filter(pk=om.pk).update(is_active=False)
+        assert resolve_org_membership(member, organization) is None
+
+
+@pytest.mark.django_db
+def test_workspace_member_row_serializer_accepts_built_row(organization):
+    from accounts.serializers.rbac import WorkspaceMemberRowSerializer
+    from accounts.services.workspace_members import _member_row
+
+    member, om = _make_member(organization, "row@futureagi.com")
+    row = _member_row(
+        row_id=member.id,
+        name="Row",
+        email="row@futureagi.com",
+        ws_level=Level.WORKSPACE_MEMBER,
+        org_level=Level.MEMBER,
+        status="Active",
+        created_at="",
+        member_type="member",
+    )
+    serializer = WorkspaceMemberRowSerializer(data=row)
+    assert serializer.is_valid(), serializer.errors
+
+
+@pytest.mark.django_db
+def test_list_output_validates_against_response_contract(organization, workspace):
+    """Every row source from the de-duped builder (explicit member +
+    auto-access admin) must satisfy WorkspaceMemberListResponse's contract."""
+    from accounts.serializers.rbac import WorkspaceMemberListResultSerializer
+
+    member, om = _make_member(organization, "rowmember@futureagi.com")
+    _add_to_workspace(workspace, member, om)
+    # An org Admin who is not an explicit ws member -> auto-access row source.
+    _make_member(
+        organization, "rowadmin@futureagi.com", level=Level.ADMIN, role="Admin"
+    )
+
+    page = list_workspace_members(workspace=workspace, organization=organization)
+
+    serializer = WorkspaceMemberListResultSerializer(data=page)
+    assert serializer.is_valid(), serializer.errors
+    assert "member" in {r["type"] for r in page["results"]}

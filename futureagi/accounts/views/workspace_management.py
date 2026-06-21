@@ -62,6 +62,10 @@ from accounts.serializers.workspace import (
     WorkspaceListRequestSerializer,
     WorkspaceListSerializer,
 )
+from accounts.services.workspace_membership import (
+    create_workspace_membership,
+    resolve_org_membership,
+)
 from accounts.utils import generate_password, resolve_org, resolve_org_role
 from analytics.mixpanel_util import mixpanel_tracker
 from analytics.utils import (
@@ -492,11 +496,9 @@ class WorkspaceInviteAPIView(APIView):
                                         "invited_by": user,
                                         "is_active": True,
                                         "organization_membership": (
-                                            OrganizationMembership.no_workspace_objects.filter(
-                                                user=target_user,
-                                                organization=workspace.organization,
-                                                is_active=True,
-                                            ).first()
+                                            resolve_org_membership(
+                                                target_user, workspace.organization
+                                            )
                                         ),
                                     },
                                 )
@@ -596,7 +598,7 @@ class WorkspaceInviteAPIView(APIView):
                                     existing_deleted_membership.invited_by = user
                                     existing_deleted_membership.save()
                                 else:
-                                    WorkspaceMembership.no_workspace_objects.create(
+                                    create_workspace_membership(
                                         workspace=workspace,
                                         user=new_member,
                                         role=workspace_role,
@@ -1190,7 +1192,7 @@ class UserRoleUpdateAPIView(APIView):
                             existing_deleted_membership.save()
                         else:
                             # Create workspace membership if it doesn't exist
-                            WorkspaceMembership.no_workspace_objects.create(
+                            create_workspace_membership(
                                 workspace=current_workspace,
                                 user=target_user,
                                 role=workspace_role,
@@ -1254,7 +1256,7 @@ class UserRoleUpdateAPIView(APIView):
                         existing_deleted_membership.save()
                     else:
                         # Create workspace membership if it doesn't exist
-                        WorkspaceMembership.no_workspace_objects.create(
+                        create_workspace_membership(
                             workspace=current_workspace,
                             user=target_user,
                             role=new_role,
@@ -1991,14 +1993,11 @@ class ManageTeamView(APIView):
                         )
 
                         # Add organization owner to workspace with admin role
-                        WorkspaceMembership.no_workspace_objects.create(
+                        create_workspace_membership(
                             workspace=workspace,
                             user=user,
                             role=OrganizationRoles.WORKSPACE_ADMIN,
                             invited_by=user,
-                            organization_membership=OrganizationMembership.no_workspace_objects.filter(
-                                user=user, organization=organization, is_active=True
-                            ).first(),
                         )
 
             # If no specific workspace, use default workspace
@@ -2019,14 +2018,11 @@ class ManageTeamView(APIView):
                     )
 
                     # Add organization owner to default workspace
-                    WorkspaceMembership.no_workspace_objects.create(
+                    create_workspace_membership(
                         workspace=workspace,
                         user=user,
                         role=OrganizationRoles.WORKSPACE_ADMIN,
                         invited_by=user,
-                        organization_membership=OrganizationMembership.no_workspace_objects.filter(
-                            user=user, organization=organization, is_active=True
-                        ).first(),
                     )
 
             members_data = validated_data.get("members", [])
@@ -2334,17 +2330,12 @@ class ManageTeamView(APIView):
                     existing_deleted_membership.save()
                 else:
                     # Create new workspace membership
-                    WorkspaceMembership.no_workspace_objects.create(
+                    create_workspace_membership(
                         workspace=workspace,
                         user=user,
                         role=role,
                         invited_by=invited_by,
                         is_active=True,
-                        organization_membership=OrganizationMembership.no_workspace_objects.filter(
-                            user=user,
-                            organization=workspace.organization,
-                            is_active=True,
-                        ).first(),
                     )
         except Exception as e:
             logger.error(

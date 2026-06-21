@@ -6,7 +6,7 @@ Old endpoints remain untouched until Phase 4 cutover.
 """
 
 import structlog
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -29,6 +29,7 @@ from accounts.serializers.rbac import (
     MemberUserMutationResponseSerializer,
     RBACMessageResponseSerializer,
     WorkspaceMemberListRequestSerializer,
+    WorkspaceMemberListResponseSerializer,
     WorkspaceMemberRemoveSerializer,
     WorkspaceMemberRoleUpdateResponseSerializer,
     WorkspaceMemberRoleUpdateSerializer,
@@ -1252,7 +1253,10 @@ class WorkspaceMemberListAPIView(APIView):
 
     @validated_request(
         query_serializer=WorkspaceMemberListRequestSerializer,
-        responses={200: MemberListResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+        responses={
+            200: WorkspaceMemberListResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
         reject_unknown_fields=True,
     )
     def get(self, request, workspace_id):
