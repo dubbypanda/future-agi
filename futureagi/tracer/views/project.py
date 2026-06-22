@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from django.db import transaction
 
 import structlog
 from django.db import models
@@ -97,31 +98,32 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
         return self._project_scope_queryset().filter(id=project_id).first()
 
     def _soft_delete_projects(self, projects, project_type):
-        now = timezone.now()
-        if project_type == "experiment":
-            ProjectVersion.objects.filter(project__in=projects).update(
+        with transaction.atomic():
+            now = timezone.now()
+            if project_type == "experiment":
+                ProjectVersion.objects.filter(project__in=projects).update(
+                    deleted=True, deleted_at=now
+                )
+            else:
+                TraceSession.objects.filter(project__in=projects).update(
+                    deleted=True, deleted_at=now
+                )
+            Trace.objects.filter(project__in=projects).update(deleted=True, deleted_at=now)
+            ObservationSpan.objects.filter(project__in=projects).update(
                 deleted=True, deleted_at=now
             )
-        else:
-            TraceSession.objects.filter(project__in=projects).update(
+            UserAlertMonitor.objects.filter(project__in=projects).update(
                 deleted=True, deleted_at=now
             )
-        Trace.objects.filter(project__in=projects).update(deleted=True, deleted_at=now)
-        ObservationSpan.objects.filter(project__in=projects).update(
-            deleted=True, deleted_at=now
-        )
-        UserAlertMonitor.objects.filter(project__in=projects).update(
-            deleted=True, deleted_at=now
-        )
-        EvalTask.objects.filter(project__in=projects).update(
-            deleted=True, deleted_at=now
-        )
-        eval_configs = CustomEvalConfig.objects.filter(project__in=projects)
-        EvalLogger.objects.filter(custom_eval_config__in=eval_configs).update(
-            deleted=True, deleted_at=now
-        )
-        eval_configs.update(deleted=True, deleted_at=now)
-        projects.update(deleted=True, deleted_at=now)
+            EvalTask.objects.filter(project__in=projects).update(
+                deleted=True, deleted_at=now
+            )
+            eval_configs = CustomEvalConfig.objects.filter(project__in=projects)
+            EvalLogger.objects.filter(custom_eval_config__in=eval_configs).update(
+                deleted=True, deleted_at=now
+            )
+            eval_configs.update(deleted=True, deleted_at=now)
+            projects.update(deleted=True, deleted_at=now)
 
     def get_queryset(self):
         # Get base queryset with automatic filtering from mixin

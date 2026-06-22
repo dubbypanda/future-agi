@@ -54,10 +54,6 @@ FILTER_ITEM_SCHEMA = {
             "type": "string",
             "description": "Optional metric output type metadata used by eval and annotation filters.",
         },
-        "id": {
-            "type": "string",
-            "description": "Optional client-side identifier for React key / filter dedup.",
-        },
         "filter_config": FILTER_CONFIG_SCHEMA,
     },
     "required": ["column_id", "filter_config"],

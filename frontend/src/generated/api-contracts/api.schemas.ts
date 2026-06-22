@@ -5789,8 +5789,6 @@ export type AutomationRuleConditionsApiFilterItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: AutomationRuleConditionsApiFilterItemFilterConfig;
 };
 
@@ -5973,8 +5971,6 @@ export type SelectionApiFilterItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: SelectionApiFilterItemFilterConfig;
 };
 
@@ -8821,8 +8817,6 @@ export type DatasetRowDataRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: DatasetRowDataRequestApiFiltersItemFilterConfig;
 };
 
@@ -11263,8 +11257,6 @@ export type EvalMetricRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: EvalMetricRequestApiFiltersItemFilterConfig;
 };
 
@@ -15860,8 +15852,6 @@ export type SimulateEvalConfigResponseApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: SimulateEvalConfigResponseApiFiltersItemFilterConfig;
 };
 
@@ -16603,8 +16593,6 @@ export type EvalConfigDefinitionApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: EvalConfigDefinitionApiFiltersItemFilterConfig;
 };
 
@@ -18034,8 +18022,6 @@ export type FetchGraphApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: FetchGraphApiFiltersItemFilterConfig;
 };
 
@@ -18174,8 +18160,6 @@ export type DashboardQueryApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: DashboardQueryApiFiltersItemFilterConfig;
 };
 
@@ -18294,8 +18278,6 @@ export type DashboardMetricApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: DashboardMetricApiFiltersItemFilterConfig;
 };
 
@@ -18588,8 +18570,6 @@ export type EvalTaskApiFiltersSpanAttributesFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: EvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig;
 };
 
@@ -18725,8 +18705,6 @@ export type EvalTaskUpdateRequestApiFiltersSpanAttributesFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: EvalTaskUpdateRequestApiFiltersSpanAttributesFiltersItemFilterConfig;
 };
 
@@ -19532,8 +19510,6 @@ export type ObserveGraphDataRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: ObserveGraphDataRequestApiFiltersItemFilterConfig;
 };
 
@@ -19713,8 +19689,6 @@ export type ProjectUserGraphDataRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: ProjectUserGraphDataRequestApiFiltersItemFilterConfig;
 };
 
@@ -19744,8 +19718,6 @@ export type ProjectUserMetricsRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: ProjectUserMetricsRequestApiFiltersItemFilterConfig;
 };
 
@@ -19777,8 +19749,6 @@ export type ProjectUsersAggregateGraphDataRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: ProjectUsersAggregateGraphDataRequestApiFiltersItemFilterConfig;
 };
 
@@ -20675,8 +20645,6 @@ export type TraceSessionGraphDataRequestApiFiltersItem = {
   source?: string;
   /** Optional metric output type metadata used by eval and annotation filters. */
   output_type?: string;
-  /** Optional client-side identifier for React key / filter dedup. */
-  id?: string;
   filter_config: TraceSessionGraphDataRequestApiFiltersItemFilterConfig;
 };
 
@@ -20750,6 +20718,9 @@ export interface TraceObserveListMetadataApi {
 
 export type TraceObserveListResultApiTableItem = {[key: string]: { [key: string]: unknown }};
 
+/**
+ * Any valid JSON value.
+ */
 export type TraceObserveListResultApiConfigItem = { [key: string]: unknown };
 
 export interface TraceObserveListResultApi {

@@ -50755,10 +50755,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -51612,10 +51608,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -53111,10 +53103,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -53558,10 +53546,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                     "type": "string",
                     "description": "Optional metric output type metadata used by eval and annotation filters."
                   },
-                  "id": {
-                    "type": "string",
-                    "description": "Optional client-side identifier for React key / filter dedup."
-                  },
                   "filter_config": {
                     "type": "object",
                     "properties": {
@@ -53829,10 +53813,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                   "output_type": {
                     "type": "string",
                     "description": "Optional metric output type metadata used by eval and annotation filters."
-                  },
-                  "id": {
-                    "type": "string",
-                    "description": "Optional client-side identifier for React key / filter dedup."
                   },
                   "filter_config": {
                     "type": "object",
@@ -55941,10 +55921,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -60900,10 +60876,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -63919,10 +63891,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -64003,10 +63971,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -64080,10 +64044,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -71090,10 +71050,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -74871,10 +74827,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -75096,10 +75048,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -76318,10 +76266,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -78362,10 +78306,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "output_type": {
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
-              },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
               },
               "filter_config": {
                 "type": "object",
@@ -87067,10 +87007,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 "type": "string",
                 "description": "Optional metric output type metadata used by eval and annotation filters."
               },
-              "id": {
-                "type": "string",
-                "description": "Optional client-side identifier for React key / filter dedup."
-              },
               "filter_config": {
                 "type": "object",
                 "properties": {
@@ -89448,14 +89384,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "object"
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },
         "config": {
           "type": "array",
           "items": {
-            "type": "object"
+            "type": "object",
+            "x-json-value": true,
+            "description": "Any valid JSON value."
           }
         }
       }

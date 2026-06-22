@@ -1,6 +1,8 @@
 from django.db.models import Q
 from rest_framework import serializers
 
+from tfc.utils.serializer_fields import JsonValueField
+
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
@@ -169,8 +171,12 @@ class TraceObserveListMetadataSerializer(serializers.Serializer):
 
 class TraceObserveListResultSerializer(serializers.Serializer):
     metadata = TraceObserveListMetadataSerializer()
-    table = serializers.ListField(child=serializers.DictField(child=serializers.JSONField()))
-    config = serializers.ListField(child=serializers.JSONField())
+    # Each row is a dict of scalar values (trace_id, latency, status, …).
+    # DictField(child=JSONField) would emit additionalProperties:{type:object}
+    # which rejects scalars under strict validation. JsonValueField emits
+    # x-json-value so the contract accepts any valid JSON (string, number, etc.).
+    table = serializers.ListField(child=serializers.DictField(child=JsonValueField()))
+    config = serializers.ListField(child=JsonValueField())
 
 
 class TraceObserveListResponseSerializer(serializers.Serializer):

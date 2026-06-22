@@ -12634,7 +12634,6 @@ export const ModelHubAnnotationQueuesAutomationRulesListResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12687,7 +12686,6 @@ export const ModelHubAnnotationQueuesAutomationRulesCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12737,7 +12735,6 @@ export const ModelHubAnnotationQueuesAutomationRulesReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12790,7 +12787,6 @@ export const ModelHubAnnotationQueuesAutomationRulesUpdateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12834,7 +12830,6 @@ export const ModelHubAnnotationQueuesAutomationRulesUpdateResponse = zod.object(
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12887,7 +12882,6 @@ export const ModelHubAnnotationQueuesAutomationRulesPartialUpdateBody = zod.obje
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -12931,7 +12925,6 @@ export const ModelHubAnnotationQueuesAutomationRulesPartialUpdateResponse = zod.
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -13152,7 +13145,6 @@ export const ModelHubAnnotationQueuesItemsAddItemsBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -18082,7 +18074,6 @@ export const ModelHubDevelopsGetRowDataCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -21899,7 +21890,6 @@ export const ModelHubGetEvalMetricsCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -29961,7 +29951,6 @@ export const SimulateApiRunTestsListResponseItem = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -29985,7 +29974,6 @@ export const SimulateApiRunTestsListResponseItem = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -30874,7 +30862,6 @@ export const SimulatePromptTemplatesSimulationsListResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -30898,7 +30885,6 @@ export const SimulatePromptTemplatesSimulationsListResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -30972,7 +30958,6 @@ export const SimulatePromptTemplatesSimulationsCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31043,7 +31028,6 @@ export const SimulatePromptTemplatesSimulationsReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31067,7 +31051,6 @@ export const SimulatePromptTemplatesSimulationsReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31160,7 +31143,6 @@ export const SimulatePromptTemplatesSimulationsPartialUpdateResponse = zod.objec
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31184,7 +31166,6 @@ export const SimulatePromptTemplatesSimulationsPartialUpdateResponse = zod.objec
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31325,7 +31306,6 @@ export const SimulateRunTestsListResponseItem = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31349,7 +31329,6 @@ export const SimulateRunTestsListResponseItem = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31415,7 +31394,6 @@ export const SimulateRunTestsCreateCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31504,7 +31482,6 @@ export const SimulateRunTestsReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31528,7 +31505,6 @@ export const SimulateRunTestsReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31618,7 +31594,6 @@ export const SimulateRunTestsPartialUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31642,7 +31617,6 @@ export const SimulateRunTestsPartialUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31809,7 +31783,6 @@ export const SimulateRunTestsComponentsPartialUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31833,7 +31806,6 @@ export const SimulateRunTestsComponentsPartialUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -31916,7 +31888,6 @@ export const SimulateRunTestsEvalConfigsCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -33490,7 +33461,6 @@ export const TracerChartsFetchGraphResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -34116,7 +34086,6 @@ export const TracerDashboardQueryBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -34130,7 +34099,6 @@ export const TracerDashboardQueryBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -34422,7 +34390,6 @@ export const TracerDashboardWidgetsPreviewQueryBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -34436,7 +34403,6 @@ export const TracerDashboardWidgetsPreviewQueryBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35099,7 +35065,6 @@ export const TracerEvalTaskListResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35158,7 +35123,6 @@ export const TracerEvalTaskCreateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35232,7 +35196,6 @@ export const TracerEvalTaskGetEvalDetailsResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35301,7 +35264,6 @@ export const TracerEvalTaskGetEvalTaskLogsResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35370,7 +35332,6 @@ export const TracerEvalTaskGetUsageResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35454,7 +35415,6 @@ export const TracerEvalTaskListEvalTasksResponseItem = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35538,7 +35498,6 @@ export const TracerEvalTaskListEvalTasksWithProjectNameResponseItem = zod.object
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35653,7 +35612,6 @@ export const TracerEvalTaskUpdateEvalTaskBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35718,7 +35676,6 @@ export const TracerEvalTaskReadResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35780,7 +35737,6 @@ export const TracerEvalTaskUpdateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35835,7 +35791,6 @@ export const TracerEvalTaskUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35897,7 +35852,6 @@ export const TracerEvalTaskPartialUpdateBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -35952,7 +35906,6 @@ export const TracerEvalTaskPartialUpdateResponse = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -37363,7 +37316,6 @@ export const TracerObservationSpanGetGraphMethodsBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -39335,7 +39287,6 @@ export const TracerProjectGetUserGraphDataBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -39359,7 +39310,6 @@ export const TracerProjectGetUserMetricsBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -39390,7 +39340,6 @@ export const TracerProjectGetUsersAggregateGraphDataBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -40930,7 +40879,6 @@ export const TracerTraceSessionGetSessionGraphDataBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -41372,7 +41320,6 @@ export const TracerTraceGetGraphMethodsBody = zod.object({
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
   "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
   "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
-  "id": zod.string().optional().describe('Optional client-side identifier for React key \/ filter dedup.'),
   "filter_config": zod.object({
   "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
   "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
@@ -41697,10 +41644,10 @@ export const TracerTraceListTracesOfSessionResponse = zod.object({
 }),
   "table": zod.array(zod.record(zod.string(), zod.object({
 
-}).passthrough())),
+}).passthrough().describe('Any valid JSON value.'))),
   "config": zod.array(zod.object({
 
-}).passthrough())
+}).passthrough().describe('Any valid JSON value.'))
 })
 })
 
