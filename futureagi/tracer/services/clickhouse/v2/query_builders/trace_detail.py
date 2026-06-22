@@ -280,6 +280,11 @@ def retrieve_trace_detail_ch(
                         if c.eval_template
                         else None
                     ),
+                    "template_type": (
+                        getattr(c.eval_template, "template_type", None)
+                        if c.eval_template
+                        else None
+                    ),
                 }
                 for c in configs
             }
@@ -311,6 +316,7 @@ def retrieve_trace_detail_ch(
                     "eval_config_id": cid,
                     "eval_name": info.get("name", cid),
                     "output_type": info.get("output_type"),
+                    "template_type": info.get("template_type"),
                     "score": score,
                     "result": output_str
                     or (output_bool if output_bool is not None else None),
