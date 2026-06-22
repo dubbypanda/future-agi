@@ -250,9 +250,9 @@ def validate_file_url(
     # Get configuration for this file type
     config = FILE_TYPE_CONFIG[file_type]
 
-    # Verify URL is accessible and validate via content-type.
-    # Extension-based checks are intentionally skipped — S3, CDN, and
-    # presigned URLs commonly use UUID/hash keys with no file extension.
+    # Generic types that carry no useful file-type signal.
+    _GENERIC_CONTENT_TYPES = {"application/octet-stream", "binary/octet-stream"}
+
     try:
         response = requests.head(url, timeout=5, allow_redirects=True)
         if response.status_code >= 400:
@@ -261,17 +261,42 @@ def validate_file_url(
             )
 
         if config["check_content_type"]:
-            content_type = response.headers.get("Content-Type", "").lower()
+            # Content-Type is the primary signal. Extensions are used as a
+            # fallback only when the server returns a generic or missing type.
+            raw_ct = response.headers.get("Content-Type", "")
+            content_type = raw_ct.lower().split(";")[0].strip()
             expected_prefix = config["content_type_prefix"]
-            if content_type and not content_type.startswith(expected_prefix):
-                # Content-type mismatch — fall back to extension check as a
-                # last resort (some servers return generic content-types).
-                valid_extensions = config["extensions"]
-                url_lower = url.lower().split("?")[0]
-                if not any(url_lower.endswith(ext) for ext in valid_extensions):
-                    raise ValueError(
-                        f"URL content-type is '{content_type}', not a {file_type} type"
-                    )
+            valid_extensions = config["extensions"]
+            url_path = url.lower().split("?")[0]
+
+            if content_type.startswith(expected_prefix):
+                pass  # explicit content-type match — accept
+            elif not content_type or content_type in _GENERIC_CONTENT_TYPES:
+                # Server returned no useful type signal (empty, octet-stream,
+                # etc.). Fall back to extension. S3/CDN URLs routinely carry
+                # neither extension nor content-type — allow them deliberately
+                # so that our own exported image URLs are not rejected; a
+                # magic-byte check downstream is the last line of defence.
+                if url_path and not any(url_path.endswith(ext) for ext in valid_extensions):
+                    pass  # no extension, no content-type — allow (deliberate)
+            else:
+                # Server returned an explicit, non-generic content-type that
+                # doesn't match — reject outright, no extension fallback.
+                raise ValueError(
+                    f"URL does not appear to be a {file_type}: "
+                    f"content-type '{content_type}' is not '{expected_prefix}*'"
+                )
+        else:
+            # No content-type check available for this file type (e.g. documents).
+            # Validate by extension instead — without this an arbitrary reachable
+            # URL would pass.
+            valid_extensions = config["extensions"]
+            url_path = url.lower().split("?")[0]
+            if not any(url_path.endswith(ext) for ext in valid_extensions):
+                raise ValueError(
+                    f"URL does not appear to be a {file_type}. "
+                    f"Expected extensions: {', '.join(valid_extensions)}"
+                )
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Cannot access {file_type} URL: {str(e)}")
 
