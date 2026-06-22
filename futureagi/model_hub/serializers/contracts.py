@@ -2915,6 +2915,7 @@ class UserEvalUpdateRequestSerializer(serializers.Serializer):
         allow_null=True,
         default=None,
     )
+    pinned_version_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class StartEvalsProcessRequestSerializer(serializers.Serializer):
