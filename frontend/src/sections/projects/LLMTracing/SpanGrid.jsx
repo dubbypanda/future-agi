@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { AgGridReact } from "ag-grid-react";
 import "src/styles/clean-data-table.css";
 import PropTypes from "prop-types";
@@ -28,8 +28,6 @@ import CustomTraceRenderer from "./Renderers/CustomTraceRenderer";
 import CustomTraceHeaderRenderer from "./Renderers/CustomTraceHeaderRenderer";
 import { Events, trackEvent } from "src/utils/Mixpanel";
 import { statusBar } from "src/components/run-insights/traces-tab/common";
-import { objectCamelToSnake } from "src/utils/utils";
-import { canonicalizeApiFilterColumnIds } from "src/utils/filter-column-ids";
 import LLMTracingSpanDetailDrawer from "./LLMTracingSpanDetailDrawer";
 import { useLLMTracingStoreShallow, useSpanGridStore } from "./states";
 import { userTraceRowHeightMapping } from "../UsersView/common";
@@ -64,7 +62,7 @@ const getSpanListColumnDefs = (col) => {
       ? { colId: col.id, minWidth: 180, flex: 1 }
       : { field: col.id }),
     hide: !col?.isVisible,
-    col,
+    context: { sourceColumn: col },
     // Custom columns use valueGetter to handle dot-notation attribute keys
     ...(isCustomColumn
       ? (() => {
@@ -110,7 +108,7 @@ const getSpanListColumnDefs = (col) => {
     },
     cellRendererSelector: (params) => {
       const value = params.value;
-      const column = params?.colDef?.col;
+      const column = params?.colDef?.context?.sourceColumn;
       const colId = column?.id;
 
       // The tags column stays interactive even when empty so a first tag can
@@ -200,6 +198,7 @@ const SpanGrid = React.forwardRef(
       }));
 
     const agTheme = useAgTheme();
+    const theme = useTheme();
     const { observeId } = useParams();
     const { setSpanDetailDrawerOpen } = useLLMTracingStoreShallow((state) => ({
       setSpanDetailDrawerOpen: state.setSpanDetailDrawerOpen,
@@ -216,9 +215,29 @@ const SpanGrid = React.forwardRef(
     // Prefetch cache: stores next page data so scroll feels instant
     const prefetchCache = useRef(new Map());
 
-    const refreshGrid = () => {
-      gridRef?.current?.api?.refreshServerSide();
-    };
+    const refreshGrid = useCallback(() => {
+      gridRef?.current?.api?.refreshServerSide({ purge: true });
+    }, [gridRef]);
+    const filterRequestKey = useMemo(
+      () =>
+        JSON.stringify({
+          filters,
+          extraFilters: extraFilters || EMPTY_EXTRA_FILTERS,
+          metricFilters: metricFilters || [],
+          hasEvalFilter,
+          observeId,
+          enabled,
+        }),
+      [filters, extraFilters, metricFilters, hasEvalFilter, observeId, enabled],
+    );
+    const previousFilterRequestKeyRef = useRef(filterRequestKey);
+
+    useEffect(() => {
+      if (previousFilterRequestKeyRef.current === filterRequestKey) return;
+      previousFilterRequestKeyRef.current = filterRequestKey;
+      prefetchCache.current.clear();
+      refreshGrid();
+    }, [filterRequestKey, refreshGrid]);
 
     // Clear AG Grid's internal selection when the project changes — the
     // zustand reset handled in the header only clears our mirror, not AG
@@ -320,7 +339,13 @@ const SpanGrid = React.forwardRef(
         }
       });
       if (annotationColumns?.length > 0) {
-        columnDefsResult.push(annotationColumns[0]);
+        for (const group of annotationColumns) {
+          if (group.children) {
+            columnDefsResult.push(...group.children);
+          } else {
+            columnDefsResult.push(group);
+          }
+        }
       }
       return {
         columnDefs: columnDefsResult,
@@ -354,16 +379,12 @@ const SpanGrid = React.forwardRef(
                 ...(observeId ? { project_id: observeId } : {}),
                 page_number: page,
                 page_size: ROWS_LIMIT,
-                filters: JSON.stringify(
-                  canonicalizeApiFilterColumnIds([
-                    ...objectCamelToSnake([
-                      ...filters,
-                      ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
-                    ]),
-                    ...(extraFilters || EMPTY_EXTRA_FILTERS),
-                    ...(metricFilters || []),
-                  ]),
-                ),
+                filters: JSON.stringify([
+                  ...filters,
+                  ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
+                  ...(extraFilters || EMPTY_EXTRA_FILTERS),
+                  ...(metricFilters || []),
+                ]),
               });
 
               // Use prefetched data if available, otherwise fetch
@@ -581,28 +602,32 @@ const SpanGrid = React.forwardRef(
           rowHeight={userTraceRowHeightMapping[cellHeight]?.height ?? 40}
           theme={agTheme.withParams({
             columnBorder: false,
-            headerColumnBorder: { width: 0 },
+            headerColumnBorder: false,
             wrapperBorder: { width: 0 },
             wrapperBorderRadius: 0,
+            rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
+            headerFontSize: "13px",
+            headerFontWeight: theme.typography.fontWeightMedium,
+            headerBackgroundColor: "transparent",
+            headerTextColor: theme.palette.text.primary,
+            rowHoverColor: "rgba(120,87,252,0.04)",
           })}
           ref={gridRef}
           columnDefs={columnDefs}
           onColumnMoved={onColumnMoved}
           defaultColDef={defaultColDef}
           context={gridContext}
-          rowSelection={{ mode: "multiRow" }}
+          rowSelection={{ mode: "multiRow", enableClickSelection: false }}
           pagination={false}
           cacheBlockSize={ROWS_LIMIT}
           maxBlocksInCache={undefined}
           rowBuffer={10}
-          suppressRowClickSelection={true}
           rowModelType="serverSide"
           tooltipShowDelay={0}
           tooltipHideDelay={2000}
           tooltipInteraction={true}
           serverSideDatasource={dataSource}
           suppressServerSideFullWidthLoadingRow={true}
-          serverSideInitialRowCount={ROWS_LIMIT}
           onCellClicked={handleCellClick}
           onSelectionChanged={onSelectionChanged}
           // onGridReady={(params) => {
@@ -654,7 +679,7 @@ SpanGrid.propTypes = {
   filters: PropTypes.array,
   extraFilters: PropTypes.array,
   setFilters: PropTypes.func,
-  setFilterOpen: PropTypes.bool,
+  setFilterOpen: PropTypes.func,
   setLoading: PropTypes.func,
   setPageMap: PropTypes.func,
   compareType: PropTypes.string,

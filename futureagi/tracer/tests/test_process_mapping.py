@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from tracer.utils.eval import _process_mapping
+from tracer.utils.eval import EvalSkippedMissingAttribute, _process_mapping
 
 
 @pytest.fixture
@@ -89,12 +89,18 @@ def test_provider_transcript_alias_resolves(_span_with_attrs, missing_eval_templ
     assert out == {"text": "hello world"}
 
 
-def test_missing_attribute_raises(_span_with_attrs, missing_eval_template_id):
+def test_missing_attribute_raises_typed_skip(
+    _span_with_attrs, missing_eval_template_id
+):
     span = _span_with_attrs({"unrelated": "value"})
-    with pytest.raises(ValueError, match="Required attribute 'input'"):
+    with pytest.raises(ValueError, match="Required attribute 'nonexistent_field'"):
         _process_mapping(
-            {"prompt": "input"}, span, eval_template_id=missing_eval_template_id
+            {"prompt": "nonexistent_field"},
+            span,
+            eval_template_id=missing_eval_template_id,
         )
+    assert isinstance(exc.value, EvalSkippedMissingAttribute)
+    assert exc.value.skipped_reason == "missing_required_attribute: input"
 
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -236,7 +242,9 @@ def test_voice_fallback_resolves_messages_subfield(
     voice_span, missing_eval_template_id
 ):
     out = _process_mapping(
-        {"v": "messages.1.message"}, voice_span, eval_template_id=missing_eval_template_id
+        {"v": "messages.1.message"},
+        voice_span,
+        eval_template_id=missing_eval_template_id,
     )
     assert out == {"v": "Hello"}
 

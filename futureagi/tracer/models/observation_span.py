@@ -28,6 +28,7 @@ class UserIdType(models.TextChoices):
     EMAIL = "email", "Email"
     PHONE = "phone", "Phone"
     UUID = "uuid", "UUID"
+    CUSTOM = "custom", "Custom"
 
 
 class ObservationType(models.TextChoices):
@@ -49,7 +50,6 @@ class ObservationType(models.TextChoices):
     GUARDRAIL = "guardrail", "Guardrail"
     EVALUATOR = "evaluator", "Evaluator"
     CONVERSATION = "conversation", "Conversation"
-    CUSTOM = "custom", "Custom"
 
 
 class EndUser(BaseModel):
@@ -86,6 +86,26 @@ class EndUser(BaseModel):
 
 
 class ObservationSpan(BaseModel):
+    """[DEPRECATED] PG-side span model superseded by CH v2 ``spans``.
+
+    CH25 cutover status:
+    - Writes: fi-collector is the canonical ingest path for span data
+      into CH ``spans``. The PG row is still produced by legacy ingest
+      shims and consumed by a small set of readers (see below).
+    - Reads remaining:
+        • ``tracer/socket.py`` (graph data WebSocket)
+        • ``tracer/utils/sql_queries.py``
+        • ``model_hub/utils/SQL_queries.py``
+        • ``ee/usage/management/commands/backfill_usage_summary.py``
+      Those four PG readers need migration to v2 CH ``spans`` before
+      the PG table can be dropped.
+
+    Dev / local docker compose: the
+    ``drop_legacy_observation_span`` management command can run after
+    fi-collector verification. In prod, the drop stays manual until
+    those four readers are migrated. See ``docs/CH25_MIGRATION.md``.
+    """
+
     OBSERVATION_SPAN_TYPES = (
         ("tool", "Tool"),
         ("chain", "Chain"),
@@ -132,6 +152,7 @@ class ObservationSpan(BaseModel):
         related_name="observation_spans",
         null=False,
         blank=False,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     parent_span_id = models.CharField(max_length=255, null=True, blank=True)
     name = models.CharField(max_length=2000, null=False, blank=False)
@@ -207,6 +228,7 @@ class ObservationSpan(BaseModel):
         null=True,
         blank=True,
         default=None,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
 
     prompt_version = models.ForeignKey(
@@ -290,6 +312,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     observation_span = models.ForeignKey(
         ObservationSpan,
@@ -297,6 +320,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     trace_session = models.ForeignKey(
         TraceSession,
@@ -304,6 +328,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     target_type = models.CharField(
         max_length=16,
@@ -332,6 +357,10 @@ class EvalLogger(BaseModel):
     )
     error = models.BooleanField(default=False)
     error_message = models.TextField(null=True, blank=True)
+    # Set when the eval was skipped rather than run — e.g. a mapped span
+    # attribute was absent. Distinct from `error` so read paths render
+    # "Skipped" and drop these rows from failure-rate metrics.
+    skipped_reason = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"Eval Log {self.id}"
@@ -360,8 +389,7 @@ class EvalLogger(BaseModel):
         else:
             if self.trace_session_id:
                 raise ValidationError(
-                    "Span/trace-target EvalLogger rows must not set "
-                    "trace_session."
+                    "Span/trace-target EvalLogger rows must not set trace_session."
                 )
             if not (self.observation_span_id and self.trace_id):
                 raise ValidationError(

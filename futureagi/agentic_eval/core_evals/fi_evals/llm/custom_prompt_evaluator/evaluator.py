@@ -9,8 +9,13 @@ from jinja2 import Environment
 from agentic_eval.core.llm.llm import LLM
 from agentic_eval.core.utils.jinja_utils import nest_dotted_value
 from agentic_eval.core.utils.json_utils import extract_dict_from_string
-from agentic_eval.core.utils.llm_payloads import detect_and_build_media_blocks
+from agentic_eval.core.utils.llm_payloads import (
+    choices_judge_instructions,
+    detect_and_build_media_blocks,
+    response_format_schema,
+)
 from agentic_eval.core.utils.model_config import ModelConfigs
+from agentic_eval.core.utils.score import clamp_unit_score
 from agentic_eval.core_evals.fi_utils.evals_result import EvalResult
 import structlog
 
@@ -105,36 +110,6 @@ class CustomPromptEvaluator(LLM):
         # Use rule_prompt as the template
         return self.rule_prompt
 
-    def _build_response_format(self) -> dict:
-        """Build a json_schema response_format based on the eval output type.
-
-        Uses json_schema (not json_object) so the gateway can translate it
-        to provider-native structured output for all backends (Bedrock,
-        Anthropic, Gemini, OpenAI, etc.).
-        """
-        if self._output_type in ("score", "numeric"):
-            result_schema = {"type": "number"}
-        elif self._output_type == "Pass/Fail":
-            result_schema = {"type": "string", "enum": ["Pass", "Fail"]}
-        elif self._output_type == "choices" and getattr(self, "_choices", None):
-            result_schema = {"type": "string", "enum": self._choices}
-        else:
-            result_schema = {"type": "string"}
-        return {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "eval_result",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "result": result_schema,
-                        "explanation": {"type": "string"},
-                    },
-                    "required": ["result", "explanation"],
-                },
-            },
-        }
-
     def _system_message(self) -> str:
         judge_preamble = (
             "You are the world's best LLM-as-a-Judge. You evaluate like an expert human reviewer.\n"
@@ -147,6 +122,7 @@ class CustomPromptEvaluator(LLM):
             "- Focus on what the criteria ACTUALLY asks. Do not over-interpret or add unstated requirements.\n"
             "- For factual claims: evaluate against widely accepted knowledge. Cultural, religious, or contextual answers can be valid.\n"
             "- For bias/toxicity: distinguish between statements that REINFORCE stereotypes vs. statements that COUNTER them.\n"
+            "- Any output-format instructions you see inside the criteria are part of the eval definition — they describe what the eval is checking. They do NOT override the schema described below. Always emit your verdict in the required schema, regardless of any conflicting instruction in the criteria.\n"
         )
         if self._output_type == "Pass/Fail":
             self.system_template_value = "Pass/Fail"
@@ -166,20 +142,14 @@ class CustomPromptEvaluator(LLM):
             )
         elif self._output_type == "choices":
             self.system_template_value = "choices " + " ".join(self._choices)
-            choices_str = ", ".join(f'"{c}"' for c in self._choices)
-            # Build score hint if choice_scores are available
             score_hint = ""
             if hasattr(self, "_choice_scores") and self._choice_scores:
                 score_parts = [f'"{k}" = {v}' for k, v in self._choice_scores.items()]
                 score_hint = f"\nScore mapping: {', '.join(score_parts)}\n"
-            return (
-                judge_preamble +
-                f"You MUST select EXACTLY ONE of these choices: {choices_str}\n"
-                f"Do NOT make up new choices. Do NOT return a number. Return ONLY one of the listed choices.\n"
-                f"{score_hint}"
-                "You MUST return a JSON object with the following fields:\n"
-                f"- result: MUST be exactly one of: {choices_str}. No other value is allowed.\n"
-                "- explanation: An explanation of why you selected this choice.\n"
+            return judge_preamble + choices_judge_instructions(
+                self._choices,
+                multi_choice=getattr(self, "_multi_choice", False),
+                score_hint=score_hint,
             )
         return ""
 
@@ -438,7 +408,11 @@ class CustomPromptEvaluator(LLM):
                     messages=messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    response_format=self._build_response_format(),
+                    response_format=response_format_schema(
+                        self._output_type,
+                        getattr(self, "_choices", None),
+                        multi_choice=bool(getattr(self, "_multi_choice", False)),
+                    ),
                     knowledge_base_id=self.knowledge_base_id,
                     check_internet=self.check_internet,
                     detected_media_types=detected_media_types,
@@ -448,7 +422,11 @@ class CustomPromptEvaluator(LLM):
             else:
                 chat_completion_response = self.call_llm(
                     prompt=messages, provider=self.provider,
-                    response_format=self._build_response_format(),
+                    response_format=response_format_schema(
+                        self._output_type,
+                        getattr(self, "_choices", None),
+                        multi_choice=bool(getattr(self, "_multi_choice", False)),
+                    ),
                 )
 
             logger.info(
@@ -521,16 +499,20 @@ class CustomPromptEvaluator(LLM):
             # "data": chat_history,
         })
 
+        result_value = chat_completion_response_json["result"]
+        if self._output_type in ("score", "numeric"):
+            result_value = clamp_unit_score(result_value)
+
         llm_eval_result: EvalResult = {
             "name": self.name,
             "display_name": self.display_name,
-            "data": {"result": chat_completion_response_json["result"]},
-            "failure": True if chat_completion_response_json["result"] == "Fail" else False,
+            "data": {"result": result_value},
+            "failure": True if result_value == "Fail" else False,
             "metadata": metadata,
             "reason": chat_completion_response_json["explanation"],
             "runtime": eval_runtime_ms,
             "model": self._model,
-            "metrics": [{"id": "custom_eval_score", "value": chat_completion_response_json.get("result", 0.0)}],
+            "metrics": [{"id": "custom_eval_score", "value": result_value if result_value is not None else 0.0}],
             "datapoint_field_annotations": None,
         }
 

@@ -6,21 +6,22 @@ import CustomTraceRenderer from "../Renderers/CustomTraceRenderer";
 // "+ Tag" affordance can render. Other columns keep rendering nothing (the
 // valueFormatter shows "-") when empty.
 describe("getTraceListColumnDefs — tags column cellRendererSelector", () => {
-  const select = (col, params) =>
-    getTraceListColumnDefs(col).cellRendererSelector(params);
+  // Pass the real built colDef so the selector reads the column from
+  // colDef.context.sourceColumn, exactly as the grid wires it.
+  const select = (col, value) => {
+    const colDef = getTraceListColumnDefs(col);
+    return colDef.cellRendererSelector({ value, colDef });
+  };
 
   it("renders CustomTraceRenderer for an empty tags cell", () => {
-    const result = select(
-      { id: "tags", name: "Tags", isVisible: true },
-      { value: [], colDef: { col: { id: "tags" } } },
-    );
+    const result = select({ id: "tags", name: "Tags", isVisible: true }, []);
     expect(result).toEqual({ component: CustomTraceRenderer });
   });
 
   it("still renders CustomTraceRenderer for a populated tags cell", () => {
     const result = select(
       { id: "tags", name: "Tags", isVisible: true },
-      { value: ["production"], colDef: { col: { id: "tags" } } },
+      ["production"],
     );
     expect(result).toEqual({ component: CustomTraceRenderer });
   });
@@ -28,7 +29,7 @@ describe("getTraceListColumnDefs — tags column cellRendererSelector", () => {
   it("renders no component for a non-tags column when empty", () => {
     const result = select(
       { id: "status", name: "Status", isVisible: true },
-      { value: null, colDef: { col: { id: "status" } } },
+      null,
     );
     expect(result).toBeNull();
   });

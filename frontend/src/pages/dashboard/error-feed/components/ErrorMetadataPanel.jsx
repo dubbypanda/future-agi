@@ -860,8 +860,7 @@ function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
         },
         onError: (err) => {
           const message =
-            err?.response?.data?.result ||
-            "Failed to create Linear issue";
+            err?.response?.data?.result || "Failed to create Linear issue";
           enqueueSnackbar(message, { variant: "error" });
         },
       },
@@ -894,7 +893,7 @@ function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
             <Typography fontSize="14px" fontWeight={700} color="text.primary">
               Create Linear Issue
             </Typography>
-            <Typography fontSize="11px" color="text.disabled">
+            <Typography fontSize="11px" color="text.secondary">
               Select a team to create the issue in.
             </Typography>
           </Stack>
@@ -1563,9 +1562,7 @@ export default function ErrorMetadataPanel({ error }) {
             />
             <MetaRow
               label="Version"
-              value={
-                sidebar?.aiMetadata?.modelVersion ?? error.modelVersion
-              }
+              value={sidebar?.aiMetadata?.modelVersion ?? error.modelVersion}
               icon="mdi:tag-outline"
               monospace
             />
@@ -1611,15 +1608,18 @@ export default function ErrorMetadataPanel({ error }) {
           <Section title="Evaluations">
             <Stack gap={0.75}>
               {Array.from({ length: 3 }).map((_, i) => (
-                <Stack
-                  key={i}
-                  direction="row"
-                  alignItems="center"
-                  gap={0.75}
-                >
-                  <Skeleton width={90} height={12} sx={{ borderRadius: "3px" }} />
+                <Stack key={i} direction="row" alignItems="center" gap={0.75}>
+                  <Skeleton
+                    width={90}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                   <Box sx={{ flex: 1 }} />
-                  <Skeleton width={36} height={12} sx={{ borderRadius: "3px" }} />
+                  <Skeleton
+                    width={36}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                 </Stack>
               ))}
             </Stack>
@@ -1648,15 +1648,18 @@ export default function ErrorMetadataPanel({ error }) {
           <Section title="Co-occurring Issues">
             <Stack gap={0.75}>
               {Array.from({ length: 3 }).map((_, i) => (
-                <Stack
-                  key={i}
-                  direction="row"
-                  alignItems="center"
-                  gap={0.75}
-                >
-                  <Skeleton width="65%" height={12} sx={{ borderRadius: "3px" }} />
+                <Stack key={i} direction="row" alignItems="center" gap={0.75}>
+                  <Skeleton
+                    width="65%"
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                   <Box sx={{ flex: 1 }} />
-                  <Skeleton width={28} height={12} sx={{ borderRadius: "3px" }} />
+                  <Skeleton
+                    width={28}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                 </Stack>
               ))}
             </Stack>

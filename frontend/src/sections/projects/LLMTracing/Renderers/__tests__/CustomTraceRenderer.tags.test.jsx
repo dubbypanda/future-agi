@@ -29,7 +29,9 @@ vi.mock("src/components/traceDetail/AddTagsPopover", () => ({
 const renderTagsColumn = (overrides = {}) => {
   const refreshServerSide = vi.fn();
   const params = {
-    colDef: { col: { id: "tags" } },
+    // The grid identifies a column via colDef.context.sourceColumn; the
+    // grid-level context carries entityType.
+    colDef: { context: { sourceColumn: { id: "tags" } } },
     value: ["production"],
     data: { trace_id: "trace-1", span_id: "span-root" },
     api: { refreshServerSide },
