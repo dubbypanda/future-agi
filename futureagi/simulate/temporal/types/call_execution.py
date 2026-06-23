@@ -6,7 +6,7 @@ individual call execution workflows.
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -77,13 +77,13 @@ class CallResult:
     status: str  # "ended", "failed", "cancelled", "no-answer", etc.
 
     # Duration in seconds (None if call didn't connect)
-    duration_seconds: int | None = None
+    duration_seconds: Optional[int] = None
 
     # Reason for call ending (provider-specific)
-    ended_reason: str | None = None
+    ended_reason: Optional[str] = None
 
     # Error message (if failed)
-    error: str | None = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -103,13 +103,13 @@ class CallExecutionOutput:
     call_id: str
 
     # Provider-assigned call ID (for debugging/lookup)
-    provider_call_id: str | None = None
+    provider_call_id: Optional[str] = None
 
     # Call duration
-    duration_seconds: int | None = None
+    duration_seconds: Optional[int] = None
 
     # Error information (if failed)
-    error: str | None = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -124,7 +124,7 @@ class CallStatus:
     status: str  # PENDING, PREPARING, ACQUIRING, CALLING, MONITORING, STORING, EVALUATING, DOWNSTREAM_TASKS, CLEANUP, COMPLETED, FAILED, CANCELLED
 
     # Provider call ID (available after call creation)
-    provider_call_id: str | None = None
+    provider_call_id: Optional[str] = None
 
     # Current phase details
-    phase_details: str | None = None
+    phase_details: Optional[str] = None

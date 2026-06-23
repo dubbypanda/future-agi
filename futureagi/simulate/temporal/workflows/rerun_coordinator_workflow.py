@@ -23,6 +23,7 @@ Architecture:
 
 import asyncio
 from datetime import timedelta
+from typing import Optional
 
 from temporalio import workflow
 from temporalio.common import WorkflowIDReusePolicy
@@ -77,10 +78,10 @@ class RerunCoordinatorWorkflow:
 
     def __init__(self):
         self._status = "PENDING"
-        self._test_execution_id: str | None = None
-        self._rerun_id: str | None = None
-        self._org_id: str | None = None
-        self._workspace_id: str | None = None
+        self._test_execution_id: Optional[str] = None
+        self._rerun_id: Optional[str] = None
+        self._org_id: Optional[str] = None
+        self._workspace_id: Optional[str] = None
 
         # Progress tracking
         self._total_calls = 0

@@ -6,6 +6,8 @@ dispatcher workflow that manages call slot allocation and rate limiting.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
 
 
 @dataclass
@@ -27,11 +29,11 @@ class SlotRequest:
     workflow_id: str
 
     # Timestamp for FIFO ordering (optional, set by dispatcher if not provided)
-    requested_at: str | None = None  # ISO format
+    requested_at: Optional[str] = None  # ISO format
 
     # Agent-level concurrency (for LiveKit agents)
-    agent_definition_id: str | None = None
-    agent_concurrency_limit: int | None = None
+    agent_definition_id: Optional[str] = None
+    agent_concurrency_limit: Optional[int] = None
 
 
 @dataclass
@@ -67,7 +69,7 @@ class ActiveCall:
     granted_at: str
 
     # Agent definition ID (for per-agent concurrency tracking)
-    agent_definition_id: str | None = None
+    agent_definition_id: Optional[str] = None
 
 
 @dataclass

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Optional
+
 
 def set_processing_skip_metadata(
-    call_metadata: dict | None,
+    call_metadata: Optional[dict],
     *,
     skipped: bool,
-    reason: str | None = None,
+    reason: Optional[str] = None,
 ) -> dict:
     """Return call_metadata updated with general processing skip state."""
     metadata = dict(call_metadata or {})
@@ -17,7 +19,7 @@ def set_processing_skip_metadata(
 def build_skipped_eval_output_payload(
     *,
     eval_name: str,
-    reason: str | None,
+    reason: Optional[str],
 ) -> dict:
     """Build a standardized skipped eval output payload for UI rendering."""
     return {

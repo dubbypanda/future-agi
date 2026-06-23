@@ -12,13 +12,14 @@ Tests cover:
 import json
 import random
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from model_hub.models.choices import DatasetSourceChoices, SourceChoices
+from model_hub.models.choices import DatasetSourceChoices, SourceChoices, StatusType
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from simulate.models import AgentDefinition, Scenarios
+from simulate.models.simulator_agent import SimulatorAgent
 
 # ============================================================================
 # Fixtures
@@ -564,7 +565,7 @@ class TestScenarioGenerationVariations:
         )
 
         # Add custom columns
-        Column.objects.create(
+        custom_col = Column.objects.create(
             dataset=source_dataset,
             name="customer_id",
             data_type="text",

@@ -753,7 +753,8 @@ const CreateRunTestPage = ({ open, onClose }) => {
       agentVersionDetails?.apiKey ??
       snapshot.api_key ??
       snapshot.apiKey;
-    const assistantId = snapshot.assistant_id ?? snapshot.assistantId;
+    const assistantId =
+      snapshot.assistant_id ?? snapshot.assistantId;
     return Boolean(apiKey && assistantId);
   };
 

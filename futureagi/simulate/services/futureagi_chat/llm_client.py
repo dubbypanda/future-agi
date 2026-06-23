@@ -3,7 +3,7 @@
 Uses the existing LLM class for completion with tools (retry, provider routing, etc.).
 """
 
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import litellm
 import structlog
@@ -23,14 +23,14 @@ logger = structlog.get_logger(__name__)
 
 
 def generate_simulator_response(
-    messages: list[dict[str, Any]],
+    messages: List[Dict[str, Any]],
     system_prompt: str,
     model: str,
     temperature: float,
     max_tokens: int,
-    organization_id: str | None = None,
-    workspace_id: str | None = None,
-) -> dict[str, Any]:
+    organization_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Generate a response from the simulator LLM using the LLM class.
 
     Args:

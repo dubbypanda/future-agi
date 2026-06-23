@@ -13,6 +13,7 @@ These tests help discover bugs and validate model behavior.
 """
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from django.db import IntegrityError
@@ -241,13 +242,13 @@ class TestRunTestModel:
         self, db, organization, workspace, agent_definition, simulator_agent
     ):
         """Test that RunTests are ordered by -created_at."""
-        RunTest.objects.create(
+        run_test1 = RunTest.objects.create(
             name="First",
             agent_definition=agent_definition,
             organization=organization,
             workspace=workspace,
         )
-        RunTest.objects.create(
+        run_test2 = RunTest.objects.create(
             name="Second",
             agent_definition=agent_definition,
             organization=organization,
@@ -599,7 +600,7 @@ class TestCallExecutionModel:
             scenario=scenario,
             phone_number="+1111111111",
         )
-        CallExecution.objects.create(
+        call2 = CallExecution.objects.create(
             test_execution=test_execution,
             scenario=scenario,
             phone_number="+2222222222",
@@ -647,21 +648,21 @@ class TestCallTranscriptModel:
 
     def test_call_transcript_ordering(self, db, call_execution):
         """Test transcripts are ordered by start_time_ms."""
-        CallTranscript.objects.create(
+        t1 = CallTranscript.objects.create(
             call_execution=call_execution,
             speaker_role=CallTranscript.SpeakerRole.USER,
             content="First message",
             start_time_ms=0,
             end_time_ms=2000,
         )
-        CallTranscript.objects.create(
+        t2 = CallTranscript.objects.create(
             call_execution=call_execution,
             speaker_role=CallTranscript.SpeakerRole.ASSISTANT,
             content="Second message",
             start_time_ms=2500,
             end_time_ms=5000,
         )
-        CallTranscript.objects.create(
+        t3 = CallTranscript.objects.create(
             call_execution=call_execution,
             speaker_role=CallTranscript.SpeakerRole.USER,
             content="Third message",
@@ -746,7 +747,7 @@ class TestCallExecutionSnapshotModel:
 
     def test_snapshot_ordering(self, db, call_execution):
         """Test snapshots are ordered by -snapshot_timestamp."""
-        CallExecutionSnapshot.objects.create(
+        s1 = CallExecutionSnapshot.objects.create(
             call_execution=call_execution,
             rerun_type=CallExecutionSnapshot.RerunType.EVAL_ONLY,
         )
@@ -832,12 +833,12 @@ class TestSimulateEvalConfigModel:
             organization=organization,
         )
 
-        SimulateEvalConfig.objects.create(
+        config1 = SimulateEvalConfig.objects.create(
             name="Config 1",
             eval_template=eval_template,
             run_test=run_test,
         )
-        SimulateEvalConfig.objects.create(
+        config2 = SimulateEvalConfig.objects.create(
             name="Config 2",
             eval_template=eval_template,
             run_test=run_test,

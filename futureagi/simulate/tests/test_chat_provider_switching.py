@@ -2,9 +2,10 @@
 
 import asyncio
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from django.test import override_settings
 
 from simulate.models import CallExecution
 from simulate.pydantic_schemas.chat import ChatMessage, ChatRole

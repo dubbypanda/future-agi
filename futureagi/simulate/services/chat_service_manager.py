@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import threading
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 import structlog
 
@@ -86,8 +86,8 @@ class ChatServiceManager:
         self,
         provider: ChatProviderChoices | None = None,
         api_key: str = "",
-        organization_id: str | None = None,
-        workspace_id: str | None = None,
+        organization_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ):
         """Initialize the chat service manager.
 
@@ -234,7 +234,7 @@ class ChatServiceManager:
     def send_message(
         self,
         session_id: str,
-        messages: list[ChatMessage],
+        messages: List[ChatMessage],
     ) -> SendMessageResult:
         """Send message(s) to a chat session.
 
@@ -257,7 +257,7 @@ class ChatServiceManager:
     async def send_message_async(
         self,
         session_id: str,
-        messages: list[ChatMessage],
+        messages: List[ChatMessage],
     ) -> SendMessageResult:
         """Async version of send_message.
 

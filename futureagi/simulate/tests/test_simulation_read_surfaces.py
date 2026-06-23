@@ -7,8 +7,6 @@ from simulate.models.simulator_agent import SimulatorAgent
 from simulate.models.test_execution import (
     CallExecution,
     CallTranscript,
-)
-from simulate.models.test_execution import (
     TestExecution as SimulationTestExecution,
 )
 

@@ -6,6 +6,7 @@ workflow that manages the complete test execution lifecycle.
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -45,10 +46,10 @@ class TestExecutionInput:
     scenario_ids: list[str] = field(default_factory=list)
 
     # Optional simulator agent
-    simulator_id: str | None = None
+    simulator_id: Optional[str] = None
 
     # State for continue-as-new (None for initial run)
-    state: TestExecutionState | None = None
+    state: Optional[TestExecutionState] = None
 
 
 @dataclass
@@ -67,7 +68,7 @@ class TestExecutionOutput:
     failed_calls: int = 0
 
     # Error information (if failed)
-    error: str | None = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -88,8 +89,8 @@ class TestExecutionStatus:
     analyzing_calls: int = 0  # Calls that have entered ANALYZING state
 
     # Optional timing info
-    started_at: str | None = None  # ISO format timestamp
-    elapsed_seconds: int | None = None
+    started_at: Optional[str] = None  # ISO format timestamp
+    elapsed_seconds: Optional[int] = None
 
 
 @dataclass

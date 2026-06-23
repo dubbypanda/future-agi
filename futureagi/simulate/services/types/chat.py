@@ -4,8 +4,8 @@ These types define the structured interface between ChatServiceManager
 (thin router) and the engine implementations (VapiChatService, FutureAGIChatService, etc.).
 """
 
-from enum import StrEnum
-from typing import Any
+from enum import Enum
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ from simulate.pydantic_schemas.chat import ChatMessage
 # ---------------------------------------------------------------------------
 
 
-class ChatProviderChoices(StrEnum):
+class ChatProviderChoices(str, Enum):
     """Chat service provider choices."""
 
     VAPI = "vapi"
@@ -35,23 +35,23 @@ class CreateAssistantInput(BaseModel):
 
     name: str = Field(..., description="Name for the assistant")
     system_prompt: str = Field(..., description="System prompt for the simulator")
-    voice_settings: dict[str, Any] | None = Field(
+    voice_settings: Optional[dict[str, Any]] = Field(
         default=None, description="Voice/initial message settings"
     )
-    model: str | None = Field(default=None, description="LLM model to use")
-    temperature: float | None = Field(
+    model: Optional[str] = Field(default=None, description="LLM model to use")
+    temperature: Optional[float] = Field(
         default=0.9, description="Sampling temperature"
     )
-    max_tokens: int | None = Field(default=800, description="Max output tokens")
+    max_tokens: Optional[int] = Field(default=800, description="Max output tokens")
 
 
 class CreateAssistantResult(BaseModel):
     """Result of creating a chat assistant."""
 
     success: bool
-    assistant_id: str | None = None
-    provider_data: dict[str, Any] | None = None
-    error: str | None = None
+    assistant_id: Optional[str] = None
+    provider_data: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -64,13 +64,13 @@ class CreateSessionInput(BaseModel):
 
     assistant_id: str = Field(..., description="ID of the assistant to use")
     name: str = Field(..., description="Name for the session")
-    initial_message: ChatMessage | None = Field(
+    initial_message: Optional[ChatMessage] = Field(
         default=None, description="Optional initial message from assistant"
     )
-    organization_id: str | None = Field(
+    organization_id: Optional[str] = Field(
         default=None, description="Organization ID for API key resolution"
     )
-    workspace_id: str | None = Field(
+    workspace_id: Optional[str] = Field(
         default=None, description="Workspace ID for API key resolution"
     )
 
@@ -79,9 +79,9 @@ class CreateSessionResult(BaseModel):
     """Result of creating a chat session."""
 
     success: bool
-    session_id: str | None = None
-    messages: list[ChatMessage] | None = None
-    error: str | None = None
+    session_id: Optional[str] = None
+    messages: Optional[List[ChatMessage]] = None
+    error: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -99,12 +99,12 @@ class GetSessionResult(BaseModel):
     """Result of retrieving a chat session."""
 
     success: bool
-    session_id: str | None = None
-    name: str | None = None
-    status: str | None = None
-    assistant_id: str | None = None
-    messages: list[ChatMessage] | None = None
-    error: str | None = None
+    session_id: Optional[str] = None
+    name: Optional[str] = None
+    status: Optional[str] = None
+    assistant_id: Optional[str] = None
+    messages: Optional[List[ChatMessage]] = None
+    error: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -116,11 +116,11 @@ class SendMessageInput(BaseModel):
     """Input for sending messages to a chat session."""
 
     session_id: str = Field(..., description="ID of the session")
-    messages: list[ChatMessage] = Field(..., description="Messages to send")
-    organization_id: str | None = Field(
+    messages: List[ChatMessage] = Field(..., description="Messages to send")
+    organization_id: Optional[str] = Field(
         default=None, description="Organization ID for API key resolution"
     )
-    workspace_id: str | None = Field(
+    workspace_id: Optional[str] = Field(
         default=None, description="Workspace ID for API key resolution"
     )
 
@@ -129,14 +129,14 @@ class SendMessageResult(BaseModel):
     """Result of sending messages to a chat session."""
 
     success: bool
-    input_messages: list[ChatMessage] = Field(default_factory=list)
-    output_messages: list[ChatMessage] = Field(default_factory=list)
-    message_id: str | None = None
+    input_messages: List[ChatMessage] = Field(default_factory=list)
+    output_messages: List[ChatMessage] = Field(default_factory=list)
+    message_id: Optional[str] = None
     has_chat_ended: bool = False
-    ended_reason: str | None = None  # Reason why chat ended (if has_chat_ended=True)
-    costs: list[dict] | None = None
-    usage: Any | None = None  # LLMUsage or legacy dict
-    error: str | None = None
+    ended_reason: Optional[str] = None  # Reason why chat ended (if has_chat_ended=True)
+    costs: Optional[List[dict]] = None
+    usage: Optional[Any] = None  # LLMUsage or legacy dict
+    error: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -167,4 +167,4 @@ class DeleteAssistantResult(BaseModel):
     """Result of deleting a chat assistant."""
 
     success: bool
-    error: str | None = None
+    error: Optional[str] = None
