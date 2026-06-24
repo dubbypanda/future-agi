@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import structlog
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db.models import (
     Avg,
     Case,
@@ -246,7 +247,9 @@ def _fetch_users_affected_batch(cluster_ids: list[str]) -> dict:
 
     ect_rows = ErrorClusterTraces.objects.filter(
         cluster__cluster_id__in=cluster_ids,
-    ).values_list("trace_id", "trace_session_id", "cluster__cluster_id")
+    ).values_list(
+        "trace_id", "trace_session_id", "cluster__cluster_id", "cluster__project_id"
+    )
 
     # trace_id → set of cluster_ids it belongs to (one trace can sit in
     # many clusters via separate ECT rows). Session members (trace NULL)
@@ -254,16 +257,22 @@ def _fetch_users_affected_batch(cluster_ids: list[str]) -> dict:
     # the whole conversation, not just the representative turn.
     trace_to_clusters: dict[str, set] = {}
     session_to_clusters: dict[str, set] = {}
-    for tid, sid, cid in ect_rows:
+    # This batch may span projects (get_stats is multi-project); session→trace
+    # resolution is multi-tenant-pinned, so group sessions by their project
+    # (read off the junction's cluster, never a PG TraceSession row).
+    sessions_by_project: dict[str, set[str]] = {}
+    for tid, sid, cid, pid in ect_rows:
         if not cid:
             continue
         if tid:
             trace_to_clusters.setdefault(str(tid), set()).add(cid)
         elif sid:
             session_to_clusters.setdefault(str(sid), set()).add(cid)
+            if pid:
+                sessions_by_project.setdefault(str(pid), set()).add(str(sid))
 
-    if session_to_clusters:
-        for sid, tids in _session_traces_map(list(session_to_clusters)).items():
+    for pid, sids in sessions_by_project.items():
+        for sid, tids in _session_traces_map(list(sids), pid).items():
             for tid in tids:
                 trace_to_clusters.setdefault(tid, set()).update(
                     session_to_clusters[sid]
@@ -344,11 +353,21 @@ def _fetch_latest_trace_id_batch(cluster_ids: list[str]) -> dict:
             )
             .order_by("cluster__cluster_id", "-created_at")
             .distinct("cluster__cluster_id")
-            .values("cluster__cluster_id", "trace_session_id")
+            .values("cluster__cluster_id", "trace_session_id", "cluster__project_id")
         )
-        rep_map = _session_rep_trace_map(
-            [str(r["trace_session_id"]) for r in sess_rows]
-        )
+        # This batch may span projects; session→trace resolution is
+        # multi-tenant-pinned, so resolve per project (project read off the
+        # junction's cluster, never a PG TraceSession row).
+        rep_map: dict[str, str] = {}
+        sessions_by_project: dict[str, set[str]] = {}
+        for r in sess_rows:
+            pid = r["cluster__project_id"]
+            if pid:
+                sessions_by_project.setdefault(str(pid), set()).add(
+                    str(r["trace_session_id"])
+                )
+        for pid, sids in sessions_by_project.items():
+            rep_map.update(_session_rep_trace_map(list(sids), pid))
         for r in sess_rows:
             tid = rep_map.get(str(r["trace_session_id"]))
             if tid:
@@ -579,9 +598,9 @@ def get_cluster_detail(
                 .first()
             )
             if passing_session:
-                rep_tid = _session_rep_trace_map([str(passing_session)]).get(
-                    str(passing_session)
-                )
+                rep_tid = _session_rep_trace_map(
+                    [str(passing_session)], str(cluster.project_id)
+                ).get(str(passing_session))
                 rep_trace = (
                     Trace.objects.filter(id=rep_tid).first() if rep_tid else None
                 )
@@ -592,7 +611,9 @@ def get_cluster_detail(
                         output=_trace_output_str(rep_trace),
                     )
         else:
-            member_ids = _trace_ids_for_cluster(cluster.cluster_id)
+            member_ids = _trace_ids_for_cluster(
+                cluster.cluster_id, str(cluster.project_id)
+            )
             passing = (
                 EvalLogger.objects.filter(
                     trace__project_id=cluster.project_id,
@@ -726,6 +747,42 @@ def _trace_output_str(trace) -> str | None:
     return _safe_str(trace.output)
 
 
+class _CHTraceShim:
+    """Trace-like view backed by the CH root span, for post-cutover traces
+    that have no PG ``Trace`` row. Exposes the attributes the row / rep
+    builders read (``id``, ``created_at``, ``input``, ``output``)."""
+
+    __slots__ = ("id", "created_at", "input", "output")
+
+    def __init__(self, trace_id: str, root):
+        self.id = trace_id
+        self.created_at = getattr(root, "start_time", None) or timezone.now()
+        self.input = getattr(root, "input", None)
+        self.output = getattr(root, "output", None)
+
+
+def _resolve_member_traces(trace_ids: list[str]) -> dict:
+    """``{trace_id: trace-like}`` for cluster members — PG ``Trace`` where it
+    exists, else a CH-backed shim built from the root span.
+
+    Post-CH-cutover traces are CH-only (no PG ``Trace`` row), so resolving
+    members through PG alone silently drops every collector trace from the
+    Traces tab / Overview. Hydrate the missing ones from the spans table.
+    """
+    ids = [str(t) for t in trace_ids if t]
+    if not ids:
+        return {}
+    out: dict = {str(t.id): t for t in Trace.objects.filter(id__in=ids)}
+    missing = [tid for tid in ids if tid not in out]
+    if missing:
+        roots = _get_root_spans_batch(missing)
+        for tid in missing:
+            root = roots.get(tid)
+            if root is not None:
+                out[tid] = _CHTraceShim(tid, root)
+    return out
+
+
 def _cluster_member_ids(cluster_id: str) -> tuple[list[str], list[str]]:
     """(trace_ids, session_ids) of the cluster's junction members.
 
@@ -740,32 +797,76 @@ def _cluster_member_ids(cluster_id: str) -> tuple[list[str], list[str]]:
     return trace_ids, session_ids
 
 
-def _session_traces_map(session_ids: list[str]) -> dict[str, list[str]]:
-    """{session_id: [trace_ids, newest first]} for the given sessions."""
+def _session_traces_map(
+    session_ids: list[str], project_id: str
+) -> dict[str, list[str]]:
+    """{session_id: [trace_ids, newest first]} for sessions in one project.
+
+    Session membership is read from the spans table's ``trace_session_id``
+    (via ``CHSpanReader.session_trace_ids``), not the PG ``Trace.session`` FK:
+    post session-cutover that FK is ``None`` for every trace, so the old
+    ``Trace.objects.filter(session_id__in=…)`` walk returns EMPTY for ALL
+    sessions. ``session_trace_ids`` is multi-tenant-pinned, so it needs the
+    project the spans live under — every feed query is single-project, so the
+    caller already knows it and threads it in (no PG ``TraceSession`` read; that
+    dimension is ``None`` for net-new CH-only sessions). The CH method returns
+    DISTINCT trace_ids in no order, so we re-order each session's set
+    newest-first via one best-effort PG ``Trace`` read on ``created_at`` to
+    preserve the documented contract (the rep-trace map depends on ``[0]``
+    being the latest turn).
+    """
     if not session_ids:
         return {}
-    rows = (
-        Trace.objects.filter(session_id__in=session_ids)
-        .order_by("-created_at")
-        .values_list("session_id", "id")
-    )
+
+    sid_set = {str(s) for s in session_ids if s}
+    if not sid_set:
+        return {}
+
+    # CH read: one call per session (no batch variant exists). Members resolve
+    # on a CH box from the spans' trace_session_id, remap-aware on both sides.
+    # All sessions in one call belong to the project being queried.
+    sid_to_trace_ids: dict[str, list[str]] = {}
+    all_trace_ids: set[str] = set()
+    with get_reader() as reader:
+        for sid in sid_set:
+            tids = reader.session_trace_ids(project_id, sid)
+            if tids:
+                sid_to_trace_ids[sid] = [str(t) for t in tids]
+                all_trace_ids.update(sid_to_trace_ids[sid])
+
+    if not all_trace_ids:
+        return {}
+
+    # Re-order newest-first: session_trace_ids returns an unordered DISTINCT set,
+    # but callers (rep-trace map) require the latest turn first.
+    order_rank = {
+        str(tid): i
+        for i, tid in enumerate(
+            Trace.objects.filter(id__in=all_trace_ids)
+            .order_by("-created_at")
+            .values_list("id", flat=True)
+        )
+    }
     out: dict[str, list[str]] = {}
-    for sid, tid in rows:
-        out.setdefault(str(sid), []).append(str(tid))
+    for sid, tids in sid_to_trace_ids.items():
+        out[sid] = sorted(tids, key=lambda t: order_rank.get(t, len(order_rank)))
     return out
 
 
-def _session_rep_trace_map(session_ids: list[str]) -> dict[str, str]:
-    """{session_id: the session's latest trace_id}.
+def _session_rep_trace_map(session_ids: list[str], project_id: str) -> dict[str, str]:
+    """{session_id: the session's latest trace_id} for sessions in one project.
 
     The feed UI navigates traces; a session member is represented by its
     most recent trace — the turn where a conversation-level failure
     manifests.
     """
-    return {sid: tids[0] for sid, tids in _session_traces_map(session_ids).items()}
+    return {
+        sid: tids[0]
+        for sid, tids in _session_traces_map(session_ids, project_id).items()
+    }
 
 
-def _trace_ids_for_cluster(cluster_id: str) -> list[str]:
+def _trace_ids_for_cluster(cluster_id: str, project_id: str) -> list[str]:
     """Navigable trace_ids for a cluster's members.
 
     Trace/span members contribute their own trace; session members resolve
@@ -773,7 +874,7 @@ def _trace_ids_for_cluster(cluster_id: str) -> list[str]:
     """
     trace_ids, session_ids = _cluster_member_ids(cluster_id)
     if session_ids:
-        trace_ids.extend(_session_rep_trace_map(session_ids).values())
+        trace_ids.extend(_session_rep_trace_map(session_ids, project_id).values())
     return trace_ids
 
 
@@ -1119,16 +1220,36 @@ def _root_input_texts(trace_ids: list[str]) -> dict[str, str]:
     return out
 
 
+# Short TTL for the project-wide KNN baseline (item below). The baseline is a
+# statistical contrast set, not a correctness-critical read, so a few minutes of
+# staleness is acceptable in exchange for keeping the linear vector scan off the
+# synchronous overview/detail path on repeat hits.
+_BASELINE_CACHE_TTL = 300  # 5 minutes
+
+
+def _baseline_cache_key(cluster_id: str, project_id: str, k: int) -> str:
+    return f"feed_passing_baseline:{project_id}:{cluster_id}:{k}"
+
+
 def _passing_baseline_trace_ids(
     cluster_id: str, project_id: str, exclude: list[str], k: int = 120
 ) -> list[str]:
     """Up to ``k`` KNN-passing trace_ids for the cluster's representative input.
 
-    Computed live on the read path today — a linear vector scan that scales with
-    project volume, not cluster size. No cache field exists yet; moving this to
-    an async precompute (write the baseline once at cluster time, read it here)
-    is a tracked follow-up. The builders below are unchanged when it moves.
+    A linear vector scan whose cost scales with project volume, not cluster
+    size. Cached in the Django cache (short TTL, keyed by project + cluster + k)
+    so the scan runs at most once per TTL instead of on every overview/detail
+    request — the result is a statistical contrast set, so brief staleness is
+    fine. ``exclude`` is the cluster's own members and is functionally determined
+    by ``cluster_id`` within a TTL, so it stays out of the key. A proper async
+    precompute (write the baseline once at cluster time) remains a follow-up; the
+    builders below are unchanged when it moves.
     """
+    cache_key = _baseline_cache_key(cluster_id, project_id, k)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Lazy import: scan_clustering pulls the ClickHouse + embedding stack,
     # which shouldn't load on every feed-query import.
     from tracer.queries.scan_clustering import (
@@ -1143,7 +1264,9 @@ def _passing_baseline_trace_ids(
     baseline = find_success_trace_baseline(
         embedding, project_id, k=k, exclude_trace_ids=exclude
     )
-    return [tid for tid, _dist in baseline]
+    result = [tid for tid, _dist in baseline]
+    cache.set(cache_key, result, _BASELINE_CACHE_TTL)
+    return result
 
 
 def _kfmt(n: float) -> str:
@@ -1307,6 +1430,17 @@ def _insight_distribution_shift(
     )
 
 
+def _tool_name_set(items) -> set[str]:
+    """Normalize a ``tools_available``/``tools_called`` list (bare names or
+    ``{"name", "status"}`` dicts) to a set of tool-name strings."""
+    out: set[str] = set()
+    for item in items or []:
+        name = item.get("name") if isinstance(item, dict) else item
+        if name:
+            out.add(name)
+    return out
+
+
 def _insight_missing_tool(trace_ids: list[str]) -> PatternInsight | None:
     """A tool the agent had available but didn't use — the most actionable
     scanner signal ("the missing step")."""
@@ -1320,11 +1454,14 @@ def _insight_missing_tool(trace_ids: list[str]) -> PatternInsight | None:
     for meta in metas:
         if not meta:
             continue
-        available = set(meta.get("tools_available") or [])
+        # tools_available is a list of names; tools_called is a list of dicts
+        # ({"name", "status"}). Normalize both to a set of names — a raw
+        # set() over the dict form raises "unhashable type: dict".
+        available = _tool_name_set(meta.get("tools_available"))
         if not available:
             continue
         traces_with_tools += 1
-        called = set(meta.get("tools_called") or [])
+        called = _tool_name_set(meta.get("tools_called"))
         for tool in available - called:
             missing_counter[tool] += 1
     if not missing_counter or traces_with_tools == 0:
@@ -1431,7 +1568,7 @@ def _fetch_pattern_summary(cluster_id: str) -> PatternSummary:
         return PatternSummary()
 
     project_id = str(cluster.project_id)
-    trace_ids = _trace_ids_for_cluster(cluster_id)
+    trace_ids = _trace_ids_for_cluster(cluster_id, project_id)
     is_scanner = cluster.source == ClusterSource.SCANNER
 
     baseline_ids = _passing_baseline_trace_ids(
@@ -1959,35 +2096,33 @@ def _fetch_representative_traces(
         for e in ect_rows
         if e.trace_session_id and not e.trace_id
     ]
-    rep_map = _session_rep_trace_map(member_session_ids)
-    rep_traces = (
-        {str(t.id): t for t in Trace.objects.filter(id__in=rep_map.values())}
-        if rep_map
-        else {}
-    )
+    rep_map = _session_rep_trace_map(member_session_ids, project_id)
 
-    # First pass: dedupe by trace id so the batch helpers below only fetch
-    # what we'll actually emit.
-    deduped: list[Trace] = []
+    # First pass: resolve each member to a trace id (session members via their
+    # CH representative trace), preserving -created_at order and deduping.
+    ordered_ids: list[str] = []
     session_by_trace: dict[str, str] = {}
     seen_ids: set = set()
     for ect in ect_rows:
-        trace = ect.trace
-        if trace is None and ect.trace_session_id:
-            sid = str(ect.trace_session_id)
-            trace = rep_traces.get(rep_map.get(sid, ""))
-            if trace is not None:
-                session_by_trace[str(trace.id)] = sid
-        if not trace:
+        if ect.trace_id:
+            tid = str(ect.trace_id)
+        elif ect.trace_session_id:
+            tid = rep_map.get(str(ect.trace_session_id))
+            if not tid:
+                continue
+            session_by_trace[tid] = str(ect.trace_session_id)
+        else:
             continue
-        tid = str(trace.id)
         if tid in seen_ids:
             continue
         seen_ids.add(tid)
-        deduped.append(trace)
-        if limit and len(deduped) >= limit:
+        ordered_ids.append(tid)
+        if limit and len(ordered_ids) >= limit:
             break
 
+    # PG Trace where it exists, else CH-backed shim (post-cutover CH-only traces).
+    traces_by_id = _resolve_member_traces(ordered_ids)
+    deduped = [traces_by_id[t] for t in ordered_ids if t in traces_by_id]
     if not deduped:
         return []
 
@@ -2095,12 +2230,14 @@ def _percentile(values: list[int], pct: float) -> int:
     return int(values[lo] + (values[hi] - values[lo]) * (k - lo))
 
 
-def _fetch_traces_aggregates(cluster_id: str) -> TracesAggregates:
+def _fetch_traces_aggregates(cluster_id: str, project_id: str) -> TracesAggregates:
     """Compute per-cluster aggregates for the Traces tab stat bar."""
     member_trace_ids, member_session_ids = _cluster_member_ids(cluster_id)
     trace_ids = list(member_trace_ids)
     if member_session_ids:
-        trace_ids.extend(_session_rep_trace_map(member_session_ids).values())
+        trace_ids.extend(
+            _session_rep_trace_map(member_session_ids, project_id).values()
+        )
     if not trace_ids:
         return TracesAggregates()
 
@@ -2161,7 +2298,7 @@ _COST_PER_TOKEN = 0.0000037
 
 
 def _fetch_trace_rows(
-    cluster_id: str, limit: int, offset: int
+    cluster_id: str, project_id: str, limit: int, offset: int
 ) -> tuple[list[TracesListRow], int]:
     """Paginated list of traces in the cluster for the AG Grid."""
     base = (
@@ -2181,33 +2318,34 @@ def _fetch_trace_rows(
         for e in page_ects
         if e.trace_session_id and not e.trace_id
     ]
-    rep_map = _session_rep_trace_map(page_session_ids)
-    rep_traces = (
-        {str(t.id): t for t in Trace.objects.filter(id__in=rep_map.values())}
-        if rep_map
-        else {}
-    )
+    rep_map = _session_rep_trace_map(page_session_ids, project_id)
 
-    page_traces: list[Trace] = []
+    # Resolve each member to a trace id (trace members carry trace_id; session
+    # members resolve to their representative trace via CH), preserving the
+    # -created_at order and deduping.
+    page_trace_ids: list[str] = []
     session_by_trace: dict[str, str] = {}
     seen: set = set()
     for ect in page_ects:
-        trace = ect.trace
-        if trace is None and ect.trace_session_id:
-            sid = str(ect.trace_session_id)
-            trace = rep_traces.get(rep_map.get(sid, ""))
-            if trace is not None:
-                session_by_trace[str(trace.id)] = sid
-        if not trace:
+        if ect.trace_id:
+            tid = str(ect.trace_id)
+        elif ect.trace_session_id:
+            tid = rep_map.get(str(ect.trace_session_id))
+            if not tid:
+                continue
+            session_by_trace[tid] = str(ect.trace_session_id)
+        else:
             continue
-        tid = str(trace.id)
         if tid in seen:
             continue
         seen.add(tid)
-        page_traces.append(trace)
-        if len(page_traces) >= limit:
+        page_trace_ids.append(tid)
+        if len(page_trace_ids) >= limit:
             break
 
+    # PG Trace where it exists, else CH-backed shim (post-cutover CH-only traces).
+    traces_by_id = _resolve_member_traces(page_trace_ids)
+    page_traces = [traces_by_id[t] for t in page_trace_ids if t in traces_by_id]
     if not page_traces:
         return [], total
 
@@ -2274,11 +2412,13 @@ def get_traces_tab(
     offset: int = 0,
 ) -> TracesTabResponse | None:
     """Full Traces tab payload."""
-    if not _cluster_qs_for_access(cluster_id, project_ids).exists():
+    cluster = _cluster_qs_for_access(cluster_id, project_ids).first()
+    if not cluster:
         return None
 
-    aggregates = _fetch_traces_aggregates(cluster_id)
-    rows, total = _fetch_trace_rows(cluster_id, limit=limit, offset=offset)
+    project_id = str(cluster.project_id)
+    aggregates = _fetch_traces_aggregates(cluster_id, project_id)
+    rows, total = _fetch_trace_rows(cluster_id, project_id, limit=limit, offset=offset)
     return TracesTabResponse(aggregates=aggregates, traces=rows, total=total)
 
 
@@ -2300,19 +2440,6 @@ def _member_ids_in_window(
     trace_ids = [str(t) for t, _ in rows if t]
     session_ids = [str(s) for t, s in rows if s and not t]
     return trace_ids, session_ids
-
-
-def _trace_ids_in_cluster_window(
-    cluster_id: str, since: datetime, until: datetime | None = None
-) -> list[str]:
-    """Effective trace IDs that joined the cluster within a time window.
-
-    Session members resolve to their session's latest trace.
-    """
-    trace_ids, session_ids = _member_ids_in_window(cluster_id, since, until)
-    if session_ids:
-        trace_ids.extend(_session_rep_trace_map(session_ids).values())
-    return trace_ids
 
 
 def _users_affected_in_window(trace_ids: list[str]) -> int:
@@ -2377,9 +2504,11 @@ def _fetch_trend_metrics(
     prev_trace_members, prev_sessions = _member_ids_in_window(
         cluster_id, prev_start, cur_start
     )
-    cur_traces = cur_trace_members + list(_session_rep_trace_map(cur_sessions).values())
+    cur_traces = cur_trace_members + list(
+        _session_rep_trace_map(cur_sessions, project_id).values()
+    )
     prev_traces = prev_trace_members + list(
-        _session_rep_trace_map(prev_sessions).values()
+        _session_rep_trace_map(prev_sessions, project_id).values()
     )
 
     cur_total = _project_scope_total(project_id, cluster_source, cur_start)
@@ -2467,7 +2596,7 @@ def _fetch_events_over_time_with_passing(
         # pass_rows keys, breaking the day-bucket union below).
         # Session members resolve to their session's rep trace first.
         window_session_ids = [str(s) for t, s, _ in ect_rows_in_window if s and not t]
-        rep_map = _session_rep_trace_map(window_session_ids)
+        rep_map = _session_rep_trace_map(window_session_ids, project_id)
         buckets_by_trace: dict[str, list] = {}
         for tid, sid, ect_created in ect_rows_in_window:
             if not ect_created:
@@ -2817,7 +2946,7 @@ def _fetch_co_occurring_issues(
     Pulls (cluster_id, trace_id) pairs for every scanner cluster in the project
     and computes Jaccard in Python. Cheap — projects have O(100) clusters max.
     """
-    this_traces_set = set(_trace_ids_for_cluster(cluster_id))
+    this_traces_set = set(_trace_ids_for_cluster(cluster_id, project_id))
     if not this_traces_set:
         return []
 
@@ -2895,7 +3024,7 @@ def get_sidebar(
 
     project_id = str(cluster.project_id)
     member_trace_ids, member_session_ids = _cluster_member_ids(cluster_id)
-    rep_map = _session_rep_trace_map(member_session_ids)
+    rep_map = _session_rep_trace_map(member_session_ids, project_id)
     session_by_trace = {tid: sid for sid, tid in rep_map.items()}
     trace_ids = member_trace_ids + list(rep_map.values())
 
