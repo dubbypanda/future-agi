@@ -93131,15 +93131,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "content": {
           "title": "Content",
           "type": "object",
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {}
-            }
-          ],
+          "x-string-or-array": true,
           "description": "Plain text string or array of content-part objects."
         },
         "name": {

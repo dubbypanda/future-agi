@@ -48,16 +48,13 @@ class StringOrArrayField(serializers.JSONField):
     Use this for ``messages[].content`` which is either a plain text string
     or an array of content-part objects (OpenAI multi-part format).
 
-    Emits a proper ``oneOf`` schema so orval generates
-    ``string | unknown[]`` instead of narrowing to ``object``.
+    Emits ``x-string-or-array: true`` detected by ``openapi-contract.js``
+    which maps it to ``z.union([z.string(), z.array(z.unknown())])``.
     """
 
     class Meta:
         swagger_schema_fields = {
-            "oneOf": [
-                {"type": "string"},
-                {"type": "array", "items": {}},
-            ],
+            "x-string-or-array": True,
             "description": "Plain text string or array of content-part objects.",
         }
 
