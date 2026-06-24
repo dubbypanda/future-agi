@@ -30,7 +30,12 @@ def backfill_agent_version(apps, schema_editor):
 
 
 def reverse_backfill_agent_version(apps, schema_editor):
-    """Move credentials back from agent_version FK to agent_definition FK."""
+    """Move credentials back from agent_version FK to agent_definition FK.
+
+    Clears any credential that already holds the target agent_definition_id
+    first (the FK is a OneToOneField, so only one can exist per agent def).
+    The displaced credential is kept as version-only rather than orphaned.
+    """
     ProviderCredentials = apps.get_model("simulate", "ProviderCredentials")
 
     qs = ProviderCredentials.objects.filter(
@@ -41,6 +46,14 @@ def reverse_backfill_agent_version(apps, schema_editor):
     processed = 0
     for creds in qs.iterator(chunk_size=BATCH_SIZE):
         agent_def_id = creds.agent_version.agent_definition_id
+        # Displace any existing credential holding this agent_definition_id
+        # (OneToOneField constraint allows only one). Keep it as version-only
+        # rather than orphaning it.
+        ProviderCredentials.objects.filter(
+            agent_definition_id=agent_def_id
+        ).exclude(pk=creds.pk).update(
+            agent_definition=None,
+        )
         ProviderCredentials.objects.filter(pk=creds.pk).update(
             agent_version=None,
             agent_definition_id=agent_def_id,
