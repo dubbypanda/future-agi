@@ -80682,16 +80682,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "model_params": {
           "title": "Model params",
           "type": "object",
+          "additionalProperties": {},
           "default": {},
           "x-json-value": true,
-          "description": "Any valid JSON value."
+          "description": "Row with dynamic columns — cell values are any valid JSON."
         },
         "configuration": {
           "title": "Configuration",
           "type": "object",
+          "additionalProperties": {},
           "default": {},
           "x-json-value": true,
-          "description": "Any valid JSON value."
+          "description": "Row with dynamic columns — cell values are any valid JSON."
         },
         "output_format": {
           "title": "Output format",
@@ -93129,8 +93131,16 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "content": {
           "title": "Content",
           "type": "object",
-          "x-json-value": true,
-          "description": "Any valid JSON value."
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {}
+            }
+          ],
+          "description": "Plain text string or array of content-part objects."
         },
         "name": {
           "title": "Name",

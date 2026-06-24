@@ -1,6 +1,11 @@
 # serializers.py
 from rest_framework import serializers
-from tfc.utils.serializer_fields import JsonValueField, StringOrObjectField
+from tfc.utils.serializer_fields import (
+    AnyValueDictField,
+    JsonValueField,
+    StringOrArrayField,
+    StringOrObjectField,
+)
 
 from agentic_eval.core_evals.run_prompt.litellm_models import LiteLLMModelManager
 from model_hub.models.choices import ProviderLogoUrls
@@ -395,7 +400,10 @@ class MessageItemSerializer(serializers.Serializer):
     """A single prompt message: role + content (string or content-parts array)."""
 
     role = serializers.CharField()
-    content = JsonValueField()
+    # content is either a plain text string or an array of content-part objects
+    # (OpenAI multi-part format). StringOrArrayField emits oneOf(string, array)
+    # so orval generates the correct union type instead of narrowing to object.
+    content = StringOrArrayField()
     name = serializers.CharField(required=False)
     tool_calls = JsonValueField(required=False)
     tool_call_id = serializers.CharField(required=False)
@@ -422,9 +430,12 @@ class PromptConfigEntrySerializer(serializers.Serializer):
 
     # Model config (prompt entries only — plain model name string or ModelSpec dict)
     model = StringOrObjectField(required=False, default=None)
-    # Provider-specific params — keys vary per provider so shape is genuinely open
-    model_params = JsonValueField(required=False, default=dict)
-    configuration = JsonValueField(required=False, default=dict)
+    # Provider-specific params and configuration: keys vary by provider so the
+    # shape is genuinely open, but values must be valid JSON (not raw any).
+    # AnyValueDictField emits additionalProperties:{} → Record<string, unknown>
+    # so orval enforces "must be a valid object" while accepting any value types.
+    model_params = AnyValueDictField(required=False, default=dict)
+    configuration = AnyValueDictField(required=False, default=dict)
     output_format = serializers.CharField(required=False, default="string")
 
     # Inline messages (tts/stt/image experiments)

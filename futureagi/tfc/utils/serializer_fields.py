@@ -40,3 +40,45 @@ class StringOrObjectField(serializers.JSONField):
             "x-string-or-object": True,
             "description": "String or JSON object.",
         }
+
+
+class StringOrArrayField(serializers.JSONField):
+    """Field that accepts either a plain string or a JSON array.
+
+    Use this for ``messages[].content`` which is either a plain text string
+    or an array of content-part objects (OpenAI multi-part format).
+
+    Emits a proper ``oneOf`` schema so orval generates
+    ``string | unknown[]`` instead of narrowing to ``object``.
+    """
+
+    class Meta:
+        swagger_schema_fields = {
+            "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {}},
+            ],
+            "description": "Plain text string or array of content-part objects.",
+        }
+
+
+class AnyValueDictField(serializers.DictField):
+    """DictField whose values are any valid JSON scalar or object.
+
+    ``DictField(child=JsonValueField())`` emits
+    ``additionalProperties: {type: object, x-json-value: true}`` — orval
+    sees ``type: object`` and narrows the generated TS to
+    ``Record<string, object>``, rejecting string/bool/number cell values.
+
+    This field overrides the whole items schema to
+    ``{additionalProperties: {}}`` (JSON Schema "any value") so orval
+    correctly emits ``Record<string, unknown>``.
+    """
+
+    class Meta:
+        swagger_schema_fields = {
+            "type": "object",
+            "additionalProperties": {},
+            "x-json-value": True,
+            "description": "Row with dynamic columns — cell values are any valid JSON.",
+        }
