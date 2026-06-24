@@ -377,17 +377,9 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             )
 
     def update(self, request, *args, **kwargs):
-        """Update a session's bookmark / name, including CH-only sessions.
-
-        fi-collector sessions live only in CH (no PG ``TraceSession`` row), so
-        the default ``get_object()`` (PG queryset) 404s for them. But the
-        writable state — ``bookmarked`` / ``name`` — lives in the PG
-        ``TraceSessionOverlay``, which is soft-id keyed by ``trace_session_id``
-        and needs NO PG session row (DESIGN §5.1). So when the PG lookup misses
-        we re-run the SAME tenant gate the read path uses
-        (``_resolve_ch_session_fields``) and write the overlay directly, instead
-        of failing the bookmark / rename PATCH for collector sessions.
-        """
+        # CH-only sessions still need bookmark / rename writes to land in the
+        # PG overlay. If the PG row is missing, retry through the CH session
+        # resolver and write the overlay directly under the same tenant gate.
         partial = kwargs.get("partial", False)
         try:
             return super().update(request, *args, **kwargs)
