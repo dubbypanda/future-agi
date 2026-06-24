@@ -748,27 +748,16 @@ const CreateRunTestPage = ({ open, onClose }) => {
           snapshot.livekitAgentName,
       );
     }
-    const apiKey =
-      agentVersionDetails?.api_key ??
-      agentVersionDetails?.apiKey ??
-      snapshot.api_key ??
-      snapshot.apiKey;
-    const assistantId =
-      snapshot.assistant_id ?? snapshot.assistantId;
+    const apiKey = agentVersionDetails?.api_key;
+    const assistantId = snapshot.assistant_id;
     return Boolean(apiKey && assistantId);
   };
 
   useEffect(() => {
     if (agentVersionDetails && formData?.enableToolEvaluation) {
-      const snapshot =
-        agentVersionDetails?.configuration_snapshot ??
-        agentVersionDetails?.configurationSnapshot;
-      const vapiApiKey =
-        agentVersionDetails?.api_key ??
-        agentVersionDetails?.apiKey ??
-        snapshot?.api_key ??
-        snapshot?.apiKey;
-      const vapiAssistantId = snapshot?.assistant_id ?? snapshot?.assistantId;
+      const snapshot = agentVersionDetails?.configuration_snapshot;
+      const vapiApiKey = agentVersionDetails?.api_key;
+      const vapiAssistantId = snapshot?.assistant_id;
 
       if (
         !hasToolCallCredentials(agentVersionDetails, snapshot) &&
@@ -800,15 +789,9 @@ const CreateRunTestPage = ({ open, onClose }) => {
         });
         return;
       }
-      const snapshot =
-        agentVersionDetails?.configuration_snapshot ??
-        agentVersionDetails?.configurationSnapshot;
-      const vapiApiKey =
-        agentVersionDetails?.api_key ??
-        agentVersionDetails?.apiKey ??
-        snapshot?.api_key ??
-        snapshot?.apiKey;
-      const vapiAssistantId = snapshot?.assistant_id ?? snapshot?.assistantId;
+      const snapshot = agentVersionDetails?.configuration_snapshot;
+      const vapiApiKey = agentVersionDetails?.api_key;
+      const vapiAssistantId = snapshot?.assistant_id;
       if ((!vapiApiKey || !vapiAssistantId) && value) {
         setOpenUpdateKeysDialog(true);
         return;
