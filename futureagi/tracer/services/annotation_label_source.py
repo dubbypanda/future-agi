@@ -6,7 +6,7 @@ while the legacy PG tables exist); ``V2_ONLY``/``V2_PRIMARY`` use the CH source
 (scopes ``model_hub_score`` via ``spans`` — valid post-CH25 once those PG tables
 are dropped).
 
-Both expose ``label_ids_for_project(project_id, organization=None) -> list[str]``
+Both expose ``label_ids_for_project(project_id) -> list[str]``
 so the dispatcher stays backend-blind (self-executing, returns rows not SQL).
 
 Note: ``Score.project``/``model_hub_score.project_id`` point at
@@ -19,7 +19,7 @@ from __future__ import annotations
 class AnnotationLabelScoresPG:
     """v1: label ids of scores in a project, via PG joins (legacy tables)."""
 
-    def label_ids_for_project(self, project_id, organization=None) -> list[str]:
+    def label_ids_for_project(self, project_id) -> list[str]:
         from django.db.models import Q
 
         from model_hub.models.score import Score
@@ -57,7 +57,7 @@ class AnnotationLabelScoresCH:
           )
     """
 
-    def label_ids_for_project(self, project_id, organization=None) -> list[str]:
+    def label_ids_for_project(self, project_id) -> list[str]:
         from tracer.services.clickhouse.client import get_clickhouse_client
 
         rows, _types, _ms = get_clickhouse_client().execute_read(

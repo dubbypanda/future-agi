@@ -510,7 +510,7 @@ def get_annotation_labels_for_project(project_id, organization=None):
     from tracer.services.clickhouse.v2.dispatch import get_query_builder_class
 
     SourceCls = get_query_builder_class("ANNOTATION_LABELS")  # noqa: N806
-    score_label_ids = SourceCls().label_ids_for_project(project_id, organization)
+    score_label_ids = SourceCls().label_ids_for_project(project_id)
 
     return AnnotationsLabels.objects.filter(
         Q(project_id=project_id) | Q(id__in=score_label_ids),
