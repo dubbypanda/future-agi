@@ -315,14 +315,14 @@ class ClickHouseFilterBuilderV2(ClickHouseFilterBuilder):
     _ENDUSER_DIM_ID_COL = "end_user_id"
     _ENDUSER_DIM_NOT_DELETED = "is_deleted = 0"
 
-    def translate(self, filters, *args, **kwargs):  # type: ignore[override]
+    def translate(self, filters):  # type: ignore[override]
         # `translate` returns a WHERE fragment that gets stitched into a larger
         # SELECT statement by callers. Do NOT append SETTINGS here — that
         # happens at the full-SELECT boundary in the per-builder `build()`
         # methods (SpanListQueryBuilderV2.build, TraceListQueryBuilderV2.build,
         # etc.). Otherwise we'd end up with `WHERE ... SETTINGS ... AND ...`
         # which is a syntax error.
-        sql, params = super().translate(filters, *args, **kwargs)
+        sql, params = super().translate(filters)
         return rewrite_v1_sql_to_v2(sql), params
 
     def translate_sort(self, sort_params, *args, **kwargs):  # type: ignore[override]
