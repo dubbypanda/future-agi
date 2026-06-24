@@ -41,6 +41,7 @@ import {
   getPickerOptionSearchText,
   getPickerOptionSecondaryLabel,
   getPickerOptionValue,
+  usesFreeTextValue,
 } from "./filterValuePickerUtils";
 import { ID_ONLY_FIELDS } from "./idFields";
 
@@ -1030,9 +1031,6 @@ function ValuePicker({
           })()
         ) : (
           selectedValues.slice(0, 3).map((v) => {
-            // Resolve the display label from static choices or rendered
-            // options. Falls back to the raw value (e.g. plain strings
-            // without a label).
             const match = options.find((o) => {
               const ov = typeof o === "string" ? o : o.value;
               return ov === v;
@@ -1568,7 +1566,7 @@ function FilterRow({
       );
     }
 
-    if (filter.fieldType === "text") {
+    if (usesFreeTextValue(filter.fieldType, source)) {
       return (
         <TextField
           size="small"
@@ -1594,9 +1592,7 @@ function FilterRow({
         source={source}
         property={properties.find((p) => p.id === filter.field)}
         freeSoloValues={rowFreeSoloValues}
-        singleSelect={
-          ID_ONLY_FIELDS.has(filter.field) || SINGLE_VALUE_OPS.has(safeOperator)
-        }
+        singleSelect={SINGLE_VALUE_OPS.has(safeOperator)}
         onChange={(newVal) => updateRow({ value: newVal })}
       />
     );
