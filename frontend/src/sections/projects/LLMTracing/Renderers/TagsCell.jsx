@@ -7,37 +7,67 @@ import AddTagsPopover from "src/components/traceDetail/AddTagsPopover";
 
 const MAX_VISIBLE = 2;
 
-const TagsCell = ({ value, traceId, spanId, entityType, onTagsUpdated }) => {
+const TagsCell = ({
+  value,
+  traceId,
+  spanId,
+  entityType,
+  canEditTags = true,
+  onTagsUpdated,
+}) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const tags = Array.isArray(value) ? value : [];
 
   // Resolve which single entity this cell tags from the grid context (trace
-  // grid vs span grid), mirroring the bulk-tag action. A trace row can carry
-  // its root span_id, and the popover's rule is "spanId wins, else traceId" —
-  // so without explicit context we'd retag the root span instead of the trace.
-  // Fall back to that heuristic only when no entityType is supplied.
+  // grid vs span grid). A trace row can also carry its root span_id and the
+  // popover tags spanId-first, so the explicit context prevents retagging the
+  // root span; the spanId heuristic is only a fallback when no context is set.
   const isSpanRow = entityType ? entityType === "span" : Boolean(spanId);
   const targetTraceId = isSpanRow ? undefined : traceId;
   const targetSpanId = isSpanRow ? spanId : undefined;
 
-  // Only rows that carry a trace/span id can mutate tags. Without one there is
-  // nothing to PATCH, so the cell stays a passive (non-clickable) display.
-  const editable = Boolean(targetTraceId || targetSpanId);
+  // Editable only when there is something to PATCH (a trace/span id) AND the
+  // role may edit tags. Otherwise the cell stays a passive display.
+  const editable = Boolean(targetTraceId || targetSpanId) && canEditTags;
 
   if (tags.length === 0 && !editable) return null;
 
   const visible = tags.slice(0, MAX_VISIBLE);
   const overflowCount = tags.length - MAX_VISIBLE;
 
-  const handleOpen = (event) => {
+  const handleClick = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      setAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+    // This grid is AG-Grid server-side: refreshing rebuilds the row and would
+    // unmount this cell. The popover stays open across multiple adds, so we
+    // refresh once on close (mirroring the bulk-tag flow) rather than per save,
+    // which would snap the popover shut after the first tag.
+    onTagsUpdated?.();
   };
 
   return (
     <>
       <Box
-        onClick={editable ? handleOpen : undefined}
+        onClick={editable ? handleClick : undefined}
+        onKeyDown={editable ? handleKeyDown : undefined}
+        onMouseDown={editable ? (e) => e.stopPropagation() : undefined}
+        role={editable ? "button" : undefined}
+        tabIndex={editable ? 0 : undefined}
+        aria-label={
+          editable ? (tags.length === 0 ? "Add tags" : "Edit tags") : undefined
+        }
         sx={{
           display: "flex",
           alignItems: "center",
@@ -91,11 +121,10 @@ const TagsCell = ({ value, traceId, spanId, entityType, onTagsUpdated }) => {
         <AddTagsPopover
           open={Boolean(anchorEl)}
           anchorEl={anchorEl}
-          onClose={() => setAnchorEl(null)}
+          onClose={handleClose}
           traceId={targetTraceId}
           spanId={targetSpanId}
           currentTags={value}
-          onSuccess={onTagsUpdated}
         />
       )}
     </>
@@ -109,8 +138,11 @@ TagsCell.propTypes = {
   // "trace" | "span" — which entity this grid tags. Disambiguates rows that
   // carry both ids so the right endpoint is hit.
   entityType: PropTypes.oneOf(["trace", "span"]),
-  // Called after a successful tag save so the server-side grid can refresh.
+  // Whether the current role may edit tags; false renders the cell read-only.
+  canEditTags: PropTypes.bool,
+  // Called when the popover closes after editing, so the server-side grid can
+  // refresh and show the saved tags.
   onTagsUpdated: PropTypes.func,
 };
 
-export default React.memo(TagsCell);
+export default TagsCell;

@@ -32,6 +32,8 @@ import { APP_CONSTANTS } from "src/utils/constants";
 import { useReplaySessionsStoreShallow } from "../SessionsView/ReplaySessions/store";
 import { REPLAY_MODULES } from "../SessionsView/ReplaySessions/configurations";
 import { useShallowToggleAnnotationsStore } from "../../agents/store";
+import { useAuthContext } from "src/auth/hooks";
+import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 
 const ROWS_LIMIT = 100;
 const EMPTY_EXTRA_FILTERS = [];
@@ -194,9 +196,17 @@ const TraceGrid = React.forwardRef(
       [setFilterOpen, setExtraFilters],
     );
 
-    // Tells cell renderers (e.g. TagsCell) they are on the trace grid, so tag
-    // edits target the trace even when a row also carries its root span_id.
-    const gridContext = useMemo(() => ({ entityType: "trace" }), []);
+    const { role } = useAuthContext();
+    // Viewers can browse traces but not edit tags — gate the cell affordance.
+    const canEditTags = Boolean(
+      RolePermission.OBSERVABILITY[PERMISSIONS.CREATE_EDIT_PROJECT]?.[role],
+    );
+    // Tells cell renderers (e.g. TagsCell) they are on the trace grid (so tag
+    // edits target the trace, not its root span) and whether the role may edit.
+    const gridContext = useMemo(
+      () => ({ entityType: "trace", canEditTags }),
+      [canEditTags],
+    );
 
     const dataSource = useMemo(
       () => {

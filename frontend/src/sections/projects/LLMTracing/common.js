@@ -600,7 +600,10 @@ export const getTraceListColumnDefs = (col) => {
         : {}),
     cellStyle: (params) => {
       const value = params.value;
-      if (isCellValueEmpty(value)) {
+      // The tags column keeps its default left alignment so an empty "+ Tag"
+      // sits where the chips will, instead of jumping from center to left.
+      const cellColId = params?.colDef?.context?.sourceColumn?.id;
+      if (isCellValueEmpty(value) && cellColId !== "tags") {
         return {
           display: "flex",
           height: "100%",

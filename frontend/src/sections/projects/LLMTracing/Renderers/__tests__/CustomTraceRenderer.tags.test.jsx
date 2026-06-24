@@ -6,7 +6,7 @@ import CustomTraceRenderer from "../CustomTraceRenderer";
 // renderer's wiring: which entity it targets, and that a save refreshes the
 // server-side grid via the grid api (which the cache invalidation can't do).
 vi.mock("src/components/traceDetail/AddTagsPopover", () => ({
-  default: ({ open, traceId, spanId, onSuccess }) => (
+  default: ({ open, traceId, spanId, onClose }) => (
     <div
       data-testid="add-tags-popover"
       data-open={String(open)}
@@ -16,10 +16,10 @@ vi.mock("src/components/traceDetail/AddTagsPopover", () => ({
       {open && (
         <button
           type="button"
-          data-testid="popover-save"
-          onClick={() => onSuccess?.()}
+          data-testid="popover-close"
+          onClick={() => onClose?.()}
         >
-          save
+          close
         </button>
       )}
     </div>
@@ -69,13 +69,14 @@ describe("CustomTraceRenderer — tags column", () => {
     expect(popover).toHaveAttribute("data-trace-id", "");
   });
 
-  it("refreshes the server-side grid after a tag save", async () => {
+  it("refreshes the server-side grid when the popover closes (not mid-edit)", async () => {
     const user = userEvent.setup();
     const { container, refreshServerSide } = renderTagsColumn();
 
     await user.click(container.firstChild);
-    await user.click(screen.getByTestId("popover-save"));
+    expect(refreshServerSide).not.toHaveBeenCalled();
 
+    await user.click(screen.getByTestId("popover-close"));
     expect(refreshServerSide).toHaveBeenCalledTimes(1);
   });
 });
