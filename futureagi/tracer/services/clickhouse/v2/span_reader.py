@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import clickhouse_connect
@@ -766,6 +766,37 @@ class CHSpanReader:
         for tid, st in rows:
             result[tid] = st
         return result
+
+    # ─── Scan-sweep: completed-trace candidates since a watermark ────────────
+    def ch_now(self) -> datetime:
+        """ClickHouse server clock as tz-aware UTC — the sweep bounds its window
+        off this so the watermark is a real CH timestamp (clock-skew-proof).
+        tz-aware so it compares against Django's tz-aware ``last_swept_at``."""
+        dt = self._client.query("SELECT now64(6, 'UTC')").result_rows[0][0]
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    def root_trace_ids_between(
+        self, project_id: str, lower: datetime, upper: datetime
+    ) -> list[str]:
+        """Distinct trace_ids whose root span (``parent_span_id = ''``) landed in
+        CH with ``lower < created_at <= upper`` — the scan sweep's candidates.
+
+        Cursor is ``created_at`` (CH ingest time), not ``start_time``, so long-
+        running / late-exported traces can't slip behind the watermark. No
+        ``FINAL``: dedup via ``GROUP BY``, and the caller's anti-join makes a
+        redundant dispatch a no-op.
+        """
+        if lower >= upper:
+            return []
+        rows = self._client.query(
+            "SELECT toString(trace_id) AS tid FROM spans "
+            "WHERE project_id = %(p)s AND parent_span_id = '' "
+            "  AND is_deleted = 0 "
+            "  AND created_at > %(lower)s AND created_at <= %(upper)s "
+            "GROUP BY tid",
+            parameters={"p": str(project_id), "lower": lower, "upper": upper},
+        ).result_rows
+        return [r[0] for r in rows]
 
     # ─── Distinct end_users per trace (feed user-count rollup) ────────────────
     def distinct_end_users_by_trace_ids(
