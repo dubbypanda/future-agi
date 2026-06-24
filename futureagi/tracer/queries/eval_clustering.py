@@ -10,7 +10,7 @@ within the same eval, never across different evals.
 
 import hashlib
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
 import structlog
@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from agentic_eval.core.database.ch_vector import ClickHouseVectorDB
 from agentic_eval.core.embeddings.embedding_manager import model_manager
-from tracer.models.observation_span import EvalLogger
+from tracer.models.observation_span import EvalLogger, EvalTargetType
 from tracer.models.trace_error_analysis import (
     ClusterSource,
     ErrorClusterTraces,
@@ -42,6 +42,55 @@ _CLUSTER_WINDOW_DAYS = 60
 # ---------------------------------------------------------------------------
 # Fetch unclustered failing eval results
 # ---------------------------------------------------------------------------
+
+
+def _project_session_eval_ids(
+    project_id: str, since: datetime, base_filters: Q
+) -> set[str]:
+    """``trace_session_id``s of session-target eval rows that belong to
+    ``project_id`` — resolved through ClickHouse, not a PG FK join.
+
+    Session evals anchor to a ``trace_session`` whose FK is unenforced
+    (``db_constraint=False``) and whose PG ``TraceSession`` row is absent for
+    CH-only sessions, so ``Q(trace_session__project_id=...)`` INNER-JOINs to
+    nothing and silently drops every CH-only session eval. Session membership
+    is a span fact, so we read it from CH instead: the candidate eval rows'
+    session ids intersected with the project's live session ids, scoped through
+    ``distinct_session_ids_with_filters`` (which resolves new→old internally so
+    a candidate id matches regardless of cutover side).
+
+    For CH-only (net-new) sessions — the case this fix targets — no id-remap row
+    exists, so the candidate id and the id CH returns are byte-identical and a
+    plain set intersection is exact. Returns the subset of candidate ids that
+    belong to the project, in the id space the eval rows store.
+
+    A CH read failure propagates rather than fail-open: an empty set would
+    wrongly admit no session evals, and the clustering activity is idempotently
+    retried, so starving one run is safer than silently mis-scoping.
+    """
+    from tracer.services.clickhouse.v2 import get_reader
+
+    candidate_ids = list(
+        EvalLogger.objects.filter(
+            base_filters,
+            target_type=EvalTargetType.SESSION,
+            trace_session_id__isnull=False,
+            created_at__gte=since,
+        )
+        .values_list("trace_session_id", flat=True)
+        .distinct()
+    )
+    if not candidate_ids:
+        return set()
+
+    candidate_strs = {str(c) for c in candidate_ids}
+    with get_reader() as reader:
+        in_project = set(
+            reader.distinct_session_ids_with_filters(
+                project_id=str(project_id), session_id=list(candidate_strs)
+            )
+        )
+    return candidate_strs & in_project
 
 
 def get_unclustered_eval_results(
@@ -67,24 +116,34 @@ def get_unclustered_eval_results(
         ).values_list("eval_logger_id", flat=True)
     )
 
+    since = timezone.now() - timedelta(days=_CLUSTER_WINDOW_DAYS)
+    # Failure + explanation filters shared by both the span/trace branch and the
+    # session-membership pre-pass, so a candidate session id can't enter the CH
+    # set unless it would also survive the main filter.
+    base_filters = (
+        Q(custom_eval_config__isnull=False)
+        & (Q(output_bool=False) | Q(output_float__lt=1.0))
+        & ~Q(eval_explanation__isnull=True)
+        & ~Q(eval_explanation="")
+    )
+
     # All three eval targets cluster, but never into the SAME cluster — the
     # centroid family is keyed by (target_type, eval_name) downstream, so
     # span / trace / session results form separate, homogeneous clusters. The
     # targets reach their project two different ways: span/trace results anchor
-    # to a trace, session results anchor to a trace_session (trace FK NULL),
-    # so scope on either side.
+    # to a trace (scoped by the PG ``trace__project_id`` FK), session results
+    # anchor to a ``trace_session`` whose project we resolve through CH (the FK
+    # is unenforced and absent for CH-only sessions — see
+    # ``_project_session_eval_ids``).
+    session_eval_ids = _project_session_eval_ids(project_id, since, base_filters)
+
     evals = (
         EvalLogger.objects.filter(
+            base_filters,
             Q(trace__project_id=project_id)
-            | Q(trace_session__project_id=project_id),
-            custom_eval_config__isnull=False,
-            created_at__gte=timezone.now() - timedelta(days=_CLUSTER_WINDOW_DAYS),
+            | Q(trace_session_id__in=session_eval_ids),
+            created_at__gte=since,
         )
-        .filter(
-            Q(output_bool=False) | Q(output_float__lt=1.0),
-        )
-        .exclude(eval_explanation__isnull=True)
-        .exclude(eval_explanation="")
         .select_related("custom_eval_config", "trace", "trace_session")
         .order_by("created_at")
     )
