@@ -93224,19 +93224,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "x-nullable": true,
           "x-string-or-object": true,
           "description": "String or JSON object."
-        },
-        "tools": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "x-json-value": true,
-            "description": "Any valid JSON value."
-          }
-        },
-        "tool_choice": {
-          "title": "Tool choice",
-          "type": "string",
-          "x-nullable": true
         }
       },
       "default": {
@@ -93245,8 +93232,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "top_p": null,
         "frequency_penalty": null,
         "presence_penalty": null,
-        "response_format": null,
-        "tool_choice": null
+        "response_format": null
       },
       "additionalProperties": {}
     },

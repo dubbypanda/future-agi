@@ -10457,11 +10457,6 @@ export const ExperimentCreateV2ApiExperimentType = {
  */
 export type PromptModelParamsApiResponseFormat = { [key: string]: unknown };
 
-/**
- * Any valid JSON value.
- */
-export type PromptModelParamsApiToolsItem = { [key: string]: unknown };
-
 export interface PromptModelParamsApi {
   temperature?: number;
   max_tokens?: number;
@@ -10470,8 +10465,6 @@ export interface PromptModelParamsApi {
   presence_penalty?: number;
   /** String or JSON object. */
   response_format?: PromptModelParamsApiResponseFormat;
-  tools?: PromptModelParamsApiToolsItem[];
-  tool_choice?: string;
   [key: string]: unknown;
 }
 

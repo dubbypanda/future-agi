@@ -20220,7 +20220,7 @@ export const ModelHubExperimentsReRunCreateResponse = zod.object({
 export const modelHubExperimentsV2CreateBodyNameMax = 255;
 
 export const modelHubExperimentsV2CreateBodyExperimentTypeDefault = `llm`;
-export const modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault = { temperature: null, max_tokens: null, top_p: null, frequency_penalty: null, presence_penalty: null, response_format: null, tool_choice: null };
+export const modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault = { temperature: null, max_tokens: null, top_p: null, frequency_penalty: null, presence_penalty: null, response_format: null };
 export const modelHubExperimentsV2CreateBodyPromptConfigItemConfigurationDefault = { tool_choice: null, model_detail: null, voice_id: null };
 export const modelHubExperimentsV2CreateBodyPromptConfigItemOutputFormatDefault = `string`;
 
@@ -20257,11 +20257,7 @@ export const ModelHubExperimentsV2CreateBody = zod.object({
   "presence_penalty": zod.number().optional(),
   "response_format": zod.object({
 
-}).passthrough().optional().describe('String or JSON object.'),
-  "tools": zod.array(zod.object({
-
-}).passthrough().describe('Any valid JSON value.')).optional(),
-  "tool_choice": zod.string().optional()
+}).passthrough().optional().describe('String or JSON object.')
 }).default(modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault),
   "configuration": zod.object({
   "tool_choice": zod.string().optional(),
@@ -20467,7 +20463,7 @@ export const ModelHubExperimentsV2UpdateParams = zod.object({
   "experiment_id": zod.string()
 })
 
-export const modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault = { temperature: null, max_tokens: null, top_p: null, frequency_penalty: null, presence_penalty: null, response_format: null, tool_choice: null };
+export const modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault = { temperature: null, max_tokens: null, top_p: null, frequency_penalty: null, presence_penalty: null, response_format: null };
 export const modelHubExperimentsV2UpdateBodyPromptConfigItemConfigurationDefault = { tool_choice: null, model_detail: null, voice_id: null };
 export const modelHubExperimentsV2UpdateBodyPromptConfigItemOutputFormatDefault = `string`;
 
@@ -20501,11 +20497,7 @@ export const ModelHubExperimentsV2UpdateBody = zod.object({
   "presence_penalty": zod.number().optional(),
   "response_format": zod.object({
 
-}).passthrough().optional().describe('String or JSON object.'),
-  "tools": zod.array(zod.object({
-
-}).passthrough().describe('Any valid JSON value.')).optional(),
-  "tool_choice": zod.string().optional()
+}).passthrough().optional().describe('String or JSON object.')
 }).default(modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault),
   "configuration": zod.object({
   "tool_choice": zod.string().optional(),

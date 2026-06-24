@@ -427,6 +427,8 @@ class _ExtraFieldsMixin:
 class PromptModelParamsSerializer(_ExtraFieldsMixin, serializers.Serializer):
     """Known LLM sampling parameters for a prompt config entry.
 
+    Sampling-level params only (temperature, max_tokens, etc.).
+    Call-level config (tools, tool_choice) lives in PromptConfigurationSerializer.
     Typed keys are validated; any additional provider-specific key is accepted
     via _ExtraFieldsMixin.  The swagger schema adds additionalProperties:{}
     so the generated contract is Record<string, unknown> for the extra keys.
@@ -438,8 +440,6 @@ class PromptModelParamsSerializer(_ExtraFieldsMixin, serializers.Serializer):
     frequency_penalty = serializers.FloatField(required=False, allow_null=True)
     presence_penalty = serializers.FloatField(required=False, allow_null=True)
     response_format = StringOrObjectField(required=False, allow_null=True)
-    tools = serializers.ListField(child=JsonValueField(), required=False)
-    tool_choice = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         # additionalProperties:{} lets unknown provider keys through in the schema
