@@ -52,14 +52,12 @@ const UsersGrid = React.memo(
       columns,
       setColumns,
       filters,
-      selectedProjectDay,
-      selectedProjectId,
     } = useUsersStore();
 
     const userFirstRef = useRef(true);
 
     const { observeId } = useParams();
-    const updatedObserveId = selectedProjectId || observeId;
+    const updatedObserveId = observeId;
     const debouncedSearchQuery = useDebounce(searchQuery.trim(), 500);
 
     const validatedFilters = useMemo(
@@ -68,9 +66,6 @@ const UsersGrid = React.memo(
     );
 
     const navigate = useNavigate();
-
-    const hasProjectFilter =
-      selectedProjectId || (selectedProjectDay !== 90 && !selectedProjectId);
 
     useEffect(() => {
       const initial = getUsersColumnConfig();
@@ -219,7 +214,7 @@ const UsersGrid = React.memo(
             }
 
             if (debouncedSearchQuery === "") {
-              if (hasActiveFilter || hasProjectFilter) {
+              if (hasActiveFilter) {
                 setSearchState("searching");
               } else {
                 setSearchState(hasResults ? "idle" : "empty");
@@ -272,7 +267,6 @@ const UsersGrid = React.memo(
         setIsLoading,
         setSearchState,
         hasActiveFilter,
-        hasProjectFilter,
       ],
     );
 

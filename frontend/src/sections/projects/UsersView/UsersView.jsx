@@ -876,7 +876,7 @@ const UsersView = ({
             justifyContent: "center",
           }}
         >
-          <UsersEmptyScreen />
+          {shouldShowEmptyLayout && <UsersEmptyScreen />}
         </Box>
 
         <Box
