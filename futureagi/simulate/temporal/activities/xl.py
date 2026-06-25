@@ -317,7 +317,7 @@ def _build_transcript_data(call_execution):
         # Read assistant/customer recordings from provider_call_data
         if call_execution.provider_call_data:
             for (
-                _provider_key,
+                provider_key,
                 provider_data,
             ) in call_execution.provider_call_data.items():
                 if not isinstance(provider_data, dict):

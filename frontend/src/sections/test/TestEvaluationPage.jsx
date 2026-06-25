@@ -188,15 +188,14 @@ const TestEvaluationPage = ({
   const onToggleToolCallCheck = (e) => {
     const value = e.target.checked;
     if (agentType === AGENT_TYPES.VOICE) {
-      const agentVersionDetails = testData?.agent_version;
-      const configurationSnapshot = agentVersionDetails?.configuration_snapshot;
+      const configurationSnapshot = testData?.agent_version?.configuration_snapshot;
       if (!configurationSnapshot) {
         enqueueSnackbar("There was error getting agent version details", {
           variant: "error",
         });
         return;
       }
-      const vapiApiKey = agentVersionDetails?.api_key;
+      const vapiApiKey = testData?.agent_version?.api_key;
       const vapiAssistantId = configurationSnapshot?.assistant_id;
       if ((!vapiApiKey || !vapiAssistantId) && value) {
         setOpenUpdateKeysDialog(true);

@@ -182,9 +182,26 @@ class ObservabilityProviderViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
         try:
             provider = request.data.get("provider")
             api_key = request.data.get("api_key")
+            agent_id = request.data.get("agent_id")
 
             if is_masked(api_key):
-                return self._gm.success_response("API key verified successfully.")
+                if agent_id:
+                    try:
+                        agent = AgentDefinition.objects.get(
+                            id=agent_id,
+                            organization=getattr(request, "organization", None)
+                            or request.user.organization,
+                        )
+                        version = agent.active_version or agent.latest_version
+                        if version:
+                            try:
+                                api_key = version.credentials.get_api_key()
+                            except AgentVersion.credentials.RelatedObjectDoesNotExist:
+                                pass
+                    except AgentDefinition.DoesNotExist:
+                        pass
+                if is_masked(api_key):
+                    return self._gm.success_response("API key verified successfully.")
 
             if provider in [
                 ProviderChoices.VAPI,
@@ -222,6 +239,7 @@ class ObservabilityProviderViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
                 # picking up a version with an empty key.
                 agent = AgentDefinition.objects.filter(
                     assistant_id=assistant_id,
+                    organization=getattr(request, "organization", None) or request.user.organization,
                 ).first()
                 target_version = None
                 if agent:

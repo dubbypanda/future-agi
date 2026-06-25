@@ -371,7 +371,7 @@ async def create_call_execution_records(
                         row_data = {}
                         if row_id:
                             try:
-                                await Row.objects.aget(id=row_id)
+                                row = await Row.objects.aget(id=row_id)
                                 # Fetch cells for this row to build row_data dict
                                 async for cell in Cell.objects.filter(
                                     row_id=row_id

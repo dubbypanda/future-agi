@@ -75,8 +75,6 @@ def create_webhook_agent_fixture(
     )
     ProviderCredentials.no_workspace_objects.create(
         agent_version=agent_definition.latest_version,
-        organization=organization,
-        workspace=workspace,
         provider_type=ProviderCredentials.ProviderType.RETELL,
         api_key=api_key,
         assistant_id=assistant_id,

@@ -533,6 +533,7 @@ class AgentDefinitionOperationsViewSet(BaseModelViewSetMixin, ModelViewSet):
                 # to avoid picking up a version with an empty key.
                 agent = AgentDefinition.objects.filter(
                     assistant_id=assistant_id,
+                    organization=getattr(request, "organization", None) or request.user.organization,
                 ).first()
                 target_version = None
                 if agent:

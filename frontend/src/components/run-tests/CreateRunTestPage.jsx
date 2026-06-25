@@ -756,7 +756,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
   useEffect(() => {
     if (agentVersionDetails && formData?.enableToolEvaluation) {
       const snapshot = agentVersionDetails?.configuration_snapshot;
-      const vapiApiKey = agentVersionDetails?.api_key;
+      const apiKey = agentVersionDetails?.api_key;
       const vapiAssistantId = snapshot?.assistant_id;
 
       if (
@@ -790,9 +790,9 @@ const CreateRunTestPage = ({ open, onClose }) => {
         return;
       }
       const snapshot = agentVersionDetails?.configuration_snapshot;
-      const vapiApiKey = agentVersionDetails?.api_key;
+      const apiKey = agentVersionDetails?.api_key;
       const vapiAssistantId = snapshot?.assistant_id;
-      if ((!vapiApiKey || !vapiAssistantId) && value) {
+      if ((!apiKey || !vapiAssistantId) && value) {
         setOpenUpdateKeysDialog(true);
         return;
       }

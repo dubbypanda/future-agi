@@ -3,9 +3,11 @@ import json
 import os
 import re
 import traceback
+from datetime import datetime, timedelta
 from decimal import Decimal
+from difflib import SequenceMatcher
 from itertools import chain
-from typing import Any
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 import structlog
@@ -78,7 +80,6 @@ from simulate.constants.persona_prompt_guides import (
     VOICE_COMMUNICATION_STYLE_GUIDES,
     VOICE_PERSONALITY_GUIDES,
 )
-
 try:
     from ee.voice.constants.voice_mapper import (
         select_voice_id,
@@ -100,9 +101,7 @@ from simulate.models.run_test import CreateCallExecution
 from simulate.models.simulator_agent import SimulatorAgent
 from simulate.models.test_execution import EvalExplanationSummaryStatus
 from simulate.pydantic_schemas.chat import SimulationCallType
-from simulate.services.agent_definition import resolve_api_key_for_version
 from simulate.services.branch_deviation_analyzer import BranchDeviationAnalyzer
-
 try:
     from ee.voice.services.conversation_metrics import ConversationMetricsCalculator
     from ee.voice.services.phone_number_service import PhoneNumberService
@@ -117,12 +116,12 @@ from simulate.utils.processing_outcomes import (
     set_processing_skip_metadata,
 )
 from simulate.utils.test_execution_utils import generate_simulator_agent_prompt
-from tfc.constants.api_calls import APICallStatusChoices
 from tfc.settings.settings import VAPI_INDIAN_PHONE_NUMBER_ID
 from tfc.temporal.drop_in import temporal_activity
 
 # Note: run_eval_summary_task imported lazily to avoid circular imports
 from tfc.utils.error_codes import get_specific_error_message
+from tfc.constants.api_calls import APICallStatusChoices
 
 try:
     from ee.usage.models.usage import APICallType
@@ -133,10 +132,7 @@ try:
 except ImportError:
     check_usage = None
 try:
-    from ee.usage.utils.usage_entries import (
-        deduct_cost_for_request,
-        log_and_deduct_cost_for_api_request,
-    )
+    from ee.usage.utils.usage_entries import deduct_cost_for_request, log_and_deduct_cost_for_api_request
 except ImportError:
     deduct_cost_for_request = None
     log_and_deduct_cost_for_api_request = None
@@ -277,7 +273,12 @@ class TestExecutor:
                                 if call.agent_version
                                 else agent_def.latest_version
                             )
-                            api_key = resolve_api_key_for_version(agent_version)
+                            snapshot = agent_version.configuration_snapshot
+                            api_key = (
+                                snapshot.get("api_key")
+                                if snapshot and snapshot.get("api_key")
+                                else None
+                            )
                             if not api_key:
                                 error_msg = f"Outbound call {call.id} is missing an api_key on AgentVersion {agent_version.id if agent_version else None}. Cancelling."
                                 logger.error(error_msg)
@@ -866,9 +867,9 @@ class TestExecutor:
 
     def _format_persona_voice_text(
         self,
-        persona_data: dict[str, Any],
+        persona_data: Dict[str, Any],
         agent_version: AgentVersion | None,
-        row_data: dict[str, Any] = None,
+        row_data: Dict[str, Any] = None,
         call_type: str = "inbound",
     ) -> str:
         """
@@ -1007,7 +1008,7 @@ class TestExecutor:
                 # Personality-specific guidance
                 guidance = VOICE_PERSONALITY_GUIDES.get(
                     personality_lower,
-                    "Let this personality trait guide your reactions, responses, and overall demeanor.",
+                    f"Let this personality trait guide your reactions, responses, and overall demeanor.",
                 )
                 personality_section += f"{guidance}\n\n"
 
@@ -1026,7 +1027,7 @@ class TestExecutor:
                 # Communication style-specific guidance
                 guidance = VOICE_COMMUNICATION_STYLE_GUIDES.get(
                     comm_style_lower,
-                    "Let this style guide how you express yourself throughout the conversation.",
+                    f"Let this style guide how you express yourself throughout the conversation.",
                 )
                 personality_section += f"{guidance}\n\n"
 
@@ -1071,7 +1072,7 @@ class TestExecutor:
 
                 # Special handling for multilingual contexts
                 if persona_data.get("multilingual"):
-                    language_section += "You are multilingual. Switch languages naturally based on context while maintaining your persona traits in all languages.\n"
+                    language_section += f"You are multilingual. Switch languages naturally based on context while maintaining your persona traits in all languages.\n"
 
                 # Special handling for Hinglish speakers
                 # if (accent and "indian" in accent.lower()) or any("hindi" in str(l).lower() for l in langs): # operator precedence
@@ -1229,9 +1230,9 @@ class TestExecutor:
 
     def _format_persona_chat_text(
         self,
-        persona_data: dict[str, Any],
+        persona_data: Dict[str, Any],
         agent_version: AgentVersion | None,
-        row_data: dict[str, Any] = None,
+        row_data: Dict[str, Any] = None,
         call_type: str = "inbound",
     ) -> str:
         """
@@ -1361,7 +1362,7 @@ class TestExecutor:
                 # Personality-specific guidance
                 guidance = CHAT_PERSONALITY_GUIDES.get(
                     personality_lower,
-                    "Let this personality trait guide your reactions, responses, and overall messaging style.",
+                    f"Let this personality trait guide your reactions, responses, and overall messaging style.",
                 )
                 personality_section += f"{guidance}\n\n"
 
@@ -1380,7 +1381,7 @@ class TestExecutor:
                 # Communication style-specific guidance
                 guidance = CHAT_COMMUNICATION_STYLE_GUIDES.get(
                     comm_style_lower,
-                    "Let this style guide how you express yourself throughout the chat conversation.",
+                    f"Let this style guide how you express yourself throughout the chat conversation.",
                 )
                 personality_section += f"{guidance}\n\n"
 
@@ -1609,7 +1610,7 @@ class TestExecutor:
 
             # Special handling for multilingual contexts
             if persona_data.get("multilingual"):
-                language_section += "You are multilingual. Switch languages naturally based on context while maintaining your persona traits in all languages.\n"
+                language_section += f"You are multilingual. Switch languages naturally based on context while maintaining your persona traits in all languages.\n"
 
             language_section += "\n"
             sections.append(language_section)
@@ -1715,7 +1716,7 @@ class TestExecutor:
     def _generate_dynamic_prompt(
         self,
         prompt_template: str,
-        row_data: dict[str, Any],
+        row_data: Dict[str, Any],
         agent_version: AgentVersion | None,
         call_type: str | None = None,
     ) -> str:
@@ -1975,7 +1976,7 @@ class TestExecutor:
     def _check_call_balance(
         self,
         organization,
-        call_type: str | None = SimulationCallType.VOICE,
+        call_type: Optional[str] = SimulationCallType.VOICE,
     ):
         """Check whether an organization is allowed to run a simulation call.
 
@@ -2111,30 +2112,20 @@ class TestExecutor:
                 if run_test.agent_version
                 else agent_definition.latest_version
             )
+            snapshot = agent_version.configuration_snapshot
 
-            if not resolve_api_key_for_version(agent_version):
+            if not snapshot.get("api_key"):
                 return (
                     False,
                     "API key required for outbound calls. Please configure api_key in agent definition.",
                 )
 
-            assistant_id = None
-            if agent_version:
-                try:
-                    creds = agent_version.credentials
-                    if creds:
-                        assistant_id = creds.assistant_id
-                except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                    pass
-            if not assistant_id and agent_version and agent_version.configuration_snapshot:
-                assistant_id = agent_version.configuration_snapshot.get("assistant_id")
-            if not assistant_id:
+            if not snapshot.get("assistant_id"):
                 return (
                     False,
                     "Assistant ID required for outbound calls. Please configure assistant_id in agent definition.",
                 )
 
-            snapshot = agent_version.configuration_snapshot if agent_version else {}
             if not snapshot.get("contact_number"):
                 return (
                     False,
@@ -2151,11 +2142,11 @@ class TestExecutor:
         self,
         run_test: RunTest,
         scenario: Scenarios,
-        call_data: dict[str, Any],
+        call_data: Dict[str, Any],
         test_execution_record: TestExecution,
         user_id: str,
         simulator_id=None,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Execute an inbound call where simulation agent calls user's agent (existing logic)
 
@@ -2555,20 +2546,9 @@ class TestExecutor:
 
             if not inbound:
                 metadata["call_direction"] = "outbound"
+                metadata["user_assistant_id"] = snapshot.get("assistant_id")
                 metadata["user_phone_number"] = call_execution_phone_number
-
-                metadata["user_api_key"] = resolve_api_key_for_version(selected_version)
-                assistant_id = None
-                if selected_version:
-                    try:
-                        creds = selected_version.credentials
-                        if creds:
-                            assistant_id = creds.assistant_id
-                    except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                        pass
-                if not assistant_id:
-                    assistant_id = snapshot.get("assistant_id")
-                metadata["user_assistant_id"] = assistant_id
+                metadata["user_api_key"] = snapshot.get("api_key")
 
             # Ensure call_data metadata is a dictionary
             call_metadata = call_data.get("metadata", {})
@@ -2923,8 +2903,9 @@ class TestExecutor:
                     if call_execution.agent_version
                     else agent_def.latest_version
                 )
+                snapshot = agent_version.configuration_snapshot
                 voice_service_manager = VoiceServiceManager(
-                    api_key=resolve_api_key_for_version(agent_version)
+                    api_key=snapshot.get("api_key")
                 )
             else:
                 # Use system credentials for inbound calls
@@ -3030,17 +3011,21 @@ class TestExecutor:
             resolved_agent_version = call_execution.agent_version
             if not resolved_agent_version and agent_def:
                 resolved_agent_version = agent_def.latest_version
-            customer_api_key = resolve_api_key_for_version(resolved_agent_version)
-            customer_assistant_id = None
-            if resolved_agent_version:
-                try:
-                    creds = resolved_agent_version.credentials
-                    if creds:
-                        customer_assistant_id = creds.assistant_id
-                except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                    pass
-            if not customer_assistant_id and resolved_agent_version and resolved_agent_version.configuration_snapshot:
-                customer_assistant_id = resolved_agent_version.configuration_snapshot.get("assistant_id")
+            configuration_snapshot = (
+                resolved_agent_version.configuration_snapshot
+                if resolved_agent_version
+                else {}
+            )
+            customer_api_key = (
+                configuration_snapshot.get("api_key")
+                if configuration_snapshot
+                else None
+            )
+            customer_assistant_id = (
+                configuration_snapshot.get("assistant_id")
+                if configuration_snapshot
+                else None
+            )
 
             # Determine call direction and use appropriate service
             is_outbound = (
@@ -3125,7 +3110,7 @@ class TestExecutor:
                                     time_window_seconds=10,
                                 )
                             )
-                        except Exception:
+                        except Exception as e:
                             logger.warning("Unable to locate matching customer call ID")
 
                     if customer_call_id:
@@ -3133,7 +3118,7 @@ class TestExecutor:
                             customer_call_data = voice_service_manager.get_call(
                                 customer_call_id, True
                             )
-                        except Exception:
+                        except Exception as e:
                             logger.warning("Failed to fetch customer call data")
 
                 if customer_call_data:
@@ -5181,17 +5166,17 @@ class TestExecutor:
                 # Extract tool calls from chat messages
                 tool_calls_data = agent._extract_tool_calls(call_data)
             else:
-                customer_api_key = resolve_api_key_for_version(agent_version)
-                customer_assistant_id = None
-                if agent_version:
-                    try:
-                        creds = agent_version.credentials
-                        if creds:
-                            customer_assistant_id = creds.assistant_id
-                    except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                        pass
-                if not customer_assistant_id and agent_version and agent_version.configuration_snapshot:
-                    customer_assistant_id = agent_version.configuration_snapshot.get("assistant_id")
+                customer_api_key = (
+                    snapshot.get("api_key")
+                    if snapshot and snapshot.get("api_key")
+                    else None
+                )
+
+                customer_assistant_id = (
+                    snapshot.get("assistant_id")
+                    if snapshot and snapshot.get("assistant_id")
+                    else None
+                )
 
                 # Handle VOICE agents (existing logic)
                 logger.info("Processing VOICE agent - using call data")

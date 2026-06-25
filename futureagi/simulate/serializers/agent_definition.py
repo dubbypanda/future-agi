@@ -407,7 +407,7 @@ class AgentDefinitionSerializer(serializers.ModelSerializer):
         instance = super().create(validated_data)
 
         creds_input.provider = instance.provider or creds_input.provider
-        version = instance.versions.order_by("-version_number").first()
+        version = instance.latest_version
         if not version:
             version = instance.create_version(
                 description="",
