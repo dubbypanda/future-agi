@@ -14,6 +14,7 @@ import pytest
 from rest_framework import status
 
 from accounts.models.organization import Organization
+from accounts.models.organization_invite import InviteStatus, OrganizationInvite
 from accounts.models.organization_membership import OrganizationMembership
 from accounts.models.user import User
 from accounts.models.workspace import Workspace, WorkspaceMembership
@@ -1358,3 +1359,131 @@ class TestOrgRoleUpdateWorkspaceAccess:
         assert workspace.id not in active
         assert second_workspace.id in active
         assert resp.json()["result"]["changes"].get("revoked_workspaces", 0) == 1
+
+    # Authz: the direct ws_level + workspace_id path must org-validate the
+    # workspace too. Without it an org admin/owner could write a membership into
+    # a workspace outside their org by posting a foreign workspace UUID here —
+    # the same privilege boundary workspace_access already enforces.
+
+    def test_ws_level_with_foreign_org_workspace_is_rejected(
+        self, auth_client, organization, workspace
+    ):
+        other_org = Organization.objects.create(name="Other Test Org Direct")
+        other_owner = _make_user(
+            other_org, "wslvl-otherorg-owner@futureagi.com", "Owner", Level.OWNER
+        )
+        foreign_workspace = Workspace.objects.create(
+            name="Foreign Workspace Direct",
+            organization=other_org,
+            is_active=True,
+            created_by=other_owner,
+        )
+
+        target = _make_user(
+            organization, "wslvl-foreign@futureagi.com", "Member", Level.MEMBER
+        )
+        _add_ws_membership(target, workspace, organization, Level.WORKSPACE_MEMBER)
+
+        resp = self._update_role(
+            auth_client,
+            {
+                "user_id": str(target.id),
+                "ws_level": Level.WORKSPACE_VIEWER,
+                "workspace_id": str(foreign_workspace.id),
+            },
+        )
+
+        # Rejected at the boundary; no cross-org row written.
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST, resp.json()
+        assert not WorkspaceMembership._base_manager.filter(
+            user=target, workspace=foreign_workspace
+        ).exists()
+        # The actor's own (in-org) workspace is untouched — no partial commit.
+        assert workspace.id in self._ws_member_ids(target, organization)
+
+    # A cross-workspace edit must not 500. The request context is the default
+    # workspace (A) but the edit targets second_workspace (B). The workspace-
+    # scoped manager hid B's existing membership, so update_or_create tried to
+    # INSERT a duplicate (workspace, user) and raised IntegrityError. An
+    # unscoped manager finds the row and updates it.
+
+    def test_cross_workspace_context_ws_level_edit_updates_not_500(
+        self, auth_client, organization, workspace, second_workspace
+    ):
+        target = _make_user(
+            organization, "wsctx-cross@futureagi.com", "Member", Level.MEMBER
+        )
+        # Membership lives in B; auth_client's context is the default workspace A.
+        _add_ws_membership(
+            target, second_workspace, organization, Level.WORKSPACE_MEMBER
+        )
+
+        resp = self._update_role(
+            auth_client,
+            {
+                "user_id": str(target.id),
+                "ws_level": Level.WORKSPACE_VIEWER,
+                "workspace_id": str(second_workspace.id),
+            },
+        )
+
+        assert resp.status_code == status.HTTP_200_OK, resp.json()
+        # Existing B row updated in place — not duplicated.
+        rows = WorkspaceMembership._base_manager.filter(
+            user=target, workspace=second_workspace
+        )
+        assert rows.count() == 1
+        assert rows.first().level == Level.WORKSPACE_VIEWER
+
+    # Revocation must stick on the invite path too. A member with a pending
+    # invite that still lists the revoked workspace would have it re-granted by
+    # OrganizationInvite.accept(); the role update must rewrite the invite's
+    # workspace_access to the new authoritative set.
+
+    def test_role_update_rewrites_pending_invite_workspace_access(
+        self, auth_client, user, organization, workspace, second_workspace
+    ):
+        target = _make_user(
+            organization, "wsinvite-revoke@futureagi.com", "Member", Level.MEMBER
+        )
+        _add_ws_membership(target, workspace, organization, Level.WORKSPACE_MEMBER)
+        _add_ws_membership(
+            target, second_workspace, organization, Level.WORKSPACE_MEMBER
+        )
+
+        # A stale pending invite still granting BOTH workspaces on accept.
+        invite = OrganizationInvite.objects.create(
+            organization=organization,
+            target_email=target.email,
+            level=Level.MEMBER,
+            workspace_access=[
+                {"workspace_id": str(workspace.id), "level": Level.WORKSPACE_MEMBER},
+                {
+                    "workspace_id": str(second_workspace.id),
+                    "level": Level.WORKSPACE_MEMBER,
+                },
+            ],
+            invited_by=user,
+            status=InviteStatus.PENDING,
+        )
+
+        resp = self._update_role(
+            auth_client,
+            {
+                "user_id": str(target.id),
+                "org_level": Level.VIEWER,
+                "workspace_access": [
+                    {"workspace_id": str(workspace.id), "level": Level.WORKSPACE_VIEWER}
+                ],
+            },
+        )
+
+        assert resp.status_code == status.HTTP_200_OK, resp.json()
+        invite.refresh_from_db()
+        invite_ws_ids = {entry["workspace_id"] for entry in invite.workspace_access}
+        # The revoked workspace is gone from the invite, so accept() can't
+        # resurrect it; the kept workspace remains.
+        assert str(workspace.id) in invite_ws_ids
+        assert str(second_workspace.id) not in invite_ws_ids
+        # Level offer is updated to the new org level too.
+        assert invite.level == Level.VIEWER

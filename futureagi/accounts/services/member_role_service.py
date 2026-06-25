@@ -61,6 +61,8 @@ def update_member_role(
         raise MemberRoleUpdateError("MEMBER_DEACTIVATED_ROLE_UPDATE")
 
     _validate_workspace_access_in_org(workspace_access, organization)
+    if ws_level is not None and workspace_id is not None:
+        _validate_workspace_in_org(workspace_id, organization)
 
     changes: dict[str, Any] = {}
 
@@ -124,6 +126,56 @@ def _validate_workspace_access_in_org(
         raise MemberRoleUpdateError("WS_NOT_IN_ORG")
 
 
+def _validate_workspace_in_org(workspace_id: UUID, organization: Organization) -> None:
+    """Reject a direct ``workspace_id`` (the ``ws_level`` path) that is not in
+    the actor's org. Without this the ``_apply_ws_level_change`` write below
+    would silently create a membership in a foreign workspace — the same
+    privilege-boundary gap ``_validate_workspace_access_in_org`` closes for the
+    ``workspace_access`` list."""
+    if not Workspace.objects.filter(
+        id=workspace_id, organization=organization
+    ).exists():
+        raise MemberRoleUpdateError("WS_NOT_IN_ORG")
+
+
+def _invite_workspace_access(
+    *,
+    organization: Organization,
+    new_level: int,
+    workspace_access: list[dict],
+    workspace_access_provided: bool,
+) -> Optional[list[dict]]:
+    """The ``workspace_access`` to persist onto a pending invite, mirroring the
+    access applied to an active membership for the same ``new_level``.
+
+    Returns ``None`` when the invite's existing access must be left untouched —
+    a single-workspace edit that omitted the ``workspace_access`` key (the
+    "key omitted" semantics; we don't know the desired set).
+    """
+    if new_level >= Level.ADMIN:
+        # Admin gets every workspace on accept, mirroring
+        # _promote_to_workspace_admin_everywhere on the active path.
+        return [
+            {"workspace_id": str(ws_id), "level": Level.WORKSPACE_ADMIN}
+            for ws_id in Workspace.objects.filter(
+                organization=organization
+            ).values_list("id", flat=True)
+        ]
+    if not workspace_access_provided:
+        return None
+    default_ws_level = (
+        Level.WORKSPACE_MEMBER if new_level >= Level.MEMBER else Level.WORKSPACE_VIEWER
+    )
+    return [
+        {
+            "workspace_id": str(entry["workspace_id"]),
+            "level": entry.get("level", default_ws_level),
+        }
+        for entry in workspace_access
+        if entry.get("workspace_id")
+    ]
+
+
 def _apply_org_level_change(
     *,
     organization: Organization,
@@ -178,11 +230,25 @@ def _apply_org_level_change(
 
     target_user = User.objects.filter(id=target_user_id).first()
     if target_user:
-        OrganizationInvite.objects.filter(
+        pending_invites = OrganizationInvite.objects.filter(
             organization=organization,
             target_email__iexact=target_user.email,
             status=InviteStatus.PENDING,
-        ).update(level=new_level)
+        )
+        # Also persist the authoritative workspace_access: OrganizationInvite.accept()
+        # grants memberships from invite.workspace_access, so a stale value would
+        # re-grant the workspaces this update just revoked once the invite is
+        # accepted (the revocation-not-sticking bug, on the invite path).
+        invite_ws_access = _invite_workspace_access(
+            organization=organization,
+            new_level=new_level,
+            workspace_access=workspace_access,
+            workspace_access_provided=workspace_access_provided,
+        )
+        if invite_ws_access is None:
+            pending_invites.update(level=new_level)
+        else:
+            pending_invites.update(level=new_level, workspace_access=invite_ws_access)
 
 
 def _enforce_not_last_owner(organization: Organization) -> None:
@@ -336,13 +402,18 @@ def _apply_ws_level_change(
     ws_level: int,
     changes: dict[str, Any],
 ) -> None:
-    existing_ws = WorkspaceMembership.all_objects.filter(
+    # `_base_manager` (not `all_objects`, which still applies the current-workspace
+    # context filter): when the request context is workspace A but `workspace_id`
+    # is B, the scoped manager hides B's existing membership, so update_or_create
+    # would try to INSERT a duplicate (workspace, user) row and 500 on the unique
+    # constraint instead of updating it. Matches `_apply_workspace_access`.
+    existing_ws = WorkspaceMembership._base_manager.filter(
         workspace_id=workspace_id,
         user_id=target_user_id,
     ).first()
     old_ws = existing_ws.level_or_legacy if existing_ws else None
 
-    WorkspaceMembership.all_objects.update_or_create(
+    WorkspaceMembership._base_manager.update_or_create(
         workspace_id=workspace_id,
         user_id=target_user_id,
         defaults=_active_ws_membership_defaults(ws_level, target_membership, actor),
