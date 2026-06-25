@@ -21,6 +21,7 @@ import {
 } from "src/api/develop/develop-detail";
 import DynamicColumnSkeleton from "../DynamicColumnSkeleton";
 import { ShowComponent } from "../../../../components/show";
+import { isJsonColumn } from "./columnFilterUtils";
 
 const getDefaultValue = () => {
   return {
@@ -53,19 +54,16 @@ export const ExtractJsonKeyChild = ({
 
   const { dataset } = useParams();
   const allColumns = useDatasetColumnConfig(dataset);
-  const { data: jsonSchemas = {} } = useGetJsonColumnSchema(dataset);
+  // refetchOnMount: "always" ensures the schema is fresh when the drawer opens,
+  // so a newly-created api_call column isn't hidden by a stale cache entry.
+  const { data: jsonSchemas = {} } = useGetJsonColumnSchema(dataset, {
+    refetchOnMount: "always",
+  });
 
-  // Use the same signal as RunPrompt/common.js:475 — a column is JSON-keyed
-  // when its dataType is "json" OR jsonSchemas has recorded keys for it
-  // (which covers api_call columns whose responses contain JSON objects).
   const columnOptions = useMemo(
     () =>
       allColumns
-        ?.filter(
-          (column) =>
-            column.dataType === "json" ||
-            jsonSchemas?.[column.field]?.keys?.length,
-        )
+        ?.filter((column) => isJsonColumn(column, jsonSchemas))
         ?.map((column) => ({
           label: column.headerName,
           value: column.field,
