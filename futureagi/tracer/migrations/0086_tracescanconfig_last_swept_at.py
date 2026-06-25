@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='tracescanconfig',
             name='last_swept_at',
-            field=models.DateTimeField(blank=True, help_text="High-water mark for the periodic scan sweep: the ClickHouse ingest time (root span created_at) up to which this project's completed traces have been considered for scanning. The sweep scans (last_swept_at, now-grace] and advances this. NULL = never swept (cold start scans a bounded recent window).", null=True),
+            field=models.DateTimeField(blank=True, help_text='Scan-sweep watermark (CH root-span created_at). The sweep scans (last_swept_at, now-grace] and advances this. NULL = never swept.', null=True),
         ),
     ]
