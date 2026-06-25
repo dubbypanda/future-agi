@@ -505,10 +505,10 @@ We love contributions — bug fixes, new evaluators, framework integrations, doc
 Self-hosted Future AGI collects deployment telemetry to help us size release testing and understand feature adoption. **No trace data, no prompts, no API keys**, ever.
 
 **What is collected:**
-- **Registration** (once, on first boot): instance ID, version, deployment type, and the **email addresses and domains** of active admin users.
+- **Registration** (once, on first boot): instance ID, version, deployment type, and the **email addresses and domains** of active users.
 - **Heartbeat** (periodic): anonymous aggregate usage counts.
 
-Opt out entirely via `FUTURE_AGI_TELEMETRY_DISABLED=1`.
+Opt out entirely via `FUTURE_AGI_TELEMETRY_DISABLED=1` in `.env` (or `deploy/.env.production` for the production overlay).
 
 ---
 
