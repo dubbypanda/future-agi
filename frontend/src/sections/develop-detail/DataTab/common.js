@@ -323,11 +323,18 @@ export const getColumnConfig = ({
   // Read both snake_case (canonical API shape) and camelCase (alias) so
   // this function works whether `eachCol` came straight from the axios
   // response (has non-enumerable camelCase getters) or from a spread/clone
-  // (only snake_case keys survive).
-  const colDataType = eachCol?.data_type ?? eachCol?.dataType;
-  const colOriginType = eachCol?.origin_type ?? eachCol?.originType;
-  const colIsFrozen = eachCol?.is_frozen ?? eachCol?.isFrozen;
-  const colIsVisible = eachCol?.is_visible ?? eachCol?.isVisible;
+  // (only snake_case keys survive). Use !== undefined to preserve null
+  // (the ?? operator falls through to camelCase when the API returns null).
+  const colDataType =
+    eachCol?.data_type !== undefined ? eachCol.data_type : eachCol?.dataType;
+  const colOriginType =
+    eachCol?.origin_type !== undefined
+      ? eachCol.origin_type
+      : eachCol?.originType;
+  const colIsFrozen =
+    eachCol?.is_frozen !== undefined ? eachCol.is_frozen : eachCol?.isFrozen;
+  const colIsVisible =
+    eachCol?.is_visible !== undefined ? eachCol.is_visible : eachCol?.isVisible;
 
   const isEditable =
     !isViewerRole &&
@@ -422,7 +429,8 @@ export const getColumnConfig = ({
       ...baseConfig,
       valueGetter: (v) => {
         const cell = v.data?.[eachCol.id];
-        const rawValue = cell?.cell_value ?? cell?.cellValue;
+        const rawValue =
+          cell?.cell_value !== undefined ? cell.cell_value : cell?.cellValue;
         const date = parseDate(rawValue);
         return date;
       },

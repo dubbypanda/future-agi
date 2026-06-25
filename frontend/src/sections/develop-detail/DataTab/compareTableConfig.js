@@ -28,12 +28,16 @@ export const getEachCompareColumnDef = (eachCol, diffModeRef) => {
       let valueToParse;
       let dataTypeToUse;
 
-      const diffValue = cell?.cell_diff_value ?? cell?.cellDiffValue;
+      const diffValue =
+        cell?.cell_diff_value !== undefined
+          ? cell.cell_diff_value
+          : cell?.cellDiffValue;
       if (isDiffMode && diffValue) {
         valueToParse = diffValue;
         dataTypeToUse = "";
       } else {
-        valueToParse = cell?.cell_value ?? cell?.cellValue;
+        valueToParse =
+          cell?.cell_value !== undefined ? cell.cell_value : cell?.cellValue;
         dataTypeToUse = AGGridCellDataType[colDataType];
       }
 
