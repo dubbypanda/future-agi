@@ -11,6 +11,7 @@ from tfc.constants.levels import Level
 from tfc.middleware.workspace_context import set_workspace_context
 
 WS_MEMBERS_URL = "/accounts/workspace/{workspace_id}/members/"
+WS_MEMBER_ADD_URL = "/accounts/workspaces/{workspace_id}/members/"
 
 
 def _make_member(organization, email, level=Level.MEMBER, role="Member"):
@@ -253,6 +254,36 @@ class TestCreateWorkspaceMembershipFactory:
         OrganizationMembership.objects.filter(pk=om.pk).update(is_active=False)
         assert resolve_org_membership(member, organization) is None
 
+    def test_explicit_org_membership_skips_resolution(
+        self, organization, workspace, monkeypatch
+    ):
+        # When the caller already passes ``organization_membership``, the factory
+        # must NOT re-query for it (the old ``setdefault`` evaluated the resolver
+        # unconditionally — a wasted query per call, N× inside bulk loops).
+        from accounts.services import workspace_membership as svc
+
+        member, om = _make_member(organization, "explicit@futureagi.com")
+        calls = []
+        real_resolve = svc.resolve_org_membership
+
+        def _spy(*args, **kwargs):
+            calls.append((args, kwargs))
+            return real_resolve(*args, **kwargs)
+
+        monkeypatch.setattr(svc, "resolve_org_membership", _spy)
+
+        ws_mem = svc.create_workspace_membership(
+            workspace=workspace,
+            user=member,
+            role="workspace_member",
+            level=Level.WORKSPACE_MEMBER,
+            organization_membership=om,
+        )
+
+        ws_mem.refresh_from_db()
+        assert ws_mem.organization_membership_id == om.id
+        assert calls == [], "resolver must not run when FK is passed explicitly"
+
 
 @pytest.mark.django_db
 def test_workspace_member_row_serializer_accepts_built_row(organization):
@@ -292,3 +323,55 @@ def test_list_output_validates_against_response_contract(organization, workspace
     serializer = WorkspaceMemberListResultSerializer(data=page)
     assert serializer.is_valid(), serializer.errors
     assert "member" in {r["type"] for r in page["results"]}
+
+
+@pytest.mark.django_db
+class TestWorkspaceMemberAddEndpointFKRegression:
+    """End-to-end guard for the real write path the bug came from.
+
+    Unlike ``TestWorkspaceMembershipFKInvariant`` (which seeds rows via a helper
+    that sets the FK by hand, so it can't catch a regression), this drives the
+    actual ``POST /accounts/workspaces/<id>/members/`` endpoint and asserts the
+    created ``WorkspaceMembership`` has its ``organization_membership`` FK set.
+    It fails the moment a write path stops routing through
+    ``create_workspace_membership`` — the exact drift TH-5928 fixes.
+    """
+
+    def test_add_existing_member_via_endpoint_populates_org_fk(
+        self, auth_client, organization, workspace
+    ):
+        member, om = _make_member(organization, "ws-add@futureagi.com")
+
+        resp = auth_client.post(
+            WS_MEMBER_ADD_URL.format(workspace_id=workspace.id),
+            {"users": [{"email": member.email, "role": "workspace_member"}]},
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_201_CREATED, resp.data
+        ws_mem = WorkspaceMembership.no_workspace_objects.get(
+            workspace=workspace, user=member
+        )
+        assert ws_mem.organization_membership_id == om.id
+
+    def test_added_member_shows_org_role_on_members_list(
+        self, auth_client, organization, workspace
+    ):
+        # The user-visible symptom: a freshly added member must carry an Org Role
+        # chip on the Members page (no NULL FK -> no blank org_role).
+        member, om = _make_member(organization, "ws-add-role@futureagi.com")
+
+        add = auth_client.post(
+            WS_MEMBER_ADD_URL.format(workspace_id=workspace.id),
+            {"users": [{"email": member.email, "role": "workspace_member"}]},
+            format="json",
+        )
+        assert add.status_code == status.HTTP_201_CREATED, add.data
+
+        listing = auth_client.get(WS_MEMBERS_URL.format(workspace_id=workspace.id))
+        assert listing.status_code == status.HTTP_200_OK
+        rows = {r["email"]: r for r in listing.data["result"]["results"]}
+        assert "ws-add-role@futureagi.com" in rows
+        # CamelCaseJSONRenderer flips org_role -> orgRole on the wire.
+        row = rows["ws-add-role@futureagi.com"]
+        assert row.get("orgRole") or row.get("org_role")

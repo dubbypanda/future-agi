@@ -56,10 +56,13 @@ def create_workspace_membership(
     match the existing create sites.
     """
     manager = manager or WorkspaceMembership.no_workspace_objects
-    extra.setdefault(
-        "organization_membership",
-        resolve_org_membership(user, workspace.organization),
-    )
+    # Resolve lazily: only query when the caller didn't already pass the FK.
+    # ``setdefault`` would evaluate ``resolve_org_membership`` unconditionally
+    # (and fire a wasted query per call — N times inside bulk-invite loops).
+    if "organization_membership" not in extra:
+        extra["organization_membership"] = resolve_org_membership(
+            user, workspace.organization
+        )
     if extra["organization_membership"] is None:
         # Visibility into the only path that can still produce a NULL FK (user
         # without an active org membership) — distinct from the old silent drift.
