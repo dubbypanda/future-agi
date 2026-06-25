@@ -270,15 +270,13 @@ const ObserveHeader = ({
         type: "text/csv;charset=utf-8;",
       });
 
-      // Users export names the file server-side (users_<id>_<utc>.csv via
-      // Content-Disposition); prefer it so there's a single source of truth.
-      // Other exporters keep the project-label name.
+      // Prefer the backend's Content-Disposition name for every export so the
+      // server is the single source of truth; fall back to the readable
+      // project-label name when the header isn't present.
       let downloadName = `${currentProject?.label || "project"}-${fileSuffix}.csv`;
-      if (text === "Users") {
-        const disposition = response.headers?.["content-disposition"] || "";
-        const match = /filename="?([^";]+)"?/i.exec(disposition);
-        if (match?.[1]) downloadName = match[1];
-      }
+      const disposition = response.headers?.["content-disposition"] || "";
+      const match = /filename="?([^";]+)"?/i.exec(disposition);
+      if (match?.[1]) downloadName = match[1];
 
       const link = document.createElement("a");
       const url = window.URL.createObjectURL(blob);
