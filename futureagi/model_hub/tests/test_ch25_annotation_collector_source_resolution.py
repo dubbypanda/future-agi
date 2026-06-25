@@ -44,10 +44,19 @@ import pytest
 
 from model_hub.models.annotation_queues import (
     AnnotationQueue,
+    AnnotationQueueAnnotator,
+    AnnotationQueueLabel,
     AnnotationQueueStatusChoices,
     QueueItem,
 )
-from model_hub.models.choices import QueueItemSourceType, QueueItemStatus
+from model_hub.models.choices import (
+    AnnotationTypeChoices,
+    AnnotatorRole,
+    QueueItemSourceType,
+    QueueItemStatus,
+)
+from model_hub.models.develop_annotations import AnnotationsLabels
+from model_hub.models.score import Score
 from model_hub.utils import annotation_queue_helpers as helpers
 from tracer.models.observation_span import ObservationSpan
 from tracer.models.project import Project
@@ -663,3 +672,60 @@ def test_resolution_path_imports_no_ee():
         src = inspect.getsource(mod)
         assert "import ee" not in src
         assert "from ee" not in src
+
+
+@pytest.mark.django_db
+def test_collector_span_round_trips_create_to_annotate(
+    auth_client, organization, workspace, user
+):
+    """Full add→annotate round-trip for a CH-only collector span (NO PG row).
+
+    The resolution tests above prove the source resolves and the create persists
+    the soft id; this proves the item can actually be ANNOTATED end-to-end. The
+    submit path reads ``item.observation_span_id`` for the Score FK and
+    CH-resolves the span-notes target — without the fix it dereferences
+    ``item.observation_span`` and 500s with ``DoesNotExist``. Asserts the Score
+    persists on the soft id with no PG ``ObservationSpan`` backing it.
+    """
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    AnnotationQueueAnnotator.objects.get_or_create(
+        queue=queue, user=user, defaults={"role": AnnotatorRole.MANAGER.value}
+    )
+    label = AnnotationsLabels.objects.create(
+        name=f"rt-label-{uuid.uuid4().hex[:8]}",
+        type=AnnotationTypeChoices.TEXT.value,
+        organization=organization,
+        workspace=workspace,
+        settings={"placeholder": "", "min_length": 0, "max_length": 1000},
+    )
+    AnnotationQueueLabel.objects.create(queue=queue, label=label, required=True)
+    item = _collector_item(
+        organization=organization, workspace=workspace, queue=queue, span=span
+    )
+
+    url = (
+        f"/model-hub/annotation-queues/{queue.id}"
+        f"/items/{item.id}/annotations/submit/"
+    )
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        resp = auth_client.post(
+            url,
+            {
+                "annotations": [
+                    {"label_id": str(label.id), "value": {"text": "ship it"}}
+                ],
+                "item_notes": "looks good",
+            },
+            format="json",
+        )
+
+    assert resp.status_code == 200, resp.data
+    score = Score.objects.get(queue_item=item, label=label, deleted=False)
+    assert score.source_type == QueueItemSourceType.OBSERVATION_SPAN.value
+    # Score persists the collector soft id — and NO PG ObservationSpan backs it.
+    assert str(score.observation_span_id) == str(span.id)
+    assert not ObservationSpan.objects.filter(id=span.id).exists()
