@@ -264,6 +264,47 @@ class TestUsersExport:
         assert kwargs["project_ids"] == [str(observe_project.id)]
         assert kwargs["empty_scope"] is False
 
+    def test_export_forwards_search_and_sort_to_builder(
+        self, auth_client, organization, workspace, observe_project
+    ):
+        # The export must match a searched/sorted grid, not just the filter set:
+        # `search` and `sort_params` have to reach the builder verbatim. Regression
+        # guard for the bug where the CSV ignored both.
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
+        sort_params = [{"column_id": "num_traces", "direction": "desc"}]
+
+        with (
+            patch(
+                "tracer.services.users_list_manager.UserListQueryBuilder",
+                wraps=__import__(
+                    "tracer.services.clickhouse.query_builders.user_list",
+                    fromlist=["UserListQueryBuilder"],
+                ).UserListQueryBuilder,
+            ) as builder_cls,
+            patch.object(
+                AnalyticsQueryService,
+                "execute_ch_query",
+                return_value=_ch_stub([]),
+            ),
+        ):
+            response = auth_client.get(
+                "/tracer/users/",
+                {
+                    "project_id": str(observe_project.id),
+                    "filters": json.dumps(filters),
+                    "search": "alice",
+                    "sort_params": json.dumps(sort_params),
+                    "export": "true",
+                },
+            )
+            _parse_csv(response)
+
+        assert response.status_code == status.HTTP_200_OK
+        kwargs = builder_cls.call_args.kwargs
+        assert kwargs["search"] == "alice"
+        assert kwargs["sort_params"] == sort_params
+
     def test_export_formats_none_cells_as_empty(
         self, auth_client, organization, workspace, observe_project
     ):

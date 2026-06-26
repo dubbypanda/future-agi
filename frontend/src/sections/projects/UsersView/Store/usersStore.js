@@ -19,17 +19,8 @@ const useUsersStore = create((set, get) => ({
   // Last sort_params sent by the grid, mirrored here so the export button can
   // match what's on screen (the sort lives in AG Grid's request, not the store).
   sortParams: [],
-  selectedProjectDay: 90,
-  selectedProjectId: null,
-
-  setSelectedProjectId: (newProjectID) =>
-    set({ selectedProjectId: newProjectID }),
-
-  setProjectSelectedDay: (selectedDay) =>
-    set({ selectedProjectDay: selectedDay }),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
-  setSortParams: (sortParams) => set({ sortParams: sortParams || [] }),
   setFilters: (newFiltersOrUpdater) => {
     if (typeof newFiltersOrUpdater === "function") {
       // Handle functional update like useState does
@@ -72,9 +63,6 @@ const useUsersStore = create((set, get) => ({
       openUserListFilter: false,
       filters: [{ ...userDefaultFilter, id: getRandomId() }],
       sortParams: [],
-      projectFilter: [],
-      selectedProjectDay: 90,
-      selectedProjectId: null,
     }),
   updateColumnVisibility: (updatedData) => {
     set((state) => ({
