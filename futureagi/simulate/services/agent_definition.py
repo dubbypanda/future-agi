@@ -1,4 +1,3 @@
-
 from django.conf import settings
 
 from simulate.models import AgentVersion
@@ -134,9 +133,9 @@ def sync_provider_credentials(version, data: ProviderCredentialsInput):
         config_json = None
         max_concurrency = None
 
-    creds = ProviderCredentials.objects.filter(agent_version=version).first()
-    if creds is None:
-        # Before creating fresh credentials, try to adopt legacy ones.
+    try:
+        creds = ProviderCredentials.objects.get(agent_version=version)
+    except ProviderCredentials.DoesNotExist:
         if _adopt_legacy_credentials(version):
             creds = ProviderCredentials.objects.get(agent_version=version)
         else:
@@ -147,7 +146,9 @@ def sync_provider_credentials(version, data: ProviderCredentialsInput):
     provider_changed = creds.provider_type != provider_type
     creds.provider_type = provider_type
 
-    _apply_secrets(creds, api_key=api_key, api_secret=api_secret, provider_changed=provider_changed)
+    _apply_secrets(
+        creds, api_key=api_key, api_secret=api_secret, provider_changed=provider_changed
+    )
     _apply_non_secrets(
         creds,
         assistant_id=assistant_id,

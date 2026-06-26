@@ -71,9 +71,7 @@ const TestEvaluationPage = ({
   const { data: testData, loading } = useTestRunDetails(testId);
   const isPendingTestDetail = loading?.isPending;
   const agentType =
-    testData?.agent_definition_detail?.agent_type ??
-    testData?.agentDefinitionDetail?.agentType ??
-    AGENT_TYPES.CHAT;
+    testData?.agent_definition_detail?.agent_type ?? AGENT_TYPES.CHAT;
   const queryClient = useQueryClient();
 
   const { mutate: updateTestRuns } = useUpdateTestRuns(testId, {
@@ -159,9 +157,7 @@ const TestEvaluationPage = ({
     () =>
       (
         testData?.simulate_eval_configs_detail ??
-        testData?.simulateEvalConfigsDetail ??
         testData?.evals_detail ??
-        testData?.evalsDetail ??
         []
       ).map((evalItem) => ({
         ...evalItem,
@@ -188,7 +184,8 @@ const TestEvaluationPage = ({
   const onToggleToolCallCheck = (e) => {
     const value = e.target.checked;
     if (agentType === AGENT_TYPES.VOICE) {
-      const configurationSnapshot = testData?.agent_version?.configuration_snapshot;
+      const configurationSnapshot =
+        testData?.agent_version?.configuration_snapshot;
       if (!configurationSnapshot) {
         enqueueSnackbar("There was error getting agent version details", {
           variant: "error",
@@ -324,11 +321,7 @@ const TestEvaluationPage = ({
           sx={{ ml: 0, mr: 0 }}
           control={
             <Checkbox
-              checked={
-                testData?.enable_tool_evaluation ??
-                testData?.enableToolEvaluation ??
-                false
-              }
+              checked={testData?.enable_tool_evaluation ?? false}
               onChange={onToggleToolCallCheck}
               size="small"
               sx={{ p: 0.5 }}
@@ -411,9 +404,7 @@ const TestEvaluationPage = ({
             eval_config_ids: evalsToRun.map((e) => e.id),
             test_execution_ids: executionIds ? executionIds : toggledNodes,
             select_all: selectAll,
-            enable_tool_evaluation:
-              testData?.enable_tool_evaluation ??
-              testData?.enableToolEvaluation,
+            enable_tool_evaluation: testData?.enable_tool_evaluation,
           });
         }}
         selectedUserEvalList={evals}
@@ -456,10 +447,8 @@ const TestEvaluationPage = ({
           setOpenUpdateKeysDialog(false);
         }}
         onClose={() => setOpenUpdateKeysDialog(false)}
-        agentDetails={testData?.agent_version ?? testData?.agentVersion}
-        agentDefinitionId={
-          testData?.agent_definition ?? testData?.agentDefinition
-        }
+        agentDetails={testData?.agent_version}
+        agentDefinitionId={testData?.agent_definition}
       />
     </Box>
   );

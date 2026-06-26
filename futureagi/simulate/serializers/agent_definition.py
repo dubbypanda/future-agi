@@ -22,9 +22,6 @@ from tracer.models.observability_provider import ProviderChoices
 _LIVEKIT_URL_VALIDATOR = URLValidator(schemes=["http", "https", "ws", "wss"])
 
 
-
-
-
 def _extract_credentials_input(
     validated_data: dict, fallback_provider: str
 ) -> ProviderCredentialsInput:
@@ -475,31 +472,17 @@ class AgentDefinitionListSerializer(serializers.ModelSerializer):
 
     def get_latest_version(self, obj):
         """Get the latest version number for the agent"""
-        # Use annotated field if available (from view's Subquery optimization)
         if hasattr(obj, "_latest_version"):
             return obj._latest_version
-        # Fallback for non-optimized querysets
-        latest_version = (
-            AgentVersion.objects.filter(agent_definition=obj)
-            .order_by("-version_number")
-            .values_list("version_number", flat=True)
-            .first()
-        )
-        return latest_version
+        version = obj.latest_version
+        return version.version_number if version else None
 
     def get_latest_version_id(self, obj):
         """Get the latest version id for the agent"""
-        # Use annotated field if available (from view's Subquery optimization)
         if hasattr(obj, "_latest_version_id"):
             return obj._latest_version_id
-        # Fallback for non-optimized querysets
-        latest_version = (
-            AgentVersion.objects.filter(agent_definition=obj)
-            .order_by("-version_number")
-            .values_list("id", flat=True)
-            .first()
-        )
-        return latest_version
+        version = obj.latest_version
+        return version.id if version else None
 
 
 class AgentDefinitionUpdateSerializer(serializers.ModelSerializer):

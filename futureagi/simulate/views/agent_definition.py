@@ -531,13 +531,18 @@ class AgentDefinitionOperationsViewSet(BaseModelViewSetMixin, ModelViewSet):
                 # Try to resolve the real key from stored credentials.
                 # Prefer the active/latest version's credentials over random ones
                 # to avoid picking up a version with an empty key.
-                agent = AgentDefinition.objects.filter(
-                    assistant_id=assistant_id,
-                    organization=getattr(request, "organization", None) or request.user.organization,
-                ).first()
-                target_version = None
-                if agent:
-                    target_version = agent.active_version or agent.latest_version
+                try:
+                    agent = AgentDefinition.objects.get(
+                        assistant_id=assistant_id,
+                        organization=getattr(request, "organization", None)
+                        or request.user.organization,
+                        deleted=False,
+                    )
+                except AgentDefinition.DoesNotExist:
+                    agent = None
+                target_version = (
+                    (agent.active_version or agent.latest_version) if agent else None
+                )
                 creds = None
                 if target_version:
                     try:
@@ -547,10 +552,15 @@ class AgentDefinitionOperationsViewSet(BaseModelViewSetMixin, ModelViewSet):
                     except AgentVersion.credentials.RelatedObjectDoesNotExist:
                         creds = None
                 if not creds:
-                    creds = ProviderCredentials.objects.filter(
-                        assistant_id=assistant_id,
-                        provider_type=provider,
-                    ).exclude(api_key="").exclude(api_key__isnull=True).first()
+                    creds = (
+                        ProviderCredentials.objects.filter(
+                            assistant_id=assistant_id,
+                            provider_type=provider,
+                        )
+                        .exclude(api_key="")
+                        .exclude(api_key__isnull=True)
+                        .first()
+                    )
                 if creds and creds.get_api_key():
                     api_key = creds.get_api_key()
                 else:
@@ -694,7 +704,9 @@ class EditAgentDefinitionView(APIView):
 
             creds_input = ProviderCredentialsInput(
                 provider=validated.get("provider") or agent.provider or "",
-                api_key=existing_api_key if preserve_existing_api_key else validated.get("api_key"),
+                api_key=existing_api_key
+                if preserve_existing_api_key
+                else validated.get("api_key"),
                 assistant_id=validated.get("assistant_id"),
                 livekit_url=validated.get("livekit_url"),
                 livekit_api_key=validated.get("livekit_api_key"),

@@ -384,10 +384,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
   );
   const selectedAgentVersion = useMemo(() => {
     if (!selectedAgentDef) return null;
-    // Agent definition list response uses snake_case `agent_versions`
-    // / `versions`. camelCase aliases are dead post middleware removal.
-    const versions =
-      selectedAgentDef.versions ?? selectedAgentDef.agent_versions ?? [];
+    const versions = selectedAgentDef.versions ?? [];
     return (
       versions.find((v) => v.id === formData.agentDefinitionVersionId) || null
     );
@@ -404,8 +401,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
     // is an array of per-scenario entries; each has dataset_column_config.
     const scenarioColumns = {};
     (data?.data?.columnConfigs || []).forEach((detail) => {
-      const cfg =
-        detail?.dataset_column_config ?? detail?.datasetColumnConfig ?? {};
+      const cfg = detail?.dataset_column_config ?? {};
       Object.entries(cfg).forEach(([uuid, meta]) => {
         scenarioColumns[uuid] = meta;
       });
@@ -420,11 +416,10 @@ const CreateRunTestPage = ({ open, onClose }) => {
       id: s.id,
       name: s.name,
       description: s.description,
-      scenario_type: s.scenario_type ?? s.scenarioType,
+      scenario_type: s.scenario_type,
       source: s.source,
       persona: s.agent ?? null,
-      prompt_template:
-        s.prompt_template_detail ?? s.promptTemplateDetail ?? null,
+      prompt_template: s.prompt_template_detail ?? null,
     }));
 
     // First-scenario values power the flat vocabulary keys. The per-
@@ -1763,7 +1758,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
               }}
               onClose={() => setOpenUpdateKeysDialog(false)}
               agentDetails={agentVersionDetails}
-              agentDefinitionId={agentVersionDetails?.agentDefinition}
+              agentDefinitionId={agentVersionDetails?.agent_definition}
             />
           </Box>
         );
@@ -1825,7 +1820,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
                         agentDefinitions.filter(
                           (definition) =>
                             definition.id === formData.agentDefinitionId,
-                        )[0]?.agentName
+                        )[0]?.agent_name
                       }
                       &nbsp; (
                       {versionOptions.find(
@@ -1911,7 +1906,7 @@ const CreateRunTestPage = ({ open, onClose }) => {
                             </Typography>
                           </Box>
                           <Typography variant="body2" fontWeight={600}>
-                            {scenario.datasetRows || 0} rows
+                            {scenario.dataset_rows || 0} rows
                           </Typography>
                         </Box>
                       ) : null;

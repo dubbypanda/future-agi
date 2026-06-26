@@ -25,7 +25,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from simulate.models import AgentVersion
+from simulate.models import AgentDefinition, AgentVersion
 from simulate.repositories import (
     CallExecutionRepository,
     CallTranscriptRepository,
@@ -559,9 +559,8 @@ class ValidateLiveKitCredentialsView(APIView):
         # url is plaintext on read so it doesn't need this branch.
         if agent_definition_id and (is_masked(api_key) or is_masked(api_secret)):
             try:
-                version = AgentVersion.objects.filter(
-                    agent_definition_id=agent_definition_id,
-                ).order_by("-version_number").select_related("credentials").first()
+                agent = AgentDefinition.objects.get(id=agent_definition_id)
+                version = agent.active_version or agent.latest_version
                 if version:
                     try:
                         creds = version.credentials
@@ -571,7 +570,7 @@ class ValidateLiveKitCredentialsView(APIView):
                             api_secret = creds.get_api_secret()
                     except AgentVersion.credentials.RelatedObjectDoesNotExist:
                         pass
-            except Exception:
+            except AgentDefinition.DoesNotExist:
                 pass
 
         if not all([livekit_url, api_key, api_secret]):
