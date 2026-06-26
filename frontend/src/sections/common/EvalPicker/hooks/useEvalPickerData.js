@@ -99,7 +99,7 @@ export function useEvalPickerData({
     if (!rawData) return [];
     if (isUsingOldEndpoint) {
       // Old endpoint: { evals: [...] }. As of the GetEvalsListView patch,
-      // the backend now returns evalType / outputType / createdByName /
+      // the backend now returns evalType / outputType / created_by_name /
       // owner / updatedAt directly — we trust those fields. The old
       // tag-based inference is kept as a last-resort fallback for any
       // stale client/server version skew.
@@ -114,7 +114,7 @@ export function useEvalPickerData({
             : e.eval_template_tags?.includes("AGENT_EVAL")
               ? "agent"
               : "llm");
-        const createdByName =
+        const created_by_name =
           e.created_by_name || (owner === "system" ? "System" : "User");
         const templateId = e.template_id || e.eval_template_id || e.id;
         return {
@@ -136,7 +136,7 @@ export function useEvalPickerData({
           templateType: e.template_type || "single",
           evalType,
           outputType: e.output_type || e.output || "pass_fail",
-          createdByName,
+          created_by_name,
           lastUpdated: e.updated_at || e.created_at,
           currentVersion: e.current_version || null,
           isDraft: e.is_draft || false,
