@@ -28032,6 +28032,7 @@ export const simulateApiAgentDefinitionOperationsFetchAssistantFromProviderBodyP
 export const SimulateApiAgentDefinitionOperationsFetchAssistantFromProviderBody = zod.object({
   "assistant_id": zod.string().min(1),
   "api_key": zod.string().min(1),
+  "agent_id": zod.string().uuid().optional(),
   "provider": zod.enum(['vapi', 'retell', 'eleven_labs', 'others']).default(simulateApiAgentDefinitionOperationsFetchAssistantFromProviderBodyProviderDefault).describe('Voice provider. One of: vapi, retell, eleven_labs, others.')
 })
 

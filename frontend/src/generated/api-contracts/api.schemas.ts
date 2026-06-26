@@ -14641,6 +14641,7 @@ export interface FetchAssistantRequestApi {
   assistant_id: string;
   /** @minLength 1 */
   api_key: string;
+  agent_id?: string;
   /** Voice provider. One of: vapi, retell, eleven_labs, others. */
   provider?: FetchAssistantRequestApiProvider;
 }
