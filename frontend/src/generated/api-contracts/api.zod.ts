@@ -9409,18 +9409,6 @@ export const ApiPublicIngestionCreateBody = zod.object({
 
 
 /**
- * Asynchronously handles the POST request to create ObservationSpans from OTEL data.
- */
-export const ApiPublicOtelV1TracesCreateBody = zod.object({
-
-}).passthrough().describe('Legacy OTLP JSON\/protobuf trace payload. Prefer \/tracer\/v1\/traces for new integrations.')
-
-export const ApiPublicOtelV1TracesCreateResponse = zod.object({
-
-}).passthrough()
-
-
-/**
  * Vapi validates Langfuse credentials by calling this endpoint with
 ``?limit=1``.      Returns an empty list with standard pagination
 metadata so the credential check passes.
@@ -11504,7 +11492,7 @@ export const modelHubAiEvalWriterCreateBodyOutputFormatDefault = `prompt`;
 
 export const ModelHubAiEvalWriterCreateBody = zod.object({
   "description": zod.string().min(1),
-  "output_format": zod.enum(['prompt', 'messages']).default(modelHubAiEvalWriterCreateBodyOutputFormatDefault)
+  "output_format": zod.enum(['prompt', 'messages', 'test_data']).default(modelHubAiEvalWriterCreateBodyOutputFormatDefault)
 })
 
 export const modelHubAiEvalWriterCreateResponseStatusDefault = true;
@@ -11513,7 +11501,9 @@ export const modelHubAiEvalWriterCreateResponseStatusDefault = true;
 export const ModelHubAiEvalWriterCreateResponse = zod.object({
   "status": zod.boolean().default(modelHubAiEvalWriterCreateResponseStatusDefault),
   "result": zod.object({
-  "prompt": zod.string().min(1)
+  "prompt": zod.string().min(1).optional(),
+  "messages": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "test_data": zod.record(zod.string(), zod.string()).optional()
 })
 })
 
@@ -13578,7 +13568,7 @@ export const ModelHubAnnotationQueuesItemsAnnotationsListParams = zod.object({
 
 export const modelHubAnnotationQueuesItemsAnnotationsListResponseStatusDefault = true;
 
-
+export const modelHubAnnotationQueuesItemsAnnotationsListResponseResultItemScoreSourceDefault = `human`;
 
 
 
@@ -13601,7 +13591,7 @@ export const ModelHubAnnotationQueuesItemsAnnotationsListResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubAnnotationQueuesItemsAnnotationsListResponseResultItemScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -14262,6 +14252,31 @@ export const ModelHubAnnotationsLabelsCreateBody = zod.object({
   "project": zod.string().uuid().optional(),
   "description": zod.string().optional(),
   "allow_notes": zod.boolean().optional()
+})
+
+export const modelHubAnnotationsLabelsCreateResponseStatusDefault = true;
+export const modelHubAnnotationsLabelsCreateResponseResultNameMax = 255;
+
+
+
+export const ModelHubAnnotationsLabelsCreateResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsLabelsCreateResponseStatusDefault),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(modelHubAnnotationsLabelsCreateResponseResultNameMax),
+  "type": zod.enum(['text', 'numeric', 'categorical', 'star', 'thumbs_up_down']),
+  "organization": zod.string().uuid().optional(),
+  "settings": zod.object({
+
+}).passthrough().optional(),
+  "project": zod.string().uuid().optional(),
+  "description": zod.string().optional(),
+  "allow_notes": zod.boolean().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "trace_annotations_count": zod.number().optional(),
+  "annotation_count": zod.number().optional(),
+  "archived": zod.boolean().optional()
+})
 })
 
 
@@ -17909,7 +17924,8 @@ export const ModelHubDevelopsEditAndRunUserEvalCreateBody = zod.object({
   "experiment_id": zod.string().uuid().optional(),
   "composite_weight_overrides": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional(),
+  "pinned_version_id": zod.string().uuid().optional()
 })
 
 
@@ -19625,78 +19641,6 @@ export const ModelHubEvalTemplatesFeedbackListListResponse = zod.object({
 
 
 /**
- * Manages ground truth configuration on the eval template's config JSONField.
- * @summary GET/PUT /model-hub/eval-templates/<id>/ground-truth-config/
- */
-export const ModelHubEvalTemplatesGroundTruthConfigListParams = zod.object({
-  "template_id": zod.string()
-})
-
-
-
-
-
-export const ModelHubEvalTemplatesGroundTruthConfigListResponse = zod.object({
-  "status": zod.boolean(),
-  "result": zod.object({
-  "ground_truth": zod.object({
-  "enabled": zod.boolean().optional(),
-  "ground_truth_id": zod.string().uuid().optional(),
-  "mode": zod.string().min(1).optional(),
-  "max_examples": zod.number().optional(),
-  "similarity_threshold": zod.number().optional(),
-  "injection_format": zod.string().min(1).optional()
-})
-})
-})
-
-
-/**
- * Manages ground truth configuration on the eval template's config JSONField.
- * @summary GET/PUT /model-hub/eval-templates/<id>/ground-truth-config/
- */
-export const ModelHubEvalTemplatesGroundTruthConfigUpdateParams = zod.object({
-  "template_id": zod.string()
-})
-
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyEnabledDefault = true;
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyModeDefault = `auto`;
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyMaxExamplesMax = 10;
-
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMin = 0;
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMax = 1;
-
-export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyInjectionFormatDefault = `structured`;
-
-export const ModelHubEvalTemplatesGroundTruthConfigUpdateBody = zod.object({
-  "enabled": zod.boolean().default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyEnabledDefault),
-  "ground_truth_id": zod.string().uuid().optional(),
-  "mode": zod.enum(['auto', 'manual', 'disabled']).default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyModeDefault),
-  "max_examples": zod.number().min(1).max(modelHubEvalTemplatesGroundTruthConfigUpdateBodyMaxExamplesMax).optional(),
-  "similarity_threshold": zod.number().min(modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMin).max(modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMax).optional(),
-  "injection_format": zod.enum(['structured', 'conversational', 'xml']).default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyInjectionFormatDefault)
-})
-
-
-
-
-
-export const ModelHubEvalTemplatesGroundTruthConfigUpdateResponse = zod.object({
-  "status": zod.boolean(),
-  "result": zod.object({
-  "ground_truth": zod.object({
-  "enabled": zod.boolean().optional(),
-  "ground_truth_id": zod.string().uuid().optional(),
-  "mode": zod.string().min(1).optional(),
-  "max_examples": zod.number().optional(),
-  "similarity_threshold": zod.number().optional(),
-  "injection_format": zod.string().min(1).optional()
-})
-})
-})
-
-
-/**
  * GET /model-hub/eval-templates/<id>/ground-truth/
  */
 export const ModelHubEvalTemplatesGroundTruthListParams = zod.object({
@@ -19709,6 +19653,15 @@ export const ModelHubEvalTemplatesGroundTruthListParams = zod.object({
 
 
 
+
+
+
+export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemEmbeddingsStaleDefault = false;
+export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemIsActiveDefault = false;
+export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemEnabledDefault = true;
+export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemMaxExamplesDefault = 3;
+export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemSimilarityThresholdDefault = 0.7;
+
 export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
@@ -19720,16 +19673,23 @@ export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
   "file_name": zod.string().optional(),
   "columns": zod.array(zod.string().min(1)),
   "row_count": zod.number(),
-  "variable_mapping": zod.object({
-
-}).passthrough().optional(),
+  "variable_mapping": zod.record(zod.string(), zod.unknown()).optional().describe('Map of template variable name to GT column name (string) or list of column names.'),
   "role_mapping": zod.object({
-
-}).passthrough().optional(),
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}).optional(),
   "embedding_status": zod.string().min(1).optional(),
   "embedded_row_count": zod.number().optional(),
   "storage_type": zod.string().min(1).optional(),
-  "created_at": zod.string().optional()
+  "created_at": zod.string().optional(),
+  "embeddings_stale": zod.boolean().default(modelHubEvalTemplatesGroundTruthListResponseResultItemsItemEmbeddingsStaleDefault),
+  "is_active": zod.boolean().default(modelHubEvalTemplatesGroundTruthListResponseResultItemsItemIsActiveDefault),
+  "enabled": zod.boolean().default(modelHubEvalTemplatesGroundTruthListResponseResultItemsItemEnabledDefault),
+  "max_examples": zod.number().default(modelHubEvalTemplatesGroundTruthListResponseResultItemsItemMaxExamplesDefault),
+  "similarity_threshold": zod.number().default(modelHubEvalTemplatesGroundTruthListResponseResultItemsItemSimilarityThresholdDefault)
 })),
   "total": zod.number()
 })
@@ -22033,85 +21993,69 @@ export const ModelHubGroundTruthEmbedCreateResponse = zod.object({
 
 
 /**
- * PUT /model-hub/ground-truth/<id>/mapping/
+ * PUT /model-hub/ground-truth/<id>/setup/
  */
-export const ModelHubGroundTruthMappingUpdateParams = zod.object({
+export const ModelHubGroundTruthSetupUpdateParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
-export const ModelHubGroundTruthMappingUpdateBody = zod.object({
-  "variable_mapping": zod.object({
 
-}).passthrough()
+
+
+
+
+export const modelHubGroundTruthSetupUpdateBodyMaxExamplesMax = 20;
+
+export const modelHubGroundTruthSetupUpdateBodyEnabledDefault = true;
+
+export const ModelHubGroundTruthSetupUpdateBody = zod.object({
+  "variable_mapping": zod.record(zod.string(), zod.unknown()).describe('Map of template variable name to GT column name (string) or list of column names. Keys are dynamic per-template.'),
+  "role_mapping": zod.object({
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}),
+  "max_examples": zod.number().min(1).max(modelHubGroundTruthSetupUpdateBodyMaxExamplesMax),
+  "enabled": zod.boolean().default(modelHubGroundTruthSetupUpdateBodyEnabledDefault)
 })
 
-export const ModelHubGroundTruthMappingUpdateResponse = zod.object({
+
+
+
+
+
+
+export const modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault = false;
+export const modelHubGroundTruthSetupUpdateResponseResultConfigMaxExamplesMax = 20;
+
+export const modelHubGroundTruthSetupUpdateResponseResultConfigSimilarityThresholdMin = 0;
+export const modelHubGroundTruthSetupUpdateResponseResultConfigSimilarityThresholdMax = 1;
+
+
+
+export const ModelHubGroundTruthSetupUpdateResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
   "id": zod.string().uuid(),
-  "variable_mapping": zod.object({
-
-}).passthrough().optional()
-})
-})
-
-
-/**
- * PUT /model-hub/ground-truth/<id>/role-mapping/
- */
-export const ModelHubGroundTruthRoleMappingUpdateParams = zod.object({
-  "ground_truth_id": zod.string()
-})
-
-export const ModelHubGroundTruthRoleMappingUpdateBody = zod.object({
+  "template_id": zod.string().uuid(),
+  "variable_mapping": zod.record(zod.string(), zod.unknown()).optional().describe('Map of template variable name to GT column name (string) or list of column names.'),
   "role_mapping": zod.object({
-
-}).passthrough()
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}).optional(),
+  "embedding_status": zod.string().min(1),
+  "embeddings_stale": zod.boolean().default(modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault),
+  "config": zod.object({
+  "enabled": zod.boolean(),
+  "ground_truth_id": zod.string().uuid(),
+  "max_examples": zod.number().min(1).max(modelHubGroundTruthSetupUpdateResponseResultConfigMaxExamplesMax),
+  "similarity_threshold": zod.number().min(modelHubGroundTruthSetupUpdateResponseResultConfigSimilarityThresholdMin).max(modelHubGroundTruthSetupUpdateResponseResultConfigSimilarityThresholdMax)
 })
-
-
-
-
-export const ModelHubGroundTruthRoleMappingUpdateResponse = zod.object({
-  "status": zod.boolean(),
-  "result": zod.object({
-  "id": zod.string().uuid(),
-  "role_mapping": zod.object({
-
-}).passthrough().optional(),
-  "embedding_status": zod.string().min(1)
-})
-})
-
-
-/**
- * POST /model-hub/ground-truth/<id>/search/ — test retrieval with a query.
- */
-export const ModelHubGroundTruthSearchCreateParams = zod.object({
-  "ground_truth_id": zod.string()
-})
-
-
-export const modelHubGroundTruthSearchCreateBodyMaxResultsMax = 20;
-
-
-
-export const ModelHubGroundTruthSearchCreateBody = zod.object({
-  "query": zod.string().min(1),
-  "max_results": zod.number().min(1).max(modelHubGroundTruthSearchCreateBodyMaxResultsMax).optional()
-})
-
-
-
-
-export const ModelHubGroundTruthSearchCreateResponse = zod.object({
-  "status": zod.boolean(),
-  "result": zod.object({
-  "query": zod.string().min(1),
-  "results": zod.array(zod.object({
-
-}).passthrough()),
-  "total": zod.number()
 })
 })
 
@@ -22124,7 +22068,7 @@ export const ModelHubGroundTruthStatusListParams = zod.object({
 })
 
 
-
+export const modelHubGroundTruthStatusListResponseResultEmbeddingsStaleDefault = false;
 
 export const ModelHubGroundTruthStatusListResponse = zod.object({
   "status": zod.boolean(),
@@ -22133,7 +22077,8 @@ export const ModelHubGroundTruthStatusListResponse = zod.object({
   "embedding_status": zod.string().min(1),
   "embedded_row_count": zod.number(),
   "total_rows": zod.number(),
-  "progress_percent": zod.number()
+  "progress_percent": zod.number(),
+  "embeddings_stale": zod.boolean().default(modelHubGroundTruthStatusListResponseResultEmbeddingsStaleDefault)
 })
 })
 
@@ -25563,7 +25508,7 @@ export const ModelHubScoresListQueryParams = zod.object({
 
 
 
-
+export const modelHubScoresListResponseResultsItemScoreSourceDefault = `human`;
 
 
 
@@ -25588,7 +25533,7 @@ export const ModelHubScoresListResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresListResponseResultsItemScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25622,7 +25567,7 @@ export const ModelHubScoresCreateBody = zod.object({
 
 export const modelHubScoresCreateResponseStatusDefault = true;
 
-
+export const modelHubScoresCreateResponseResultScoreSourceDefault = `human`;
 
 
 
@@ -25645,7 +25590,7 @@ export const ModelHubScoresCreateResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresCreateResponseResultScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25685,7 +25630,7 @@ export const ModelHubScoresBulkCreateBody = zod.object({
 
 export const modelHubScoresBulkCreateResponseStatusDefault = true;
 
-
+export const modelHubScoresBulkCreateResponseResultScoresItemScoreSourceDefault = `human`;
 
 
 
@@ -25710,7 +25655,7 @@ export const ModelHubScoresBulkCreateResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresBulkCreateResponseResultScoresItemScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25741,7 +25686,7 @@ export const ModelHubScoresForSourceQueryParams = zod.object({
 
 export const modelHubScoresForSourceResponseStatusDefault = true;
 
-
+export const modelHubScoresForSourceResponseResultItemScoreSourceDefault = `human`;
 
 
 
@@ -25764,7 +25709,7 @@ export const ModelHubScoresForSourceResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresForSourceResponseResultItemScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25793,7 +25738,7 @@ export const ModelHubScoresReadParams = zod.object({
 
 
 
-
+export const modelHubScoresReadResponseScoreSourceDefault = `human`;
 
 
 
@@ -25814,7 +25759,7 @@ export const ModelHubScoresReadResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresReadResponseScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25847,7 +25792,7 @@ export const ModelHubScoresUpdateBody = zod.object({
 
 
 
-
+export const modelHubScoresUpdateResponseScoreSourceDefault = `human`;
 
 
 
@@ -25868,7 +25813,7 @@ export const ModelHubScoresUpdateResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresUpdateResponseScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -25901,7 +25846,7 @@ export const ModelHubScoresPartialUpdateBody = zod.object({
 
 
 
-
+export const modelHubScoresPartialUpdateResponseScoreSourceDefault = `human`;
 
 
 
@@ -25922,7 +25867,7 @@ export const ModelHubScoresPartialUpdateResponse = zod.object({
   "value_history": zod.object({
 
 }).passthrough().optional(),
-  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).optional(),
+  "score_source": zod.enum(['human', 'api', 'auto', 'imported']).default(modelHubScoresPartialUpdateResponseScoreSourceDefault),
   "notes": zod.string().optional(),
   "annotator": zod.string().uuid().optional(),
   "annotator_name": zod.string().min(1).optional(),
@@ -27715,6 +27660,8 @@ export const simulateAgentDefinitionsVersionsCallExecutionsListResponseCallTypeM
 export const simulateAgentDefinitionsVersionsCallExecutionsListResponseMessageCountMin = -2147483648;
 export const simulateAgentDefinitionsVersionsCallExecutionsListResponseMessageCountMax = 2147483647;
 
+
+
 export const simulateAgentDefinitionsVersionsCallExecutionsListResponseCustomerCostCentsMin = -2147483648;
 export const simulateAgentDefinitionsVersionsCallExecutionsListResponseCustomerCostCentsMax = 2147483647;
 
@@ -27767,7 +27714,30 @@ export const SimulateAgentDefinitionsVersionsCallExecutionsListResponseItem = zo
   "eval_outputs": zod.object({
 
 }).passthrough().optional().describe('Evaluation output'),
-  "error_localizer_tasks": zod.string().optional(),
+  "error_localizer_tasks": zod.array(zod.object({
+  "task_id": zod.string().min(1),
+  "eval_config_id": zod.string(),
+  "status": zod.string(),
+  "eval_result": zod.object({
+
+}).passthrough(),
+  "eval_explanation": zod.string().optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_keys": zod.array(zod.string().min(1)).optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional(),
+  "rule_prompt": zod.string().optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "selected_input_key": zod.string().optional(),
+  "error_message": zod.string().optional(),
+  "created_at": zod.string().optional(),
+  "updated_at": zod.string().optional()
+})).optional().describe('Get error localizer tasks for this call execution.'),
   "call_summary": zod.string().optional().describe('Call summary from the service'),
   "agent_version": zod.string().uuid().optional(),
   "customer_cost_cents": zod.number().min(simulateAgentDefinitionsVersionsCallExecutionsListResponseCustomerCostCentsMin).max(simulateAgentDefinitionsVersionsCallExecutionsListResponseCustomerCostCentsMax).optional().describe('Total customer-reported cost in cents'),
@@ -28783,6 +28753,8 @@ export const simulateApiCallExecutionsListResponseCallTypeMax = 50;
 export const simulateApiCallExecutionsListResponseMessageCountMin = -2147483648;
 export const simulateApiCallExecutionsListResponseMessageCountMax = 2147483647;
 
+
+
 export const simulateApiCallExecutionsListResponseCustomerCostCentsMin = -2147483648;
 export const simulateApiCallExecutionsListResponseCustomerCostCentsMax = 2147483647;
 
@@ -28835,7 +28807,30 @@ export const SimulateApiCallExecutionsListResponseItem = zod.object({
   "eval_outputs": zod.object({
 
 }).passthrough().optional().describe('Evaluation output'),
-  "error_localizer_tasks": zod.string().optional(),
+  "error_localizer_tasks": zod.array(zod.object({
+  "task_id": zod.string().min(1),
+  "eval_config_id": zod.string(),
+  "status": zod.string(),
+  "eval_result": zod.object({
+
+}).passthrough(),
+  "eval_explanation": zod.string().optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_keys": zod.array(zod.string().min(1)).optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional(),
+  "rule_prompt": zod.string().optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "selected_input_key": zod.string().optional(),
+  "error_message": zod.string().optional(),
+  "created_at": zod.string().optional(),
+  "updated_at": zod.string().optional()
+})).optional().describe('Get error localizer tasks for this call execution.'),
   "call_summary": zod.string().optional().describe('Call summary from the service'),
   "agent_version": zod.string().uuid().optional(),
   "customer_cost_cents": zod.number().min(simulateApiCallExecutionsListResponseCustomerCostCentsMin).max(simulateApiCallExecutionsListResponseCustomerCostCentsMax).optional().describe('Total customer-reported cost in cents'),
@@ -29984,6 +29979,8 @@ export const simulateApiTestExecutionsListResponseCallsItemCallTypeMax = 50;
 export const simulateApiTestExecutionsListResponseCallsItemMessageCountMin = -2147483648;
 export const simulateApiTestExecutionsListResponseCallsItemMessageCountMax = 2147483647;
 
+
+
 export const simulateApiTestExecutionsListResponseCallsItemCustomerCostCentsMin = -2147483648;
 export const simulateApiTestExecutionsListResponseCallsItemCustomerCostCentsMax = 2147483647;
 
@@ -30056,7 +30053,30 @@ export const SimulateApiTestExecutionsListResponseItem = zod.object({
   "eval_outputs": zod.object({
 
 }).passthrough().optional().describe('Evaluation output'),
-  "error_localizer_tasks": zod.string().optional(),
+  "error_localizer_tasks": zod.array(zod.object({
+  "task_id": zod.string().min(1),
+  "eval_config_id": zod.string(),
+  "status": zod.string(),
+  "eval_result": zod.object({
+
+}).passthrough(),
+  "eval_explanation": zod.string().optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_keys": zod.array(zod.string().min(1)).optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional(),
+  "rule_prompt": zod.string().optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "selected_input_key": zod.string().optional(),
+  "error_message": zod.string().optional(),
+  "created_at": zod.string().optional(),
+  "updated_at": zod.string().optional()
+})).optional().describe('Get error localizer tasks for this call execution.'),
   "call_summary": zod.string().optional().describe('Call summary from the service'),
   "agent_version": zod.string().uuid().optional(),
   "customer_cost_cents": zod.number().min(simulateApiTestExecutionsListResponseCallsItemCustomerCostCentsMin).max(simulateApiTestExecutionsListResponseCallsItemCustomerCostCentsMax).optional().describe('Total customer-reported cost in cents'),
@@ -30141,7 +30161,33 @@ export const SimulateCallExecutionsReadResponse = zod.object({
   "audio_url": zod.string().url().min(1).optional(),
   "customer_name": zod.string().min(1).optional(),
   "eval_outputs": zod.string().optional(),
-  "eval_metrics": zod.string().optional(),
+  "eval_metrics": zod.record(zod.string(), zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "value": zod.object({
+
+}).passthrough().optional().describe('number | bool | string | list[string] | null'),
+  "reason": zod.string().optional(),
+  "type": zod.string().optional(),
+  "template_type": zod.string().optional(),
+  "visible": zod.boolean().optional(),
+  "error": zod.boolean().optional(),
+  "status": zod.string().optional(),
+  "skipped": zod.boolean().optional(),
+  "error_localizer": zod.boolean().optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "error_localizer_status": zod.string().optional(),
+  "error_localizer_message": zod.string().optional(),
+  "selected_input_key": zod.string().optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional()
+})).optional().describe('Get evaluation metrics in a format suitable for the UI'),
   "scenario_columns": zod.string().optional(),
   "ended_reason": zod.string().max(simulateCallExecutionsReadResponseEndedReasonMax).optional().describe('Reason why the call ended'),
   "simulator_agent_name": zod.string().min(1).optional(),
@@ -30245,6 +30291,8 @@ export const simulateCallExecutionsPartialUpdateResponseCallTypeMax = 50;
 export const simulateCallExecutionsPartialUpdateResponseMessageCountMin = -2147483648;
 export const simulateCallExecutionsPartialUpdateResponseMessageCountMax = 2147483647;
 
+
+
 export const simulateCallExecutionsPartialUpdateResponseCustomerCostCentsMin = -2147483648;
 export const simulateCallExecutionsPartialUpdateResponseCustomerCostCentsMax = 2147483647;
 
@@ -30297,7 +30345,30 @@ export const SimulateCallExecutionsPartialUpdateResponse = zod.object({
   "eval_outputs": zod.object({
 
 }).passthrough().optional().describe('Evaluation output'),
-  "error_localizer_tasks": zod.string().optional(),
+  "error_localizer_tasks": zod.array(zod.object({
+  "task_id": zod.string().min(1),
+  "eval_config_id": zod.string(),
+  "status": zod.string(),
+  "eval_result": zod.object({
+
+}).passthrough(),
+  "eval_explanation": zod.string().optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_keys": zod.array(zod.string().min(1)).optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional(),
+  "rule_prompt": zod.string().optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "selected_input_key": zod.string().optional(),
+  "error_message": zod.string().optional(),
+  "created_at": zod.string().optional(),
+  "updated_at": zod.string().optional()
+})).optional().describe('Get error localizer tasks for this call execution.'),
   "call_summary": zod.string().optional().describe('Call summary from the service'),
   "agent_version": zod.string().uuid().optional(),
   "customer_cost_cents": zod.number().min(simulateCallExecutionsPartialUpdateResponseCustomerCostCentsMin).max(simulateCallExecutionsPartialUpdateResponseCustomerCostCentsMax).optional().describe('Total customer-reported cost in cents'),
@@ -38539,18 +38610,6 @@ export const TracerObservationSpanDeleteParams = zod.object({
 })
 
 
-/**
- * Asynchronously handles the POST request to create ObservationSpans from OTEL data.
- */
-export const TracerOtlpV1TracesCreateBody = zod.object({
-
-}).passthrough().describe('Legacy OTLP JSON\/protobuf trace payload. Prefer \/tracer\/v1\/traces for new integrations.')
-
-export const TracerOtlpV1TracesCreateResponse = zod.object({
-
-}).passthrough()
-
-
 export const TracerProjectVersionListQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
@@ -43037,18 +43096,6 @@ export const TracerV1HealthListResponse = zod.object({
 })
 
 
-/**
- * The request body contains an ExportTraceServiceRequest with resource spans.
- * @summary Handle OTLP trace export request.
- */
-export const TracerV1TracesCreateResponse = zod.object({
-  "partial_success": zod.object({
-  "rejected_spans": zod.number().optional(),
-  "error_message": zod.string().optional()
-}).optional()
-})
-
-
 export const TracerWebhookCreateBody = zod.object({
   "call": zod.object({
 
@@ -45754,16 +45801,4 @@ export const UsageWorkspaceUsageSummaryListResponse = zod.object({
 export const V1HealthListResponse = zod.object({
   "status": zod.enum(['healthy']),
   "service": zod.string().min(1)
-})
-
-
-/**
- * The request body contains an ExportTraceServiceRequest with resource spans.
- * @summary Handle OTLP trace export request.
- */
-export const V1TracesCreateResponse = zod.object({
-  "partial_success": zod.object({
-  "rejected_spans": zod.number().optional(),
-  "error_message": zod.string().optional()
-}).optional()
 })
