@@ -5,30 +5,8 @@ import { Box, ButtonBase, Stack, Typography } from "@mui/material";
 import Iconify from "src/components/iconify";
 import PersonaComponent from "src/components/persona/personaComponent";
 
-/**
- * Compact scenario summary for the chat compare view with a visible
- * expand affordance — hover-to-reveal isn't discoverable.
- *
- * Two view modes, toggled by a "Show details" / "Hide details" button
- * in the header:
- *
- *   1. **Compact (default):** wrapping row of dense `Label : value`
- *      pills with values truncated to ~30 chars. Same chip pattern
- *      `ChatDetailsBar` uses, so it visually rhymes with the metric
- *      chip strip at the top of the drawer.
- *
- *   2. **Expanded:** vertical definition list — each scenario column
- *      becomes a row with the label as a small caption and the full
- *      value rendered underneath (wrapping as needed). Persona renders
- *      the full `PersonaComponent` inline, not as a chip.
- *
- * Why both: pills are the densest layout but lose information; the
- * definition list shows everything at the cost of vertical space. A
- * single visible toggle lets the user pick.
- *
- * The legacy `TestDetailDrawerScenarioTable` is untouched — voice
- * compare still uses it.
- */
+// Scenario summary for the chat compare view, with a "Show details" toggle
+// between dense pills and a full definition list.
 
 const COMPACT_VALUE_MAX_CHARS = 30;
 
@@ -55,7 +33,7 @@ const personaName = (raw) => {
     }
   }
   if (typeof raw === "object") {
-    return raw?.name || raw?.persona_name || null;
+    return raw?.name || null;
   }
   return null;
 };

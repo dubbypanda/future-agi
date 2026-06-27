@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Box, Stack } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,15 +15,10 @@ import { useGetTraceDetail } from "src/api/project/trace-detail";
 import VoiceActionsDropdown, {
   VOICE_ACTIONS,
 } from "src/components/VoiceDetailDrawerV2/VoiceActionsDropdown";
+import { DRAWER_MODULE, TAG_INVALIDATION_QUERY_KEYS } from "./constants";
 
-/**
- * Chat top bar — chip strip + actions dropdown + inline tags row.
- * Mirrors `CallDetailsBar` from the voice drawer but only shows fields
- * that make sense for chat (no Phone, no Provider, no "Type: Inbound"
- * — every chat is a text session). The inline tags row was added in
- * the "feature parity with voice" pass: chat traces persist tags on
- * the trace record via the same backend endpoint voice uses.
- */
+// Chat top bar — chip strip + actions dropdown + inline tags row.
+// Mirrors the voice CallDetailsBar, minus voice-only fields.
 
 // Action ids that operate on the trace record (and therefore require
 // `data.trace_id` to be a real tracer trace — CallExecution ids would
@@ -132,16 +127,14 @@ const InlineTagsRow = ({ tags = [], traceId }) => {
         tags: newTags,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chatCallDetail"] });
-      queryClient.invalidateQueries({ queryKey: ["voiceCallDetail"] });
-      queryClient.invalidateQueries({ queryKey: ["trace-detail"] });
+      TAG_INVALIDATION_QUERY_KEYS.forEach((queryKey) =>
+        queryClient.invalidateQueries({ queryKey }),
+      );
     },
     onError: () => {
       enqueueSnackbar("Failed to update tags", { variant: "error" });
     },
   });
-
-  const persist = useCallback((next) => saveTags(next), [saveTags]);
 
   return (
     <Stack
@@ -159,15 +152,15 @@ const InlineTagsRow = ({ tags = [], traceId }) => {
           name={tag.name}
           color={tag.color}
           size="small"
-          onRemove={() => persist(normalized.filter((_, i) => i !== idx))}
+          onRemove={() => saveTags(normalized.filter((_, i) => i !== idx))}
           onColorChange={(c) =>
-            persist(
+            saveTags(
               normalized.map((t, i) => (i === idx ? { ...t, color: c } : t)),
             )
           }
           onRename={(n) => {
             if (normalized.some((t, i) => i !== idx && t.name === n)) return;
-            persist(
+            saveTags(
               normalized.map((t, i) => (i === idx ? { ...t, name: n } : t)),
             );
           }}
@@ -182,7 +175,7 @@ const InlineTagsRow = ({ tags = [], traceId }) => {
         >
           <TagInput
             onAdd={(newTag) => {
-              persist([...normalized, newTag]);
+              saveTags([...normalized, newTag]);
               setIsAdding(false);
             }}
             existingNames={normalized.map((t) => t.name)}
@@ -270,7 +263,7 @@ const ChatDetailsBar = ({ data, onAction }) => {
   // observe (project) we fall back to fetching the canonical trace
   // detail so the chip row stays in sync.
   const traceId = data?.trace_id;
-  const isObserve = data?.module === "project";
+  const isObserve = data?.module === DRAWER_MODULE.OBSERVE;
   const { data: traceDetail } = useGetTraceDetail(isObserve ? traceId : null);
   const tags =
     traceDetail?.trace?.tags ||

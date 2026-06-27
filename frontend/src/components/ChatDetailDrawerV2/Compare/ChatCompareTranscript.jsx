@@ -20,20 +20,9 @@ import {
   matchConversationsByIndex,
 } from "./compareUtils";
 
-/**
- * Side-by-side baseline-vs-replay transcript with optional word-level
- * diff highlighting. Replaces the legacy
- * `BasLineCompare/CompareConversation.jsx` MUI Table layout with a
- * CSS grid that matches the new chat drawer aesthetic: same row colors
- * as `TranscriptView` (role-color left border, timestamp on top, body
- * underneath) and the same Show Diff toggle behavior.
- */
+// Side-by-side baseline-vs-replay transcript with optional word-level diff.
 
-// Mirrors the speaker color scheme used by
-// `VoiceDetailDrawerV2/TranscriptView.useSpeakerColors`, kept inline to
-// avoid coupling to the voice file. Identical color tokens so the
-// per-turn left-border accent matches what users already see in the
-// regular chat transcript tab.
+// Speaker colors mirror VoiceDetailDrawerV2/TranscriptView (kept inline).
 const useSpeakerColors = () => {
   const theme = useTheme();
   return useMemo(

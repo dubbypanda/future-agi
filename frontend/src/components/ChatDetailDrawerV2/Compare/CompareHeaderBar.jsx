@@ -3,18 +3,7 @@ import PropTypes from "prop-types";
 import { Box, IconButton, Stack, Typography } from "@mui/material";
 import Iconify from "src/components/iconify";
 
-/**
- * Sticky in-content header for the chat compare view. Renders a back
- * arrow, the page title, and an optional subtitle (scenario name and
- * session id). Same `background.default` + `divider` token combo as
- * `ChatDetailsBar` so the two surfaces visually rhyme.
- *
- * Replaces the legacy breadcrumb pattern in
- * `BasLineCompare/Header.jsx`. The drawer's outer chrome
- * (VoiceDrawerHeader with Close / Prev / Next / Fullscreen) stays
- * mounted, so this bar only owns the back-to-chat affordance and the
- * compare-mode label.
- */
+// Sticky in-content header for the chat compare view (back arrow + title).
 const CompareHeaderBar = ({ onBack, scenarioName, sessionId }) => {
   const subtitleParts = [];
   if (scenarioName) subtitleParts.push(scenarioName);

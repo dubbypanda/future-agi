@@ -19,17 +19,7 @@ const PATH_VIEW_MODE = {
   [TABS.GRAPH]: "graph",
 };
 
-/**
- * Chat drawer left panel. Mirrors `VoiceLeftPanel` structure so the
- * chat drawer feels identical to the voice one, but without the voice-
- * specific recording waveform — chat transcripts are self-contained.
- *
- * Tabs:
- *   - Transcript: `ChatTranscriptView` — role-aligned bubbles.
- *   - Checklist / Graph: `PathAnalysisView` reused as-is. It's driven by
- *     the scenario id + execution id, not by voice-specific fields, so
- *     chat path analysis comes for free.
- */
+// Chat drawer left panel — Transcript / Checklist / Graph (mirrors VoiceLeftPanel).
 const ChatLeftPanel = ({ data, scenarioId }) => {
   const isSimulate = data?.module === "simulate";
   const [currentTab, setCurrentTab] = useState(TABS.TRANSCRIPT);

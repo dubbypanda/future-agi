@@ -26,23 +26,8 @@ import ChatRightPanel from "./ChatRightPanel";
 import ChatCompareView from "./Compare/ChatCompareView";
 import { CHAT_IMAGINE_PROMPTS, CHAT_EXPORT_FIELDS } from "./constants";
 
-/**
- * Chat-specific peer of `VoiceDetailDrawerV2`. Shares the same outer
- * shell (header, resizable drawer width, resizable inner divider,
- * fullscreen) and now matches voice for every cross-cutting feature:
- *
- *  - Imagine / Saved Views via `DrawerToolbar` + `ImagineTab`
- *  - Share dialog (trace-record sharing)
- *  - Add to dataset (trace as a row in a dataset)
- *  - Add to annotation queue
- *  - Add tags + inline tags row (persisted to the trace record)
- *  - **Compare with baseline** body (lives inside the drawer; pressing
- *    Compare swaps the two-panel body for a side-by-side diff and a
- *    back-to-chat affordance, without unmounting the drawer chrome)
- *
- * Content-only: rendered inside the outer MUI flex container provided
- * by `TestDetailSideDrawer`, same way `VoiceDetailDrawerV2` is.
- */
+// Chat-specific peer of VoiceDetailDrawerV2 — content-only drawer body
+// (the header/width/fullscreen chrome is provided by TestDetailSideDrawer).
 const ChatDetailDrawerV2 = ({
   data,
   onClose,

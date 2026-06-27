@@ -29,19 +29,9 @@ const TABS = {
   SCENARIO: "scenario",
 };
 
-/**
- * Chat drawer right panel. Mirrors `VoiceRightPanel` structure so the two
- * drawers feel like the same product — same `CallDetailsBar` chip strip,
- * same `CompactTabs` nav, same Evals/Messages/Attributes/Annotations/
- * Scenario panes (all data-agnostic components).
- *
- * Differences from voice:
- *   - "Call Analytics" uses `ChatAnalyticsView` (chat KPIs: turns,
- *     tokens, cost, avg latency) instead of voice's Latency pipeline /
- *     voice KPI strip.
- *   - No "Logs" tab — chat doesn't have a vapi/callLogs equivalent yet.
- *   - Eval normalization logic mirrors `VoiceRightPanel.normalizedEvals`.
- */
+// Chat drawer right panel — mirrors VoiceRightPanel (Analytics / Evals /
+// Messages / Attributes / Annotations / Scenario), with chat KPIs and no
+// Logs tab.
 const ChatRightPanel = ({
   data,
   onCompareBaseline,
@@ -76,9 +66,9 @@ const ChatRightPanel = ({
     if (Array.isArray(data?.messages)) return data.messages;
     if (Array.isArray(data?.transcript)) {
       return data.transcript.map((t) => ({
-        role: t.speakerRole || t.role,
-        content: t.message || t.content || t.text,
         ...t,
+        role: t.speaker_role,
+        content: t.content,
       }));
     }
     return [];

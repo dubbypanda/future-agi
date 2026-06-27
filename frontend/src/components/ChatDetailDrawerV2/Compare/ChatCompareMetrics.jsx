@@ -7,20 +7,7 @@ import {
   getPerformanceMetricsLabel,
 } from "src/sections/test-detail/TestDetailDrawer/BasLineCompare/common";
 
-/**
- * KPI strip for chat baseline-vs-replay comparison. Mirrors the look
- * of `ChatAnalyticsView`'s `KpiCell` (small label + monospace value)
- * and adds a second-line delta chip for absolute + percentage change.
- *
- * Color rules for the delta chip follow the same theme-aware pattern
- * we use elsewhere for chip readability (dark theme → `.main`, light
- * theme → `.darker` for the foreground color so the chip is legible
- * on its translucent background in both themes).
- *
- * Replaces the legacy `BasLineCompare/PerformanceMetrics.jsx` card
- * grid + collapsible accordion. Kept a flat strip — no accordion —
- * because the strip is short enough to always be visible.
- */
+// KPI strip for chat baseline-vs-replay comparison (label + value + delta chip).
 
 const SectionLabel = ({ children }) => (
   <Typography

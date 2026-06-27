@@ -1,22 +1,4 @@
 // Pure helpers for the chat baseline-vs-replay compare view.
-//
-// Logic is lifted from the legacy
-// `frontend/src/sections/test-detail/TestDetailDrawer/BasLineCompare/CompareConversation.jsx`
-// (lines ~35-84 + the totals loop) and made theme-/role-agnostic so the
-// new chat compare components can reuse it without depending on the
-// legacy file. The legacy version stays in place — voice compare still
-// uses its own copy — so this extraction has no side effects.
-//
-// Exports:
-//   - `computeDiff(textA, textB, side?)` — word-level diff between two
-//     strings using `diff.diffWordsWithSpace`. When `side` is "A" or "B"
-//     the diff is filtered + merged so the caller can render one side
-//     of the diff inline without iterating over removed-then-added
-//     pairs.
-//   - `countDiffs(matchedConversations)` — running totals of removals
-//     and additions across every paired turn, used to populate the
-//     "Removals (N) / Additions (N)" pill chips when Show Diff is on.
-
 import { diffWordsWithSpace } from "diff";
 
 /**

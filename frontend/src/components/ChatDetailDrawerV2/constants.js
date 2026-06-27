@@ -21,6 +21,16 @@ export const CHAT_IMAGINE_PROMPTS = [
   { label: "Evaluate chat quality", icon: "mdi:checkbox-marked-circle-outline" },
 ];
 
+// Drawer module identifiers (which surface the drawer is rendered in).
+export const DRAWER_MODULE = { OBSERVE: "project", SIMULATE: "simulate" };
+
+// Query keys invalidated after a tag edit so every detail view refetches.
+export const TAG_INVALIDATION_QUERY_KEYS = [
+  ["chatCallDetail"],
+  ["voiceCallDetail"],
+  ["trace-detail"],
+];
+
 // User-facing fields included in the chat JSON download. Intentionally a
 // curated allowlist so we don't leak internal trace/span internals from the
 // full `data` object.

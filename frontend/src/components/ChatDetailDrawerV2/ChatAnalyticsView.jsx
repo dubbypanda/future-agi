@@ -1,20 +1,9 @@
 import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import {
-  Box,
-  ButtonBase,
-  Collapse,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, ButtonBase, Stack, Tooltip, Typography } from "@mui/material";
 import Iconify from "src/components/iconify";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Formatters (mirrors CallAnalyticsView conventions so the two drawers
-// render values identically — e.g. "4.5s", "450ms", "$0.02").
-// ─────────────────────────────────────────────────────────────────────────────
-
+// Formatters (mirror CallAnalyticsView so both drawers render values alike).
 const fmtDuration = (seconds) => {
   if (seconds == null || !Number.isFinite(Number(seconds))) return "—";
   const n = Number(seconds);
@@ -141,7 +130,7 @@ KpiCell.propTypes = {
 const useChatMetrics = (data) => {
   return useMemo(() => {
     const transcript = Array.isArray(data?.transcript) ? data.transcript : [];
-    const nonSystem = transcript.filter((t) => t.speakerRole !== "system");
+    const nonSystem = transcript.filter((t) => t.speaker_role !== "system");
 
     const turnCount =
       data?.turn_count ??
@@ -185,12 +174,7 @@ const useChatMetrics = (data) => {
       ((tokensIn ?? 0) + (tokensOut ?? 0) || null);
 
     // Cost — direct field preferred; otherwise try the breakdown total.
-    const cost =
-      data?.cost ??
-      data?.total_cost ??
-      data?.totalCost ??
-      data?.customer_cost_breakdown?.total ??
-      null;
+    const cost = data?.cost ?? data?.total_cost ?? null;
 
     // Avg per-turn latency — prefer direct aggregate, else average
     // per-turn latency values that exist on the transcript.
@@ -351,9 +335,6 @@ const AiSummaryCard = ({ summary }) => {
           }}
         />
       </ButtonBase>
-      <Collapse in={open} unmountOnExit>
-        <Box sx={{ height: 2 }} />
-      </Collapse>
     </Stack>
   );
 };
