@@ -310,3 +310,42 @@ class TestV2EvalScoreRendering:
 
     def test_no_score_when_both_null(self):
         assert self._scores_for(self._eval_row())[0]["score"] is None
+
+
+# --------------------------------------------------------------------------- #
+# 5) Enrichment fault logging (loud on genuine faults, silent on dropped table)
+# --------------------------------------------------------------------------- #
+class TestV2EnrichmentFaultLogging:
+    """A genuine PG fault on the Trace lookup surfaces (logged) while the handler
+    degrades to root-span synthesis; the expected dropped-table case stays silent."""
+
+    def _run_with_trace_objects(self, trace_objects):
+        import tracer.services.clickhouse.v2.query_builders.trace_detail as td
+
+        analytics = _FakeAnalytics(
+            project_rows=[{"project_id": "P1"}],
+            span_rows=[_root_span_row()],
+        )
+        logger_mock = MagicMock()
+        with ExitStack() as stack:
+            _patch_v2_pg(stack, project_accessible=True, pg_trace=None)
+            stack.enter_context(patch.object(Trace, "objects", trace_objects))
+            stack.enter_context(patch.object(td, "logger", logger_mock))
+            result = retrieve_trace_detail_ch(MagicMock(), MagicMock(), "T1", analytics)
+        return result, logger_mock
+
+    def test_genuine_fault_is_logged_and_degrades(self):
+        objs = MagicMock()
+        objs.filter.side_effect = RuntimeError("boom")
+        result, logger_mock = self._run_with_trace_objects(objs)
+        assert result["trace"]["id"] == "T1"  # synthesized from the root span
+        assert logger_mock.exception.called
+
+    def test_dropped_table_is_silent(self):
+        from django.db.utils import ProgrammingError
+
+        objs = MagicMock()
+        objs.filter.side_effect = ProgrammingError("relation does not exist")
+        result, logger_mock = self._run_with_trace_objects(objs)
+        assert result["trace"]["id"] == "T1"
+        assert not logger_mock.exception.called

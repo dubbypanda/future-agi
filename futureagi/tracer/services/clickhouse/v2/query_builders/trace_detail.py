@@ -64,6 +64,8 @@ def retrieve_trace_detail_ch(
     metadata is taken from the PG ``Trace`` row when present and otherwise
     synthesized from the root span. Returns the response dict.
     """
+    from django.db.utils import ProgrammingError
+
     from tracer.constants.provider_logos import PROVIDER_LOGOS
     from tracer.models.custom_eval_config import CustomEvalConfig
     from tracer.models.observation_span import ObservationSpan
@@ -97,7 +99,10 @@ def retrieve_trace_detail_ch(
     # post-cutover — the query then raises, treated the same as "no PG row").
     try:
         trace = Trace.objects.filter(id=trace_id, project_id=project_id).first()
+    except ProgrammingError:
+        trace = None  # tracer_trace dropped post-cutover — expected on CH25
     except Exception:
+        logger.exception("trace_detail: PG Trace lookup failed")
         trace = None
     trace_data = view.get_serializer(trace).data if trace is not None else None
 
@@ -179,8 +184,12 @@ def retrieve_trace_detail_ch(
                     "span_attributes", "eval_attributes"
                 ).get(id=span_id)
                 span_attrs = pg_span.span_attributes or pg_span.eval_attributes or {}
+            except (ObservationSpan.DoesNotExist, ProgrammingError):
+                pass  # no PG row / table dropped — expected
             except Exception:
-                pass
+                logger.exception(
+                    "trace_detail: PG span-attrs fallback failed", span_id=span_id
+                )
 
         # Build metadata from CH JSON column
         metadata_raw = row.get("metadata_json") or "{}"
@@ -329,8 +338,8 @@ def retrieve_trace_detail_ch(
                     "explanation": explanation if explanation else None,
                 }
             )
-    except Exception as e:
-        logger.warning(f"Failed to fetch trace eval scores: {e}")
+    except Exception:
+        logger.exception("Failed to fetch trace eval scores")
 
     # ----- Phase 8: Batch fetch annotations from PG -----
     annotation_map = {}
@@ -364,8 +373,8 @@ def retrieve_trace_detail_ch(
                     "value": s.get("value"),
                 }
             )
-    except Exception as e:
-        logger.warning(f"Failed to fetch trace annotations: {e}")
+    except Exception:
+        logger.exception("Failed to fetch trace annotations")
 
     # ----- Phase 8: Compute summary -----
     total_tokens = 0
@@ -432,8 +441,10 @@ def retrieve_trace_detail_ch(
             for sid, tags in pg_tags.items():
                 if sid in span_map:
                     span_map[sid]["observation_span"]["tags"] = tags
-        except Exception as e:
-            logger.warning(f"Failed to fetch span tags from PG: {e}")
+        except ProgrammingError:
+            pass  # tracer_observation_span dropped post-cutover — expected
+        except Exception:
+            logger.exception("Failed to fetch span tags from PG")
 
     # ----- Attach evals + annotations to each span -----
     for sid, entry in span_map.items():
