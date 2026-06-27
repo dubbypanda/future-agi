@@ -18023,6 +18023,12 @@ export const ModelHubDevelopsGetDatasetTableListQueryParams = zod.object({
 
 
 
+
+
+
+
+
+
 export const ModelHubDevelopsGetDatasetTableListResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
@@ -18038,8 +18044,30 @@ export const ModelHubDevelopsGetDatasetTableListResponse = zod.object({
 }).passthrough().optional()
 }).optional(),
   "column_config": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "data_type": zod.string().min(1),
+  "is_visible": zod.boolean(),
+  "is_frozen": zod.boolean(),
+  "source_type": zod.string().min(1),
+  "origin_type": zod.string().min(1),
+  "source_id": zod.string().min(1),
+  "order_index": zod.number(),
+  "status": zod.string().min(1),
+  "average_score": zod.number(),
+  "reason_column": zod.boolean(),
+  "is_numeric_eval": zod.boolean(),
+  "is_numeric_eval_percentage": zod.boolean(),
+  "eval_tag": zod.object({
 
-}).passthrough()),
+}).passthrough(),
+  "metadata": zod.object({
+
+}).passthrough(),
+  "choices_map": zod.object({
+
+}).passthrough()
+})),
   "table": zod.array(zod.object({
 
 }).passthrough()).optional(),
@@ -18425,6 +18453,12 @@ export const ModelHubDevelopsGetExperimentDatasetTableListParams = zod.object({
 
 
 
+
+
+
+
+
+
 export const ModelHubDevelopsGetExperimentDatasetTableListResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
@@ -18440,8 +18474,30 @@ export const ModelHubDevelopsGetExperimentDatasetTableListResponse = zod.object(
 }).passthrough().optional()
 }).optional(),
   "column_config": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string(),
+  "data_type": zod.string().min(1),
+  "is_visible": zod.boolean(),
+  "is_frozen": zod.boolean(),
+  "source_type": zod.string().min(1),
+  "origin_type": zod.string().min(1),
+  "source_id": zod.string().min(1),
+  "order_index": zod.number(),
+  "status": zod.string().min(1),
+  "average_score": zod.number(),
+  "reason_column": zod.boolean(),
+  "is_numeric_eval": zod.boolean(),
+  "is_numeric_eval_percentage": zod.boolean(),
+  "eval_tag": zod.object({
 
-}).passthrough()),
+}).passthrough(),
+  "metadata": zod.object({
+
+}).passthrough(),
+  "choices_map": zod.object({
+
+}).passthrough()
+})),
   "table": zod.array(zod.object({
 
 }).passthrough()).optional(),
