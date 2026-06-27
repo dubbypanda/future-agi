@@ -16,7 +16,6 @@ from rest_framework.viewsets import ModelViewSet
 from retell import Retell
 
 from simulate.models import AgentDefinition, AgentVersion
-from simulate.models.agent_definition import ProviderCredentials
 from simulate.serializers.agent_definition import AgentDefinitionSerializer
 from simulate.serializers.requests.agent_definition import (
     AgentDefinitionBulkDeleteRequestSerializer,
@@ -40,6 +39,7 @@ from simulate.serializers.response.agent_version import (
 from simulate.services.agent_definition import (
     is_masked,
     resolve_api_key_for_version,
+    resolve_stored_api_key,
     sync_provider_credentials,
 )
 from simulate.services.types.agent_definition import ProviderCredentialsInput
@@ -527,66 +527,14 @@ class AgentDefinitionOperationsViewSet(BaseModelViewSetMixin, ModelViewSet):
             name = ""
 
             if is_masked(api_key):
-                # Frontend may send a masked key from the form field.
-                # Try to resolve the real key from stored credentials.
-                agent_id = validated.get("agent_id")
-                creds = None
-
-                if agent_id:
-                    try:
-                        agent = AgentDefinition.objects.get(
-                            id=agent_id,
-                            organization=getattr(request, "organization", None)
-                            or request.user.organization,
-                            deleted=False,
-                        )
-                        version = agent.active_version or agent.latest_version
-                        if version:
-                            try:
-                                creds = version.credentials
-                                if creds and not creds.get_api_key():
-                                    creds = None
-                            except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                                creds = None
-                    except AgentDefinition.DoesNotExist:
-                        pass
-
-                if not creds:
-                    try:
-                        agent = AgentDefinition.objects.get(
-                            assistant_id=assistant_id,
-                            organization=getattr(request, "organization", None)
-                            or request.user.organization,
-                            deleted=False,
-                        )
-                    except AgentDefinition.DoesNotExist:
-                        agent = None
-                    target_version = (
-                        (agent.active_version or agent.latest_version)
-                        if agent
-                        else None
-                    )
-                    if target_version:
-                        try:
-                            creds = target_version.credentials
-                            if creds and not creds.get_api_key():
-                                creds = None
-                        except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                            creds = None
-
-                if not creds:
-                    creds = (
-                        ProviderCredentials.objects.filter(
-                            assistant_id=assistant_id,
-                            provider_type=provider,
-                        )
-                        .exclude(api_key="")
-                        .exclude(api_key__isnull=True)
-                        .first()
-                    )
-                if creds and creds.get_api_key():
-                    api_key = creds.get_api_key()
-                else:
+                api_key = resolve_stored_api_key(
+                    organization=getattr(request, "organization", None)
+                    or request.user.organization,
+                    workspace=getattr(request, "workspace", None),
+                    agent_id=validated.get("agent_id"),
+                    assistant_id=assistant_id,
+                )
+                if not api_key:
                     msg = "Cannot sync with a masked API key. Please paste the actual key."
                     return self._gm.bad_request(msg)
 

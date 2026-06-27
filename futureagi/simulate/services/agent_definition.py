@@ -1,6 +1,6 @@
 from django.conf import settings
 
-from simulate.models import AgentVersion
+from simulate.models import AgentDefinition, AgentVersion
 from simulate.models.agent_definition import ProviderCredentials
 from simulate.services.types.agent_definition import ProviderCredentialsInput
 
@@ -190,3 +190,27 @@ def resolve_api_key_for_version(version):
     except ProviderCredentials.DoesNotExist:
         pass
     return None
+
+
+def resolve_stored_api_key(*, organization, workspace=None, agent_id=None, assistant_id=None):
+    """Resolve the decrypted API key for a masked request, scoped to the caller's tenant.
+
+    Returns the key, or None. Never crosses organization/workspace.
+    """
+    if organization is None:
+        return None
+
+    agents = AgentDefinition.objects.filter(organization=organization, deleted=False)
+    if workspace is not None:
+        agents = agents.filter(workspace=workspace)
+
+    if agent_id:
+        try:
+            agent = agents.get(id=agent_id)
+        except AgentDefinition.DoesNotExist:
+            return None
+    else:
+        return None
+
+    version = agent.active_version or agent.latest_version
+    return resolve_api_key_for_version(version) or None

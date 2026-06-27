@@ -13,9 +13,12 @@ from rest_framework.viewsets import ModelViewSet
 from retell.lib.webhook_auth import verify as verify_retell_webhook
 
 from accounts.utils import get_request_organization
-from simulate.models import AgentDefinition, AgentVersion
-from simulate.models.agent_definition import ProviderCredentials
-from simulate.services.agent_definition import is_masked, resolve_api_key_for_version
+from simulate.models import AgentDefinition
+from simulate.services.agent_definition import (
+    is_masked,
+    resolve_api_key_for_version,
+    resolve_stored_api_key,
+)
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiErrorResponseSerializer
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
@@ -185,23 +188,13 @@ class ObservabilityProviderViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             agent_id = request.data.get("agent_id")
 
             if is_masked(api_key):
-                if agent_id:
-                    try:
-                        agent = AgentDefinition.objects.get(
-                            id=agent_id,
-                            organization=getattr(request, "organization", None)
-                            or request.user.organization,
-                        )
-                        version = agent.active_version or agent.latest_version
-                        if version:
-                            try:
-                                api_key = version.credentials.get_api_key()
-                            except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                                pass
-                    except AgentDefinition.DoesNotExist:
-                        pass
-                if is_masked(api_key):
-                    msg = "Cannot verify with a masked API key. Please paste the actual key."
+                api_key = resolve_stored_api_key(
+                    organization=get_request_organization(request),
+                    workspace=getattr(request, "workspace", None),
+                    agent_id=agent_id,
+                )
+                if not api_key:
+                    msg = "Could not resolve the api key. Please recheck the same"
                     return self._gm.bad_request(msg)
 
             if provider in [
@@ -236,36 +229,14 @@ class ObservabilityProviderViewSet(BaseModelViewSetMixinWithUserOrg, ModelViewSe
             provider = request.data.get("provider")
 
             if is_masked(api_key):
-                # Prefer the active/latest version's credentials to avoid
-                # picking up a version with an empty key.
-                agent = AgentDefinition.objects.filter(
+                api_key = resolve_stored_api_key(
+                    organization=get_request_organization(request),
+                    workspace=getattr(request, "workspace", None),
                     assistant_id=assistant_id,
-                    organization=getattr(request, "organization", None)
-                    or request.user.organization,
-                ).first()
-                target_version = None
-                if agent:
-                    target_version = agent.active_version or agent.latest_version
-                creds = None
-                if target_version:
-                    try:
-                        creds = target_version.credentials
-                        if creds and not creds.get_api_key():
-                            creds = None
-                    except AgentVersion.credentials.RelatedObjectDoesNotExist:
-                        creds = None
-                if not creds:
-                    creds = (
-                        ProviderCredentials.objects.filter(
-                            assistant_id=assistant_id,
-                            provider_type=provider,
-                        )
-                        .exclude(api_key="")
-                        .exclude(api_key__isnull=True)
-                        .first()
-                    )
-                if creds and creds.get_api_key():
-                    api_key = creds.get_api_key()
+                )
+                if not api_key:
+                    msg = "Could not resolve the api key. Please recheck the same"
+                    return self._gm.bad_request(msg)
 
             if provider in [
                 ProviderChoices.VAPI,
