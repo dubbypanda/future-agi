@@ -1197,6 +1197,14 @@ const ModelSelector = ({
               </Typography>
               {apiModels.map((m) => {
                 const available = m.isAvailable !== false;
+                // The models_list API returns snake_case `logo_url`; keep
+                // reading the camelCase form too in case the contract changes.
+                const logoUrl = m.logoUrl || m.logo_url;
+                // OpenAI's logo is a solid-black PNG — invert it to white in
+                // dark mode so it stays visible on the dark menu background.
+                const isOpenAI = (m.providers || "")
+                  .toLowerCase()
+                  .includes("openai");
                 return (
                   <MenuItem
                     key={m.model_name}
@@ -1222,15 +1230,21 @@ const ModelSelector = ({
                       }),
                     }}
                   >
-                    {m.logoUrl ? (
+                    {logoUrl ? (
                       <Box
                         component="img"
-                        src={m.logoUrl}
+                        src={logoUrl}
                         sx={{
                           width: 18,
                           height: 18,
                           borderRadius: "4px",
                           flexShrink: 0,
+                          ...(isOpenAI && {
+                            filter: (theme) =>
+                              theme.palette.mode === "dark"
+                                ? "brightness(0) invert(1)"
+                                : "none",
+                          }),
                         }}
                       />
                     ) : (
