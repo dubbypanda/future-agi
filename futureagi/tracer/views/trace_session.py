@@ -620,7 +620,8 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 max(end_time) AS end_time,
                 round(sum(cost), 6) AS total_cost,
                 sum(total_tokens) AS total_tokens,
-                count(DISTINCT trace_id) AS total_traces
+                count(DISTINCT trace_id) AS total_traces,
+                toString(argMax(end_user_id, spans.start_time)) AS end_user_id
             FROM spans
             {ts_remap_join}
             WHERE project_id = %(project_id)s
@@ -643,6 +644,23 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             except (TypeError, AttributeError):
                 duration = 0
 
+        end_user_id = agg.get("end_user_id") or ""
+        null_uuid = "00000000-0000-0000-0000-000000000000"
+        user_id_label = None
+        if end_user_id and end_user_id != null_uuid:
+            try:
+                from tracer.services.clickhouse.v2.end_user_dict_reader import (
+                    resolve_user_ids,
+                )
+
+                user_map = resolve_user_ids([end_user_id])
+                user_id_label = user_map.get(end_user_id)
+            except Exception:
+                logger.debug(
+                    "session_retrieve_user_id_resolve_failed",
+                    end_user_id=end_user_id,
+                )
+
         session_metadata = {
             "session_id": str(trace_session_id),
             "duration": duration,
@@ -651,6 +669,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             "start_time": format_datetime_to_iso(session_start),
             "end_time": format_datetime_to_iso(session_end),
             "total_tokens": agg.get("total_tokens", 0),
+            "user_id": user_id_label,
         }
 
         # Get paginated trace data from CH (same id-remap resolution as the agg so
@@ -741,6 +760,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 "output": trace_row.get("output"),
                 "system_metrics": {
                     "total_latency_ms": trace_row.get("root_latency_ms", 0),
+                    "user_id": user_id_label,
                     "total_cost": trace_row.get("total_cost", 0),
                     "start_time": format_datetime_to_iso(
                         trace_row.get("trace_min_start_time")
@@ -2175,29 +2195,36 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         end_user_map: dict = {}
         attr_result_data: list = []
         if session_ids_page:
-            def _fetch_names():
-                return self._fetch_session_names(session_ids_page, _curated_project_ids)
-
-            def _fetch_eu():
-                return self._fetch_end_user_info(
-                    session_ids_page, analytics, _curated_project_ids
-                )
-
             def _fetch_attrs():
-                aq, ap = builder.build_span_attributes_query(session_ids_page)
-                if aq:
-                    ar = analytics.execute_ch_query(aq, ap, timeout_ms=5000)
-                    return ar.data
+                try:
+                    aq, ap = builder.build_span_attributes_query(session_ids_page)
+                    if aq:
+                        ar = analytics.execute_ch_query(aq, ap, timeout_ms=5000)
+                        return ar.data
+                except Exception as exc:
+                    logger.warning("session_enrichment_attrs_failed", error=str(exc)[:200])
                 return []
 
-            with ThreadPoolExecutor(max_workers=3) as pool:
-                f_names = pool.submit(_fetch_names)
-                f_eu = pool.submit(_fetch_eu)
+            # Submit the slow attrs query to a background thread (uses only
+            # the thread-safe clickhouse_driver connection pool). Run the fast
+            # name/end-user lookups in the main thread — they use the non-
+            # thread-safe clickhouse_connect singleton clients and must not
+            # overlap with other Django request threads using the same clients.
+            with ThreadPoolExecutor(max_workers=1) as pool:
                 f_attrs = pool.submit(_fetch_attrs)
-
-            name_map = f_names.result()
-            end_user_map = f_eu.result()
-            attr_result_data = f_attrs.result()
+                try:
+                    name_map = self._fetch_session_names(
+                        session_ids_page, _curated_project_ids
+                    )
+                except Exception as exc:
+                    logger.warning("session_enrichment_names_failed", error=str(exc)[:200])
+                try:
+                    end_user_map = self._fetch_end_user_info(
+                        session_ids_page, analytics, _curated_project_ids
+                    )
+                except Exception as exc:
+                    logger.warning("session_enrichment_end_user_failed", error=str(exc)[:200])
+                attr_result_data = f_attrs.result()
 
             for entry in formatted:
                 sid = str(entry.get("session_id", ""))

@@ -2913,10 +2913,8 @@ class TestSessionListQueryBuilder:
 
         query, params = builder.build_content_query(["session-1"])
 
-        assert "AND start_time >= %(start_date)s" in query
-        assert "AND start_time < %(end_date)s" in query
-        assert params["start_date"] == builder.start_date
-        assert params["end_date"] == builder.end_date
+        assert "trace_session_id IN %(content_session_ids)s" in query
+        assert params["content_session_ids"] == ("session-1",)
 
     def test_span_attributes_query_reuses_session_time_window(self):
         from tracer.services.clickhouse.query_builders import SessionListQueryBuilder
@@ -2943,10 +2941,8 @@ class TestSessionListQueryBuilder:
 
         query, params = builder.build_span_attributes_query(["session-1"])
 
-        assert "AND start_time >= %(start_date)s" in query
-        assert "AND start_time < %(end_date)s" in query
-        assert params["start_date"] == builder.start_date
-        assert params["end_date"] == builder.end_date
+        assert "s.trace_session_id IN %(attr_session_ids)s" in query
+        assert params["attr_session_ids"] == ("session-1",)
 
     def test_v2_span_attributes_query_reuses_session_time_window(self):
         from tracer.services.clickhouse.v2.query_builders.session_list import (
@@ -2975,10 +2971,8 @@ class TestSessionListQueryBuilder:
 
         query, params = builder.build_span_attributes_query(["session-1"])
 
-        assert "AND start_time >= %(start_date)s" in query
-        assert "AND start_time < %(end_date)s" in query
-        assert params["start_date"] == builder.start_date
-        assert params["end_date"] == builder.end_date
+        assert "s.trace_session_id IN %(attr_session_ids)s" in query
+        assert params["attr_session_ids"] == ("session-1",)
 
     def test_build_uses_uniq_not_uniqExact(self):
         """build() should use approximate uniq() instead of expensive uniqExact()."""
