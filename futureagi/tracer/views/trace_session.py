@@ -2,6 +2,7 @@ import io
 import json
 import traceback
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 
 try:
@@ -2167,28 +2168,40 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             list(actual_data[0].keys()) if actual_data else [],
         )
 
-        # CH-derived-dimensions cutover (DESIGN §5.2): the curated session
-        # fields — display name, end-user labels, created_at — are no longer
-        # back-filled from PG ``TraceSession``/``tracer_enduser``. They now come
-        # from the CH dicts + the PG overlay, keyed by the span's own
-        # ``trace_session_id`` / ``end_user_id`` soft ids.
+        # Phase 2: Parallel enrichment — session names, end-user info, and
+        # span attributes are independent of each other; run concurrently.
         _curated_project_ids = org_project_ids or ([project_id] if project_id else None)
+        name_map: dict = {}
+        end_user_map: dict = {}
+        attr_result_data: list = []
         if session_ids_page:
-            # session_name = COALESCE(overlay.display_name, external_session_id).
-            # Replaces the old back-fill that read TraceSession.name straight off
-            # PG (which conflated the immutable external id and the UI rename).
-            name_map = self._fetch_session_names(session_ids_page, _curated_project_ids)
-            # end-user curated fields from the CH dict (was the PG FK join).
-            end_user_map = self._fetch_end_user_info(
-                session_ids_page, analytics, _curated_project_ids
-            )
+            def _fetch_names():
+                return self._fetch_session_names(session_ids_page, _curated_project_ids)
+
+            def _fetch_eu():
+                return self._fetch_end_user_info(
+                    session_ids_page, analytics, _curated_project_ids
+                )
+
+            def _fetch_attrs():
+                aq, ap = builder.build_span_attributes_query(session_ids_page)
+                if aq:
+                    ar = analytics.execute_ch_query(aq, ap, timeout_ms=5000)
+                    return ar.data
+                return []
+
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                f_names = pool.submit(_fetch_names)
+                f_eu = pool.submit(_fetch_eu)
+                f_attrs = pool.submit(_fetch_attrs)
+
+            name_map = f_names.result()
+            end_user_map = f_eu.result()
+            attr_result_data = f_attrs.result()
+
             for entry in formatted:
                 sid = str(entry.get("session_id", ""))
                 entry["session_name"] = name_map.get(sid)
-                # created_at: the CH list builder emits no created_at; per
-                # DESIGN §5.2 the session's creation is its first observed
-                # activity = min(start_time), which the builder already computed
-                # as `start_time`. (Documented divergence from PG `created_at`.)
                 entry["created_at"] = entry.get("start_time")
                 eu = end_user_map.get(sid, {})
                 entry["user_id"] = eu.get("user_id")
@@ -2207,7 +2220,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 entry["user_id_type"] = end_user_display["user_id_type"]
                 entry["user_id_hash"] = end_user_display["user_id_hash"]
 
-        # Phase 2: Aggregated span attributes for custom columns
+        # Phase 3: Aggregated span attributes for custom columns
         _SKIP_ATTR_PREFIXES = (
             "raw.",
             "llm.input_messages",
@@ -2216,77 +2229,65 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             "output.value",
         )
         _MAX_ATTR_KEYS_PER_SESSION = 50
-        if session_ids_page:
+        if session_ids_page and attr_result_data:
             try:
-                attr_query, attr_params = builder.build_span_attributes_query(
-                    session_ids_page
-                )
-                if attr_query:
-                    attr_result = analytics.execute_ch_query(
-                        attr_query, attr_params, timeout_ms=5000
-                    )
-                    # Aggregate per session: session_id -> {attr_key -> set(values)}
-                    aggregated_attrs: dict[str, dict] = {}
-                    for attr_row in attr_result.data:
-                        sid = str(attr_row.get("session_id", ""))
-                        # Skip if this session already has max keys
-                        if (
-                            sid in aggregated_attrs
-                            and len(aggregated_attrs[sid]) >= _MAX_ATTR_KEYS_PER_SESSION
-                        ):
+                aggregated_attrs: dict[str, dict] = {}
+                for attr_row in attr_result_data:
+                    sid = str(attr_row.get("session_id", ""))
+                    if (
+                        sid in aggregated_attrs
+                        and len(aggregated_attrs[sid]) >= _MAX_ATTR_KEYS_PER_SESSION
+                    ):
+                        continue
+                    raw = attr_row.get("span_attributes_raw", "{}")
+                    try:
+                        attrs = (
+                            _json_loads(raw)
+                            if isinstance(raw, str) and raw
+                            else (raw or {})
+                        )
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        attrs = {}
+                    if not attrs:
+                        str_map = attr_row.get("attrs_string") or {}
+                        num_map = attr_row.get("attrs_number") or {}
+                        if isinstance(str_map, dict):
+                            attrs.update(str_map)
+                        if isinstance(num_map, dict):
+                            for k, v in num_map.items():
+                                if k not in attrs:
+                                    attrs[k] = v
+                    if sid not in aggregated_attrs:
+                        aggregated_attrs[sid] = {}
+                    for key, value in attrs.items():
+                        if len(aggregated_attrs[sid]) >= _MAX_ATTR_KEYS_PER_SESSION:
+                            break
+                        if key.startswith(_SKIP_ATTR_PREFIXES):
                             continue
-                        # Primary: parse raw JSON blob (using orjson if available)
-                        raw = attr_row.get("span_attributes_raw", "{}")
-                        try:
-                            attrs = (
-                                _json_loads(raw)
-                                if isinstance(raw, str) and raw
-                                else (raw or {})
+                        if isinstance(value, str) and len(value) > 500:
+                            continue
+                        if key not in aggregated_attrs[sid]:
+                            aggregated_attrs[sid][key] = (
+                                set()
+                                if isinstance(value, (str, int, float, bool))
+                                else []
                             )
-                        except (json.JSONDecodeError, ValueError, TypeError):
-                            attrs = {}
-                        # Fallback: merge from typed Map columns when raw is empty
-                        if not attrs:
-                            str_map = attr_row.get("attrs_string") or {}
-                            num_map = attr_row.get("attrs_number") or {}
-                            if isinstance(str_map, dict):
-                                attrs.update(str_map)
-                            if isinstance(num_map, dict):
-                                for k, v in num_map.items():
-                                    if k not in attrs:
-                                        attrs[k] = v
-                        if sid not in aggregated_attrs:
-                            aggregated_attrs[sid] = {}
-                        for key, value in attrs.items():
-                            if len(aggregated_attrs[sid]) >= _MAX_ATTR_KEYS_PER_SESSION:
-                                break
-                            if key.startswith(_SKIP_ATTR_PREFIXES):
-                                continue
-                            if isinstance(value, str) and len(value) > 500:
-                                continue
-                            if key not in aggregated_attrs[sid]:
-                                aggregated_attrs[sid][key] = (
-                                    set()
-                                    if isinstance(value, (str, int, float, bool))
-                                    else []
-                                )
-                            if isinstance(value, (str, int, float, bool)):
-                                aggregated_attrs[sid][key].add(
-                                    value
-                                    if not isinstance(value, bool)
-                                    else str(value).lower()
-                                )
-                    # Merge into formatted rows
-                    for entry in formatted:
-                        sid = entry.get("session_id", "")
-                        session_attrs = aggregated_attrs.get(sid, {})
-                        for key, values in session_attrs.items():
-                            if key not in entry:
-                                if isinstance(values, set):
-                                    vals = sorted(values, key=str)
-                                    entry[key] = vals[0] if len(vals) == 1 else vals
-                                else:
-                                    entry[key] = values
+                        if isinstance(value, (str, int, float, bool)):
+                            aggregated_attrs[sid][key].add(
+                                value
+                                if not isinstance(value, bool)
+                                else str(value).lower()
+                            )
+                for entry in formatted:
+                    sid = entry.get("session_id", "")
+                    session_attrs = aggregated_attrs.get(sid, {})
+                    for key, values in session_attrs.items():
+                        if key not in entry:
+                            if isinstance(values, set):
+                                vals = sorted(values, key=str)
+                                entry[key] = vals[0] if len(vals) == 1 else vals
+                            else:
+                                entry[key] = values
             except Exception as e:
                 logger.warning(f"Session span attribute aggregation failed: {e}")
 
