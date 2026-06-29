@@ -38,7 +38,7 @@ class StringOrObjectField(serializers.JSONField):
 
     A native ``oneOf`` would be cleaner but drf-yasg emits Swagger 2.0
     which does not support ``oneOf``. Tracked for the OpenAPI 3.0
-    migration (TH-6030); until then the custom extension + post-processor
+    migration (TH-6029); until then the custom extension + post-processor
     is the working pattern.
 
     Use this for fields like ``response_format`` and ``model`` that are
@@ -75,30 +75,22 @@ class StringOrArrayField(serializers.JSONField):
     which maps it to ``z.union([z.string(), z.array(z.unknown())])``.
     """
 
+    def to_internal_value(self, data):
+        # Runtime guard — parallel to ``StringOrObjectField`` above. The
+        # generated contract describes string-or-array but the field
+        # inherits from ``JSONField`` whose base ``to_internal_value`` would
+        # otherwise accept dicts, numbers, booleans and ``null``. Without
+        # this override an SDK / curl / internal caller that bypasses the
+        # FE contract validator would persist ``messages[].content: 42``
+        # or ``content: {}`` happily.
+        if isinstance(data, (str, list)):
+            return data
+        raise serializers.ValidationError(
+            "Expected a string or a JSON array."
+        )
+
     class Meta:
         swagger_schema_fields = {
             "x-string-or-array": True,
             "description": "Plain text string or array of content-part objects.",
-        }
-
-
-class AnyValueDictField(serializers.DictField):
-    """DictField whose values are any valid JSON scalar or object.
-
-    ``DictField(child=JsonValueField())`` emits
-    ``additionalProperties: {type: object, x-json-value: true}`` — orval
-    sees ``type: object`` and narrows the generated TS to
-    ``Record<string, object>``, rejecting string/bool/number cell values.
-
-    This field overrides the whole items schema to
-    ``{additionalProperties: {}}`` (JSON Schema "any value") so orval
-    correctly emits ``Record<string, unknown>``.
-    """
-
-    class Meta:
-        swagger_schema_fields = {
-            "type": "object",
-            "additionalProperties": {},
-            "x-json-value": True,
-            "description": "Row with dynamic columns — cell values are any valid JSON.",
         }
