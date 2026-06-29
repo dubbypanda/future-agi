@@ -33,18 +33,10 @@ const ViewDetailsModal = ({
   const theme = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Get the actual evaluation data from the row data
-  const evalData = data
-    ? {
-        ...data,
-        cellValue: data.cellValue,
-        dataType: data.dataType,
-        metadata: data.metadata,
-      }
-    : null;
+  const evalData = data;
   // Detect composite eval results from value_infos
   const compositeResult = useMemo(() => {
-    const vi = data?.value_infos ?? data?.valueInfos;
+    const vi = data?.value_infos;
     const parsed =
       typeof vi === "string"
         ? (() => {
@@ -79,11 +71,10 @@ const ViewDetailsModal = ({
     };
   }, [data]);
 
-  const cellValue = evalData?.cell_value ?? evalData?.cellValue;
-  const cellMetadata =
-    evalData?.metadata?.cell_metadata ?? evalData?.metadata?.cellMetadata;
-  const errorAnalysis =
-    cellMetadata?.error_analysis ?? cellMetadata?.errorAnalysis;
+  const cellValue = evalData?.cell_value;
+  const cellMetadata = evalData?.metadata?.cell_metadata;
+  const errorAnalysis = cellMetadata?.error_analysis;
+  const normalizedResult = normalizeEvalResult(cellValue);
   const input1 = Array.isArray(errorAnalysis?.input1)
     ? errorAnalysis.input1
     : errorAnalysis?.input1
@@ -181,8 +172,8 @@ const ViewDetailsModal = ({
               <Typography sx={{ color: "red.700", margin: "8px" }}>
                 error
               </Typography>
-            ) : normalizeEvalResult(cellValue).kind === "choices" ? (
-              normalizeEvalResult(cellValue).items.map((item, idx) => (
+            ) : normalizedResult.kind === "choices" ? (
+              normalizedResult.items.map((item, idx) => (
                 <Chip
                   key={idx}
                   variant="soft"
@@ -373,8 +364,7 @@ const ViewDetailsModal = ({
                       key={key}
                       value={valueArray}
                       column={
-                        cellMetadata?.selected_input_key ??
-                        cellMetadata?.selectedInputKey
+                        cellMetadata?.selected_input_key
                       }
                       datapoint={evalData}
                     />

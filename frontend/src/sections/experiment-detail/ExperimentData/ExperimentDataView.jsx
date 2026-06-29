@@ -193,14 +193,14 @@ function ExperimentDataView() {
 
       // Use unique row ID instead of rowIndex
       prev.forEach((row) => {
-        const id = row.data?.row_id ?? row.data?.rowId;
+        const id = row.data?.row_id;
         if (id !== undefined) {
           mergedMap.set(id, row);
         }
       });
 
       newRows.forEach((row) => {
-        const id = row.data?.row_id ?? row.data?.rowId;
+        const id = row.data?.row_id;
         if (id !== undefined) {
           mergedMap.set(id, row);
         }
@@ -214,12 +214,12 @@ function ExperimentDataView() {
 
       // Check if any rows actually changed
       const prevMap = new Map(
-        prev.map((row) => [row.data?.row_id ?? row.data?.rowId, row]),
+        prev.map((row) => [row.data?.row_id, row]),
       );
       const hasChanges = newRows.some(
         (newRow) =>
           !isEqual(
-            prevMap.get(newRow.data?.row_id ?? newRow.data?.rowId),
+            prevMap.get(newRow.data?.row_id),
             newRow,
           ),
       );
@@ -738,8 +738,8 @@ function ExperimentDataView() {
         };
 
         // Avoid unnecessary state updates if the same row is clicked
-        const prevRowKey = expandRow?.row_id ?? expandRow?.rowId;
-        const newRowKey = newExpandRow.row_id ?? newExpandRow.rowId;
+        const prevRowKey = expandRow?.row_id;
+        const newRowKey = newExpandRow.row_id;
         if (
           prevRowKey !== newRowKey ||
           expandRow?.index !== newExpandRow.index
@@ -849,7 +849,6 @@ function ExperimentDataView() {
           setFetchingData(false);
         }
       },
-      getRowId: (data) => data.row_id ?? data.rowId,
     }),
     [experimentId, diffMode, setFetchingData, experimentSearch],
   );
@@ -990,7 +989,7 @@ function ExperimentDataView() {
             getMainMenuItems={menuList}
             debounceVerticalScrollbar={true}
             // postProcessPopup={postProcessPopup}
-            getRowId={({ data }) => data.row_id ?? data.rowId}
+            getRowId={({ data }) => data.row_id}
             theme={agTheme}
             onRowClicked={handleRowClick}
             suppressColumnMoveAnimation={true}

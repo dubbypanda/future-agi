@@ -49,9 +49,9 @@ const SkeletonLoader = () => (
 export const StatusCellRenderer = (props) => {
   const theme = useTheme();
   const { value } = props;
-  const cellValue = value?.cell_value ?? value?.cellValue;
+  const cellValue = value?.cell_value;
   const status = value?.status;
-  const outputType = props?.data?.output_type ?? props?.data?.outputType;
+  const outputType = props?.data?.output_type;
 
   if (status === "running") return <SkeletonLoader />;
   if (status === "error") {
@@ -203,9 +203,8 @@ export default function ExperimentDetailDrawerContent({
     for (const [_, value] of Object.entries(grouping)) {
       if (value.length === 1) {
         const col = value?.[0];
-        const isBaseColumn = col?.is_base_column || col?.isBaseColumn;
-        const originType =
-          col?.origin_type || col?.originType || col?.group?.origin;
+        const isBaseColumn = col?.is_base_column;
+        const originType = col?.origin_type || col?.group?.origin;
         const isExperimentType =
           originType === "Experiment" || originType === "experiment";
 
@@ -319,13 +318,13 @@ export default function ExperimentDetailDrawerContent({
     const datasetEvaluations = {};
     const evaluations = columnConfig?.filter((i) => {
       // Only include evaluation columns, but exclude summary/reason columns
-      const originType = i?.origin_type ?? i?.originType;
+      const originType = i?.origin_type;
       return originType === "evaluation" && !i?.name?.includes("-reason");
     });
 
     if (evaluations && evaluations?.length > 0) {
       for (const item of evaluations) {
-        const dsId = item?.dataset_id ?? item?.datasetId;
+        const dsId = item?.dataset_id;
         if (datasetEvaluations[dsId]) {
           datasetEvaluations[dsId].push(item);
         } else {
@@ -345,7 +344,7 @@ export default function ExperimentDetailDrawerContent({
     if (datasetCols?.length > 0) {
       const diffTracker = {};
       for (const datasetCol of datasetCols) {
-        if (row?.[datasetCol?.id]?.cellDiffValue) {
+        if (row?.[datasetCol?.id]?.cell_diff_value) {
           diffTracker[datasetCol?.id] = showDiff;
         }
       }
@@ -455,11 +454,11 @@ export default function ExperimentDetailDrawerContent({
   }
 
   const renderDatapoint = (col, row) => {
-    if (col.dataType === "audio") {
+    if (col.data_type === "audio") {
       return <AudioDatapointCard value={row?.[col.id]} column={col} />;
     }
 
-    if (col?.dataType === "image") {
+    if (col?.data_type === "image") {
       return (
         <ImageDatapointCard
           value={row?.[col.id]}
@@ -469,12 +468,12 @@ export default function ExperimentDetailDrawerContent({
     }
 
     // Render agent flow for agent columns
-    if (col?.isAgent) {
-      // Use agentGroupedColumns if available, otherwise find them
+    if (col?.is_agent) {
+      // Use agentGroupedColumns (FE-derived alias set at line 226) if available, otherwise find them
       const groupedAgentColumns =
         col?.agentGroupedColumns ||
         datasetCols.filter(
-          (c) => c?.group?.id === col?.group?.id && c?.isAgent,
+          (c) => c?.group?.id === col?.group?.id && c?.is_agent,
         );
 
       if (groupedAgentColumns.length > 0) {
@@ -485,7 +484,7 @@ export default function ExperimentDetailDrawerContent({
           return {
             ...cellData,
             columnName: agentCol?.name,
-            isFinal: agentCol?.isFinal,
+            isFinal: agentCol?.is_final,
           };
         });
 
@@ -493,8 +492,8 @@ export default function ExperimentDetailDrawerContent({
           <AgentFlowRenderer
             outputs={outputs}
             showDiff={
-              row?.[col?.id]?.cellDiffValue ||
-              Array.isArray(row?.[col?.id]?.cellValue)
+              row?.[col?.id]?.cell_diff_value ||
+              Array.isArray(row?.[col?.id]?.cell_value)
             }
             onDiffClick={(tabValue) =>
               handleToggleDiffForSingleCol(col?.id, tabValue)
@@ -513,23 +512,23 @@ export default function ExperimentDetailDrawerContent({
       }
     }
 
-    // insert cellDiffValue key if diffTracker is true
-    // else for raw & markdown if it is still array convert it to string by taking default and added
+    // Reads come off the BE row shape (cell_value / cell_diff_value, snake_case);
+    // writes use the DatapointCard prop names (cellValue / cellDiffValue, camelCase).
     const value = {
       ...(row?.[col.id] || {}),
       ...(indColsDifTracker?.[col?.id] &&
-      Array.isArray(row?.[col.id]?.cellValue)
-        ? { cellDiffValue: row?.[col.id]?.cellValue }
+      Array.isArray(row?.[col.id]?.cell_value)
+        ? { cellDiffValue: row?.[col.id]?.cell_value }
         : {
-            cellValue: Array.isArray(row?.[col.id]?.cellValue)
-              ? row?.[col.id]?.cellValue
+            cellValue: Array.isArray(row?.[col.id]?.cell_value)
+              ? row?.[col.id]?.cell_value
                   .filter(
                     (item) =>
                       item.status === "default" || item.status === "added",
                   )
                   .map((item) => item.text)
                   .join(" ") // if array but not diff tab filter normal text from the array
-              : row?.[col?.id]?.cellValue,
+              : row?.[col?.id]?.cell_value,
           }),
     };
 
@@ -537,11 +536,11 @@ export default function ExperimentDetailDrawerContent({
       <DatapointCard
         value={value}
         showDiff={
-          row?.[col?.id]?.cellDiffValue ||
-          Array.isArray(row?.[col?.id]?.cellValue)
+          row?.[col?.id]?.cell_diff_value ||
+          Array.isArray(row?.[col?.id]?.cell_value)
         }
         column={{
-          dataType: col?.dataType,
+          dataType: col?.data_type,
           headerName: col?.name,
         }}
         onDiffClick={(tabValue) =>
@@ -956,7 +955,7 @@ export default function ExperimentDetailDrawerContent({
                         columnDefs={TabColumnDefs}
                         defaultColDef={defaultColDef}
                         rowData={
-                          evalsData?.[col?.dataset_id ?? col?.datasetId] ?? []
+                          evalsData?.[col?.dataset_id] ?? []
                         }
                         domLayout="normal"
                         suppressRowDrag={true}
@@ -1041,7 +1040,7 @@ export default function ExperimentDetailDrawerContent({
                       }}
                       key={index}
                     >
-                      <ShowComponent condition={!col?.isAgent}>
+                      <ShowComponent condition={!col?.is_agent}>
                         <Typography
                           variant="s1"
                           color={"text.primary"}
@@ -1113,7 +1112,7 @@ export default function ExperimentDetailDrawerContent({
               ...evalData,
               userEvalMetricId: evalData?.group?.id,
               sourceId: evalData?.id,
-              rowData: { row_id: row?.row_id ?? row?.rowId },
+              rowData: { row_id: row?.row_id },
             });
             setOpenDetailRow(null);
           }}
