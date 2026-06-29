@@ -509,7 +509,7 @@ const COLUMN_SIZE_MAP = {
   status: { minWidth: 130, maxWidth: 160, flex: 0 },
   latency: { minWidth: 100, maxWidth: 140, flex: 0 },
   latency_ms: { minWidth: 100, maxWidth: 140, flex: 0 },
-  total_tokens: { minWidth: 200, flex: 1 },
+  total_tokens: { minWidth: 240, flex: 1 },
   prompt_tokens: { minWidth: 100, maxWidth: 130, flex: 0 },
   completion_tokens: { minWidth: 100, maxWidth: 130, flex: 0 },
   total_cost: { minWidth: 130, flex: 0 },
