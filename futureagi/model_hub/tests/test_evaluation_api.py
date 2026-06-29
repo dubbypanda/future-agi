@@ -1139,7 +1139,15 @@ class TestDeleteEvalsView:
     ):
         """The service must refuse to run outside transaction.atomic() so a
         future caller cannot accidentally leave half-applied state on failure.
+
+        Note: @pytest.mark.django_db already wraps every test in an atomic
+        block, so we mock connection.in_atomic_block to False to simulate
+        a caller that forgot to open one.
         """
+        from unittest.mock import patch
+
+        from django.db import connection
+
         from model_hub.services.column_service import delete_eval_column_and_dependents
 
         metric = UserEvalMetric.objects.create(
@@ -1158,8 +1166,9 @@ class TestDeleteEvalsView:
             source=SourceChoices.EVALUATION.value,
             source_id=str(metric.id),
         )
-        with pytest.raises(AssertionError, match="transaction.atomic"):
-            delete_eval_column_and_dependents(eval_col, organization.id)
+        with patch.object(connection, "in_atomic_block", False):
+            with pytest.raises(AssertionError, match="transaction.atomic"):
+                delete_eval_column_and_dependents(eval_col, organization.id)
 
     def test_delete_eval_prunes_column_config(
         self, dataset, organization, workspace, eval_template
@@ -1199,7 +1208,7 @@ class TestDeleteEvalsView:
             name="Other",
             dataset=dataset,
             data_type=DataTypeChoices.TEXT.value,
-            source=SourceChoices.USER_DEFINED.value,
+            source=SourceChoices.OTHERS.value,
         )
         dataset.column_order = [str(eval_col.id), str(reason_col.id), str(other_col.id)]
         dataset.column_config = {
