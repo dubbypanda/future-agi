@@ -93184,7 +93184,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "token_count": {
           "title": "Token count",
-          "type": "integer"
+          "type": "integer",
+          "x-nullable": true
         },
         "cost": {
           "title": "Cost",
