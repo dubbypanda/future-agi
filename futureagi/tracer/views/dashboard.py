@@ -1084,48 +1084,16 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 attrs = []
                 try:
                     if is_clickhouse_enabled() and project_ids:
-                        from tracer.services.clickhouse.client import get_clickhouse_client
-
-                        ch = get_clickhouse_client()
-                        rows, cols, _ = ch.execute_read(
-                            """
-                            SELECT key, argMax(type, cnt) AS type FROM (
-                                SELECT key, 'text' AS type, count() AS cnt FROM (
-                                    SELECT attrs_string FROM spans
-                                    WHERE project_id IN %(project_ids)s
-                                      AND is_deleted = 0
-                                    LIMIT 10000
-                                ) ARRAY JOIN mapKeys(attrs_string) AS key
-                                GROUP BY key
-                                UNION ALL
-                                SELECT key, 'number' AS type, count() AS cnt FROM (
-                                    SELECT attrs_number FROM spans
-                                    WHERE project_id IN %(project_ids)s
-                                      AND is_deleted = 0
-                                    LIMIT 10000
-                                ) ARRAY JOIN mapKeys(attrs_number) AS key
-                                GROUP BY key
-                                UNION ALL
-                                SELECT key, 'boolean' AS type, count() AS cnt FROM (
-                                    SELECT attrs_bool FROM spans
-                                    WHERE project_id IN %(project_ids)s
-                                      AND is_deleted = 0
-                                    LIMIT 10000
-                                ) ARRAY JOIN mapKeys(attrs_bool) AS key
-                                GROUP BY key
-                            )
-                            GROUP BY key ORDER BY key LIMIT 2000
-                            """,
-                            {"project_ids": project_ids},
+                        analytics = AnalyticsQueryService()
+                        rows = analytics.get_span_attribute_keys_ch_for_projects(
+                            project_ids,
+                            recent_days=None,
                             timeout_ms=15000,
+                            outer_limit=2000,
                         )
                         for r in rows:
-                            if isinstance(r, dict):
-                                k, t = r.get("key", ""), r.get("type", "string")
-                            elif isinstance(r, (list, tuple)) and len(r) >= 2:
-                                k, t = r[0], r[1]
-                            else:
-                                continue
+                            k = r.get("key", "")
+                            t = r.get("type", "string")
                             if k:
                                 attrs.append({"key": k, "type": t})
                     elif project_ids:
@@ -1138,8 +1106,11 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                                     for a in attrs
                                 ]:
                                     attrs.append({"key": k, "type": "string"})
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning(
+                        "dashboard_span_attribute_discovery_failed",
+                        error=str(exc)[:200],
+                    )
                 return attrs
 
             with ThreadPoolExecutor(max_workers=1) as pool:
