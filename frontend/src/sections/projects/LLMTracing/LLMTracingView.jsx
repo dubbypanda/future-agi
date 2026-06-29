@@ -155,6 +155,11 @@ import {
   FILTER_FOR_NON_ANNOTATED,
   FILTER_FOR_HAS_EVAL,
 } from "./common";
+import {
+  columnStateToHideMap,
+  restampColumns,
+  isColumnVisibilityDirty,
+} from "./savedViewColumns";
 import TracingControls from "./TracingControls";
 import ObserveToolbar from "./ObserveToolbar";
 import { buildAddEvalsDraft } from "./buildAddEvalsDraft";
@@ -184,7 +189,6 @@ import {
 } from "./states";
 import { CircularProgress } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
-import { NULL_OPERATORS } from "../../../components/ComplexFilter/common";
 // import ReplayTraces from "./ReplayTraces";
 import {
   useReplaySessionsStoreShallow,
@@ -697,6 +701,16 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   const { setActiveViewConfig: setActiveViewConfigFromCtx } =
     useObserveHeader();
 
+  const switchSelectedTab = useCallback(
+    (tab) => {
+      setAutoSizeAllCols(false);
+      setSelectedTab(tab);
+      resetSpanGridStore();
+      resetTraceGridStore();
+    },
+    [setSelectedTab],
+  );
+
   const handleGroupByChange = useCallback(
     (groupKey) => {
       // Group-by changes off a saved view land on the corresponding default
@@ -713,6 +727,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
         case "trace":
           if (onSavedView) {
             setActiveViewConfigFromCtx(null);
+            switchSelectedTab("trace");
             if (isUserMode) {
               navigate("?userTab=traces&selectedTab=trace", { replace: true });
             } else {
@@ -722,12 +737,13 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
               );
             }
           } else {
-            setSelectedTab("trace");
+            switchSelectedTab("trace");
           }
           break;
         case "span":
           if (onSavedView) {
             setActiveViewConfigFromCtx(null);
+            switchSelectedTab("spans");
             if (isUserMode) {
               // User Detail has a single "Trace" fixed tab that hosts the
               // selectedTab toggle, so we land on userTab=traces with
@@ -740,7 +756,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
               );
             }
           } else {
-            setSelectedTab("spans");
+            switchSelectedTab("spans");
           }
           break;
         case "users":
@@ -769,7 +785,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     [
       observeId,
       navigate,
-      setSelectedTab,
+      switchSelectedTab,
       setActiveViewConfigFromCtx,
       isUserMode,
       userIdForUserMode,
@@ -935,6 +951,10 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   // getTraceListColumnDefs sets hide explicitly from col.isVisible, so we
   // need to update col.isVisible in the columns state for hide to stick.
   const pendingHideMapRef = useRef(null);
+  // Col ids the user manually showed/hid since the saved view loaded. The
+  // saved-view re-stamp skips these so a manual toggle isn't reverted. Reset
+  // on view change / exit.
+  const userToggledColsRef = useRef(new Set());
 
   const {
     setHeaderConfig,
@@ -1037,10 +1057,6 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       setAutoSizeAllCols(false);
       gridApi.sizeColumnsToFit();
     }
-  };
-
-  const resetColumns = () => {
-    setAutoSizeAllCols(false);
   };
 
   const defaultFilter = useMemo(() => getDefaultFilter(), []);
@@ -1637,6 +1653,17 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   }, [selectedGraph, selectedTab]);
 
   const onColumnVisibilityChange = (updatedData) => {
+    // Record cols whose visibility the user just changed so the saved-view
+    // re-stamp (the [columns] drain below) won't revert them.
+    (columns[columnKey] || []).forEach((col) => {
+      const next = updatedData[col.id];
+      if (
+        next !== undefined &&
+        (col.isVisible !== false) !== (next !== false)
+      ) {
+        userToggledColsRef.current.add(col.id);
+      }
+    });
     setColumns((cols) => {
       const newCols =
         cols[columnKey]?.map((col) => ({
@@ -1754,6 +1781,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       setViewMode(DEFAULT_DISPLAY_CONFIG.viewMode);
       pendingColumnStateRef.current = null;
       pendingHideMapRef.current = null;
+      userToggledColsRef.current = new Set();
       primaryTracePendingRef.current = [];
       compareTracePendingRef.current = [];
       primarySpansPendingRef.current = [];
@@ -1916,33 +1944,14 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     // col.isVisible, which wins over applied state). The [columns] drain
     // effect below updates col.isVisible from this map.
     if (Array.isArray(display.columnState) && display.columnState.length > 0) {
-      const hideMap = {};
-      display.columnState.forEach((entry) => {
-        if (entry && entry.colId) hideMap[entry.colId] = !!entry.hide;
-      });
-      // Apply hideMap immediately so view→view switches with identical
-      // backend cols (no merge → no drain) still pick up the hide intent.
-      setColumns((prev) => {
-        let anyChanged = false;
-        const next = {};
-        Object.keys(prev).forEach((ck) => {
-          let slotChanged = false;
-          const updated = (prev[ck] || []).map((col) => {
-            if (col && col.id in hideMap) {
-              const desiredVisible = !hideMap[col.id];
-              if (col.isVisible !== desiredVisible) {
-                slotChanged = true;
-                return { ...col, isVisible: desiredVisible };
-              }
-            }
-            return col;
-          });
-          next[ck] = slotChanged ? updated : prev[ck];
-          if (slotChanged) anyChanged = true;
-        });
-        return anyChanged ? next : prev;
-      });
-      // Queue for cols that arrive later via TraceGrid's merge.
+      const hideMap = columnStateToHideMap(display.columnState);
+      // New view → drop the previous view's manual-toggle exemptions.
+      userToggledColsRef.current = new Set();
+      // Apply now (a view→view switch with identical cols has no drain), then
+      // queue the map for cols that merge in later.
+      setColumns((prev) =>
+        restampColumns(prev, hideMap, userToggledColsRef.current),
+      );
       pendingHideMapRef.current = hideMap;
 
       const activeApi =
@@ -2050,35 +2059,16 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   // overrides applyColumnState's hide flag from col.isVisible.
   useEffect(() => {
     if (pendingHideMapRef.current) {
-      const hideMap = pendingHideMapRef.current;
-      // Only clear pendingHideMapRef if at least one col matched —
-      // otherwise a cold-load drain on empty slots would wipe the queue
-      // before TraceGrid/SpanGrid's first setColumns lands the cols.
-      let sawMatch = false;
-      setColumns((prev) => {
-        let anyChanged = false;
-        const next = {};
-        Object.keys(prev).forEach((ck) => {
-          let slotChanged = false;
-          const updated = (prev[ck] || []).map((col) => {
-            if (col && col.id in hideMap) {
-              sawMatch = true;
-              const desiredVisible = !hideMap[col.id];
-              if (col.isVisible !== desiredVisible) {
-                slotChanged = true;
-                return { ...col, isVisible: desiredVisible };
-              }
-            }
-            return col;
-          });
-          next[ck] = slotChanged ? updated : prev[ck];
-          if (slotChanged) anyChanged = true;
-        });
-        return anyChanged ? next : prev;
-      });
-      if (sawMatch) {
-        pendingHideMapRef.current = null;
-      }
+      // Stays armed for the view's lifetime: each columnDefs rebuild resets
+      // hide from col.isVisible, so we re-stamp on every columns change.
+      // User-toggled cols are skipped so a manual deselect isn't reverted.
+      setColumns((prev) =>
+        restampColumns(
+          prev,
+          pendingHideMapRef.current,
+          userToggledColsRef.current,
+        ),
+      );
     }
     if (!pendingColumnStateRef.current) return;
     const api =
@@ -2559,6 +2549,12 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     ) {
       return true;
     }
+    // Did the user show/hide a regular column since the saved view?
+    if (
+      isColumnVisibilityDirty(columns[columnKey], baselineDisplay.columnState)
+    ) {
+      return true;
+    }
     // Custom columns: did the user add/remove a custom column since the
     // saved view? Compare by id, not deep shape.
     const baselineCustom = Array.isArray(baselineDisplay.customColumns)
@@ -2588,6 +2584,8 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     showCompare,
     hasEvalFilter,
     getCustomColumns,
+    columns,
+    columnKey,
   ]);
 
   // Defer the visibility signal so it catches up with activeViewConfig
@@ -3827,10 +3825,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                   value={selectedTab}
                   onChange={(e, value) => {
                     resetFilters();
-                    resetColumns();
-                    setSelectedTab(value);
-                    resetSpanGridStore();
-                    resetTraceGridStore();
+                    switchSelectedTab(value);
                   }}
                   aria-label="change tabs"
                   sx={{
