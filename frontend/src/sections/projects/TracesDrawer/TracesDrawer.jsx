@@ -456,6 +456,7 @@ TracesDrawer.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   rowData: PropTypes.object,
+  userIdForUserMode: PropTypes.string,
 };
 
 export default TracesDrawer;

@@ -516,6 +516,7 @@ SessionGrid.propTypes = {
   className: PropTypes.string,
   pendingCustomColumnsRef: PropTypes.object,
   isOnSavedView: PropTypes.bool,
+  userIdForUserMode: PropTypes.string,
 };
 
 export default SessionGrid;
