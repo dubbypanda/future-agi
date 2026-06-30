@@ -34,14 +34,20 @@ class DeploymentTelemetryState(models.Model):
         default=RegistrationStatus.IDLE,
     )
     registration_claimed_at = models.DateTimeField(null=True, blank=True)
+    # Local copy of the last registration payload that was sent. No production
+    # code reads it — it exists as an operator diagnostic surface: a person
+    # debugging "what did this instance phone home with last?" can inspect it
+    # directly in the singleton row without rebuilding the payload from state.
     registration_metadata = models.JSONField(default=dict, blank=True)
     last_registration_attempt_at = models.DateTimeField(null=True, blank=True)
-    last_registration_error = models.CharField(max_length=100, blank=True, default="")
+    # ``TextField`` because the value is a diagnostic exception/HTTP message
+    # (often longer than 100 chars — ``HTTPSConnectionPool``, ``ReadTimeout``,
+    # full Sentry-style messages). Truncating mid-stacktrace defeats the point.
+    last_registration_error = models.TextField(blank=True, default="")
     last_heartbeat_attempt_at = models.DateTimeField(null=True, blank=True)
     last_heartbeat_at = models.DateTimeField(null=True, blank=True)
     last_heartbeat_window_start = models.DateTimeField(null=True, blank=True)
     last_heartbeat_window_end = models.DateTimeField(null=True, blank=True)
-    last_reported_version = models.CharField(max_length=100, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

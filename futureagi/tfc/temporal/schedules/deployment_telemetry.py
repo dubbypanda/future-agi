@@ -9,6 +9,13 @@ from tfc.temporal.drop_in import temporal_activity
 from tfc.temporal.schedules.config import ScheduleConfig
 
 
+# ``max_retries=0`` is deliberate (and locked in by
+# ``test_schedule_disables_temporal_retries``). The buffered heartbeat windows
+# already give us at-least-once delivery: the next cycle replays anything that
+# did not flush. Letting Temporal re-run the activity on its own would re-
+# collect the counters (re-querying ClickHouse and Postgres) on top of the
+# replay, which dogpiles under a receiver outage and can produce two heartbeat
+# rows for the same window from one cycle. Leave at 0.
 @temporal_activity(time_limit=60, queue="default", max_retries=0)
 def send_deployment_telemetry_heartbeat():
     return run_telemetry_cycle()

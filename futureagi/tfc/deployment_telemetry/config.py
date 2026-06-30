@@ -6,13 +6,6 @@ from pathlib import Path
 
 import structlog
 
-# Wire-contract caps live in the shared schema so the sender and receiver
-# can't disagree on them. Re-exported here for existing call sites.
-from tfc.deployment_telemetry.schema import (  # noqa: F401
-    MAX_PAYLOAD_BYTES,
-    MAX_REGISTRATION_USERS,
-)
-
 logger = structlog.get_logger(__name__)
 
 DEFAULT_INTERVAL_HOURS = 6
@@ -85,8 +78,20 @@ def get_telemetry_timeout_seconds() -> float:
     try:
         timeout = float(raw_value)
     except (TypeError, ValueError):
+        logger.warning(
+            "deployment_telemetry_invalid_timeout",
+            configured_value=raw_value,
+            fallback_seconds=5.0,
+        )
         return 5.0
-    return timeout if timeout > 0 else 5.0
+    if timeout <= 0:
+        logger.warning(
+            "deployment_telemetry_invalid_timeout",
+            configured_value=raw_value,
+            fallback_seconds=5.0,
+        )
+        return 5.0
+    return timeout
 
 
 def get_telemetry_buffer_dir() -> Path:
@@ -97,10 +102,18 @@ def get_telemetry_buffer_dir() -> Path:
 
 
 def is_self_hosted_deployment() -> bool:
+    # Either side may raise on a half-installed EE. Treat both branches the
+    # same: log loudly (with the stack) and assume self-hosted so a broken
+    # install still phones home rather than silently going dark. The previous
+    # asymmetric defaults — True on the loader branch, False on the
+    # DeploymentMode branch — meant a missing ``DeploymentMode`` symbol
+    # silently stopped a self-hosted instance from registering with no log.
     try:
         from tfc.ee_loader import has_ee
-    except Exception:
-        logger.warning("deployment_telemetry_ee_detection_failed")
+    except (ImportError, AttributeError):
+        logger.warning(
+            "deployment_telemetry_ee_detection_failed", exc_info=True
+        )
         return True
 
     if not has_ee("ee.usage"):
@@ -110,9 +123,11 @@ def is_self_hosted_deployment() -> bool:
         from ee.usage.deployment import DeploymentMode
 
         return not DeploymentMode.is_cloud()
-    except Exception:
-        logger.warning("deployment_telemetry_mode_detection_failed")
-        return False
+    except (ImportError, AttributeError):
+        logger.warning(
+            "deployment_telemetry_mode_detection_failed", exc_info=True
+        )
+        return True
 
 
 def get_version() -> str:

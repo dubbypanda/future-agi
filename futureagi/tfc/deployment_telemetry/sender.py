@@ -138,7 +138,6 @@ def _complete_registration(
         state.registration_claimed_at = None
         state.registration_metadata = payload
         state.last_registration_error = ""
-        state.last_reported_version = payload["version"]
         update_fields = [
             "telemetry_disabled",
             "registered_at",
@@ -147,7 +146,6 @@ def _complete_registration(
             "registration_claimed_at",
             "registration_metadata",
             "last_registration_error",
-            "last_reported_version",
             "updated_at",
         ]
         # The receiver mints the signing secret once and returns it on that
@@ -180,6 +178,14 @@ def ensure_registration() -> tuple[bool, UUID | None]:
         else:
             payload = build_full_registration_payload(state.instance_id)
             if payload is None:
+                # No admin/owner users on this instance yet (or every candidate
+                # has an unusable email). Releasing the claim with no other
+                # signal would re-fire forever with no log trail — emit a one-
+                # line warning so operators see why registration keeps deferring.
+                logger.warning(
+                    "deployment_telemetry_skipped_no_admin_users",
+                    instance_id=str(state.instance_id),
+                )
                 _release_registration_claim(state.instance_id)
                 return False, state.instance_id
 
@@ -210,7 +216,7 @@ def ensure_registration() -> tuple[bool, UUID | None]:
         )
         return is_full, state.instance_id
     except Exception:
-        logger.warning("deployment_telemetry_registration_failed")
+        logger.warning("deployment_telemetry_registration_failed", exc_info=True)
         _release_registration_claim(state.instance_id, "internal_error")
         return False, state.instance_id
 
@@ -263,7 +269,9 @@ def attempt_registration() -> bool:
             is_full, _ = ensure_registration()
             return is_full
         except Exception:
-            logger.warning("deployment_telemetry_registration_failed")
+            logger.warning(
+                "deployment_telemetry_registration_failed", exc_info=True
+            )
             return False
     finally:
         close_old_connections()
@@ -303,7 +311,6 @@ def _record_heartbeat_success(payload: dict) -> None:
         last_heartbeat_at=now,
         last_heartbeat_window_start=window_start,
         last_heartbeat_window_end=window_end,
-        last_reported_version=payload["version"],
         updated_at=now,
     )
 
@@ -315,7 +322,14 @@ def _flush_buffer() -> tuple[int, bool]:
     secret = DeploymentTelemetryState.objects.values_list(
         "instance_secret", flat=True
     ).first()
-    client = TelemetryClient(secret=secret or "")
+    if not secret:
+        # Without a secret every heartbeat will be rejected with 401, but
+        # ``request_failed`` log lines give no clue why. Surface the root
+        # cause once per flush and leave the buffer intact for the next
+        # cycle, which will retry registration and (re)mint a secret.
+        logger.error("deployment_telemetry_secret_missing_at_flush")
+        return 0, False
+    client = TelemetryClient(secret=secret)
     for path in pending_windows():
         payload = load_window(path)
         if payload is None:
@@ -383,5 +397,5 @@ def run_telemetry_cycle() -> dict:
     try:
         return _run_telemetry_cycle()
     except Exception:
-        logger.warning("deployment_telemetry_cycle_failed")
+        logger.warning("deployment_telemetry_cycle_failed", exc_info=True)
         return {"sent": False, "error": "internal_error"}

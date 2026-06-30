@@ -86,15 +86,27 @@ def build_full_registration_payload(
         )[:MAX_REGISTRATION_USERS]
     )
 
+    # Re-encoding the whole payload after every appended user is O(N²) in
+    # both the user count and the average entry size; at the 500-user cap
+    # that's ~500 full json.dumps per registration. Track a running budget
+    # against per-entry size instead: each entry adds its own bytes plus a
+    # one-byte ``,`` separator (the first entry skips the comma; the empty
+    # ``[]`` already sits inside the base payload size).
+    base_size = serialized_size(payload)
+    budget = MAX_PAYLOAD_BYTES - base_size
     for user in users:
         email = user.email.strip().lower()
         if "@" not in email:
             continue
         entry = {"email": email, "domain": derive_domain(email)}
-        payload["users"].append(entry)
-        if serialized_size(payload) > MAX_PAYLOAD_BYTES:
-            payload["users"].pop()
+        entry_bytes = len(
+            json.dumps(entry, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        )
+        cost = entry_bytes if not payload["users"] else entry_bytes + 1
+        if cost > budget:
             break
+        payload["users"].append(entry)
+        budget -= cost
 
     if not payload["users"]:
         return None

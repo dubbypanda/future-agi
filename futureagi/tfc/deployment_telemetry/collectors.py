@@ -26,7 +26,11 @@ def _safe_count(name: str, collector: Callable[[], int]) -> int | None:
     try:
         return int(collector())
     except Exception:
-        logger.warning("deployment_telemetry_collector_failed", collector=name)
+        logger.warning(
+            "deployment_telemetry_collector_failed",
+            collector=name,
+            exc_info=True,
+        )
         return None
 
 

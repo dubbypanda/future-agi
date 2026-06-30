@@ -52,12 +52,6 @@ def _get_ch25_client():
         return _ch25_client
 
 
-def clickhouse_available() -> bool:
-    """True when the CH25 client is enabled and configured."""
-    client = _get_ch25_client()
-    return client.is_enabled and client.is_configured and client.is_available
-
-
 def _scalar(query: str, params: dict) -> int:
     """Run a single-cell aggregate query and return it as an int."""
     rows, _columns, _ms = _get_ch25_client().execute_read(

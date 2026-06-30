@@ -111,6 +111,7 @@ class TelemetryClient:
                     "deployment_telemetry_request_unreachable",
                     endpoint=path,
                     attempt=attempt + 1,
+                    exc_info=True,
                 )
 
             if attempt < len(_RETRY_DELAYS_SECONDS):

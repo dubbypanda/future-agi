@@ -104,12 +104,34 @@ def test_cloud_deployment_does_not_send_telemetry():
         assert is_self_hosted_deployment() is False
 
 
-def test_ee_mode_detection_failure_does_not_send_telemetry():
+def test_ee_mode_detection_failure_assumes_self_hosted():
+    """A half-installed EE (the ``DeploymentMode`` symbol missing) used to
+    silently return False — a self-hosted install would then stop phoning
+    home with no log. Round-5 review on PR #891 asked for a consistent
+    default: log loudly and assume self-hosted so the install at least
+    registers, instead of going silently dark."""
+    with (
+        patch("tfc.ee_loader.has_ee", return_value=True),
+        patch(
+            "ee.usage.deployment.DeploymentMode.is_cloud",
+            side_effect=AttributeError,
+        ),
+    ):
+        assert is_self_hosted_deployment() is True
+
+
+def test_unexpected_ee_mode_error_propagates():
+    """The narrow ``except (ImportError, AttributeError)`` is intentional —
+    a ``RuntimeError`` from ``DeploymentMode.is_cloud`` is a real bug we
+    want surfaced, not silently coerced to a deployment-mode answer."""
+    import pytest
+
     with (
         patch("tfc.ee_loader.has_ee", return_value=True),
         patch(
             "ee.usage.deployment.DeploymentMode.is_cloud",
             side_effect=RuntimeError,
         ),
+        pytest.raises(RuntimeError),
     ):
-        assert is_self_hosted_deployment() is False
+        is_self_hosted_deployment()

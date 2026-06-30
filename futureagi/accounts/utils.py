@@ -52,7 +52,9 @@ def _fire_deployment_telemetry_registration():
 
         threading.Thread(target=_register).start()
     except Exception:
-        pass
+        logger.warning(
+            "deployment_telemetry_signup_hook_failed", exc_info=True
+        )
 
 
 def resolve_org(request):

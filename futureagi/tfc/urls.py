@@ -150,7 +150,14 @@ if has_ee("ee.usage"):
                 )
             ]
     except ImportError:
-        pass
+        # ee.usage is loaded but the deployment module/URLconf is missing.
+        # Silently passing here previously left an operator with no signal
+        # that ``/telemetry/`` would 404 on a cloud install; warn instead.
+        import structlog
+
+        structlog.get_logger(__name__).warning(
+            "deployment_telemetry_url_mount_skipped", exc_info=True
+        )
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 

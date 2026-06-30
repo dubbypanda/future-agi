@@ -453,6 +453,11 @@ def test_failed_heartbeat_is_buffered_and_flushed_later(
 @pytest.mark.django_db
 def test_flushes_three_buffered_windows_oldest_first(telemetry_buffer_dir):
     state = get_or_create_telemetry_state()
+    # The flush path now refuses to run without a signing secret (the receiver
+    # would reject every unsigned heartbeat with 401). Mint one before
+    # exercising the multi-window flush.
+    state.instance_secret = "test-secret"
+    state.save(update_fields=["instance_secret"])
     base = datetime(2026, 6, 7, 0, tzinfo=UTC)
     counts = {
         "active_users_count": 0,
