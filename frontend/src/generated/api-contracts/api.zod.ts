@@ -36880,7 +36880,8 @@ export const TracerObservabilityProviderVerifyApiKeyResponse = zod.object({
 export const TracerObservabilityProviderVerifyAssistantIdBody = zod.object({
   "provider": zod.enum(['vapi', 'retell']),
   "assistant_id": zod.string().optional(),
-  "api_key": zod.string().optional()
+  "api_key": zod.string().optional(),
+  "agent_id": zod.string().optional()
 })
 
 export const tracerObservabilityProviderVerifyAssistantIdResponseStatusDefault = true;
