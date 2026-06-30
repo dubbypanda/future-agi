@@ -1362,3 +1362,10 @@ export const stripAttributePathPrefix = (key) =>
   String(key ?? "")
     .replace(/^observation_span\.\d+\.(?:span_attributes\.)?/, "")
     .replace(/(^|\.)span_attributes\./g, "$1");
+
+export const pluralize = (word, count) => {
+  if (count === 1) return word;
+  if (/[^aeiou]y$/i.test(word)) return word.replace(/y$/i, "ies");
+  if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
+  return `${word}s`;
+};
