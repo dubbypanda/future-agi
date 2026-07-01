@@ -2038,24 +2038,37 @@ class CHSpanReader:
         }
 
 
-def _ch_span_attributes(span: CHSpan) -> dict[str, Any]:
-    """Flatten ``attrs_string/number/bool`` + ``attributes_extra`` into the one
-    ``span_attributes`` dict v1 consumers (and the annotation render) expect.
+def merge_span_attributes(
+    attrs_string: dict[str, Any] | None,
+    attrs_number: dict[str, Any] | None,
+    attrs_bool: dict[str, Any] | None,
+    attributes_extra: Any,
+) -> dict[str, Any]:
+    """Merge typed maps + ``attributes_extra`` into one ``span_attributes`` dict.
 
-    Malformed ``attributes_extra`` JSON is skipped (not raised) so a single bad
-    span never 500s a render page.
+    Single source of truth. Maps first, ``attributes_extra`` (str or dict)
+    overrides; bad JSON skipped; ``attrs_bool`` coerced to real booleans.
     """
     out: dict[str, Any] = {}
-    out.update(span.attrs_string or {})
-    out.update(span.attrs_number or {})
-    out.update(span.attrs_bool or {})
-    try:
-        extra = json.loads(span.attributes_extra) if span.attributes_extra else {}
-        if isinstance(extra, dict):
-            out.update(extra)
-    except json.JSONDecodeError:
-        pass
+    out.update(attrs_string or {})
+    out.update(attrs_number or {})
+    out.update({k: bool(v) for k, v in (attrs_bool or {}).items()})
+    extra = attributes_extra
+    if isinstance(extra, str):
+        try:
+            extra = json.loads(extra) if extra else {}
+        except json.JSONDecodeError:
+            extra = {}
+    if isinstance(extra, dict):
+        out.update(extra)
     return out
+
+
+def _ch_span_attributes(span: CHSpan) -> dict[str, Any]:
+    """CHSpan adapter for :func:`merge_span_attributes`."""
+    return merge_span_attributes(
+        span.attrs_string, span.attrs_number, span.attrs_bool, span.attributes_extra
+    )
 
 
 def _ch_json_obj(raw: str, *, default: Any) -> Any:
