@@ -19513,6 +19513,7 @@ export interface VerifyAssistantIdRequestApi {
   provider: VerifyAssistantIdRequestApiProvider;
   assistant_id?: string;
   api_key?: string;
+  agent_id?: string;
 }
 
 export type ObservationSpanApiObservationType = typeof ObservationSpanApiObservationType[keyof typeof ObservationSpanApiObservationType];
