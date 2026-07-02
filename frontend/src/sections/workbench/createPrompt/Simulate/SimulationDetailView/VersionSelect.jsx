@@ -6,11 +6,12 @@ import {
   Skeleton,
   Typography,
 } from "@mui/material";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import PropTypes from "prop-types";
 import React, { useMemo, useRef, useState } from "react";
 import Iconify from "src/components/iconify";
-import axios, { endpoints } from "src/utils/axios";
+import { ShowComponent } from "src/components/show";
+import { usePromptVersions } from "src/api/develop/prompt";
+import { getVersionLabel } from "src/utils/utils";
 import { useScrollEnd } from "src/hooks/use-scroll-end";
 
 const VERSION_SHAPE = PropTypes.shape({
@@ -18,11 +19,6 @@ const VERSION_SHAPE = PropTypes.shape({
   template_version: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   is_default: PropTypes.bool,
 });
-
-const getVersionLabel = (version) =>
-  String(version?.template_version).startsWith("v")
-    ? version.template_version
-    : `v${version?.template_version}`;
 
 const VersionPopoverContent = ({
   versions,
@@ -48,24 +44,30 @@ const VersionPopoverContent = ({
             onClick={() => onSelect(version.id)}
           >
             <Box display="flex" alignItems="center" gap={0.5}>
-              <span>{getVersionLabel(version)}</span>
-              {version.is_default && (
+              <span>{getVersionLabel(version?.template_version)}</span>
+              <ShowComponent condition={version.is_default}>
                 <Chip
                   label="Default"
                   size="small"
-                  sx={{ height: 16, fontSize: "0.55rem" }}
+                  sx={{
+                    height: 16,
+                    "& .MuiChip-label": {
+                      fontSize: (theme) => theme.typography.s3.fontSize,
+                    },
+                  }}
                   color="primary"
                 />
-              )}
+              </ShowComponent>
             </Box>
           </MenuItem>
         ))}
-        {isFetchingNextPage &&
-          Array.from({ length: 2 }).map((_, index) => (
+        <ShowComponent condition={isFetchingNextPage}>
+          {Array.from({ length: 2 }).map((_, index) => (
             <MenuItem key={`version-skeleton-${index}`} disabled>
               <Skeleton variant="text" width={48} sx={{ fontSize: "0.8rem" }} />
             </MenuItem>
           ))}
+        </ShowComponent>
       </Box>
       <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 0.5 }}>
         <Box
@@ -113,20 +115,7 @@ const VersionSelect = ({
   const anchorRef = useRef(null);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["prompt-versions-for-simulation-detail", promptTemplateId],
-      queryFn: async ({ pageParam = 1 }) => {
-        const res = await axios.get(
-          endpoints.develop.runPrompt.getPromptVersions(),
-          { params: { template_id: promptTemplateId, page: pageParam } },
-        );
-        return res.data;
-      },
-      getNextPageParam: (lastPage) =>
-        lastPage?.next ? (lastPage?.current_page || 1) + 1 : undefined,
-      initialPageParam: 1,
-      enabled: !!promptTemplateId,
-    });
+    usePromptVersions(promptTemplateId);
 
   const versions = useMemo(
     () => data?.pages?.flatMap((page) => page?.results || []) || [],
@@ -136,8 +125,9 @@ const VersionSelect = ({
   const selectedLabel = useMemo(() => {
     if (!value) return "Select";
     const match = versions.find((v) => v.id === value);
-    if (match) return getVersionLabel(match);
-    if (versionDetail?.id === value) return getVersionLabel(versionDetail);
+    if (match) return getVersionLabel(match.template_version);
+    if (versionDetail?.id === value)
+      return getVersionLabel(versionDetail.template_version);
     return "Select";
   }, [value, versions, versionDetail]);
 
@@ -164,7 +154,7 @@ const VersionSelect = ({
           "&:hover": { borderColor: "text.disabled" },
         }}
       >
-        <Typography sx={{ fontSize: "0.8rem", color: "text.primary" }}>
+        <Typography variant="s2" sx={{ color: "text.primary" }}>
           {selectedLabel}
         </Typography>
         <Iconify
