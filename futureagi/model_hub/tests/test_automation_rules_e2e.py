@@ -867,8 +867,8 @@ class TestAutomationRulesE2E:
         assert rule.last_triggered_at is not None
         assert rule.trigger_count == 1
 
-        # A completed sync run leaves run_started_at unset, so it can be re-run
-        # immediately — no cooldown to wait out. trigger_count increments again.
+        # A completed sync run isn't blocked, so it can be re-run immediately —
+        # no cooldown to wait out. trigger_count increments again.
         resp = auth_client.post(
             f"{_rule_detail_url(queue_id, rule_id)}evaluate/",
             format="json",
@@ -3387,9 +3387,9 @@ class TestAutomationRuleEvaluateAsyncContract:
         assert call_kwargs["activity_name"] == "evaluate_rule_manual_async"
         assert call_kwargs["queue"] == "tasks_l"
         assert call_kwargs["kwargs"]["rule_id"] == rule_id
-        assert call_kwargs["task_id"].startswith(
-            f"automation-rule-eval-{rule_id}-"
-        )
+        # Stable per-rule id (no per-click suffix) is what lets Temporal dedup
+        # a second click while this run is still open.
+        assert call_kwargs["task_id"] == f"automation-rule-eval-{rule_id}"
 
     def test_evaluate_small_run_returns_200_inline(
         self, auth_client, organization, workspace
@@ -3475,7 +3475,16 @@ class TestAutomationRuleEvaluateAsyncContract:
         self, auth_client, organization, workspace
     ):
         """While an async run is genuinely in flight, a second click 409s so it
-        can't spawn a duplicate workflow + duplicate completion email."""
+        can't spawn a duplicate workflow + duplicate completion email.
+
+        The id is stable per rule, so Temporal rejects the second start with
+        WorkflowAlreadyStartedError while the first run is still open, and the
+        view maps that to a 409. Fail-on-revert: both scheduling calls must use
+        the *same* task_id (re-adding a per-click suffix would let the duplicate
+        through), and the except must map the error to 409, not 500.
+        """
+        from temporalio.exceptions import WorkflowAlreadyStartedError
+
         project = _create_project(organization, workspace, name="Inflight Project")
         _create_trace(project, name="inflight-trace")
 
@@ -3494,15 +3503,21 @@ class TestAutomationRuleEvaluateAsyncContract:
         )
         rule_id = resp.data["id"]
 
-        # Force the async path (threshold 0) and mock the worker so the run
-        # never completes — run_started_at stays set, as it would mid-flight.
+        # Force the async path (threshold 0). First schedule succeeds; the
+        # second raises WorkflowAlreadyStartedError exactly as Temporal does when
+        # a workflow with the same (stable) id is still running.
         with patch(
             "model_hub.utils.annotation_queue_helpers.RULE_RUN_SYNC_THRESHOLD",
             0,
         ), patch(
             "tfc.temporal.drop_in.runner.start_activity_sync",
-            return_value="wf-inflight",
-        ):
+            side_effect=[
+                "wf-inflight",
+                WorkflowAlreadyStartedError(
+                    f"automation-rule-eval-{rule_id}", "TaskRunnerWorkflow"
+                ),
+            ],
+        ) as mock_start:
             first = auth_client.post(
                 f"{_rule_detail_url(queue_id, rule_id)}evaluate/", format="json"
             )
@@ -3518,93 +3533,19 @@ class TestAutomationRuleEvaluateAsyncContract:
         msg = body.get("result") or body.get("detail") or ""
         assert "in progress" in str(msg).lower() or "already" in str(msg).lower()
 
-    def test_stale_run_started_marker_self_heals(
+        # Both clicks must target the SAME workflow id — that stable id is what
+        # lets Temporal dedup; a per-click suffix would defeat it.
+        assert mock_start.call_count == 2
+        task_ids = {c.kwargs["task_id"] for c in mock_start.call_args_list}
+        assert task_ids == {f"automation-rule-eval-{rule_id}"}
+
+    def test_async_schedule_failure_returns_500(
         self, auth_client, organization, workspace
     ):
-        """A crashed worker that never cleared run_started_at must not lock the
-        rule forever — once the marker ages past the TTL, runs are allowed."""
-        from model_hub.utils.annotation_queue_helpers import RULE_RUN_INFLIGHT_TTL
-
-        project = _create_project(organization, workspace, name="SelfHeal Project")
-        _create_trace(project, name="selfheal-trace")
-
-        queue_id = _create_queue(auth_client, name="SelfHeal Queue")
-        AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
-
-        resp = auth_client.post(
-            _rules_url(queue_id),
-            {
-                "name": "SelfHeal rule",
-                "source_type": "trace",
-                "conditions": {},
-                "enabled": True,
-            },
-            format="json",
-        )
-        rule_id = resp.data["id"]
-
-        # Simulate a stale in-flight marker left by a crashed worker.
-        AutomationRule.objects.filter(pk=rule_id).update(
-            run_started_at=timezone.now() - RULE_RUN_INFLIGHT_TTL - timedelta(minutes=1)
-        )
-
-        resp = auth_client.post(
-            f"{_rule_detail_url(queue_id, rule_id)}evaluate/", format="json"
-        )
-        assert resp.status_code == status.HTTP_200_OK
-
-    def test_async_path_reserves_rule_before_scheduling(
-        self, auth_client, organization, workspace
-    ):
-        """For async runs, ``run_started_at`` must be set *before* the workflow
-        is scheduled, not later inside the activity. Otherwise two clicks
-        arriving within the worker's pickup window both pass the in-flight guard
-        and spawn duplicate workflows/emails.
+        """A non-conflict scheduling failure surfaces as 500, not a swallowed
+        409. Guards the except ordering: only WorkflowAlreadyStartedError maps to
+        409; any other error stays a real 500.
         """
-        project = _create_project(organization, workspace, name="Reserve Project")
-        _create_trace(project, name="reserve-trace")
-
-        queue_id = _create_queue(auth_client, name="Reserve Queue")
-        AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
-
-        resp = auth_client.post(
-            _rules_url(queue_id),
-            {
-                "name": "Reserve rule",
-                "source_type": "trace",
-                "conditions": {},
-                "enabled": True,
-            },
-            format="json",
-        )
-        rule_id = resp.data["id"]
-
-        rule_before = AutomationRule.objects.get(pk=rule_id)
-        assert rule_before.run_started_at is None
-
-        with patch(
-            "model_hub.utils.annotation_queue_helpers.RULE_RUN_SYNC_THRESHOLD",
-            0,
-        ), patch(
-            "tfc.temporal.drop_in.runner.start_activity_sync",
-            return_value="wf-async",
-        ):
-            resp = auth_client.post(
-                f"{_rule_detail_url(queue_id, rule_id)}evaluate/",
-                format="json",
-            )
-        assert resp.status_code == status.HTTP_202_ACCEPTED
-
-        # run_started_at was reserved synchronously by the view, not by the
-        # (mocked-away) worker. The in-flight guard now has something to fire on.
-        rule_after = AutomationRule.objects.get(pk=rule_id)
-        assert rule_after.run_started_at is not None
-
-    def test_async_schedule_failure_releases_reservation(
-        self, auth_client, organization, workspace
-    ):
-        """If start_activity_sync fails, the in-flight marker must be rolled
-        back so the user can retry immediately."""
         project = _create_project(organization, workspace, name="Rollback Project")
         _create_trace(project, name="rollback-trace")
 
@@ -3636,44 +3577,3 @@ class TestAutomationRuleEvaluateAsyncContract:
             )
 
         assert resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        rule_after = AutomationRule.objects.get(pk=rule_id)
-        # Schedule failed → in-flight marker rolled back so user can retry now.
-        assert rule_after.run_started_at is None
-
-    def test_worker_clears_run_started_marker_on_completion(
-        self, auth_client, organization, workspace, user
-    ):
-        """The async worker must clear run_started_at when the run finishes,
-        so the rule can be re-run — otherwise it stays "in progress" until the
-        TTL. This clear is what the in-flight guard relies on to release."""
-        from model_hub.tasks.annotation_automation import evaluate_rule_manual_async
-
-        project = _create_project(organization, workspace, name="Clear Project")
-        _create_trace(project, name="clear-trace")
-
-        queue_id = _create_queue(auth_client, name="Clear Queue")
-        queue = AnnotationQueue.objects.get(pk=queue_id)
-        queue.project = project
-        queue.save(update_fields=["project", "updated_at"])
-
-        # Simulate the marker the view set when it scheduled this async run.
-        rule = AutomationRule.objects.create(
-            queue=queue,
-            organization=organization,
-            name="Clear rule",
-            source_type="trace",
-            conditions={},
-            enabled=True,
-            trigger_frequency=AutomationRuleTriggerFrequency.MANUAL.value,
-            run_started_at=timezone.now(),
-        )
-
-        # Call the underlying function directly: the @temporal_activity wrapper
-        # closes DB connections (worker lifecycle), which would sever the test's
-        # transaction. We're testing the run-completion logic, not that wrapper.
-        evaluate_rule_manual_async._original_func(
-            str(rule.pk), triggered_by_user_id=str(user.id)
-        )
-
-        rule.refresh_from_db()
-        assert rule.run_started_at is None
