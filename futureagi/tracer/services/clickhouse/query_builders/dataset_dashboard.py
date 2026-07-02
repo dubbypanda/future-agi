@@ -79,8 +79,9 @@ _STRING_DIMENSION_METRICS = frozenset(
 DATASET_SYSTEM_METRICS.update(
     {
         "dataset": ("model_hub_cell", _DATASET_NAME_EXPR),
-        # eval_template is a backward-compat alias for column_name (same expr).
-        # Kept so existing saved dashboard configs still resolve; not in the picker.
+        # eval_template is an alias for column_name (same expr), exposed
+        # separately in the picker since existing saved dashboards reference
+        # it by this name.
         "eval_template": ("model_hub_cell", _COLUMN_NAME_EXPR),
         "column_name": ("model_hub_cell", _COLUMN_NAME_EXPR),
         "column_source": ("model_hub_cell", _COLUMN_SOURCE_EXPR),

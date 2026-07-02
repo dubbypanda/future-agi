@@ -601,6 +601,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     valid_count = Dataset.objects.filter(
                         id__in=dataset_ids,
                         workspace=request.workspace,
+                        deleted=False,
                     ).count()
                     if valid_count != len(dataset_ids):
                         return self._gm.bad_request(
@@ -1027,6 +1028,14 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     {
                         "name": "dataset",
                         "display_name": "Dataset",
+                        "category": "system_metric",
+                        "source": "datasets",
+                        "type": "string",
+                        "unit": "",
+                    },
+                    {
+                        "name": "eval_template",
+                        "display_name": "Eval Template",
                         "category": "system_metric",
                         "source": "datasets",
                         "type": "string",

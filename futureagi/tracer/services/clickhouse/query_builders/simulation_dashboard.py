@@ -168,6 +168,8 @@ SIMULATION_SYSTEM_METRICS: Dict[str, Tuple[str, str]] = {
         "avg_stop_time_after_interruption_ms",
     ),
     # --- String dimensions (used as metrics with count_distinct) ---
+    # "simulation" is a user-facing alias for "run_test" (same expression) —
+    # dashboards created against either name resolve to the run-test's name.
     "simulation": ("simulate_call_execution", _SIMULATION_NAME_EXPR),
     "scenario": (
         "simulate_call_execution",
