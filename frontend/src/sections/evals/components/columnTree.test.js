@@ -68,4 +68,22 @@ describe("buildTree", () => {
     expect(tree[0].label).toBe("tags");
     expect(tree[0].children.map((c) => c.path)).toEqual(["tags[0]", "tags[1]"]);
   });
+
+  it("marks isColumn so a scalar that is also a prefix stays selectable", () => {
+    const tree = buildTree(["status", "status.code"]);
+    expect(tree).toHaveLength(1);
+    const status = tree[0];
+    // "status" is both a real column and a parent of "status.code".
+    expect(status.isColumn).toBe(true);
+    expect(status.children.map((c) => c.path)).toEqual(["status.code"]);
+    expect(status.children[0].isColumn).toBe(true);
+  });
+
+  it("does not mark pure prefix nodes as columns", () => {
+    const tree = buildTree(["a.b.c"]);
+    const a = tree[0];
+    expect(a.isColumn).toBe(false); // "a" is only a prefix, never its own column
+    expect(a.children[0].isColumn).toBe(false); // "a.b" likewise
+    expect(a.children[0].children[0].isColumn).toBe(true); // "a.b.c" is the column
+  });
 });

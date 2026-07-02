@@ -288,15 +288,24 @@ function JsonEntryRow({ entryKey, entryValue, isObject, depth, isLast }) {
 
 // Indented tree row. Parent rows carry a chevron to collapse/expand their
 // children (open by default) and show their direct-child count on the right.
-// Clicking the row selects the node's path; clicking the chevron only toggles.
-function TreeRow({ node, onSelect, selectedPath, depth = 0 }) {
+// Clicking the row selects the node's path (when it is a real column — leaves,
+// and prefixes that are themselves columns); the chevron only toggles.
+// `forceOpen` keeps rows expanded while a search is active so matches stay
+// visible regardless of the user's collapse state.
+function TreeRow({ node, onSelect, selectedPath, forceOpen = false }) {
   const hasKids = node.children.length > 0;
+  const selectable = node.isColumn ?? !hasKids;
   const [open, setOpen] = useState(true);
+  const effectiveOpen = forceOpen || open;
   const selected = !!selectedPath && selectedPath === node.path;
+  const toggle = (e) => {
+    e.stopPropagation();
+    setOpen((o) => !o);
+  };
   return (
     <>
       <Box
-        onClick={() => (hasKids ? setOpen((o) => !o) : onSelect(node.path))}
+        onClick={() => (selectable ? onSelect(node.path) : setOpen((o) => !o))}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -314,9 +323,10 @@ function TreeRow({ node, onSelect, selectedPath, depth = 0 }) {
       >
         {hasKids ? (
           <Iconify
-            icon={open ? "mdi:chevron-down" : "mdi:chevron-right"}
+            icon={effectiveOpen ? "mdi:chevron-down" : "mdi:chevron-right"}
             width={16}
-            sx={{ color: "text.secondary", flexShrink: 0 }}
+            onClick={toggle}
+            sx={{ color: "text.secondary", flexShrink: 0, cursor: "pointer" }}
           />
         ) : (
           <Box sx={{ width: 16, flexShrink: 0 }} />
@@ -365,15 +375,17 @@ function TreeRow({ node, onSelect, selectedPath, depth = 0 }) {
           </Box>
         )}
       </Box>
-      {hasKids && open && (
-        <Box sx={{ ml: "15px", borderLeft: "1px solid", borderColor: "divider" }}>
+      {hasKids && effectiveOpen && (
+        <Box
+          sx={{ ml: "15px", borderLeft: "1px solid", borderColor: "divider" }}
+        >
           {node.children.map((child) => (
             <TreeRow
               key={child.id}
               node={child}
               onSelect={onSelect}
               selectedPath={selectedPath}
-              depth={depth + 1}
+              forceOpen={forceOpen}
             />
           ))}
         </Box>
@@ -556,7 +568,7 @@ function ColumnTreeSelect({
                       node={node}
                       onSelect={handleSelect}
                       selectedPath={value}
-                      depth={0}
+                      forceOpen={Boolean(search.trim())}
                     />
                   ))
                 ) : (
