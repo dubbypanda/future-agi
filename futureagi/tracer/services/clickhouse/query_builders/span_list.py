@@ -19,6 +19,9 @@ The three result sets are merged in Python to produce the final response.
 from typing import Any
 
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
+from tracer.services.clickhouse.query_builders.eval_status import (
+    non_terminal_eval_marker,
+)
 from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
 from tracer.services.clickhouse.v2.id_remap_sql import (
     remap_left_join,
@@ -371,22 +374,24 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             "eval_config_ids": tuple(self.eval_config_ids),
         }
 
-        # Include errored rows but compute aggregates only over successful
-        # rows (error = 0). ``error_count`` and ``success_count`` let the
-        # pivot distinguish "no eval run" vs "all errored" vs a real
-        # Pass/Fail/score value — surfaces an Error state on the UI instead
-        # of a misleading 0/Fail.
-        # ``str_lists`` keeps every non-errored ``output_str_list`` so the
-        # pivot can compute per-choice percentages for CHOICES evals
-        # (column shape: ``{config_id}**{choice}``).
-        # ``output_str`` is Nullable(String) and most evaluators leave it
-        # NULL. ClickHouse three-valued logic means ``NULL != 'ERROR'`` is
-        # NULL (not TRUE), so a bare ``output_str != 'ERROR'`` guard
-        # silently excludes every non-errored row with a NULL
-        # ``output_str`` — collapsing ``success_count`` to 0, making
-        # ``avg_score``/``pass_rate`` NaN, and leaving eval columns blank
-        # on the span list. Use ``ifNull(...)`` to keep the comparison
-        # NULL-safe.
+        # Aggregates are computed only over *completed*, non-errored rows so a
+        # non-terminal (pending/running) or skipped row never skews a score or
+        # masquerades as a real value. The per-status counts let the pivot pick
+        # one cell state per (span, config) by the precedence
+        # completed > errored > skipped > running > pending.
+        # ``success_count`` excludes the non-terminal / skipped / errored
+        # states via ``status NOT IN (...)``: a bare ``error = 0`` guard also
+        # matches pending/running/skipped rows (they carry ``error = 0`` and a
+        # NULL output), which would collapse the pivot's "is there a real
+        # score?" test. A NOT-IN (rather than ``status = 'completed'``) keeps
+        # legacy rows whose mirrored ``status`` is empty/NULL counted as
+        # completed, so historical scores don't blank out.
+        # ``str_lists`` keeps every completed ``output_str_list`` so the pivot
+        # can compute per-choice percentages for CHOICES evals (column shape:
+        # ``{config_id}**{choice}``).
+        # ``output_str`` is Nullable(String); ClickHouse 3-valued logic makes
+        # ``NULL != 'ERROR'`` NULL (not TRUE), so use ``ifNull(...)`` to keep
+        # the comparison NULL-safe.
         query = f"""
         SELECT
             observation_span_id,
@@ -395,22 +400,26 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             -- json.dumps(allow_nan=False) rejects. NULL serializes as null.
             ifNotFinite(avgIf(
                 output_float,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ), NULL) AS avg_score,
             ifNotFinite(avgIf(
                 CASE WHEN output_bool = 1 THEN 100.0 ELSE 0.0 END,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ), NULL) AS pass_rate,
             countIf(
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ) AS success_count,
             countIf(
-                error = 1 OR ifNull(output_str, '') = 'ERROR'
+                error = 1 OR ifNull(output_str, '') = 'ERROR' OR status = 'errored'
             ) AS error_count,
+            countIf(status = 'skipped') AS skipped_count,
+            countIf(status = 'running') AS running_count,
+            countIf(status = 'pending') AS pending_count,
+            anyIf(skipped_reason, status = 'skipped') AS skipped_reason,
             count() AS eval_count,
             groupArrayIf(
                 output_str_list,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ) AS str_lists
         FROM {self.EVAL_TABLE} FINAL
         WHERE _peerdb_is_deleted = 0
@@ -464,11 +473,13 @@ class SpanListQueryBuilder(BaseQueryBuilder):
         """Pivot eval query results into a nested dict keyed by span_id.
 
         Returns:
-            ``{span_id: {eval_config_id: score_value_or_error_marker}}``.
-            Value is a number for successful evals or ``{"error": True}``
-            when all rows for the (span, config) pair errored. For CHOICES
-            evals (non-empty ``str_lists``) the value is a ``{choice: pct}``
-            dict that the caller spreads into ``{config_id}**{choice}`` keys.
+            ``{span_id: {eval_config_id: cell_value}}``. The value is a number
+            for completed evals, ``{"error": True}`` when all rows errored, or a
+            ``{"status": "skipped"|"running"|"pending"}`` marker (with
+            ``skipped_reason`` when skipped) when the (span, config) pair has no
+            completed result yet. For CHOICES evals (non-empty ``str_lists``) the
+            value is a ``{choice: pct}`` dict the caller spreads into
+            ``{config_id}**{choice}`` keys.
         """
         import json as _json
 
@@ -528,7 +539,15 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             else:
                 score = None
 
-            result.setdefault(span_id, {})[config_id] = score
+            # No completed score: surface a non-terminal / skipped lifecycle
+            # marker (skipped > running > pending) so the cell renders a
+            # loading/pending/skipped state instead of a misleading blank.
+            if score is None:
+                result.setdefault(span_id, {})[config_id] = non_terminal_eval_marker(
+                    row
+                )
+            else:
+                result.setdefault(span_id, {})[config_id] = score
 
         return result
 

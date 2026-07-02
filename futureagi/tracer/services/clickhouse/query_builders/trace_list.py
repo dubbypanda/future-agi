@@ -18,6 +18,9 @@ from datetime import datetime
 from typing import Any
 
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
+from tracer.services.clickhouse.query_builders.eval_status import (
+    non_terminal_eval_marker,
+)
 from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
 
 # TODO: switch this to "start_time" once we create an index on that column .
@@ -466,21 +469,23 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             params["start_date"] = self.start_date
             created_at_fragment = "AND created_at >= %(start_date)s - INTERVAL 1 DAY"
 
-        # Include errored rows but compute aggregates only over successful
-        # rows (error = 0). ``success_count`` / ``error_count`` let the
-        # pivot surface an explicit error state on the UI when every eval
-        # row for a (trace, config) pair errored (distinct from "no eval
-        # run" vs a real Pass/Fail/score). ``str_lists`` keeps every
-        # non-errored ``output_str_list`` so the pivot can compute
-        # per-choice percentages for CHOICES evals.
-        # ``output_str`` is Nullable(String) and most evaluators leave it
-        # NULL. ClickHouse three-valued logic means ``NULL != 'ERROR'`` is
-        # NULL (not TRUE), so a bare ``output_str != 'ERROR'`` guard
-        # silently excludes every non-errored row with a NULL
-        # ``output_str`` — collapsing ``success_count`` to 0, making
-        # ``avg_score``/``pass_rate`` NaN, and leaving eval columns blank
-        # on the trace list. Use ``ifNull(...)`` to keep the comparison
-        # NULL-safe.
+        # Aggregates are computed only over *completed*, non-errored rows so a
+        # non-terminal (pending/running) or skipped row never skews a score nor
+        # masquerades as a real value. The per-status counts let the pivot pick
+        # one cell state per (trace, config) by the precedence
+        # completed > errored > skipped > running > pending.
+        # ``success_count`` excludes non-terminal/skipped/errored rows via
+        # ``status NOT IN (...)``: a bare ``error = 0`` guard also matches
+        # pending/running/skipped rows (they carry ``error = 0`` and a NULL
+        # output). NOT-IN (rather than ``status = 'completed'``) keeps legacy
+        # rows whose mirrored ``status`` is empty/NULL counted as completed.
+        # ``str_lists`` keeps every completed ``output_str_list`` so the pivot
+        # can compute per-choice percentages for CHOICES evals.
+        # ``output_str`` is Nullable(String); ClickHouse 3-valued logic makes
+        # ``NULL != 'ERROR'`` NULL (not TRUE), so use ``ifNull(...)`` to keep
+        # the comparison NULL-safe.
+        # New per-status columns are appended after ``str_lists`` so the pivot's
+        # positional column fallbacks (0..7) stay valid.
         query = f"""
         SELECT
             trace_id,
@@ -489,23 +494,27 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             -- json.dumps(allow_nan=False) rejects. NULL serializes as null.
             ifNotFinite(avgIf(
                 output_float,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ), NULL) AS avg_score,
             ifNotFinite(avgIf(
                 CASE WHEN output_bool = 1 THEN 100.0 ELSE 0.0 END,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ), NULL) AS pass_rate,
             countIf(
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ) AS success_count,
             countIf(
-                error = 1 OR ifNull(output_str, '') = 'ERROR'
+                error = 1 OR ifNull(output_str, '') = 'ERROR' OR status = 'errored'
             ) AS error_count,
             count() AS eval_count,
             groupArrayIf(
                 output_str_list,
-                error = 0 AND ifNull(output_str, '') != 'ERROR'
-            ) AS str_lists
+                error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
+            ) AS str_lists,
+            countIf(status = 'skipped') AS skipped_count,
+            countIf(status = 'running') AS running_count,
+            countIf(status = 'pending') AS pending_count,
+            anyIf(skipped_reason, status = 'skipped') AS skipped_reason
         FROM {self.EVAL_TABLE} FINAL
         WHERE _peerdb_is_deleted = 0
           AND (deleted = 0 OR deleted IS NULL)
@@ -768,11 +777,28 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                     and math.isfinite(v)
                 )
 
+            avg_val = round(avg_score * 100, 2) if _finite(avg_score) else None
+            pass_val = round(pass_rate, 2) if _finite(pass_rate) else None
+
+            # No completed score: surface a non-terminal / skipped lifecycle
+            # marker (skipped > running > pending) so the cell renders a
+            # loading/pending/skipped state instead of a misleading blank.
+            if avg_val is None and pass_val is None:
+                marker = non_terminal_eval_marker(
+                    {
+                        "skipped_count": _get(row, "skipped_count", 8, 0) or 0,
+                        "running_count": _get(row, "running_count", 9, 0) or 0,
+                        "pending_count": _get(row, "pending_count", 10, 0) or 0,
+                        "skipped_reason": _get(row, "skipped_reason", 11, None),
+                    }
+                )
+                if marker is not None:
+                    result.setdefault(trace_id, {})[config_id] = marker
+                    continue
+
             score_data = {
-                "avg_score": (
-                    round(avg_score * 100, 2) if _finite(avg_score) else None
-                ),
-                "pass_rate": (round(pass_rate, 2) if _finite(pass_rate) else None),
+                "avg_score": avg_val,
+                "pass_rate": pass_val,
                 "count": _get(row, "eval_count", 6, 0) or 0,
             }
             result.setdefault(trace_id, {})[config_id] = score_data
