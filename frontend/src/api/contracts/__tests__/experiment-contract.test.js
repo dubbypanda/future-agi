@@ -120,6 +120,33 @@ describe("ModelHubExperimentsV2CreateBody generated zod contract", () => {
     const msg = result.data.prompt_config[0].messages[1];
     expect(Array.isArray(msg.content)).toBe(true);
   });
+
+  // Pins MessageItem .passthrough() — the extra key must be one that is NOT
+  // declared in the serializer (`id` is declared, so it can't catch the drop).
+  // Backend swagger has additionalProperties:true on MessageItem; without a
+  // dedicated .passthrough() rewrite the generated zod silently strips unknown
+  // message keys.
+  it("passes through unknown keys in a message", () => {
+    const result = ModelHubExperimentsV2CreateBody.safeParse({
+      ...MINIMAL_PAYLOAD,
+      prompt_config: [
+        {
+          ...FULL_PROMPT_CONFIG_ITEM,
+          messages: [
+            {
+              role: "user",
+              content: "hi",
+              provider_metadata: { source: "sdk" },
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.prompt_config[0].messages[0].provider_metadata).toEqual({
+      source: "sdk",
+    });
+  });
 });
 
 describe("ModelHubExperimentsV2UpdateBody generated zod contract", () => {

@@ -20302,7 +20302,7 @@ export const ModelHubExperimentsV2CreateBody = zod.object({
 }).passthrough().optional().describe('Any valid JSON value.'),
   "tool_call_id": zod.string().min(1).optional(),
   "id": zod.string().min(1).optional()
-})).optional(),
+}).passthrough()).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })),
   "user_eval_metrics": zod.array(zod.object({
@@ -20553,7 +20553,7 @@ export const ModelHubExperimentsV2UpdateBody = zod.object({
 }).passthrough().optional().describe('Any valid JSON value.'),
   "tool_call_id": zod.string().min(1).optional(),
   "id": zod.string().min(1).optional()
-})).optional(),
+}).passthrough()).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })).optional(),
   "user_eval_metrics": zod.array(zod.object({

@@ -255,13 +255,15 @@ async function runGeneration(schemaPath) {
   if (fs.existsSync(schemasOutputPath)) {
     let schemas = fs.readFileSync(schemasOutputPath, "utf8");
 
-    // x-string-or-array: content type alias is { [key: string]: unknown } but
-    // must be string | unknown[].
-    schemas = assertReplace(
+    // x-string-or-array: type aliases preceded by "Plain text string or array
+    // of content-part objects." are generated as { [key: string]: unknown } but
+    // must be string | unknown[]. Keyed off the description so any future
+    // StringOrArrayField gets rewritten, not just MessageItemApiContent.
+    schemas = assertReplaceRegex(
       schemas,
-      "export type MessageItemApiContent = { [key: string]: unknown };",
-      "export type MessageItemApiContent = string | unknown[];",
-      "MessageItemApiContent → string | unknown[]",
+      /\/\*\*\n \* Plain text string or array of content-part objects\.\n \*\/\nexport type (\w+) = \{ \[key: string\]: unknown \};/g,
+      "/**\n * Plain text string or array of content-part objects.\n */\nexport type $1 = string | unknown[];",
+      "x-string-or-array TS aliases → string | unknown[]",
     );
 
     // x-string-or-object: type aliases preceded by "String or JSON object."
@@ -305,15 +307,33 @@ async function runGeneration(schemaPath) {
       `zod.union([zod.string(), zod.object({}).passthrough()]).describe('String or JSON object.')`,
     );
 
-    // additionalProperties:true on PromptModelParams / PromptConfiguration and
-    // MessageItem: orval does not add .passthrough() for inline object schemas.
-    // Match any }).default(CONSTANT) where the constant follows the orval naming
-    // convention for these serializers, so renaming a field doesn't silently break this.
-    zod = assertReplaceRegex(
+    // additionalProperties:true on PromptModelParams / PromptConfiguration:
+    // orval does not add .passthrough() for inline object schemas. Anchor on
+    // the }).default(CONSTANT) suffix orval emits for each serializer. Split
+    // per-target so a missing anchor for one field fails the build instead of
+    // hiding behind a sibling that still matches.
+    for (const target of ["ModelParams", "Configuration"]) {
+      zod = assertReplaceRegex(
+        zod,
+        new RegExp(
+          `\\}\\)\\.default\\((modelHubExperimentsV2(?:Create|Update)Body[A-Za-z]+${target}[A-Za-z]*Default)\\),`,
+          "g",
+        ),
+        "}).passthrough().default($1),",
+        `${target} → .passthrough() escape hatch`,
+      );
+    }
+
+    // MessageItem: additionalProperties:true on the swagger, but messages has
+    // no orval "*Default" constant to anchor on (it's .optional(), not .default()).
+    // Anchor on the unique closing field pair "tool_call_id" + "id" instead —
+    // no other object in the generated file shares that pair, and this fails
+    // loudly if MessageItemSerializer's field list changes.
+    zod = assertReplace(
       zod,
-      /\}\)\.default\((modelHubExperimentsV2(?:Create|Update)Body[A-Za-z]+(?:ModelParams|Configuration|Messages)[A-Za-z]*Default)\),/g,
-      "}).passthrough().default($1),",
-      "PromptModelParams/Configuration/Messages → .passthrough() escape hatch",
+      `"tool_call_id": zod.string().min(1).optional(),\n  "id": zod.string().min(1).optional()\n})).optional(),`,
+      `"tool_call_id": zod.string().min(1).optional(),\n  "id": zod.string().min(1).optional()\n}).passthrough()).optional(),`,
+      "MessageItem → .passthrough() (additionalProperties: true)",
     );
 
     fs.writeFileSync(zodOutputPath, zod);
