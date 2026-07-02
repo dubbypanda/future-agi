@@ -123,6 +123,8 @@ class AnalyticsQueryService:
         recent_days: int | None = 7,
         timeout_ms: int = 10000,
         outer_limit: int = 1000,
+        include_counts: bool = False,
+        order_by_count_desc: bool = False,
     ) -> list[dict]:
         """Get distinct span attribute keys with types for one or more projects."""
         if not project_ids:
@@ -136,13 +138,20 @@ class AnalyticsQueryService:
             params["recent_days"] = int(recent_days)
             recent_filter = "AND created_at >= now() - toIntervalDay(%(recent_days)s)"
 
+        inner_order = "ORDER BY created_at DESC"
+        outer_select = "SELECT key, argMax(type, cnt) AS type"
+        if include_counts:
+            outer_select += ", sum(cnt) AS count"
+        outer_order = "ORDER BY count DESC, key" if order_by_count_desc else "ORDER BY key"
+
         query = f"""
-            SELECT key, argMax(type, cnt) AS type FROM (
-                SELECT key, 'text' AS type, count() AS cnt FROM (
+            {outer_select} FROM (
+                SELECT key, 'string' AS type, count() AS cnt FROM (
                     SELECT attrs_string FROM spans
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
+                    {inner_order}
                     LIMIT 10000
                 ) ARRAY JOIN mapKeys(attrs_string) AS key
                 GROUP BY key
@@ -152,6 +161,7 @@ class AnalyticsQueryService:
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
+                    {inner_order}
                     LIMIT 10000
                 ) ARRAY JOIN mapKeys(attrs_number) AS key
                 GROUP BY key
@@ -161,15 +171,21 @@ class AnalyticsQueryService:
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
+                    {inner_order}
                     LIMIT 10000
                 ) ARRAY JOIN mapKeys(attrs_bool) AS key
                 GROUP BY key
             )
             GROUP BY key
-            ORDER BY key
+            {outer_order}
             LIMIT {int(outer_limit)}
         """
         result = self.execute_ch_query(query, params, timeout_ms=timeout_ms)
+        if include_counts:
+            return [
+                {"key": row["key"], "type": row["type"], "count": row["count"]}
+                for row in result.data
+            ]
         return [{"key": row["key"], "type": row["type"]} for row in result.data]
 
     def get_span_attribute_keys_ch(self, project_id: str) -> list[dict]:

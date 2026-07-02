@@ -32,6 +32,7 @@ from tracer.services.clickhouse.client import (
     get_clickhouse_client,
     is_clickhouse_enabled,
 )
+from tracer.services.clickhouse.query_service import AnalyticsQueryService
 
 logger = structlog.get_logger(__name__)
 
@@ -83,56 +84,27 @@ def list_attribute_keys_for_project(project_id: str) -> list[AttributeKey]:
         )
         return []
 
-    query = """
-        SELECT key, 'string' AS type, count() AS cnt
-        FROM (
-            SELECT attrs_string
-            FROM spans
-            WHERE project_id = %(project_id)s
-              AND is_deleted = 0
-            LIMIT 10000
-        ) ARRAY JOIN mapKeys(attrs_string) AS key
-        GROUP BY key
-
-        UNION ALL
-
-        SELECT key, 'number' AS type, count() AS cnt
-        FROM (
-            SELECT attrs_number
-            FROM spans
-            WHERE project_id = %(project_id)s
-              AND is_deleted = 0
-            LIMIT 10000
-        ) ARRAY JOIN mapKeys(attrs_number) AS key
-        GROUP BY key
-
-        UNION ALL
-
-        SELECT key, 'boolean' AS type, count() AS cnt
-        FROM (
-            SELECT attrs_bool
-            FROM spans
-            WHERE project_id = %(project_id)s
-              AND is_deleted = 0
-            LIMIT 10000
-        ) ARRAY JOIN mapKeys(attrs_bool) AS key
-        GROUP BY key
-
-        ORDER BY cnt DESC
-    """
-    params = {"project_id": project_id}
-
-    client = ClickHouseClient()
-    rows, _column_types, query_time_ms = client.execute_read(query, params)
+    analytics = AnalyticsQueryService()
+    result = analytics.get_span_attribute_keys_ch_for_projects(
+        [project_id],
+        include_counts=True,
+        order_by_count_desc=True,
+    )
 
     logger.info(
         "span_attribute_keys_fetched",
         project_id=project_id,
-        key_count=len(rows),
-        query_time_ms=query_time_ms,
+        key_count=len(result),
     )
 
-    return [AttributeKey(key=row[0], type=row[1], count=row[2]) for row in rows]
+    return [
+        AttributeKey(
+            key=row["key"],
+            type=row["type"],
+            count=row["count"],
+        )
+        for row in result
+    ]
 
 
 def list_attributes_for_trace(trace_id: str) -> list[TraceAttribute]:
