@@ -33,7 +33,7 @@ const MessageValidationSchema = z
         } else if (item.type === "pdf_url") {
           return item.pdf_url?.url?.trim() !== "";
         } else if (item.type === "image_url") {
-          return item.image_url.url.trim().length > 0;
+          return item.image_url?.url?.trim()?.length > 0;
         }
         return false;
       });

@@ -67,26 +67,17 @@ export const transformDefaultData = (editConfigData, allColumns) => {
           };
         }
 
-        // Handle media content (image, pdf, audio) — keys are already snake_case
-        const mediaTypes = {
-          image_url: "image_url",
-          pdf_url: "pdf_url",
-          audio_url: "audio_url",
-        };
-
-        if (mediaTypes[part?.type] && part[mediaTypes[part?.type]]) {
-          const original = part?.[mediaTypes?.[part?.type]];
-          const converted = Object?.fromEntries(
-            Object.entries(original)?.map(([key, value]) => [
+        const MEDIA_TYPES = ["image_url", "pdf_url", "audio_url"];
+        if (MEDIA_TYPES.includes(part?.type) && part[part.type]) {
+          const original = part[part.type];
+          const converted = Object.fromEntries(
+            Object.entries(original).map(([key, value]) => [
               _.snakeCase(key),
               value,
             ]),
           );
 
-          return {
-            ...part,
-            [mediaTypes[part.type]]: converted,
-          };
+          return { ...part, [part.type]: converted };
         }
 
         return part;

@@ -264,7 +264,7 @@ const InputPromptBoxV3 = ({
         delta.ops.push({
           insert: {
             customImage: {
-              src: block.image_url.url,
+              src: block?.image_url?.url,
               alt: "Uploaded image",
               setSelectedImageId: setSelectedImageId,
               removeImageBlot: removeImageBlot,

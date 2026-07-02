@@ -30,6 +30,7 @@ import {
   embedPdfs,
   handleRemoveImage,
   handleReplaceImage,
+  normalizeContentBlocks,
   placeEditBolt,
 } from "./common";
 import { getRandomId } from "src/utils/utils";
@@ -201,7 +202,7 @@ export default function ExpandedPrompt({
 
   const setBlocksFromPrompt = () => {
     if (mainEditorRef?.current) {
-      const blocks = prompt || [];
+      const blocks = normalizeContentBlocks(prompt) || [];
       const delta = { ops: [] };
 
       blocks.forEach((block) => {
@@ -211,8 +212,8 @@ export default function ExpandedPrompt({
             insert: {
               ImageBlot: {
                 url: block?.image_url?.url,
-                name: block?.image_url?.img_name || block?.image_url?.imgName,
-                size: block?.image_url?.img_size || block?.image_url?.imgSize,
+                name: block?.image_url?.img_name,
+                size: block?.image_url?.img_size,
                 setSelectedImage: setSelectedImageMain,
                 id: getRandomId(),
                 handleRemoveImage: handleRemoveImageMain,
@@ -228,12 +229,9 @@ export default function ExpandedPrompt({
             insert: {
               AudioBlot: {
                 url: block?.audio_url?.url,
-                name:
-                  block?.audio_url?.audio_name || block?.audio_url?.audioName,
-                size:
-                  block?.audio_url?.audio_size || block?.audio_url?.audioSize,
-                mimeType:
-                  block?.audio_url?.audio_type || block?.audio_url?.audioType,
+                name: block?.audio_url?.audio_name,
+                size: block?.audio_url?.audio_size,
+                mimeType: block?.audio_url?.audio_type,
                 id: getRandomId(),
                 handleRemoveAudio,
               },
@@ -244,8 +242,8 @@ export default function ExpandedPrompt({
             insert: {
               PdfBlot: {
                 url: block?.pdf_url?.url,
-                name: block?.pdf_url?.file_name || block?.pdf_url?.fileName,
-                size: block?.pdf_url?.pdf_size || block?.pdf_url?.pdfSize,
+                name: block?.pdf_url?.file_name,
+                size: block?.pdf_url?.pdf_size,
                 id: getRandomId(),
                 handleRemovePdf,
               },
