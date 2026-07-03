@@ -9,8 +9,12 @@ from __future__ import annotations
 import json
 
 from tracer.services.clickhouse.query_builders.span_list import SpanListQueryBuilder
+from tracer.services.clickhouse.query_builders.trace_list import TraceListQueryBuilder
 from tracer.services.clickhouse.v2.query_builders.span_list import (
     SpanListQueryBuilderV2,
+)
+from tracer.services.clickhouse.v2.query_builders.trace_list import (
+    TraceListQueryBuilderV2,
 )
 from tracer.views.observation_span import _flatten_span_attributes_into_entry
 
@@ -127,3 +131,34 @@ class TestContentQuerySelectsTypedMaps:
         sql = _v2_content_sql()
         for legacy in ("span_attr_str", "span_attr_num", "span_attr_bool"):
             assert legacy not in sql
+
+
+# --------------------------------------------------------------------------- #
+# Trace ("group by trace") content query — root-span attrs feed custom columns
+# --------------------------------------------------------------------------- #
+def _v1_trace_content_sql():
+    b = TraceListQueryBuilder(
+        project_id=PROJECT_ID, page_number=0, page_size=10,
+        filters=[], sort_params=[], eval_config_ids=[], annotation_label_ids=[],
+    )
+    return b.build_content_query(trace_ids=["t1"])[0]
+
+
+def _v2_trace_content_sql():
+    b = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID, page_number=0, page_size=10,
+        filters=[], sort_params=[], eval_config_ids=[], annotation_label_ids=[],
+    )
+    return b.build_content_query(trace_ids=["t1"])[0]
+
+
+class TestTraceContentQuerySelectsAttrs:
+    def test_v1_selects_all_typed_maps_and_extra(self):
+        sql = _v1_trace_content_sql()
+        for col in ("attrs_string", "attrs_number", "attrs_bool", "attributes_extra"):
+            assert col in sql
+
+    def test_v2_selects_all_typed_maps_and_extra(self):
+        sql = _v2_trace_content_sql()
+        for col in ("attrs_string", "attrs_number", "attrs_bool", "attributes_extra"):
+            assert col in sql
