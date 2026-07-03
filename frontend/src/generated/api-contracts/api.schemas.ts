@@ -8369,7 +8369,27 @@ export interface DatasetCellDataRequestApi {
   column_ids: string[];
 }
 
+export type DatasetCellInnerMetadataApiErrorAnalysis = { [key: string]: unknown };
+
+export interface DatasetCellInnerMetadataApi {
+  explanation?: string;
+  error_analysis?: DatasetCellInnerMetadataApiErrorAnalysis;
+  selected_input_key?: string;
+}
+
+export type DatasetCellMetadataApiCost = { [key: string]: unknown };
+
+export interface DatasetCellMetadataApi {
+  response_time_ms?: number;
+  token_count?: number;
+  cost?: DatasetCellMetadataApiCost;
+  cell_metadata?: DatasetCellInnerMetadataApi;
+  reason?: string;
+}
+
 export type DatasetCellValueApiCellValue = { [key: string]: unknown };
+
+export type DatasetCellValueApiCellDiffValue = { [key: string]: unknown };
 
 export type DatasetCellValueApiValueInfos = { [key: string]: unknown };
 
@@ -8377,9 +8397,11 @@ export type DatasetCellValueApiFeedbackInfo = { [key: string]: unknown };
 
 export interface DatasetCellValueApi {
   cell_value?: DatasetCellValueApiCellValue;
+  cell_diff_value?: DatasetCellValueApiCellDiffValue;
   status?: string;
   value_infos?: DatasetCellValueApiValueInfos;
   feedback_info?: DatasetCellValueApiFeedbackInfo;
+  metadata?: DatasetCellMetadataApi;
 }
 
 export type DatasetCellDataResponseApiResult = {[key: string]: {[key: string]: DatasetCellValueApi}};
@@ -8873,14 +8895,16 @@ export interface DatasetTableColumnApi {
   choices_map: DatasetTableColumnApiChoicesMap;
 }
 
-export type DatasetTableResultApiTableItem = { [key: string]: unknown };
+export interface DatasetTableRowApi {
+  row_id: string;
+}
 
 export type DatasetTableResultApiDatasetConfig = { [key: string]: unknown };
 
 export interface DatasetTableResultApi {
   metadata?: DatasetTableMetadataApi;
   column_config: DatasetTableColumnApi[];
-  table?: DatasetTableResultApiTableItem[];
+  table?: DatasetTableRowApi[];
   dataset_config?: DatasetTableResultApiDatasetConfig;
   synthetic_dataset?: boolean;
   synthetic_dataset_percentage?: number;
@@ -10009,6 +10033,9 @@ export interface EvalFeedbackListItemApi {
   user_name: string;
   /** @minLength 1 */
   created_at: string;
+  user_eval_metric_id: string;
+  custom_eval_config_id: string;
+  experiment_id: string;
 }
 
 export interface EvalFeedbackListResponseResultApi {
@@ -10991,13 +11018,11 @@ export const ExperimentFeedbackSubmitRequestApiActionType = {
   retune_recalculate: 'retune_recalculate',
 } as const;
 
-export type ExperimentFeedbackSubmitRequestApiValue = { [key: string]: unknown };
-
 export interface ExperimentFeedbackSubmitRequestApi {
   action_type: ExperimentFeedbackSubmitRequestApiActionType;
   feedback_id: string;
   user_eval_metric_id: string;
-  value?: ExperimentFeedbackSubmitRequestApiValue;
+  value?: string;
   explanation?: string;
 }
 
@@ -11168,6 +11193,25 @@ export interface ExperimentMessageResultApi {
 export interface ExperimentMessageResponseApi {
   status: boolean;
   result: ExperimentMessageResultApi;
+}
+
+export interface FeedbackDetailsItemApi {
+  id: string;
+  value: string;
+  comment: string;
+  /** @minLength 1 */
+  created_at: string;
+  action_type: string;
+}
+
+export interface FeedbackDetailsResultApi {
+  feedback: FeedbackDetailsItemApi[];
+  total_count: number;
+}
+
+export interface FeedbackDetailsResponseApi {
+  status: boolean;
+  result: FeedbackDetailsResultApi;
 }
 
 export type ColumnValuesRequestApiColumnPlaceholders = { [key: string]: unknown };
@@ -24073,13 +24117,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type ModelHubFeedbackGetFeedbackDetails200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: FeedbackApi[];
 };
 
 export type ModelHubFeedbackGetFeedbackSummaryParams = {
