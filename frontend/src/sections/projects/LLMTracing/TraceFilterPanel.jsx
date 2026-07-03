@@ -283,6 +283,40 @@ const normalizeFieldType = (rawType) => {
   return "string";
 };
 
+export const isValidNumericInput = (v) => {
+  if (v === "" || v === undefined || v === null) return true;
+  return /^-?\d*\.?\d*$/.test(String(v).trim());
+};
+
+// Empty values pass — handleApply already drops empty rows before submit,
+// so this only guards against partial inputs like "-" or "1.5.6" leaking through.
+export const isCompleteNumericValue = (v) => {
+  if (v === undefined || v === null) return true;
+  const str = String(v).trim();
+  if (str === "") return true;
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(str)) return false;
+  return Number.isFinite(parseFloat(str));
+};
+
+const NUMERIC_HELPER_TEXT_PROPS = {
+  sx: {
+    fontSize: 10,
+    mx: 0.5,
+    mt: 0,
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+  },
+};
+
+const NUMERIC_TEXTFIELD_SX = {
+  flex: "1 1 80px",
+  minWidth: 0,
+  position: "relative",
+};
+
 const getOperators = (fieldType) => {
   if (fieldType === "categorical") return CATEGORICAL_OPS;
   if (fieldType === "thumbs") return THUMBS_OPS;
@@ -1326,6 +1360,12 @@ function FilterRow({
       ? freeSoloValues(filter)
       : freeSoloValues;
 
+  const rowHasInvalidNumeric =
+    isNumber &&
+    (Array.isArray(filter.value)
+      ? filter.value.some((v) => !isValidNumericInput(v))
+      : !isValidNumericInput(filter.value));
+
   const handlePropertySelect = useCallback(
     (prop) => {
       // Preserve custom annotation types (categorical, thumbs, text) —
@@ -1508,6 +1548,10 @@ function FilterRow({
 
     if (isNumber) {
       if (currentOpDef?.range) {
+        const minVal = Array.isArray(filter.value) ? filter.value[0] ?? "" : "";
+        const maxVal = Array.isArray(filter.value) ? filter.value[1] ?? "" : "";
+        const minInvalid = !isValidNumericInput(minVal);
+        const maxInvalid = !isValidNumericInput(maxVal);
         return (
           <Stack
             direction="row"
@@ -1522,55 +1566,73 @@ function FilterRow({
           >
             <TextField
               size="small"
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Min"
-              value={Array.isArray(filter.value) ? filter.value[0] ?? "" : ""}
+              value={minVal}
+              error={minInvalid}
+              helperText={minInvalid ? "Numbers only" : undefined}
               onChange={(e) => {
                 const cur = Array.isArray(filter.value)
                   ? [...filter.value]
                   : ["", ""];
-                cur[0] = e.target.value;
+                cur[0] = e.target.value.trim();
                 updateRow({ value: cur });
               }}
-              sx={{ flex: "1 1 80px", minWidth: 0 }}
+              sx={NUMERIC_TEXTFIELD_SX}
               inputProps={{
                 style: { fontSize: 12, height: 12, padding: "6px 8px" },
               }}
+              FormHelperTextProps={NUMERIC_HELPER_TEXT_PROPS}
             />
             <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
               and
             </Typography>
             <TextField
               size="small"
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="Max"
-              value={Array.isArray(filter.value) ? filter.value[1] ?? "" : ""}
+              value={maxVal}
+              error={maxInvalid}
+              helperText={maxInvalid ? "Numbers only" : undefined}
               onChange={(e) => {
                 const cur = Array.isArray(filter.value)
                   ? [...filter.value]
                   : ["", ""];
-                cur[1] = e.target.value;
+                cur[1] = e.target.value.trim();
                 updateRow({ value: cur });
               }}
-              sx={{ flex: "1 1 80px", minWidth: 0 }}
+              sx={NUMERIC_TEXTFIELD_SX}
               inputProps={{
                 style: { fontSize: 12, height: 12, padding: "6px 8px" },
               }}
+              FormHelperTextProps={NUMERIC_HELPER_TEXT_PROPS}
             />
           </Stack>
         );
       }
+      const invalid = !isValidNumericInput(filter.value);
       return (
         <TextField
           size="small"
-          type="number"
+          type="text"
+          inputMode="decimal"
           placeholder="Value"
           value={filter.value ?? ""}
-          onChange={(e) => updateRow({ value: e.target.value })}
-          sx={{ flex: "1 1 120px", minWidth: 0, maxWidth: "100%" }}
+          error={invalid}
+          helperText={invalid ? "Numbers only" : undefined}
+          onChange={(e) => updateRow({ value: e.target.value.trim() })}
+          sx={{
+            flex: "1 1 120px",
+            minWidth: 0,
+            maxWidth: "100%",
+            position: "relative",
+          }}
           inputProps={{
             style: { fontSize: 12, height: 12, padding: "6px 8px" },
           }}
+          FormHelperTextProps={NUMERIC_HELPER_TEXT_PROPS}
         />
       );
     }
@@ -1612,7 +1674,12 @@ function FilterRow({
       direction="row"
       alignItems="center"
       gap={0.5}
-      sx={{ width: "100%", minWidth: 0, flexWrap: "wrap" }}
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        flexWrap: "wrap",
+        mb: rowHasInvalidNumeric ? 1.5 : 0,
+      }}
     >
       <CustomTooltip
         show={!!selectedProp?.name}
@@ -1913,6 +1980,19 @@ const TraceFilterPanel = ({
     setRows((prev) => prev.map((r, i) => (i === idx ? updated : r)));
   }, []);
 
+  const hasInvalidNumericRow = rows.some((r) => {
+    if (normalizeFieldType(r.fieldType) !== "number") return false;
+    if (Array.isArray(r.value)) {
+      if (r.value.some((v) => !isCompleteNumericValue(v))) return true;
+      // Half-filled range: handleApply would silently drop it, so gate Apply.
+      const filledSides = r.value.filter(
+        (v) => String(v ?? "").trim() !== "",
+      ).length;
+      return filledSides === 1;
+    }
+    return !isCompleteNumericValue(r.value);
+  });
+
   const handleRemove = useCallback(
     (idx) => {
       setRows((prev) => {
@@ -2144,20 +2224,31 @@ const TraceFilterPanel = ({
                 >
                   Clear all
                 </Button>
-                <Button
+                <CustomTooltip
+                  show={hasInvalidNumericRow}
+                  arrow
                   size="small"
-                  variant="contained"
-                  data-filter-panel-action="apply"
-                  onClick={handlePrimaryApply}
-                  disabled={aiLoading}
-                  sx={{
-                    textTransform: "none",
-                    fontSize: 12,
-                    px: 2,
-                  }}
+                  type="black"
+                  placement="top"
+                  title="Fix invalid number values"
                 >
-                  Apply
-                </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      data-filter-panel-action="apply"
+                      onClick={handlePrimaryApply}
+                      disabled={aiLoading || hasInvalidNumericRow}
+                      sx={{
+                        textTransform: "none",
+                        fontSize: 12,
+                        px: 2,
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </span>
+                </CustomTooltip>
               </Stack>
             </Stack>
           </Box>
