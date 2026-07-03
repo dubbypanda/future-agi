@@ -32,6 +32,7 @@ import Iconify from "src/components/iconify";
 import { LoadingButton } from "@mui/lab";
 import AudioErrorCard from "src/components/custom-audio/AudioErrorCard";
 import ErrorLocalizeCard from "src/sections/common/ErrorLocalizeCard";
+import SkippedLocalizationBanner from "src/sections/common/SkippedLocalizationBanner";
 import { useDatasetColumnConfig } from "src/api/develop/develop-detail";
 import { useParams } from "react-router";
 import CellMarkdown from "src/sections/common/CellMarkdown";
@@ -470,7 +471,7 @@ const DatapointDrawerChild = () => {
         setDatapoint({
           index: nextIndex,
           rowData: rowData,
-          valueInfos: rows[nextIndex]?.rowData?.valueInfos,
+          value_infos: rows[nextIndex]?.rowData?.value_infos,
         });
         if (evalOpen) {
           const column = allColumns.find(
@@ -496,7 +497,7 @@ const DatapointDrawerChild = () => {
             setDatapoint({
               index: nextIndex,
               rowData: nextCellData,
-              valueInfos: nextCellData?.valueInfos,
+              value_infos: nextCellData?.value_infos,
             });
             setRows((prev) => {
               const newRows = [...prev];
@@ -556,7 +557,7 @@ const DatapointDrawerChild = () => {
           setDatapoint({
             index: nextIndex,
             rowData: nextCellData,
-            valueInfos: nextCellData?.valueInfos,
+            value_infos: nextCellData?.value_infos,
           });
           if (evalOpen) {
             const column = allColumns.find(
@@ -578,7 +579,7 @@ const DatapointDrawerChild = () => {
       setDatapoint({
         index: datapoint.index - 1,
         rowData,
-        valueInfos: rows[datapoint.index - 1]?.rowData?.valueInfos,
+        value_infos: rows[datapoint.index - 1]?.rowData?.value_infos,
       });
       if (evalOpen) {
         const column = allColumns.find(
@@ -1133,7 +1134,7 @@ const DatapointDrawerChild = () => {
                     }}
                   >
                     {isAudioColumn ? (
-                      value?.cellValue ? (
+                      value?.cell_value ? (
                         <AudioDatapointCard value={value} column={col} />
                       ) : (
                         <DatapointCard
@@ -1151,7 +1152,7 @@ const DatapointDrawerChild = () => {
                         />
                       )
                     ) : isImageColumn ? (
-                      value?.cellValue ? (
+                      value?.cell_value ? (
                         <ImageDatapointCard value={value} column={col} />
                       ) : (
                         <DatapointCard
@@ -1169,7 +1170,7 @@ const DatapointDrawerChild = () => {
                         />
                       )
                     ) : isImagesColumn ? (
-                      value?.cellValue ? (
+                      value?.cell_value ? (
                         <ImagesDatapointCard value={value} column={col} />
                       ) : (
                         <DatapointCard
@@ -1187,7 +1188,7 @@ const DatapointDrawerChild = () => {
                         />
                       )
                     ) : isDocumentColumn ? (
-                      value?.cellValue ? (
+                      value?.cell_value ? (
                         <DocumentDatapointCard value={value} column={col} />
                       ) : (
                         <DatapointCard
@@ -1558,10 +1559,7 @@ const ErrorLocalizationCellSection = ({ evalOpen, onAnalysisLoaded }) => {
           </Box>
         </Box>
       ) : isSkipped ? (
-        <Typography variant="caption" color="text.secondary">
-          Error localization was skipped — input data isn&apos;t available to
-          localize on.
-        </Typography>
+        <SkippedLocalizationBanner message={pollData?.error_message} />
       ) : (
         <Box
           sx={{

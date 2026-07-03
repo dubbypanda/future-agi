@@ -1868,6 +1868,7 @@ const EvalDetailPage = () => {
                     ref={testPlaygroundRef}
                     templateId={evalId}
                     model={model}
+                    evalName={evalData?.name || ""}
                     instructions={
                       evalType === "code"
                         ? ""
@@ -2109,7 +2110,10 @@ const EvalDetailPage = () => {
       {/* ═══ Ground Truth Tab ═══ */}
       {activeTab === "ground_truth" && (
         <Box sx={{ flex: 1, minHeight: 0 }}>
-          <EvalGroundTruthTab templateId={evalId} />
+          <EvalGroundTruthTab
+            templateId={evalId}
+            onSwitchToDetails={() => setActiveTab("details")}
+          />
         </Box>
       )}
     </Box>
