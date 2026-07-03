@@ -258,14 +258,15 @@ const normalizeFieldType = (rawType) => {
 
 export const isValidNumericInput = (v) => {
   if (v === "" || v === undefined || v === null) return true;
-  return /^-?\d*\.?\d*$/.test(String(v));
+  return /^-?\d*\.?\d*$/.test(String(v).trim());
 };
 
 // Empty values pass — handleApply already drops empty rows before submit,
 // so this only guards against partial inputs like "-" or "1.5.6" leaking through.
 export const isCompleteNumericValue = (v) => {
-  if (v === "" || v === undefined || v === null) return true;
+  if (v === undefined || v === null) return true;
   const str = String(v).trim();
+  if (str === "") return true;
   if (!/^-?(\d+\.?\d*|\.\d+)$/.test(str)) return false;
   return Number.isFinite(parseFloat(str));
 };
@@ -1548,7 +1549,7 @@ function FilterRow({
                 const cur = Array.isArray(filter.value)
                   ? [...filter.value]
                   : ["", ""];
-                cur[0] = e.target.value;
+                cur[0] = e.target.value.trim();
                 updateRow({ value: cur });
               }}
               sx={NUMERIC_TEXTFIELD_SX}
@@ -1572,7 +1573,7 @@ function FilterRow({
                 const cur = Array.isArray(filter.value)
                   ? [...filter.value]
                   : ["", ""];
-                cur[1] = e.target.value;
+                cur[1] = e.target.value.trim();
                 updateRow({ value: cur });
               }}
               sx={NUMERIC_TEXTFIELD_SX}
@@ -1594,7 +1595,7 @@ function FilterRow({
           value={filter.value ?? ""}
           error={invalid}
           helperText={invalid ? "Numbers only" : undefined}
-          onChange={(e) => updateRow({ value: e.target.value })}
+          onChange={(e) => updateRow({ value: e.target.value.trim() })}
           sx={{
             flex: "1 1 120px",
             minWidth: 0,
@@ -1975,7 +1976,12 @@ const TraceFilterPanel = ({
   const hasInvalidNumericRow = rows.some((r) => {
     if (normalizeFieldType(r.fieldType) !== "number") return false;
     if (Array.isArray(r.value)) {
-      return r.value.some((v) => !isCompleteNumericValue(v));
+      if (r.value.some((v) => !isCompleteNumericValue(v))) return true;
+      // Half-filled range: handleApply would silently drop it, so gate Apply.
+      const filledSides = r.value.filter(
+        (v) => String(v ?? "").trim() !== "",
+      ).length;
+      return filledSides === 1;
     }
     return !isCompleteNumericValue(r.value);
   });

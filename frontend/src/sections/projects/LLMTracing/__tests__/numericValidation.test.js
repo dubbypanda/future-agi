@@ -31,7 +31,13 @@ describe("isValidNumericInput (TH-5195)", () => {
     expect(isValidNumericInput("1.5abc")).toBe(false);
     expect(isValidNumericInput("1.5.6")).toBe(false);
     expect(isValidNumericInput("--1")).toBe(false);
-    expect(isValidNumericInput(" 1")).toBe(false);
+  });
+
+  it("trims surrounding whitespace so the error state matches the Apply gate", () => {
+    expect(isValidNumericInput(" 1")).toBe(true);
+    expect(isValidNumericInput(" 1.5 ")).toBe(true);
+    expect(isValidNumericInput(" ")).toBe(true);
+    expect(isValidNumericInput(" 1.5abc ")).toBe(false);
   });
 
   it("rejects scientific notation (backend filter parser doesn't accept it)", () => {
@@ -77,5 +83,9 @@ describe("isCompleteNumericValue (TH-5195)", () => {
   it("trims surrounding whitespace before validating", () => {
     expect(isCompleteNumericValue(" 1.5 ")).toBe(true);
     expect(isCompleteNumericValue("  -3 ")).toBe(true);
+  });
+
+  it("treats whitespace-only like empty (agrees with isValidNumericInput)", () => {
+    expect(isCompleteNumericValue(" ")).toBe(true);
   });
 });
