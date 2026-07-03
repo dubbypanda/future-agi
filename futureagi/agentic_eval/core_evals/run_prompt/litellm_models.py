@@ -93,6 +93,14 @@ class LiteLLMModelManager:
             "standard/1024-x-1792/dall-e-3",
             "standard/1792-x-1024/dall-e-3",
             "standard/1024-x-1024/dall-e-3",
+            # Deprecated Azure dall-e variants
+            "azure/standard/1024-x-1024/dall-e-3",
+            "azure/hd/1024-x-1024/dall-e-3",
+            "azure/standard/1024-x-1792/dall-e-3",
+            "azure/standard/1792-x-1024/dall-e-3",
+            "azure/hd/1024-x-1792/dall-e-3",
+            "azure/hd/1792-x-1024/dall-e-3",
+            "azure/standard/1024-x-1024/dall-e-2",
             # Anthropic legacy models
             "claude-instant-1",
             "claude-2",
