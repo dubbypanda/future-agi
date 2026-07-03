@@ -26,10 +26,25 @@ export const toArray = (value) => {
   return value === null || value === undefined ? [] : [value];
 };
 
+// Serialize a feedback value for the API: multi-choice arrays are sent as a
+// JSON-encoded string (mirrors how the backend stores/reads them), scalars go
+// as-is.
+export const serializeFeedbackValue = (value) =>
+  Array.isArray(value) ? JSON.stringify(value) : value;
+
 // The eval's explanation for this cell. Cells store value-infos under either
 // `value_infos` or `valueInfos`, and the explanation under `reason` or
-// `summary` — mirror the eval panel's own fallback chain.
+// `summary` — mirror the eval panel's own fallback chain. The experiment shape
+// differs: `value_infos` often arrives as a JSON string and the explanation is
+// stored at `metadata.reason` (see ViewDetailsModal), so parse and fall back.
 export const getReason = (data) => {
-  const info = data?.valueInfos ?? data?.value_infos ?? {};
-  return info.reason || info.summary || "";
+  let info = data?.valueInfos ?? data?.value_infos ?? {};
+  if (typeof info === "string") {
+    try {
+      info = JSON.parse(info) || {};
+    } catch {
+      info = {};
+    }
+  }
+  return info?.reason || info?.summary || data?.metadata?.reason || "";
 };

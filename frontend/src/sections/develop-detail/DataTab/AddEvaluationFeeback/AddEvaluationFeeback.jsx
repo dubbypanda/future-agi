@@ -33,8 +33,19 @@ import { useDevelopDetailContext } from "../../Context/DevelopDetailContext";
 import {
   FEEDBACK_OUTPUT_TYPES as OUTPUT,
   getReason,
+  serializeFeedbackValue,
   toArray,
 } from "./feedback_value";
+
+// Subtle grey tint used behind the eval explanation / value panels.
+const PANEL_TINT_BG = "rgba(147, 143, 163, 0.08)";
+// Re-tune radio group: strip the field's default border/padding.
+const RETUNE_GROUP_SX = {
+  border: "none",
+  borderRadius: 0,
+  padding: 0,
+  marginTop: "10px",
+};
 
 const AddEvaluationFeeback = ({ module = "dataset", onRefreshGrid }) => {
   const { addEvaluationFeeback: data, setAddEvaluationFeeback } =
@@ -141,11 +152,19 @@ const EvaluationFeeback = ({
     resolver: zodResolver(feedbackFormSchema),
   });
   const pendingRef = useRef(null);
+  // Persist the feedback id created in step 1 so that if step 2 (submitAction)
+  // fails and the user resubmits, we reuse that record instead of creating a
+  // duplicate (orphaning the first). Cleared on full success and per row.
+  const createdFeedbackIdRef = useRef(null);
   const queryClient = useQueryClient();
   const existingFeedbackId = existingFeedback?.id;
   const { dataset, experimentId } = useParams();
   const metricId = isExperimentModule ? data?.userEvalMetricId : data?.sourceId;
   const rowId = data?.rowData?.row_id;
+  // Drop any half-created id when the drawer switches to a different row.
+  useEffect(() => {
+    createdFeedbackIdRef.current = null;
+  }, [rowId]);
   const feedbackEndpoints = isExperimentModule
     ? {
         getTemplate:
@@ -222,6 +241,8 @@ const EvaluationFeeback = ({
         );
         return;
       }
+      // Remember the record so a resubmit after a step-2 failure reuses it.
+      createdFeedbackIdRef.current = newId;
       submitAction(newId);
     },
   });
@@ -231,6 +252,8 @@ const EvaluationFeeback = ({
     useMutation({
       mutationFn: (formData) => axios.post(feedbackEndpoints.submit, formData),
       onSuccess: () => {
+        // Fully submitted — the record is now linked, so drop the retry id.
+        createdFeedbackIdRef.current = null;
         enqueueSnackbar("Feedback submitted successfully!", {
           variant: "success",
         });
@@ -242,9 +265,7 @@ const EvaluationFeeback = ({
     });
 
   const onSubmit = (formData) => {
-    const value = Array.isArray(formData.value)
-      ? JSON.stringify(formData.value)
-      : formData.value;
+    const value = serializeFeedbackValue(formData.value);
     pendingRef.current = {
       actionType: formData.actionType,
       value,
@@ -255,8 +276,11 @@ const EvaluationFeeback = ({
       [PropertyName.evalId]: data?.sourceId,
       [PropertyName.rowIdentifier]: rowId,
     });
-    if (existingFeedbackId) {
-      submitAction(existingFeedbackId);
+    // Reuse an existing record, or one created on a previous attempt whose
+    // action submit failed — avoids orphaning a duplicate feedback record.
+    const reuseFeedbackId = existingFeedbackId ?? createdFeedbackIdRef.current;
+    if (reuseFeedbackId) {
+      submitAction(reuseFeedbackId);
       return;
     }
     createFeedback({
@@ -341,12 +365,7 @@ export const FeedBackForm = ({
   isMulti,
 }) => {
   const choices = feedbackData?.choices || [];
-
-  const retuneOptions = [
-    { label: <Label1 />, value: "retune" },
-    { label: <Label2 />, value: "recalculate_row" },
-    { label: <Label3 />, value: "recalculate_dataset" },
-  ];
+  const reasonText = getReason(data);
 
   const renderValueInput = () => {
     if (!feedbackData) return null;
@@ -450,12 +469,12 @@ export const FeedBackForm = ({
 
       <Box
         border={"1px solid var(--border-default)"}
-        bgcolor={"rgba(147, 143, 163, 0.08)"}
+        bgcolor={PANEL_TINT_BG}
         borderRadius={1}
         padding={1.5}
       >
-        {getReason(data) ? (
-          <CellMarkdown spacing={0} text={getReason(data)} />
+        {reasonText ? (
+          <CellMarkdown spacing={0} text={reasonText} />
         ) : (
           <Typography color="text.disabled" fontSize={14}>
             Unable to fetch Explanation
@@ -493,13 +512,8 @@ export const FeedBackForm = ({
         control={control}
         fieldName={"actionType"}
         label={""}
-        options={retuneOptions}
-        groupSx={{
-          border: "none",
-          borderRadius: 0,
-          padding: 0,
-          marginTop: "10px",
-        }}
+        options={RETUNE_OPTIONS}
+        groupSx={RETUNE_GROUP_SX}
       />
     </Box>
   );
@@ -616,7 +630,7 @@ const AllSelectField = ({ label, ...rest }) => {
         {...rest}
         fullWidth
         sx={{
-          backgroundColor: "rgba(147, 143, 163, 0.08)",
+          backgroundColor: PANEL_TINT_BG,
           "& .MuiOutlinedInput-root": {
             "&:hover .MuiOutlinedInput-notchedOutline": {
               border: "1px solid var(--border-default)",
@@ -787,3 +801,11 @@ const Label3 = () => {
     </Box>
   );
 };
+
+// Static (label components take no props) — hoisted so it isn't re-allocated
+// and handed fresh to the child's `options` prop on every render.
+const RETUNE_OPTIONS = [
+  { label: <Label1 />, value: "retune" },
+  { label: <Label2 />, value: "recalculate_row" },
+  { label: <Label3 />, value: "recalculate_dataset" },
+];

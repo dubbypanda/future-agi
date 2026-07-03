@@ -71,10 +71,7 @@ const EvaluateArrayCellRenderer = ({
           overflow: "auto",
         }}
       >
-        {/* Render nothing for an empty value — an empty choices result means
-            "no result yet" (e.g. mid-run before the cell flips to the running
-            skeleton), not a real "None" outcome. The old red "None" chip read
-            like a failure result during loading. */}
+        {/* Empty result renders nothing (it means "no result yet", not "None"). */}
         {finalArray?.length
           ? finalArray?.map((item) => (
               <Chip

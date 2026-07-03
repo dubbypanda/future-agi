@@ -91,8 +91,8 @@ export default {
   parameters: { layout: "centered" },
 };
 
-// Pass/Fail — the eval returned "Passed", so the "Passed" option is disabled
-// (you can only give feedback by choosing the *other* value).
+// Pass/Fail — the eval returned "Passed"; the form renders both choices so the
+// reviewer can pick the corrected value.
 export const PassFail = {
   render: () => (
     <Harness
@@ -112,8 +112,8 @@ export const PassFail = {
   ),
 };
 
-// Multi-choice — checkboxes (because multi_choice is true); the current
-// value "Billing" is disabled so it can't be re-submitted.
+// Multi-choice — renders checkboxes (because multi_choice is true); the current
+// value ["Billing"] is pre-selected.
 export const MultiChoice = {
   render: () => (
     <Harness
@@ -132,7 +132,8 @@ export const MultiChoice = {
   ),
 };
 
-// Single-choice — radios (multi_choice false); current value "A" disabled.
+// Single-choice — renders radios (multi_choice false); current value "A" is
+// pre-selected.
 export const SingleChoice = {
   render: () => (
     <Harness
@@ -151,7 +152,8 @@ export const SingleChoice = {
   ),
 };
 
-// Numeric — typing 59 (the current value) blocks submit with a red message.
+// Numeric — renders a numeric input seeded with the current value 59;
+// non-numeric input shows a "Numbers only" hint.
 export const Score = {
   render: () => (
     <Harness
