@@ -22,12 +22,12 @@ import { SelectedPromptTemplateDrawer } from "./SelectedPromptTemplateDrawer";
 import SvgColor from "src/components/svg-color";
 import {
   useInfiniteQuery,
-  useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import _ from "lodash";
 import axios, { endpoints } from "src/utils/axios";
+import { useDeletePromptTemplate } from "src/api/develop/prompt";
 import { useDebounce } from "../../hooks/use-debounce";
 import { extractTextFromPrompt } from "../../components/ImprovePromptDrawer/common";
 import EmptyLayout from "src/components/EmptyLayout/EmptyLayout";
@@ -252,22 +252,24 @@ export const ChoosePromptTemplateDrawer = ({ open, onClose, importMode }) => {
 
   // Template to delete (drives the confirm dialog). null = closed.
   const [templateToDelete, setTemplateToDelete] = useState(null);
+  // Drives the dialog's open state on its own so the payload (name) can stay
+  // mounted through the fade-out and only clear on `onExited`.
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { mutate: deleteTemplate, isLoading: isDeleting } = useMutation({
-    mutationFn: (id) =>
-      axios.delete(endpoints.develop.runPrompt.promptTemplateId(id)),
-    onSuccess: () => {
-      enqueueSnackbar("Template deleted", { variant: "success" });
-      setTemplateToDelete(null);
-      queryClient.invalidateQueries({ queryKey: ["prompt-templates"] });
-    },
-    onError: (err) => {
-      enqueueSnackbar(
-        err?.response?.data?.message || "Failed to delete template",
-        { variant: "error" },
-      );
-    },
-  });
+  const { mutate: deleteTemplate, isPending: isDeleting } =
+    useDeletePromptTemplate({
+      onSuccess: () => {
+        enqueueSnackbar("Template deleted", { variant: "success" });
+        setDeleteDialogOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["prompt-templates"] });
+      },
+      onError: (err) => {
+        enqueueSnackbar(
+          err?.response?.data?.message || "Failed to delete template",
+          { variant: "error" },
+        );
+      },
+    });
 
   const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } =
     // @ts-ignore
@@ -579,11 +581,13 @@ export const ChoosePromptTemplateDrawer = ({ open, onClose, importMode }) => {
                     }
                     onDelete={
                       category === "templates"
-                        ? () =>
+                        ? () => {
                             setTemplateToDelete({
                               id: template.id,
                               name: template?.name,
-                            })
+                            });
+                            setDeleteDialogOpen(true);
+                          }
                         : undefined
                     }
                   />
@@ -678,8 +682,9 @@ export const ChoosePromptTemplateDrawer = ({ open, onClose, importMode }) => {
       </Stack>
 
       <ConfirmDialog
-        open={Boolean(templateToDelete)}
-        onClose={() => !isDeleting && setTemplateToDelete(null)}
+        open={deleteDialogOpen}
+        onClose={() => !isDeleting && setDeleteDialogOpen(false)}
+        TransitionProps={{ onExited: () => setTemplateToDelete(null) }}
         title="Delete template"
         content={
           <Typography typography="s1" color="text.secondary">
