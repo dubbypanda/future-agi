@@ -34,11 +34,15 @@ from tracer.services.clickhouse.query_builders.dashboard import (
     PRESET_RANGES,
     SYSTEM_METRICS,
     DashboardQueryBuilder,
+    InvalidMetricCombinationError,
     _coerce_filter_value,
     _generate_time_buckets,
 )
 from tracer.services.clickhouse.query_builders.dashboard_base import (
     DashboardQueryBuilderBase,
+)
+from tracer.services.clickhouse.v2.query_builders.dashboard import (
+    DashboardQueryBuilderV2,
 )
 from tracer.views.dashboard import DashboardViewSet, _normalize_dashboard_query_filters
 
@@ -398,10 +402,8 @@ class TestMetricsEndpoint:
         metric_names = [m["name"] for m in data["metrics"]]
         assert "latency" in metric_names
         assert "cost" in metric_names
-        span_duration = next(m for m in data["metrics"] if m["name"] == "latency_ms")
-        assert span_duration["display_name"] == "Duration"
-        assert span_duration["source"] == "spans"
-        assert span_duration["type"] == "number"
+        # latency_ms ("Duration") was removed from the catalog (duplicate of latency)
+        assert "latency_ms" not in metric_names
 
     @pytest.mark.django_db
     def test_metrics_returns_agent_scoped_simulation_eval_metrics(
@@ -839,7 +841,11 @@ class TestMetricsEndpoint:
         auth_client,
         observe_project,
     ):
-        """`metric_name=name` (Trace Name) must scope to root spans."""
+        """`metric_name=name` (Trace Name) must scope to root spans.
+
+        CH25 v2 spans write '' (not NULL) on the non-nullable parent_span_id
+        for root spans, so the clause must match both forms or it returns 0 rows.
+        """
         mock_result = MagicMock()
         mock_result.data = []
         mock_analytics_cls.return_value.execute_ch_query.return_value = mock_result
@@ -851,7 +857,7 @@ class TestMetricsEndpoint:
         )
 
         sql_arg = mock_analytics_cls.return_value.execute_ch_query.call_args[0][0]
-        assert "parent_span_id IS NULL" in sql_arg
+        assert "(parent_span_id IS NULL OR parent_span_id = '')" in sql_arg
 
     @pytest.mark.parametrize("metric_name", ["span_name", "service_name"])
     @pytest.mark.django_db
@@ -1930,6 +1936,84 @@ class TestDashboardQueryExecution:
         assert results[1][1] == success_result.data
 
     @pytest.mark.django_db
+    def test_query_action_eval_metric_runs_against_real_ch(
+        self, auth_client, observe_project
+    ):
+        """Eval metrics read usage_apicalllog (a non-migrated legacy table).
+
+        The v2 column rewrite must NOT rename `_peerdb_is_deleted` → `is_deleted`
+        there; pre-fix this 500'd with "Identifier 'e.is_deleted' cannot be
+        resolved". Hits real ClickHouse (no mock) so the SQL is actually parsed.
+        """
+        response = auth_client.post(
+            "/tracer/dashboard/query/",
+            {
+                "project_ids": [str(observe_project.id)],
+                "granularity": "month",
+                "time_range": {"preset": "6M"},
+                "metrics": [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "name": "conversation_hallucination",
+                        "type": "eval_metric",
+                        "source": "all",
+                        "config_id": str(uuid.uuid4()),  # UUID → no DB lookup
+                        "output_type": "SCORE",
+                        "aggregation": "count",
+                    }
+                ],
+            },
+            format="json",
+        )
+        assert response.status_code == 200
+        metrics = response.json()["result"]["metrics"]
+        assert len(metrics) == 1
+        # Query parsed + executed cleanly; no per-widget error attached.
+        assert "error" not in metrics[0]
+
+    @pytest.mark.django_db
+    def test_query_action_invalid_combo_isolated_from_valid_metric(
+        self, auth_client, observe_project
+    ):
+        """Averaging a text attribute is invalid; the widget reports an error
+        while a valid metric in the same request still renders. Hits real CH.
+        """
+        response = auth_client.post(
+            "/tracer/dashboard/query/",
+            {
+                "project_ids": [str(observe_project.id)],
+                "granularity": "day",
+                "time_range": {"preset": "7D"},
+                "metrics": [
+                    {
+                        "id": "bot_wpm",
+                        "name": "bot_wpm",
+                        "type": "custom_attribute",
+                        "source": "traces",
+                        "aggregation": "avg",
+                        "attribute_key": "bot_wpm",
+                        "attribute_type": "string",
+                    },
+                    {
+                        "id": "latency",
+                        "name": "latency",
+                        "type": "system_metric",
+                        "source": "traces",
+                        "aggregation": "avg",
+                    },
+                ],
+            },
+            format="json",
+        )
+        # Whole dashboard does NOT 500 on the invalid combo.
+        assert response.status_code == 200
+        metrics = {m["name"]: m for m in response.json()["result"]["metrics"]}
+        assert "bot_wpm" in metrics and "latency" in metrics
+        # The invalid metric carries an explanatory error; the valid one does not.
+        assert "can't be applied" in metrics["bot_wpm"]["error"]
+        assert "error" not in metrics["latency"]
+
+    @pytest.mark.django_db
     @patch("tracer.views.dashboard.AnalyticsQueryService")
     def test_query_action_simulation_metric_preserves_simulation_units(
         self, mock_analytics_cls, auth_client
@@ -1966,6 +2050,51 @@ class TestDashboardQueryExecution:
 
     @pytest.mark.django_db
     @patch("tracer.views.dashboard.AnalyticsQueryService")
+    def test_query_action_dataset_string_metric_is_queryable(
+        self, mock_analytics_cls, auth_client
+    ):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = [{"time_bucket": "2025-01-01T00:00:00", "value": 3}]
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+
+        response = auth_client.post(
+            "/tracer/dashboard/query/",
+            {
+                "workflow": "observability",
+                "project_ids": [],
+                "time_range": {"preset": "12M"},
+                "granularity": "month",
+                "metrics": [
+                    {
+                        "id": "dataset",
+                        "name": "dataset",
+                        "display_name": "Dataset",
+                        "type": "system_metric",
+                        "source": "datasets",
+                        "aggregation": "avg",
+                        "attribute_type": "string",
+                        "data_type": "string",
+                        "filters": [],
+                    }
+                ],
+                "filters": [],
+                "breakdowns": [],
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        metric = response.json()["result"]["metrics"][0]
+        assert metric["id"] == "dataset"
+        assert metric["aggregation"] == "count_distinct"
+        sql = mock_service.execute_ch_query.call_args.args[0]
+        assert "uniqIf(" in sql
+        assert "dataset_dict" in sql
+
+    @pytest.mark.django_db
+    @patch("tracer.views.dashboard.AnalyticsQueryService")
     @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
     def test_filter_values_simulation_excludes_deleted_rows_and_handles_numeric_columns(
         self, _mock_enabled, mock_analytics_cls, auth_client
@@ -1985,6 +2114,27 @@ class TestDashboardQueryExecution:
         assert "c.deleted = 0" in sql
         assert "c.duration_seconds IS NOT NULL" in sql
         assert "c.duration_seconds != ''" not in sql
+
+    @pytest.mark.django_db
+    @patch("tracer.views.dashboard.AnalyticsQueryService")
+    @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
+    def test_filter_values_dataset_picker_keeps_active_dataset_scope(
+        self, _mock_enabled, mock_analytics_cls, auth_client
+    ):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+
+        response = auth_client.get(
+            "/tracer/dashboard/filter_values/?source=datasets&metric_name=dataset&metric_type=system_metric"
+        )
+
+        assert response.status_code == 200
+        sql = mock_service.execute_ch_query.call_args.args[0]
+        assert "FROM model_hub_dataset FINAL" in sql
+        assert "AND deleted = 0" in sql
 
     @pytest.mark.django_db
     @patch("tracer.views.dashboard.AnalyticsQueryService")
@@ -2018,6 +2168,78 @@ class TestDashboardQueryExecution:
         assert "trace_session_id_remap" in sql
         assert "ts_remap.survivor_id" in sql
         assert "sp.trace_session_id" in sql
+
+    @pytest.mark.django_db
+    @patch(
+        "tracer.services.clickhouse.v2.trace_session_dict_reader."
+        "resolve_session_fields"
+    )
+    @patch("tracer.views.dashboard.AnalyticsQueryService")
+    @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
+    def test_filter_values_sessions_source_labels_session_ids(
+        self,
+        _mock_enabled,
+        mock_analytics_cls,
+        mock_resolve_session_fields,
+        auth_client,
+        observe_project,
+    ):
+        session_id = str(uuid.uuid4())
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = [{"val": session_id}]
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+        mock_resolve_session_fields.return_value = {
+            session_id: {
+                "external_session_id": "session-alpha",
+                "display_name": None,
+            }
+        }
+
+        response = auth_client.get(
+            "/tracer/dashboard/filter_values/",
+            {
+                "source": "sessions",
+                "metric_name": "session",
+                "metric_type": "system_metric",
+                "project_ids": str(observe_project.id),
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["result"]["values"] == [
+            {"value": session_id, "label": "session-alpha"}
+        ]
+
+    @pytest.mark.django_db
+    @patch("tracer.views.dashboard.AnalyticsQueryService")
+    @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
+    def test_filter_values_sessions_source_uses_span_backed_values(
+        self, _mock_enabled, mock_analytics_cls, auth_client, observe_project
+    ):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = [{"val": "gpt-4o-mini"}]
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+
+        response = auth_client.get(
+            "/tracer/dashboard/filter_values/",
+            {
+                "source": "sessions",
+                "metric_name": "model",
+                "metric_type": "system_metric",
+                "project_ids": str(observe_project.id),
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["result"]["values"] == [
+            {"value": "gpt-4o-mini", "label": "gpt-4o-mini"}
+        ]
+        sql = mock_service.execute_ch_query.call_args.args[0]
+        assert "SELECT DISTINCT model AS val FROM spans" in sql
 
     @pytest.mark.django_db
     def test_filter_values_annotation_annotator_returns_project_annotators(
@@ -3495,3 +3717,159 @@ class TestDashboardQueryBuilderBase:
         )
         assert result["name"] == "Duration"
         assert result["unit"] == "s"
+
+
+# ===========================================================================
+# v2 rewrite routing + invalid-combination handling
+# ===========================================================================
+
+
+def _single_metric_config(metric, breakdowns=None):
+    return {
+        "project_ids": ["11111111-1111-1111-1111-111111111111"],
+        "organization_id": "22222222-2222-2222-2222-222222222222",
+        "workspace_id": "33333333-3333-3333-3333-333333333333",
+        "granularity": "day",
+        "time_range": {"preset": "7D"},
+        "metrics": [metric],
+        "filters": [],
+        "breakdowns": breakdowns or [],
+    }
+
+
+class TestDashboardV2RewriteRouting:
+    """The v2 builder rewrites spans-backed metric SQL to the CH 25.3 schema but
+    must leave eval/annotation metrics (non-migrated legacy tables) untouched.
+    """
+
+    def test_system_metric_rewritten_to_v2_columns(self):
+        config = _single_metric_config(
+            {
+                "id": "latency",
+                "name": "latency",
+                "type": "system_metric",
+                "aggregation": "avg",
+            }
+        )
+        sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
+        # spans-backed → legacy column renamed, v2 SETTINGS appended.
+        assert "is_deleted" in sql
+        assert "_peerdb_is_deleted" not in sql
+        assert "use_skip_indexes_if_final" in sql
+
+    def test_settings_appended_exactly_once(self):
+        # Regression: a blanket re-rewrite of build_all_queries' output (on top
+        # of the per-metric rewrite in build_metric_query) doubled the SETTINGS.
+        config = _single_metric_config(
+            {
+                "id": "latency",
+                "name": "latency",
+                "type": "system_metric",
+                "aggregation": "avg",
+            }
+        )
+        sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
+        assert sql.count("use_skip_indexes_if_final") == 1
+        assert sql.count("SETTINGS") == 1
+
+    def test_eval_metric_keeps_legacy_columns(self):
+        # eval_metric reads usage_apicalllog (NOT migrated) — the rewrite must
+        # NOT rename _peerdb_is_deleted → is_deleted on the legacy alias, or
+        # CH 500s with "Identifier 'e.is_deleted' cannot be resolved".
+        config = _single_metric_config(
+            {
+                "id": str(uuid.uuid4()),
+                "name": "hallucination",
+                "type": "eval_metric",
+                "config_id": str(uuid.uuid4()),  # UUID → no DB lookup
+                "output_type": "SCORE",
+                "aggregation": "count",
+            }
+        )
+        sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
+        assert "usage_apicalllog" in sql
+        # Legacy alias (e.) keeps _peerdb_is_deleted
+        assert "e._peerdb_is_deleted" in sql
+        assert "e.is_deleted" not in sql
+
+    def test_eval_metric_with_spans_breakdown_rewrites_spans_refs(self):
+        # An eval metric with a trace-dimension breakdown JOINs spans. The
+        # spans-alias refs (s._peerdb_is_deleted, s.span_attr_str) must be
+        # rewritten to v2, while the legacy-table alias (e._peerdb_is_deleted)
+        # stays on v1.
+        config = _single_metric_config(
+            {
+                "id": str(uuid.uuid4()),
+                "name": "hallucination",
+                "type": "eval_metric",
+                "config_id": str(uuid.uuid4()),
+                "output_type": "SCORE",
+                "aggregation": "count",
+            },
+            breakdowns=[{"name": "provider", "type": "system_metric"}],
+        )
+        sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
+        # Spans JOIN present, its _peerdb_is_deleted rewritten to is_deleted
+        assert "s.is_deleted" in sql or "is_deleted = 0" in sql
+        assert "s._peerdb_is_deleted" not in sql
+        # Legacy alias untouched
+        assert "e._peerdb_is_deleted" in sql
+        assert "e.is_deleted" not in sql
+
+
+class TestInvalidMetricCombination:
+    def test_avg_of_text_attribute_raises(self):
+        config = _single_metric_config(
+            {
+                "id": "bot_wpm",
+                "name": "bot_wpm",
+                "type": "custom_attribute",
+                "aggregation": "avg",
+                "attribute_key": "bot_wpm",
+                "attribute_type": "string",
+            }
+        )
+        with pytest.raises(InvalidMetricCombinationError):
+            DashboardQueryBuilder(config).build_all_queries()
+
+    def test_count_of_text_attribute_is_allowed(self):
+        config = _single_metric_config(
+            {
+                "id": "bot_wpm",
+                "name": "bot_wpm",
+                "type": "custom_attribute",
+                "aggregation": "count_distinct",
+                "attribute_key": "bot_wpm",
+                "attribute_type": "string",
+            }
+        )
+        sql, _, _ = DashboardQueryBuilder(config).build_all_queries()[0]
+        assert "span_attr_str['bot_wpm']" in sql
+
+    def test_avg_of_numeric_attribute_is_allowed(self):
+        config = _single_metric_config(
+            {
+                "id": "bot_wpm",
+                "name": "bot_wpm",
+                "type": "custom_attribute",
+                "aggregation": "avg",
+                "attribute_key": "bot_wpm",
+                "attribute_type": "number",
+            }
+        )
+        sql, _, _ = DashboardQueryBuilder(config).build_all_queries()[0]
+        assert "avg(span_attr_num['bot_wpm'])" in sql
+
+    def test_format_metric_result_surfaces_error(self):
+        base = DashboardQueryBuilderBase(
+            {"granularity": "day", "metrics": [], "breakdowns": []}
+        )
+        all_buckets = [datetime(2025, 1, 1).isoformat()]
+        metric_info = {
+            "id": "bot_wpm",
+            "name": "bot_wpm",
+            "aggregation": "avg",
+            "error": "'avg' can't be applied to the text attribute 'bot_wpm'.",
+        }
+        result = base._format_metric_result(metric_info, [], all_buckets, {})
+        assert result["error"].startswith("'avg' can't be applied")
