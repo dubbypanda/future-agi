@@ -19,6 +19,8 @@ import axios, { endpoints } from "src/utils/axios";
 import { format } from "date-fns";
 import AudioDatapointCard from "src/components/custom-audio/AudioDatapointCard";
 import ImageDatapointCard from "src/sections/common/ImageDatapointCard";
+import ImagesDatapointCard from "src/sections/common/ImagesDatapointCard";
+import DocumentDatapointCard from "src/sections/common/DocumentDatapointCard";
 import { AudioPlaybackProvider } from "src/components/custom-audio/context-provider/AudioPlaybackContext";
 import { Events, PropertyName, trackEvent } from "src/utils/Mixpanel";
 import AddEvalsFeedbackDrawer from "./../EvalsFeedback/AddEvalsFeedbackDrawer";
@@ -201,13 +203,15 @@ const LogsDrawerChild = ({
           }}
         >
           {data?.required_keys?.map((item, index) => {
-            const value = { cellValue: data?.values?.[item] || "-" };
+            const value = { cell_value: data?.values?.[item] || "-" };
             const columm = {
               headerName: item,
               dataType: data?.input_data_types?.[item],
             };
             const isAudioColumn = columm["dataType"] === "audio";
             const isImageColumn = columm["dataType"] === "image";
+            const isImagesColumn = columm["dataType"] === "images";
+            const isDocumentColumn = columm["dataType"] === "document";
             if (isAudioColumn) {
               return (
                 <AudioPlaybackProvider key={index}>
@@ -217,6 +221,18 @@ const LogsDrawerChild = ({
             } else if (isImageColumn) {
               return (
                 <ImageDatapointCard key={index} value={value} column={columm} />
+              );
+            } else if (isImagesColumn) {
+              return (
+                <ImagesDatapointCard key={index} value={value} column={columm} />
+              );
+            } else if (isDocumentColumn) {
+              return (
+                <DocumentDatapointCard
+                  key={index}
+                  value={value}
+                  column={columm}
+                />
               );
             }
 
