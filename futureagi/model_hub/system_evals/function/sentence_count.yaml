@@ -1,6 +1,6 @@
 eval_id: 153
 name: sentence_count
-description: Counts sentences in text and optionally validates against a min/max range. Useful for enforcing structural constraints
+description: Counts sentences in text and validates against a min/max range. Useful for enforcing structural constraints
   on generated text.
 eval_tags:
 - Output Validation
