@@ -110,11 +110,22 @@ def test_transcript_dot_aliases_shared_between_resolvers():
     from simulate.services.test_executor import (
         TRANSCRIPT_DOT_ALIASES as EXECUTOR_ALIASES,
     )
+    from simulate.services.test_executor import (
+        _build_simulation_context_map as executor_context_builder,
+    )
     from simulate.temporal.activities.xl import (
         TRANSCRIPT_DOT_ALIASES as XL_ALIASES,
+    )
+    from simulate.temporal.activities.xl import (
+        _build_simulation_context_map as xl_context_builder,
     )
 
     assert EXECUTOR_ALIASES is XL_ALIASES
     assert "call.agent_prompt" in XL_ALIASES
     assert "call.user_chat_transcript" in XL_ALIASES
     assert "call.assistant_chat_transcript" in XL_ALIASES
+
+    # The context-map builder is shared too, so keys like call.recording_url,
+    # call.summary, call.overall_score, and all agent.*/persona.*/scenario.*
+    # dot-form values resolve identically on both eval-runner paths.
+    assert executor_context_builder is xl_context_builder
