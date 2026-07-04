@@ -1293,6 +1293,182 @@ class TestUserViewSet:
         # Must not 404, and must return the requested org's members (user owns it).
         assert str(user.id) in ids
 
+    def test_removed_org_member_is_not_reauthorized_by_workspace_drift(
+        self, organization, workspace
+    ):
+        """A deliberately removed org member (inactive OrganizationMembership) is
+        rejected even if a stale active WorkspaceMembership lingers — the gate
+        fails closed and never lets workspace drift resurrect access (TH-6156)."""
+        from rest_framework.exceptions import NotFound
+
+        from accounts.models.organization_membership import OrganizationMembership
+        from accounts.models.workspace import WorkspaceMembership
+        from model_hub.views.develop_annotations import UserViewSet
+        from tfc.constants.levels import Level
+        from tfc.constants.roles import OrganizationRoles
+
+        removed = User.objects.create_user(
+            email="removed-member@example.com",
+            password="testpassword123",
+            name="Removed Member",
+            organization=None,
+        )
+        # Inactive (removed) org membership + a still-active workspace row.
+        OrganizationMembership.no_workspace_objects.create(
+            user=removed,
+            organization=organization,
+            role=OrganizationRoles.MEMBER,
+            level=Level.MEMBER,
+            is_active=False,
+        )
+        WorkspaceMembership.no_workspace_objects.create(
+            user=removed,
+            workspace=workspace,
+            role=OrganizationRoles.WORKSPACE_MEMBER,
+            level=Level.WORKSPACE_MEMBER,
+            is_active=True,
+        )
+
+        view = UserViewSet()
+        view.kwargs = {"organization_id": str(organization.id)}
+        view.request = SimpleNamespace(
+            query_params={},
+            workspace=workspace,
+            organization=organization,
+            user=removed,
+        )
+
+        with pytest.raises(NotFound):
+            list(view.get_queryset())
+
+    def test_membership_in_dead_workspace_does_not_pass_gate(self, organization, user):
+        """A workspace-only requester whose only membership is in a soft-deleted
+        (or deactivated) workspace is rejected — a dead workspace's stale
+        membership must not authorize (TH-6156)."""
+        from rest_framework.exceptions import NotFound
+
+        from accounts.models.workspace import Workspace, WorkspaceMembership
+        from model_hub.views.develop_annotations import UserViewSet
+        from tfc.constants.levels import Level
+        from tfc.constants.roles import OrganizationRoles
+
+        dead_ws = Workspace.objects.create(
+            name="Dead WS",
+            organization=organization,
+            is_active=True,
+            created_by=user,
+        )
+        requester = User.objects.create_user(
+            email="dead-ws-requester@example.com",
+            password="testpassword123",
+            name="Dead WS Requester",
+            organization=None,
+        )
+        WorkspaceMembership.no_workspace_objects.create(
+            user=requester,
+            workspace=dead_ws,
+            role=OrganizationRoles.WORKSPACE_MEMBER,
+            level=Level.WORKSPACE_MEMBER,
+            is_active=True,
+        )
+        # Soft-delete the workspace after the membership exists.
+        Workspace.objects.filter(pk=dead_ws.pk).update(deleted=True)
+
+        view = UserViewSet()
+        view.kwargs = {"organization_id": str(organization.id)}
+        view.request = SimpleNamespace(
+            query_params={},
+            workspace=None,
+            organization=organization,
+            user=requester,
+        )
+
+        with pytest.raises(NotFound):
+            list(view.get_queryset())
+
+    def test_workspace_only_requester_scoped_to_own_workspace_members(
+        self, organization, workspace, user
+    ):
+        """A workspace-only (drift) requester whose active workspace is a
+        different org is scoped to the members of the workspace(s) they belong to
+        — never the full org member list (TH-6156)."""
+        from accounts.models.organization_membership import OrganizationMembership
+        from accounts.models.workspace import WorkspaceMembership
+        from model_hub.views.develop_annotations import UserViewSet
+        from tfc.constants.levels import Level
+        from tfc.constants.roles import OrganizationRoles
+
+        # Drift requester: workspace access in `workspace`, no org membership.
+        requester = User.objects.create_user(
+            email="drift-scoped-requester@example.com",
+            password="testpassword123",
+            name="Drift Scoped Requester",
+            organization=None,
+        )
+        WorkspaceMembership.no_workspace_objects.create(
+            user=requester,
+            workspace=workspace,
+            role=OrganizationRoles.WORKSPACE_MEMBER,
+            level=Level.WORKSPACE_MEMBER,
+            is_active=True,
+        )
+        # A peer sharing the same workspace — should be visible.
+        ws_peer = User.objects.create_user(
+            email="ws-peer@example.com",
+            password="testpassword123",
+            name="WS Peer",
+            organization=None,
+        )
+        WorkspaceMembership.no_workspace_objects.create(
+            user=ws_peer,
+            workspace=workspace,
+            role=OrganizationRoles.WORKSPACE_MEMBER,
+            level=Level.WORKSPACE_MEMBER,
+            is_active=True,
+        )
+        # An org member NOT in `workspace` — must NOT leak to a workspace-only
+        # requester.
+        org_only = User.objects.create_user(
+            email="org-only-member@example.com",
+            password="testpassword123",
+            name="Org Only Member",
+            organization=None,
+        )
+        OrganizationMembership.no_workspace_objects.create(
+            user=org_only,
+            organization=organization,
+            role=OrganizationRoles.MEMBER,
+            level=Level.MEMBER,
+            is_active=True,
+        )
+
+        # Active context is a *different* org, so the org-wide fallback branch is
+        # the one under test.
+        other_org = Organization.objects.create(name="Other Active Org 2")
+        other_ws = Workspace.objects.create(
+            name="Other Active WS 2",
+            organization=other_org,
+            is_active=True,
+            created_by=user,
+        )
+
+        view = UserViewSet()
+        view.kwargs = {"organization_id": str(organization.id)}
+        view.request = SimpleNamespace(
+            query_params={},
+            workspace=other_ws,
+            organization=other_org,
+            user=requester,
+        )
+
+        ids = {
+            str(user_id) for user_id in view.get_queryset().values_list("id", flat=True)
+        }
+        assert str(requester.id) in ids
+        assert str(ws_peer.id) in ids
+        # The org-wide member list must NOT leak to a workspace-scoped requester.
+        assert str(org_only.id) not in ids
+
 
 # ==================== AnnotationSummaryView Tests ====================
 

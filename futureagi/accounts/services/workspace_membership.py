@@ -53,29 +53,27 @@ def ensure_org_membership(user, organization, *, invited_by=None):
     if user is None or organization is None:
         return None
 
-    existing = (
-        OrganizationMembership.no_workspace_objects.filter(
-            user=user, organization=organization
-        )
-        .order_by("-created_at", "-id")
-        .first()
-    )
-    if existing is not None:
-        # The (user, organization) unique constraint (deleted=False) guarantees
-        # at most one such row. Active → use it; inactive → respect the removal.
-        return existing if existing.is_active else None
-
     from tfc.constants.levels import Level
     from tfc.constants.roles import OrganizationRoles
 
-    return OrganizationMembership.no_workspace_objects.create(
+    # The (user, organization) unique constraint (WHERE deleted=False) guarantees
+    # at most one non-deleted row, so get_or_create resolves to exactly that row.
+    # get_or_create also closes the race where two concurrent invite flows both
+    # find no row: the loser's INSERT hits the unique constraint, Django catches
+    # the IntegrityError and re-fetches the winner's row instead of raising.
+    membership, _created = OrganizationMembership.no_workspace_objects.get_or_create(
         user=user,
         organization=organization,
-        role=OrganizationRoles.MEMBER_VIEW_ONLY,
-        level=Level.VIEWER,
-        invited_by=invited_by,
-        is_active=True,
+        defaults={
+            "role": OrganizationRoles.MEMBER_VIEW_ONLY,
+            "level": Level.VIEWER,
+            "invited_by": invited_by,
+            "is_active": True,
+        },
     )
+    # Active → use it; inactive → the user was deliberately removed from the org,
+    # so respect the removal (fail-closed) and leave the workspace FK NULL.
+    return membership if membership.is_active else None
 
 
 def create_workspace_membership(

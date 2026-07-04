@@ -496,6 +496,30 @@ class TestEnsureOrgMembershipInvariant:
         member, om = _make_member(organization, "existing-active@futureagi.com")
         assert ensure_org_membership(member, organization).id == om.id
 
+    def test_ensure_org_membership_is_idempotent(self, organization):
+        """A second call resolves to the same row instead of racing to a second
+        INSERT (get_or_create closes the concurrent-create hole)."""
+        from accounts.services.workspace_membership import ensure_org_membership
+
+        set_workspace_context(organization=organization)
+        member = User.objects.create_user(
+            email="ensure-idem@futureagi.com",
+            password="pass123",
+            name="Ensure Idem",
+            organization=None,
+        )
+
+        first = ensure_org_membership(member, organization)
+        second = ensure_org_membership(member, organization)
+
+        assert first.id == second.id
+        assert (
+            OrganizationMembership.no_workspace_objects.filter(
+                user=member, organization=organization
+            ).count()
+            == 1
+        )
+
 
 @pytest.mark.django_db
 class TestCreateMissingOrgMembershipsMigration:
@@ -563,6 +587,42 @@ class TestCreateMissingOrgMembershipsMigration:
         )
         ws_mem.refresh_from_db()
         assert ws_mem.organization_membership_id is None
+
+    def test_does_not_create_for_member_of_dead_workspace(self, organization, user):
+        """A membership in a soft-deleted / deactivated workspace must not mint a
+        fresh org Viewer membership — that would expand access from stale
+        workspace data (TH-6156)."""
+        from accounts.models.workspace import Workspace
+
+        set_workspace_context(organization=organization)
+        dead_ws = Workspace.objects.create(
+            name="Dead WS Migration",
+            organization=organization,
+            is_active=True,
+            created_by=user,
+        )
+        member = User.objects.create_user(
+            email="dead-ws-drift@futureagi.com",
+            password="pass123",
+            name="Dead WS Drift",
+            organization=None,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=dead_ws,
+            user=member,
+            role="workspace_member",
+            level=Level.WORKSPACE_MEMBER,
+            is_active=True,
+            organization_membership=None,
+        )
+        # Soft-delete the workspace after seeding the membership.
+        Workspace.objects.filter(pk=dead_ws.pk).update(deleted=True)
+
+        self._run()
+
+        assert not OrganizationMembership.no_workspace_objects.filter(
+            user=member, organization=organization
+        ).exists()
 
     def test_idempotent(self, organization, workspace):
         set_workspace_context(organization=organization)

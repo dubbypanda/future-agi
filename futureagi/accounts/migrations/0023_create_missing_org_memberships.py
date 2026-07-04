@@ -4,7 +4,7 @@ Heals membership drift: active workspace members with *no* OrganizationMembershi
 0022 only *linked* WorkspaceMembership → an existing active OrganizationMembership;
 it never created the org membership when one was missing entirely. Those users
 (workspace access but no org-membership row) hit
-``UserViewSet._validate_requested_organization`` and got
+``UserViewSet._resolve_org_access`` and got
 ``"No users found for the specified organization."`` when opening the annotation
 queue annotator picker (TH-6156), and were invisible to other
 OrganizationMembership-dependent surfaces.
@@ -31,14 +31,18 @@ _VIEWER_LEVEL = 1  # tfc.constants.levels.Level.VIEWER
 _VIEWER_ROLE = "Viewer"  # OrganizationRoles.MEMBER_VIEW_ONLY value
 _BATCH_SIZE = 2000
 
-# (user, org) pairs that have an active workspace membership but no non-deleted
-# org membership of any kind.
+# (user, org) pairs that have an active membership in a *live* workspace but no
+# non-deleted org membership of any kind. The workspace must itself be active and
+# not soft-deleted — a stale membership on a dead workspace must not mint a fresh
+# org Viewer membership (that would be an access expansion from stale data).
 _MISSING_PAIRS_SQL = """
     SELECT DISTINCT wm.user_id, w.organization_id
     FROM accounts_workspacemembership wm
     JOIN accounts_workspace w ON w.id = wm.workspace_id
     WHERE wm.is_active = true
       AND wm.deleted = false
+      AND w.is_active = true
+      AND w.deleted = false
       AND NOT EXISTS (
           SELECT 1 FROM accounts_organization_membership om
           WHERE om.user_id = wm.user_id
