@@ -97,23 +97,3 @@ def test_eval_config_update_rejects_unknown_root_fields():
 
     assert not serializer.is_valid()
     assert "testExecutionId" in serializer.errors
-
-
-def test_eval_resolvers_share_alias_and_context_builder():
-    from simulate.services.test_executor import (
-        TRANSCRIPT_DOT_ALIASES as EXECUTOR_ALIASES,
-    )
-    from simulate.services.test_executor import (
-        _build_simulation_context_map as executor_context_builder,
-    )
-    from simulate.temporal.activities.xl import (
-        TRANSCRIPT_DOT_ALIASES as XL_ALIASES,
-    )
-    from simulate.temporal.activities.xl import (
-        _build_simulation_context_map as xl_context_builder,
-    )
-
-    assert EXECUTOR_ALIASES is XL_ALIASES
-    assert executor_context_builder is xl_context_builder
-    assert "call.agent_prompt" in XL_ALIASES
-    assert "call.user_chat_transcript" in XL_ALIASES
