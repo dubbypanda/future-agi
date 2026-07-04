@@ -110,6 +110,7 @@ except ImportError:
     ConversationMetricsCalculator = None
     PhoneNumberService = None
     decide_processing_skip = None
+from simulate.temporal.activities.xl import TRANSCRIPT_DOT_ALIASES
 from simulate.utils.eval_summary import derive_kpi_output_type
 from simulate.utils.processing_outcomes import (
     build_skipped_eval_output_payload,
@@ -4714,6 +4715,16 @@ class TestExecutor:
                     updated_mapping[key] = transcript_data["user_chat_transcript"]
                 elif value == "assistant_chat_transcript":
                     updated_mapping[key] = transcript_data["assistant_chat_transcript"]
+                elif value in TRANSCRIPT_DOT_ALIASES:
+                    legacy_key = TRANSCRIPT_DOT_ALIASES[value]
+                    if legacy_key == "agent_prompt":
+                        if agent_version and agent_version.configuration_snapshot:
+                            snapshot = agent_version.configuration_snapshot
+                            updated_mapping[key] = snapshot.get("description", "")
+                        else:
+                            updated_mapping[key] = ""
+                    else:
+                        updated_mapping[key] = transcript_data.get(legacy_key, "")
                 else:
                     if value == "agent_prompt":
                         if agent_version and agent_version.configuration_snapshot:
