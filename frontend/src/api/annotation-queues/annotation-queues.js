@@ -635,6 +635,8 @@ const patchAssignmentCacheValue = (value, variables) => {
 export const useAssignQueueItems = () => {
   const queryClient = useQueryClient();
   return useMutation({
+    // Own the error toast here so the global handler (app.jsx) doesn't also fire one.
+    meta: { errorHandled: true },
     mutationFn: ({ queueId, itemIds, userIds, action }) => {
       const normalizedUserIds = userIds ?? [];
       return axios.post(annotationQueueEndpoints.assignItems(queueId), {
@@ -708,12 +710,7 @@ export const useAssignQueueItems = () => {
       context?.previousDetails?.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
-      // Surface the backend's specific message. The global mutation-cache
-      // handler shows the same string, so matching it lets SnackbarProvider's
-      // preventDuplicate collapse them into one toast instead of stacking a
-      // separate generic "failed" one beside it.
-      const msg = extractErrorMessage(error, "Failed to assign items");
-      enqueueSnackbar(typeof msg === "string" ? msg : JSON.stringify(msg), {
+      enqueueSnackbar(extractErrorMessage(error, "Failed to assign items"), {
         variant: "error",
       });
     },

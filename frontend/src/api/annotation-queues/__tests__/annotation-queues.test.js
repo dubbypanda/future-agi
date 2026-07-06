@@ -918,11 +918,11 @@ describe("Annotation Queues API", () => {
       ).toEqual([{ id: "user-2", name: "Nikhil" }]);
     });
 
-    it("surfaces the backend's specific message so it matches the global toast", async () => {
+    it("surfaces the backend's specific message as the sole error toast", async () => {
       // Regression: the old onError showed a hardcoded "Failed to assign items"
-      // that differed from the backend message the global handler shows, so
-      // preventDuplicate could not collapse them and two toasts stacked. The
-      // mutation must now emit the same specific string for the dedup to work.
+      // beside the global handler's specific message, so two toasts stacked. The
+      // mutation now sets meta.errorHandled (global handler stays out) and its
+      // onError surfaces the backend's specific message as the single toast.
       enqueueSnackbar.mockClear();
       axios.post.mockRejectedValueOnce({
         result: "Only queue managers can manage queue item assignments.",
