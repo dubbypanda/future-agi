@@ -49,7 +49,7 @@ export const _transformDynamicColumnConfig = (type, config, allColumns) => {
 export const getConditionalNodeDefaultValues = (initialData, allColumns) => {
   if (initialData) {
     return {
-      newColumnName: initialData.newColumnName,
+      newColumnName: initialData.new_column_name,
       config: initialData.config?.map((con) => ({
         branchType: con.branch_type,
         condition: replaceColumnIdWithName(con.condition ?? "", allColumns),

@@ -20,6 +20,7 @@ describe("getConditionalNodeDefaultValues", () => {
 
     const result = getConditionalNodeDefaultValues(saved, allColumns);
 
+    expect(result.newColumnName).toBe("verdict");
     expect(result.config[0].branchType).toBe("if");
     expect(result.config[0].condition).toBe("{{input}} == 'yes'");
     expect(result.config[0].branchNodeConfig).toEqual({
