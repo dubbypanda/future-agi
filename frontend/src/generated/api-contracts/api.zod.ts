@@ -32014,7 +32014,6 @@ export const SimulateRunTestsEvalConfigsUpdateCreateParams = zod.object({
 })
 
 
-export const simulateRunTestsEvalConfigsUpdateCreateBodyFiltersDefault = [];
 export const simulateRunTestsEvalConfigsUpdateCreateBodyRunDefault = false;
 
 export const SimulateRunTestsEvalConfigsUpdateCreateBody = zod.object({
@@ -32035,7 +32034,7 @@ export const SimulateRunTestsEvalConfigsUpdateCreateBody = zod.object({
   "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
   "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
 })
-})).default(simulateRunTestsEvalConfigsUpdateCreateBodyFiltersDefault).describe('Updated canonical filter list to restrict which test results are evaluated.'),
+ })).nullable().describe('Updated canonical filter list to restrict which test results are evaluated.'),
   "name": zod.string().min(1).optional().describe('Updated name for the evaluation configuration.'),
   "run": zod.boolean().default(simulateRunTestsEvalConfigsUpdateCreateBodyRunDefault).describe('When true, triggers an immediate rerun after updating. Defaults to false.'),
   "test_execution_id": zod.string().uuid().optional().describe('UUID of the test execution to rerun against. Required when run is true.')

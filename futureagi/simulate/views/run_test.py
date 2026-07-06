@@ -4774,7 +4774,7 @@ class UpdateEvalConfigView(APIView):
 
             # Update filters if provided
             if "filters" in validated:
-                eval_config.filters = validated.get("filters")
+                eval_config.filters = validated.get("filters") or []
 
             # Update other fields if provided
             if "name" in validated:
@@ -4818,10 +4818,12 @@ class UpdateEvalConfigView(APIView):
                 required_keys = template_config.get("required_keys", []) or []
                 optional_keys = template_config.get("optional_keys", []) or []
                 valid_keys = set(required_keys) | set(optional_keys)
-                filtered = {
-                    k: v for k, v in eval_config.mapping.items() if k in valid_keys
-                }
-                eval_config.mapping = filtered or None
+                invalid_keys = set(eval_config.mapping.keys()) - valid_keys
+                if invalid_keys:
+                    return Response(
+                        {"mapping": f"Keys {sorted(invalid_keys)} are not valid input variables for the selected template. Valid keys: {sorted(valid_keys)}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             # Re-validate kb_id: clear it on template switch when not
             # explicitly provided, since the new template may not be

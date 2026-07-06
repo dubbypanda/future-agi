@@ -2,6 +2,7 @@
 API tests for GET /simulate/run-tests/ (RunTestListView).
 """
 
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -680,6 +681,95 @@ class TestRunTestRuntimeContracts:
         # Template should NOT have switched since config validation failed
         assert eval_config.eval_template_id == word_count_eval_template.id
 
+    def test_update_renormalizes_config_with_compatible_mapping_when_template_changes(
+        self,
+        auth_client,
+        run_test_with_v10_scenario,
+        organization,
+        workspace,
+    ):
+        """Switch to template sharing a required_key with compatible params. Assert 200, mapping updated, config re-normalized."""
+        template_a = EvalTemplate.objects.create(
+            name="template_a",
+            description="Template A",
+            organization=organization,
+            workspace=workspace,
+            config={
+                "required_keys": ["text", "context"],
+                "optional_keys": [],
+                "output": "Pass/Fail",
+                "eval_type_id": "eval_a",
+                "function_params_schema": {
+                    "min_words": {
+                        "type": "integer",
+                        "required": True,
+                        "default": 1,
+                        "minimum": 0,
+                    },
+                    "max_words": {
+                        "type": "integer",
+                        "required": True,
+                        "default": 20,
+                        "minimum": 1,
+                    },
+                },
+                "config": {},
+            },
+            eval_tags=["api-contract"],
+        )
+
+        template_b = EvalTemplate.objects.create(
+            name="template_b",
+            description="Template B",
+            organization=organization,
+            workspace=workspace,
+            config={
+                "required_keys": ["text", "summary"],
+                "optional_keys": [],
+                "output": "Pass/Fail",
+                "eval_type_id": "eval_b",
+                "function_params_schema": {
+                    "min_words": {
+                        "type": "integer",
+                        "required": True,
+                        "default": 1,
+                        "minimum": 0,
+                    },
+                    "max_words": {
+                        "type": "integer",
+                        "required": True,
+                        "default": 20,
+                        "minimum": 1,
+                    },
+                },
+                "config": {},
+            },
+            eval_tags=["api-contract"],
+        )
+
+        eval_config = SimulateEvalConfig.objects.create(
+            name="compatible_mapping_test",
+            eval_template=template_a,
+            run_test=run_test_with_v10_scenario,
+            config={"params": {"min_words": 2, "max_words": 8}},
+            mapping={"text": "transcript", "context": "background"},
+        )
+
+        response = auth_client.post(
+            f"/simulate/run-tests/{run_test_with_v10_scenario.id}/eval-configs/"
+            f"{eval_config.id}/update/",
+            {"template_id": str(template_b.id), "mapping": {"text": "transcript"}},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.content
+        eval_config.refresh_from_db()
+        assert eval_config.eval_template_id == template_b.id
+        # Config should be re-normalized against the new template's schema
+        assert eval_config.config == {"params": {"min_words": 2, "max_words": 8}}
+        # Mapping should be updated to the explicitly provided shared key
+        assert eval_config.mapping == {"text": "transcript"}
+
     def test_update_rejects_stale_mapping_when_template_changes(
         self,
         auth_client,
@@ -869,3 +959,57 @@ class TestRunTestRuntimeContracts:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["details"]["legacy"] == ["Unknown field."]
+
+    @patch("simulate.views.run_test.run_new_evals_on_call_executions_task.apply_async")
+    def test_update_with_run_true_dispatches_rerun_task(
+        self,
+        mock_apply_async,
+        auth_client,
+        run_test_with_v10_scenario,
+        word_count_eval_template,
+    ):
+        """Verify run=True in update endpoint dispatches the eval rerun task."""
+        # Create eval config
+        eval_config = SimulateEvalConfig.objects.create(
+            name="rerun_on_update",
+            eval_template=word_count_eval_template,
+            run_test=run_test_with_v10_scenario,
+            config={"params": {"min_words": 2, "max_words": 8}},
+            mapping={"text": "transcript"},
+        )
+
+        # Create a COMPLETED TestExecution with call executions
+        test_execution = TestExecution.objects.create(
+            run_test=run_test_with_v10_scenario,
+            status=TestExecution.ExecutionStatus.COMPLETED,
+            total_scenarios=1,
+        )
+        scenario = run_test_with_v10_scenario.scenarios.first()
+        call_execution = CallExecution.objects.create(
+            test_execution=test_execution,
+            scenario=scenario,
+            status=CallExecution.CallStatus.PENDING,
+            simulation_call_type=CallExecution.SimulationCallType.TEXT,
+        )
+
+        call_execution_ids = [str(call_execution.id)]
+        eval_config_ids_str = [str(eval_config.id)]
+
+        response = auth_client.post(
+            f"/simulate/run-tests/{run_test_with_v10_scenario.id}/eval-configs/"
+            f"{eval_config.id}/update/",
+            {
+                "run": True,
+                "test_execution_id": str(test_execution.id),
+                "template_id": str(word_count_eval_template.id),
+                "mapping": {"text": "transcript"},
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.content
+        mock_apply_async.assert_called_once_with(
+            args=(call_execution_ids, eval_config_ids_str)
+        )
+        test_execution.refresh_from_db()
+        assert test_execution.status == TestExecution.ExecutionStatus.EVALUATING
