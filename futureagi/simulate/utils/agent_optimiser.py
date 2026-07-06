@@ -81,7 +81,9 @@ def _resolve_simulation_type(
     return "voice"
 
 
-def _build_chat_aggregate_metrics(call_executions) -> dict[str, float]:
+def _build_chat_aggregate_metrics(
+    call_executions: list,
+) -> dict[str, float]:
     """
     Build chat aggregate metrics from per-call conversation metrics.
 
@@ -137,7 +139,7 @@ def _build_chat_aggregate_metrics(call_executions) -> dict[str, float]:
 
 
 def _build_fix_your_agent_eval_templates(
-    eval_configs,
+    eval_configs: list,
 ) -> tuple[list[dict], set[str], dict[str, str]]:
     """
     Build a deduplicated eval template list (unique by eval_template_id) for
@@ -788,9 +790,17 @@ def get_call_executions_with_details(test_execution_id: str) -> list[dict] | Non
             status__in=status_filter,
         ).select_related("scenario")
 
+        # Fetch eval configs once (not per-call) to avoid N+1.
+        run_test = test_execution.run_test
+        eval_configs = list(
+            SimulateEvalConfig.objects.filter(run_test=run_test).select_related(
+                "eval_template"
+            )
+        )
+
         results = []
         for call in call_executions:
-            call_data = _build_call_execution_data(call, test_execution)
+            call_data = _build_call_execution_data(call, test_execution, eval_configs)
             results.append(call_data)
 
         return results
@@ -806,11 +816,12 @@ def get_call_executions_with_details(test_execution_id: str) -> list[dict] | Non
 def _build_call_execution_data(
     call: CallExecution,
     test_execution: TestExecution,
+    eval_configs: list,
 ) -> dict:
     """Build a complete call execution data dict."""
     transcripts = _get_transcripts_for_call(call)
     scenario_data = _get_scenario_data(call)
-    evaluations = _get_evaluations_for_call(call, test_execution)
+    evaluations = _get_evaluations_for_call(call, eval_configs)
 
     return {
         "call_execution_id": str(call.id),
@@ -906,17 +917,8 @@ def _fetch_dataset_row_columns(dataset_id: str, row_id: str) -> dict:
 
 def _get_evaluations_for_call(
     call: CallExecution,
-    test_execution: TestExecution,
+    eval_configs: list,
 ) -> list[dict]:
-    """
-    Get evaluations for a call with inputs filtered into
-    require_audio_inputs and require_text_inputs.
-    """
-    run_test = test_execution.run_test
-    eval_configs = SimulateEvalConfig.objects.filter(run_test=run_test).select_related(
-        "eval_template"
-    )
-
     evaluations = []
     for config in eval_configs:
         eval_data = _build_evaluation_data(config, call)
