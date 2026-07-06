@@ -199,7 +199,7 @@ const normalizePromptConfigItem = (item = {}) => ({
   voiceInputColumnId: item.voice_input_column_id ?? "",
 });
 
-/** @param {any} editConfigData */
+
 export const getExperimentDefaultValue = (
   editConfigData = {},
   _allColumns = [],
