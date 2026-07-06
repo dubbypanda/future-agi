@@ -17167,6 +17167,10 @@ export interface EvalConfigUpdateRequestApi {
   error_localizer?: boolean;
   /** UUID of a knowledge base to use for grounding. Pass null to clear. */
   kb_id?: string;
+  /** UUID of the evaluation template to switch to. */
+  template_id?: string;
+  /** Updated canonical filter list to restrict which test results are evaluated. */
+  filters?: EvalConfigUpdateRequestApiFiltersItem[];
   /**
      * Updated name for the evaluation configuration.
      * @minLength 1
@@ -17176,10 +17180,6 @@ export interface EvalConfigUpdateRequestApi {
   run?: boolean;
   /** UUID of the test execution to rerun against. Required when run is true. */
   test_execution_id?: string;
-  /** UUID of the evaluation template to switch to. */
-  template_id?: string;
-  /** Updated canonical filter list to restrict which test results are evaluated. */
-  filters?: EvalConfigUpdateRequestApiFiltersItem[];
 }
 
 export interface EvalConfigUpdateResponseApi {

@@ -52539,25 +52539,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "format": "uuid",
           "x-nullable": true
         },
-        "name": {
-          "title": "Name",
-          "description": "Updated name for the evaluation configuration.",
-          "type": "string",
-          "minLength": 1
-        },
-        "run": {
-          "title": "Run",
-          "description": "When true, triggers an immediate rerun after updating. Defaults to false.",
-          "type": "boolean",
-          "default": false
-        },
-        "test_execution_id": {
-          "title": "Test execution id",
-          "description": "UUID of the test execution to rerun against. Required when run is true.",
-          "type": "string",
-          "format": "uuid",
-          "x-nullable": true
-        },
         "template_id": {
           "title": "Template id",
           "description": "UUID of the evaluation template to switch to.",
@@ -52618,6 +52599,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
             ],
             "additionalProperties": false
           },
+          "x-nullable": true
+        },
+        "name": {
+          "title": "Name",
+          "description": "Updated name for the evaluation configuration.",
+          "type": "string",
+          "minLength": 1
+        },
+        "run": {
+          "title": "Run",
+          "description": "When true, triggers an immediate rerun after updating. Defaults to false.",
+          "type": "boolean",
+          "default": false
+        },
+        "test_execution_id": {
+          "title": "Test execution id",
+          "description": "UUID of the test execution to rerun against. Required when run is true.",
+          "type": "string",
+          "format": "uuid",
           "x-nullable": true
         }
       }
