@@ -380,41 +380,86 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
     () => evalType !== "llm" || hasNonEmptyPromptMessage(messages),
     [evalType, messages],
   );
-  // ── Load pinned version content on mount (edit mode) ──
-  const pinnedVersionLoadDone = useRef(false);
+  // ── Load the selected version's full config_snapshot into form state ──
+  //
+  // Fires whenever the user picks a version in the dropdown (or the initial
+  // pinned version arrives from the query). Loads EVERY field the save
+  // payload uses — not just `instructions/code/messages/model` — because
+  // any drift in a not-reloaded field (e.g. `summary.type`) makes the
+  // request-side snap differ from the pinned version's `config_snapshot`,
+  // and `maybe_pin_new_version` on the backend then creates a duplicate
+  // version identical-except-for-the-drifting-field instead of just
+  // pinning the version the user asked for.
+  //
+  // The previous implementation guarded on a `pinnedVersionLoadDone.current`
+  // one-shot ref which meant only the *first* version pick reloaded state;
+  // subsequent picks silently kept the earlier form state. Dropped that
+  // guard — the effect is safe to fire every time `selectedVersionId`
+  // changes, and the `!isDirty` guard already prevents clobbering an
+  // in-progress user edit.
   useEffect(() => {
-    if (
-      selectedVersionId &&
-      versions.length > 0 &&
-      !pinnedVersionLoadDone.current &&
-      !isDirty
-    ) {
-      const version = versions.find((v) => v.id === selectedVersionId);
-      if (version) {
-        pinnedVersionLoadDone.current = true;
-        const config = version.config_snapshot || version.configSnapshot || {};
-        const promptText = config.rule_prompt || version.criteria || "";
-        const _type =
-          normalizedFullEval?.evalType || normalizedEvalData?.evalType || "llm";
-        if (_type === "code") {
-          setInstructions("");
-          setCode(config.code || "");
-        } else {
-          setInstructions(promptText);
-          setCode("");
-        }
-        setModel(config.model || fullEval?.model || "turing_large");
-        if (config.messages?.length > 0) {
-          setMessages(config.messages);
-        } else if (_type === "llm" && promptText) {
-          setMessages([{ role: "system", content: promptText }]);
-        }
-        if (isEditMode) setEvalName(evalData?.name || fullEval?.name || "");
-        setIsDirty(false);
-        setDataReady(true);
-        initialLoadDone.current = true;
-      }
+    if (!selectedVersionId || !versions.length || isDirty) return;
+    const version = versions.find((v) => v.id === selectedVersionId);
+    if (!version) return;
+
+    const config = version.config_snapshot || version.configSnapshot || {};
+    const promptText = config.rule_prompt || version.criteria || "";
+    const _type =
+      normalizedFullEval?.evalType || normalizedEvalData?.evalType || "llm";
+
+    // Prompt / code / messages
+    if (_type === "code") {
+      setInstructions("");
+      setCode(config.code || "");
+    } else {
+      setInstructions(promptText);
+      setCode("");
     }
+    if (config.messages?.length > 0) {
+      setMessages(config.messages);
+    } else if (_type === "llm" && promptText) {
+      setMessages([{ role: "system", content: promptText }]);
+    }
+
+    // Model + LLM-tab scoring fields
+    setModel(config.model || fullEval?.model || "turing_large");
+    if (config.output) setOutputType(config.output);
+    if (config.pass_threshold != null) setPassThreshold(config.pass_threshold);
+    if (config.choice_scores) setChoiceScores(config.choice_scores);
+    if (config.multi_choice != null) setMultiChoice(!!config.multi_choice);
+    if (config.template_format) setTemplateFormat(config.template_format);
+    if (Array.isArray(config.few_shot_examples))
+      setFewShotExamples(config.few_shot_examples);
+
+    // Agent-tab runtime overrides — these all end up in `run_config` on the
+    // save payload and get flattened into the snap on the backend, so they
+    // must reflect the picked version or the snap will mismatch.
+    if (config.agent_mode) setAgentMode(config.agent_mode);
+    if (config.check_internet != null) setUseInternet(!!config.check_internet);
+    const summaryVal =
+      typeof config.summary === "object"
+        ? config.summary?.type
+        : config.summary;
+    if (summaryVal) setSummaryType(summaryVal);
+    if (Array.isArray(config.tools)) setConnectorIds(config.tools);
+    else if (config.tools && typeof config.tools === "object")
+      setConnectorIds(Object.keys(config.tools));
+    if (Array.isArray(config.knowledge_bases))
+      setKnowledgeBaseIds(config.knowledge_bases);
+    if (config.data_injection && typeof config.data_injection === "object") {
+      const opts = Object.entries(config.data_injection)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      setContextOptions(opts.length ? opts : ["variables_only"]);
+    }
+    if (config.error_localizer_enabled != null) {
+      setErrorLocalizerEnabled(!!config.error_localizer_enabled);
+    }
+
+    if (isEditMode) setEvalName(evalData?.name || fullEval?.name || "");
+    setIsDirty(false);
+    setDataReady(true);
+    initialLoadDone.current = true;
   }, [selectedVersionId, versions, isDirty, fullEval, normalizedFullEval, normalizedEvalData, isEditMode, evalData]);
 
   // ── Populate from eval detail (same logic as EvalDetailPage) ──
