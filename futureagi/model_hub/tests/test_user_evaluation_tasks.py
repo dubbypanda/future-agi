@@ -695,7 +695,9 @@ class TestErrorLocalizerGateE2E:
         )
 
     @staticmethod
-    def _make_task(organization, workspace, template, *, eval_result):
+    def _make_task(
+        organization, workspace, template, *, eval_result, metadata=None, source=None
+    ):
         from model_hub.models.error_localizer_model import (
             ErrorLocalizerSource,
             ErrorLocalizerStatus,
@@ -704,7 +706,7 @@ class TestErrorLocalizerGateE2E:
 
         return ErrorLocalizerTask.objects.create(
             eval_template=template,
-            source=ErrorLocalizerSource.DATASET,
+            source=source or ErrorLocalizerSource.DATASET,
             source_id=uuid.uuid4(),
             input_data={"q": "hi"},
             input_keys=["q"],
@@ -715,6 +717,7 @@ class TestErrorLocalizerGateE2E:
             organization=organization,
             workspace=workspace,
             status=ErrorLocalizerStatus.PENDING,
+            metadata=metadata if metadata is not None else {},
         )
 
     @patch("model_hub.tasks.user_evaluation.close_old_connections")
@@ -1251,6 +1254,189 @@ class TestErrorLocalizerGateE2E:
         task.refresh_from_db()
         assert task.status == ErrorLocalizerStatus.SKIPPED
         assert "template" in task.error_message
+
+    @patch("model_hub.tasks.user_evaluation.close_old_connections")
+    @patch("model_hub.tasks.user_evaluation.ErrorLocalizer")
+    @patch("model_hub.tasks.user_evaluation.log_and_deduct_cost_for_api_request")
+    def test_metadata_override_flips_gate_from_skip_to_run(
+        self, mock_log_cost, mock_localizer, _mock_close, organization, workspace
+    ):
+        """0.6 vs template=0.5 would skip; metadata override 0.8 forces run."""
+        from model_hub.models.error_localizer_model import (
+            ErrorLocalizerSource,
+            ErrorLocalizerStatus,
+        )
+        from model_hub.tasks.user_evaluation import process_single_error_localization
+        from tfc.constants.api_calls import APICallStatusChoices
+
+        template = self._make_template(
+            organization,
+            workspace,
+            output_type_normalized="percentage",
+            pass_threshold=0.5,
+        )
+        task = self._make_task(
+            organization,
+            workspace,
+            template,
+            eval_result=0.6,
+            metadata={"pass_threshold": 0.8},
+            source=ErrorLocalizerSource.STANDALONE,
+        )
+
+        mock_api_log = MagicMock()
+        mock_api_log.status = APICallStatusChoices.PROCESSING.value
+        mock_log_cost.return_value = mock_api_log
+        mock_localizer.return_value.localize_errors.return_value = LocalizerResult(
+            analysis={"summary": "over-threshold-fail"}, selected_key="q",
+        )
+
+        process_single_error_localization._original_func(str(task.id))
+
+        task.refresh_from_db()
+        assert task.status == ErrorLocalizerStatus.COMPLETED
+        mock_localizer.return_value.localize_errors.assert_called_once()
+
+    @patch("model_hub.tasks.user_evaluation.close_old_connections")
+    def test_metadata_override_flips_gate_from_run_to_skip(
+        self, _mock_close, organization, workspace
+    ):
+        """0.4 vs template=0.5 would run; metadata override 0.3 forces skip."""
+        from model_hub.models.error_localizer_model import ErrorLocalizerStatus
+        from model_hub.tasks.user_evaluation import process_single_error_localization
+
+        template = self._make_template(
+            organization,
+            workspace,
+            output_type_normalized="percentage",
+            pass_threshold=0.5,
+        )
+        task = self._make_task(
+            organization,
+            workspace,
+            template,
+            eval_result=0.4,
+            metadata={"pass_threshold": 0.3},
+        )
+
+        process_single_error_localization._original_func(str(task.id))
+
+        task.refresh_from_db()
+        assert task.status == ErrorLocalizerStatus.SKIPPED
+        assert "passed" in task.error_message.lower()
+        assert "0.30" in task.error_message
+
+    @patch("model_hub.tasks.user_evaluation.close_old_connections")
+    def test_metadata_threshold_zero_is_honoured_not_falsy_fallback(
+        self, _mock_close, organization, workspace
+    ):
+        """0.1 vs metadata=0 must skip; a truthy check would incorrectly fall back to template 0.5 and run."""
+        from model_hub.models.error_localizer_model import ErrorLocalizerStatus
+        from model_hub.tasks.user_evaluation import process_single_error_localization
+
+        template = self._make_template(
+            organization,
+            workspace,
+            output_type_normalized="percentage",
+            pass_threshold=0.5,
+        )
+        task = self._make_task(
+            organization,
+            workspace,
+            template,
+            eval_result=0.1,
+            metadata={"pass_threshold": 0},
+        )
+
+        process_single_error_localization._original_func(str(task.id))
+
+        task.refresh_from_db()
+        assert task.status == ErrorLocalizerStatus.SKIPPED
+        assert "0.00" in task.error_message
+
+    @patch("model_hub.tasks.user_evaluation.close_old_connections")
+    @patch("model_hub.tasks.user_evaluation.ErrorLocalizer")
+    @patch("model_hub.tasks.user_evaluation.log_and_deduct_cost_for_api_request")
+    def test_missing_metadata_key_falls_back_to_template_threshold(
+        self, mock_log_cost, mock_localizer, _mock_close, organization, workspace
+    ):
+        """No pass_threshold in metadata; worker must fall back to template 0.5 and run 0.4 as failed."""
+        from model_hub.models.error_localizer_model import (
+            ErrorLocalizerSource,
+            ErrorLocalizerStatus,
+        )
+        from model_hub.tasks.user_evaluation import process_single_error_localization
+        from tfc.constants.api_calls import APICallStatusChoices
+
+        template = self._make_template(
+            organization,
+            workspace,
+            output_type_normalized="percentage",
+            pass_threshold=0.5,
+        )
+        task = self._make_task(
+            organization,
+            workspace,
+            template,
+            eval_result=0.4,
+            metadata={"log_id": "some-log"},
+            source=ErrorLocalizerSource.STANDALONE,
+        )
+
+        mock_api_log = MagicMock()
+        mock_api_log.status = APICallStatusChoices.PROCESSING.value
+        mock_log_cost.return_value = mock_api_log
+        mock_localizer.return_value.localize_errors.return_value = LocalizerResult(
+            analysis={"summary": "under-template-fail"}, selected_key="q",
+        )
+
+        process_single_error_localization._original_func(str(task.id))
+
+        task.refresh_from_db()
+        assert task.status == ErrorLocalizerStatus.COMPLETED
+        mock_localizer.return_value.localize_errors.assert_called_once()
+
+    @patch("model_hub.tasks.user_evaluation.close_old_connections")
+    @patch("model_hub.tasks.user_evaluation.ErrorLocalizer")
+    @patch("model_hub.tasks.user_evaluation.log_and_deduct_cost_for_api_request")
+    def test_explicit_null_metadata_falls_back_to_template_threshold(
+        self, mock_log_cost, mock_localizer, _mock_close, organization, workspace
+    ):
+        """metadata={'pass_threshold': None} must resolve to template default, not raise or short-circuit."""
+        from model_hub.models.error_localizer_model import (
+            ErrorLocalizerSource,
+            ErrorLocalizerStatus,
+        )
+        from model_hub.tasks.user_evaluation import process_single_error_localization
+        from tfc.constants.api_calls import APICallStatusChoices
+
+        template = self._make_template(
+            organization,
+            workspace,
+            output_type_normalized="percentage",
+            pass_threshold=0.5,
+        )
+        task = self._make_task(
+            organization,
+            workspace,
+            template,
+            eval_result=0.4,
+            metadata={"pass_threshold": None},
+            source=ErrorLocalizerSource.STANDALONE,
+        )
+
+        mock_api_log = MagicMock()
+        mock_api_log.status = APICallStatusChoices.PROCESSING.value
+        mock_log_cost.return_value = mock_api_log
+        mock_localizer.return_value.localize_errors.return_value = LocalizerResult(
+            analysis={"summary": "null-override-fallback"}, selected_key="q",
+        )
+
+        process_single_error_localization._original_func(str(task.id))
+
+        task.refresh_from_db()
+        assert task.status == ErrorLocalizerStatus.COMPLETED
+        mock_localizer.return_value.localize_errors.assert_called_once()
 
 
 class TestTriggerMetadataSnapshot:
