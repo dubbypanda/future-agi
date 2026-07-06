@@ -14,6 +14,7 @@ import pytest
 from simulate.utils.agent_optimiser import (
     _build_chat_aggregate_metrics,
     _build_fix_your_agent_eval_templates,
+    _get_prompt_from_run_test,
     _resolve_simulation_type,
     construct_scenarios_from_calls,
     get_agent_definition_prompt,
@@ -303,6 +304,49 @@ class TestGetCallExecutionsWithDetails:
         mock_te.DoesNotExist = self._DNE
         mock_te.objects.get.side_effect = RuntimeError("failure")
         assert get_call_executions_with_details(str(uuid.uuid4())) is None
+
+
+class TestGetPromptFromRunTest:
+    _DNE = type("DoesNotExist", (Exception,), {})
+
+    @patch("model_hub.models.run_prompt.PromptVersion")
+    def test_returns_none_for_non_prompt_source(self, MockVersion):
+        run_test = MagicMock()
+        run_test.source_type = "agent"
+        assert _get_prompt_from_run_test(run_test) is None
+
+    @patch("model_hub.models.run_prompt.PromptVersion")
+    def test_prompt_version_not_found(self, MockVersion):
+        run_test = MagicMock()
+        run_test.source_type = "prompt"
+        run_test.prompt_version_id = uuid.uuid4()
+        MockVersion.DoesNotExist = self._DNE
+        MockVersion.objects.get.side_effect = self._DNE
+        assert _get_prompt_from_run_test(run_test) is None
+
+    @patch("model_hub.models.run_prompt.PromptVersion")
+    def test_returns_description(self, MockVersion):
+        MockVersion.DoesNotExist = self._DNE
+        run_test = MagicMock()
+        run_test.source_type = "prompt"
+        run_test.prompt_version_id = uuid.uuid4()
+        version = MagicMock()
+        version.prompt_config_snapshot = {
+            "messages": [{"content": "Hello"}, {"content": "World"}]
+        }
+        MockVersion.objects.get.return_value = version
+        result = _get_prompt_from_run_test(run_test)
+        assert result["description"] == "Hello\nWorld"
+        assert result["inbound"] is True
+
+    @patch("model_hub.models.run_prompt.PromptVersion")
+    def test_handles_generic_exception(self, MockVersion):
+        MockVersion.DoesNotExist = self._DNE
+        run_test = MagicMock()
+        run_test.source_type = "prompt"
+        run_test.prompt_version_id = uuid.uuid4()
+        MockVersion.objects.get.side_effect = RuntimeError("db error")
+        assert _get_prompt_from_run_test(run_test) is None
 
 
 class TestGetFullTestExecutionData:

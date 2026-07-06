@@ -1039,6 +1039,37 @@ def _get_transcript_text(call: CallExecution) -> str:
     return "\n".join(transcript_lines)
 
 
+def _get_prompt_from_run_test(run_test) -> dict | None:
+    from model_hub.models.run_prompt import PromptVersion
+
+    if run_test.source_type != "prompt" or not run_test.prompt_version_id:
+        return None
+    try:
+        version = PromptVersion.objects.get(id=run_test.prompt_version_id)
+        snapshot = version.prompt_config_snapshot or {}
+        messages = snapshot.get("messages", [])
+        texts = []
+        for msg in messages:
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for part in content:
+                    if isinstance(part, dict) and part.get("text"):
+                        texts.append(part["text"])
+            elif isinstance(content, str) and content:
+                texts.append(content)
+        description = "\n".join(texts)
+        return {
+            "description": description,
+            "inbound": True,
+        }
+    except PromptVersion.DoesNotExist:
+        logger.warning(f"Prompt version {run_test.prompt_version_id} not found")
+        return None
+    except Exception as e:
+        logger.exception(f"Error fetching prompt version {run_test.prompt_version_id}: {e}")
+        return None
+
+
 def get_full_test_execution_data(test_execution_id: str) -> dict | None:
     """
     Get complete test execution data including agent prompts,
@@ -1061,6 +1092,7 @@ def get_full_test_execution_data(test_execution_id: str) -> dict | None:
     """
     try:
         test_execution = TestExecution.objects.select_related(
+            "run_test__prompt_version",
             "run_test",
             "simulator_agent",
             "agent_definition",
@@ -1068,15 +1100,19 @@ def get_full_test_execution_data(test_execution_id: str) -> dict | None:
         ).get(id=test_execution_id)
 
         agent_prompt = get_agent_definition_prompt(
-            test_execution.agent_definition.id, test_execution.agent_version.id
+            test_execution.agent_definition_id, test_execution.agent_version_id
         )
+        if agent_prompt is None:
+            agent_prompt = _get_prompt_from_run_test(
+                test_execution.run_test
+            )
         call_executions = get_call_executions_with_details(test_execution_id)
 
         return {
             "test_execution_id": str(test_execution.id),
             "status": test_execution.status,
             "run_test_name": test_execution.run_test.name,
-            "agent_definition_prompt": agent_prompt,
+            "agent_definition_prompt": agent_prompt or {},
             "call_executions": call_executions or [],
             "metadata": {
                 "total_scenarios": test_execution.total_scenarios,
