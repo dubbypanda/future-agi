@@ -84,6 +84,7 @@ from tracer.services.clickhouse.graph_dispatch import (
     fetch_eval_graph_ch,
     fetch_system_metric_graph_ch,
 )
+from tracer.services.clickhouse.page_dedup import paginate_deduped
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 from tracer.utils.annotations import build_annotation_subqueries
 from tracer.utils.create_otel_span import create_single_otel_span
@@ -1543,25 +1544,15 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
 
-        # De-dup the page by span id. The Phase-1 query dropped `LIMIT 1 BY id`
-        # (that clause forced an O(rows-in-window) full sort that OOM-crashed CH
-        # — see SpanListQueryBuilder.build). Duplicate ReplacingMergeTree span
-        # versions are rare and transient; keep the first occurrence, which is
-        # the most recent by the query's `ORDER BY start_time DESC`.
-        seen_ids: set[str] = set()
-        deduped = []
-        for row in result.data:
-            rid = str(row.get("id", ""))
-            if rid in seen_ids:
-                continue
-            seen_ids.add(rid)
-            deduped.append(row)
-        result.data = deduped
-
-        # Truncate to page_size (query fetches page_size+1 for has_more detection)
-        has_more = len(result.data) > page_size
-        if has_more:
-            result.data = result.data[:page_size]
+        # Prefix-dedup pagination: Phase 1 dropped `LIMIT 1 BY id` (its
+        # O(window) full sort OOM-crashed CH — see SpanListQueryBuilder.build)
+        # and instead fetched the sorted prefix [0, offset + 2*page_size).
+        # De-dup the prefix by span id and slice the page — every page is a
+        # disjoint slice of the same globally de-duplicated stream, so a span
+        # can never appear on two pages and none is skipped. See page_dedup.py.
+        result.data, has_more = paginate_deduped(
+            result.data, "id", page_number, page_size
+        )
 
         # Phase 1b: Fetch input/output/attributes_extra for the page
         span_ids = [str(row.get("id", "")) for row in result.data]
@@ -1843,25 +1834,15 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
 
-        # De-dup the page by span id. The Phase-1 query dropped `LIMIT 1 BY id`
-        # (that clause forced an O(rows-in-window) full sort that OOM-crashed CH
-        # — see SpanListQueryBuilder.build). Duplicate ReplacingMergeTree span
-        # versions are rare and transient; keep the first occurrence, which is
-        # the most recent by the query's `ORDER BY start_time DESC`.
-        seen_ids: set[str] = set()
-        deduped = []
-        for row in result.data:
-            rid = str(row.get("id", ""))
-            if rid in seen_ids:
-                continue
-            seen_ids.add(rid)
-            deduped.append(row)
-        result.data = deduped
-
-        # Truncate to page_size (query fetches page_size+1 for has_more detection)
-        has_more = len(result.data) > page_size
-        if has_more:
-            result.data = result.data[:page_size]
+        # Prefix-dedup pagination: Phase 1 dropped `LIMIT 1 BY id` (its
+        # O(window) full sort OOM-crashed CH — see SpanListQueryBuilder.build)
+        # and instead fetched the sorted prefix [0, offset + 2*page_size).
+        # De-dup the prefix by span id and slice the page — every page is a
+        # disjoint slice of the same globally de-duplicated stream, so a span
+        # can never appear on two pages and none is skipped. See page_dedup.py.
+        result.data, has_more = paginate_deduped(
+            result.data, "id", page_number, page_size
+        )
 
         # Phase 1b: Fetch input/output for the page
         span_ids = [str(row.get("id", "")) for row in result.data]

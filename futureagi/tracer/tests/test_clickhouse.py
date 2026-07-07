@@ -5059,8 +5059,11 @@ class TestSpanListQueryBuilderComprehensive:
         query, params = builder.build()
         assert "spans" in query
         assert "LIMIT" in query
-        assert "OFFSET" in query
-        assert params["limit"] == 50
+        # Prefix-fetch pagination: no SQL OFFSET — the query reads the sorted
+        # prefix [0, offset + 2*page_size) as a bounded top-K and the view
+        # dedups by span id then slices the page (see page_dedup.py).
+        assert "OFFSET" not in query
+        assert params["limit"] == 100  # offset 0 + 2 * page_size 50
         # Unlike trace list, span list shows ALL spans (no parent_span_id filter)
         assert "parent_span_id IS NULL" not in query
 
@@ -5186,7 +5189,7 @@ class TestSpanListQueryBuilderComprehensive:
         assert "end_user_id =" not in query
 
     def test_pagination_offset(self):
-        """Offset should be page_number * page_size."""
+        """LIMIT covers the prefix [0, offset + 2*page_size); slicing is in Python."""
         from tracer.services.clickhouse.query_builders import SpanListQueryBuilder
 
         builder = SpanListQueryBuilder(
@@ -5194,9 +5197,10 @@ class TestSpanListQueryBuilderComprehensive:
             page_number=3,
             page_size=20,
         )
-        _, params = builder.build()
-        assert params["offset"] == 60
-        assert params["limit"] == 20
+        query, params = builder.build()
+        assert "OFFSET" not in query
+        assert params["limit"] == 100  # offset 60 + 2 * page_size 20
+        assert "offset" not in params
 
     def test_sort_default(self):
         """Default sort should be ORDER BY start_time DESC."""

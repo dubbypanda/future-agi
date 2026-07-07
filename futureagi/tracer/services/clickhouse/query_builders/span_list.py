@@ -111,9 +111,16 @@ class SpanListQueryBuilder(BaseQueryBuilder):
         if not order_clause:
             order_clause = "ORDER BY start_time DESC"
 
+        # Prefix-fetch pagination: read the sorted prefix [0, offset +
+        # 2*page_size) in ONE bounded top-K pass and let the view dedup by
+        # span id then slice [offset, offset + page_size) — see
+        # tracer/services/clickhouse/page_dedup.py. This preserves the
+        # global-dedup semantics `LIMIT 1 BY id` provided (a key can never
+        # appear on two pages) without its O(window) full sort; the 2x
+        # page_size margin keeps pages exact for up to page_size duplicate
+        # rows in the prefix. No SQL OFFSET — slicing happens in Python.
         offset = self.page_number * self.page_size
-        self.params["limit"] = self.page_size
-        self.params["offset"] = offset
+        self.params["limit"] = offset + 2 * self.page_size
 
         filter_fragment = f"AND {extra_where}" if extra_where else ""
 
@@ -201,7 +208,6 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             WHERE resolved_end_user_id = %(end_user_id)s
             {order_clause}
             LIMIT %(limit)s
-            OFFSET %(offset)s
             """
             return query, self.params
 
@@ -245,7 +251,6 @@ class SpanListQueryBuilder(BaseQueryBuilder):
           {filter_fragment}
         {order_clause}
         LIMIT %(limit)s
-        OFFSET %(offset)s
         """
         return query, self.params
 
