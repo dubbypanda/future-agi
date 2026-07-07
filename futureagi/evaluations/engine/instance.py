@@ -453,7 +453,7 @@ def create_eval_instance(
     # Apply version overrides
     config, criteria = apply_version_overrides(config, resolved_version, criteria)
 
-    if not eval_template.config.get("function_eval"):
+    if not (eval_template.config or {}).get("function_eval"):
         config["pass_threshold"] = resolve_pass_threshold(
             eval_template, runtime_config, resolved_version
         )

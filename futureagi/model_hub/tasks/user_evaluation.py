@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from django.db import close_old_connections
@@ -47,6 +47,10 @@ from tfc.utils.distributed_state import evaluation_tracker
 from tfc.utils.error_codes import get_error_for_api_status
 from tracer.models.observation_span import EvalLogger
 from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
+
+if TYPE_CHECKING:
+    from simulate.models.eval_config import SimulateEvalConfig
+    from simulate.models.test_execution import CallExecution
 
 try:
     from ee.usage.models.usage import APICallLog
@@ -696,15 +700,15 @@ def _has_localized_segments(error_analysis: dict | list | None) -> bool:
 
 
 def trigger_error_localization_for_column(
-    eval_template,
-    config,
-    required_field,
-    mapping,
-    eval_result,
-    response,
-    cell,
-    log_id=None,
-):
+    eval_template: EvalTemplate,
+    config: dict,
+    required_field: list,
+    mapping: list,
+    eval_result: Any,
+    response: dict,
+    cell: Cell,
+    log_id: str | None = None,
+) -> None:
     """
     Helper function to create ErrorLocalizerTask records for cells.
     """
@@ -754,7 +758,7 @@ def trigger_error_localization_for_column(
 
     if task_exists:
         task = ErrorLocalizerTask.objects.get(source_id=cell.id)
-        metadata = task.metadata
+        metadata = task.metadata or {}
         metadata.update({"log_id": log_id, "pass_threshold": pass_threshold})
         task.eval_result = eval_result
         task.eval_explanation = response.get("reason", "")
@@ -832,7 +836,7 @@ def trigger_error_localization_for_span(
 
         if task_exists:
             task = ErrorLocalizerTask.objects.get(source_id=eval_logger.id)
-            metadata = task.metadata
+            metadata = task.metadata or {}
             metadata.update(
                 {"log_id": str(log_id), "pass_threshold": pass_threshold}
             )
@@ -979,7 +983,7 @@ def trigger_error_localization_for_playground(
             task.status = initial_status
             task.rule_prompt = rule_prompt
             task.error_message = error_message
-            metadata = task.metadata
+            metadata = task.metadata or {}
             metadata.update({"pass_threshold": pass_threshold})
             task.metadata = metadata
         except ErrorLocalizerTask.DoesNotExist:
@@ -1007,14 +1011,14 @@ def trigger_error_localization_for_playground(
 
 
 def trigger_error_localization_for_simulate(
-    eval_template,
-    call_execution,
-    eval_config,
-    value,
-    mapping,
-    eval_explanation,
-    log_id=None,
-):
+    eval_template: EvalTemplate,
+    call_execution: "CallExecution",
+    eval_config: "SimulateEvalConfig",
+    value: Any,
+    mapping: dict,
+    eval_explanation: str,
+    log_id: str | None = None,
+) -> None:
     try:
         """
         Helper function to create ErrorLocalizerTask records for simulate evaluations.
