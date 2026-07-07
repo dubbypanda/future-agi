@@ -51,8 +51,7 @@ class EvalConfigDefinitionSerializer(StrictInputSerializer):
         required=False,
         allow_null=True,
         default=None,
-        help_text="Knowledge base file to use for this evaluation. "
-        "Switching template_id without providing an explicit kb_id will clear the KB association.",
+        help_text="Knowledge base file to use for this evaluation.",
     )
     eval_group = serializers.UUIDField(
         required=False,
@@ -114,7 +113,8 @@ class EvalConfigUpdateRequestSerializer(StrictInputSerializer):
     kb_id = serializers.UUIDField(
         required=False,
         allow_null=True,
-        help_text="UUID of a knowledge base to use for grounding. Pass null to clear.",
+        help_text="UUID of a knowledge base to use for grounding. Pass null to clear. "
+        "Switching template_id without providing an explicit kb_id will clear the KB association.",
     )
     template_id = serializers.UUIDField(
         required=False,

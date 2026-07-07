@@ -4828,9 +4828,8 @@ class UpdateEvalConfigView(APIView):
                 valid_keys = set(required_keys) | set(optional_keys)
                 invalid_keys = set(eval_config.mapping.keys()) - valid_keys
                 if invalid_keys:
-                    return Response(
-                        {"mapping": f"Keys {sorted(invalid_keys)} are not valid input variables for the selected template. Valid keys: {sorted(valid_keys)}"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                    return self._gm.bad_request(
+                        f"Keys {sorted(invalid_keys)} are not valid input variables for the selected template. Valid keys: {sorted(valid_keys)}"
                     )
 
             # Re-validate kb_id: clear it on template switch when not
@@ -4875,13 +4874,16 @@ class UpdateEvalConfigView(APIView):
                 )
 
                 if not call_executions.exists():
-                    return self._gm.success_response(
-                        {
-                            "message": "Evaluation config updated successfully. No call executions found to rerun.",
-                            "eval_config_id": str(eval_config.id),
-                            "run_test_id": str(run_test_id),
-                            "test_execution_id": str(test_execution_id),
-                        }
+                    return Response(
+                        EvalConfigUpdateResponseSerializer(
+                            {
+                                "message": "Evaluation config updated successfully. No call executions found to rerun.",
+                                "eval_config_id": str(eval_config.id),
+                                "run_test_id": str(run_test_id),
+                                "test_execution_id": str(test_execution_id),
+                            }
+                        ).data,
+                        status=status.HTTP_200_OK,
                     )
 
                 call_execution_ids = [str(ce.id) for ce in call_executions]

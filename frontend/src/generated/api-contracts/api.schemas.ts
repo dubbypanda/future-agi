@@ -16781,7 +16781,7 @@ export interface EvalConfigDefinitionApi {
      * @minLength 1
      */
   model?: string;
-  /** Knowledge base file to use for this evaluation. Switching template_id without providing an explicit kb_id will clear the KB association. */
+  /** Knowledge base file to use for this evaluation. */
   kb_id?: string;
   /** Eval group that created this evaluation config. */
   eval_group?: string;
@@ -17165,7 +17165,7 @@ export interface EvalConfigUpdateRequestApi {
   model?: string;
   /** Enable granular error localization in evaluation results. */
   error_localizer?: boolean;
-  /** UUID of a knowledge base to use for grounding. Pass null to clear. */
+  /** UUID of a knowledge base to use for grounding. Pass null to clear. Switching template_id without providing an explicit kb_id will clear the KB association. */
   kb_id?: string;
   /** UUID of the evaluation template to switch to. */
   template_id?: string;

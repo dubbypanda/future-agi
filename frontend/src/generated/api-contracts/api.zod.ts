@@ -31080,7 +31080,7 @@ export const SimulatePromptTemplatesSimulationsCreateBody = zod.object({
 })).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
   "error_localizer": zod.boolean().default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
   "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
-  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation. Switching template_id without providing an explicit kb_id will clear the KB association.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
   "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
 })).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
   "enable_tool_evaluation": zod.boolean().default(simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDefault).describe('Enable automatic tool evaluation for this simulation run')
@@ -31516,7 +31516,7 @@ export const SimulateRunTestsCreateCreateBody = zod.object({
 })).default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
   "error_localizer": zod.boolean().default(simulateRunTestsCreateCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
   "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
-  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation. Switching template_id without providing an explicit kb_id will clear the KB association.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
   "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
 })).default(simulateRunTestsCreateCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
   "enable_tool_evaluation": zod.boolean().default(simulateRunTestsCreateCreateBodyEnableToolEvaluationDefault).describe('Enable automatic tool evaluation for this test run'),
@@ -32010,7 +32010,7 @@ export const SimulateRunTestsEvalConfigsCreateBody = zod.object({
 })).default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemFiltersDefault).describe('Canonical filter list to restrict which test results are evaluated.'),
   "error_localizer": zod.boolean().default(simulateRunTestsEvalConfigsCreateBodyEvaluationsConfigItemErrorLocalizerDefault).describe('Enables granular error localization on evaluation failures.'),
   "model": zod.string().min(1).optional().describe('Model to use for running this evaluation.'),
-  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation. Switching template_id without providing an explicit kb_id will clear the KB association.'),
+  "kb_id": zod.string().uuid().optional().describe('Knowledge base file to use for this evaluation.'),
   "eval_group": zod.string().uuid().optional().describe('Eval group that created this evaluation config.')
 })).min(1).describe('Array of evaluation configuration objects to add. At least one required.')
 })
@@ -32109,7 +32109,7 @@ export const SimulateRunTestsEvalConfigsUpdateCreateBody = zod.object({
   "mapping": zod.record(zod.string(), zod.unknown()).optional().describe('Updated field mapping between test data and evaluation inputs.'),
   "model": zod.string().min(1).optional().describe('Model to use for evaluations.'),
   "error_localizer": zod.boolean().optional().describe('Enable granular error localization in evaluation results.'),
-  "kb_id": zod.string().uuid().optional().describe('UUID of a knowledge base to use for grounding. Pass null to clear.'),
+  "kb_id": zod.string().uuid().optional().describe('UUID of a knowledge base to use for grounding. Pass null to clear. Switching template_id without providing an explicit kb_id will clear the KB association.'),
   "template_id": zod.string().uuid().optional().describe('UUID of the evaluation template to switch to.'),
   "filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),

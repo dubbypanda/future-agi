@@ -52534,7 +52534,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "kb_id": {
           "title": "Kb id",
-          "description": "UUID of a knowledge base to use for grounding. Pass null to clear.",
+          "description": "UUID of a knowledge base to use for grounding. Pass null to clear. Switching template_id without providing an explicit kb_id will clear the KB association.",
           "type": "string",
           "format": "uuid",
           "x-nullable": true
@@ -74772,7 +74772,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "kb_id": {
           "title": "Kb id",
-          "description": "Knowledge base file to use for this evaluation. Switching template_id without providing an explicit kb_id will clear the KB association.",
+          "description": "Knowledge base file to use for this evaluation.",
           "type": "string",
           "format": "uuid",
           "x-nullable": true

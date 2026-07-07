@@ -919,7 +919,7 @@ class TestRunTestRuntimeContracts:
             format="json",
         )
 
-        assert response.status_code == status.HTTP_200_OK, response.content
+        assert response.status_code == status.HTTP_400_BAD_REQUEST, response.content
         eval_config.refresh_from_db()
         # Mapping should be cleared since "text" is not a valid key for char_count template
         # (char_count expects "content" as the input variable)
