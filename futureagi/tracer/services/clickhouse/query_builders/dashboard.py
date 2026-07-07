@@ -809,7 +809,7 @@ class DashboardQueryBuilder:
                 _span_col_map = {
                     "model": "model",
                     "status": "status",
-                    "service_name": "name",
+                    "service_name": "service_name",
                     "span_kind": "observation_type",
                     "provider": "provider",
                     "session": "trace_session_id",

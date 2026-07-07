@@ -16,14 +16,16 @@ from tracer.services.clickhouse.v2.query_builders.span_list import (
 from tracer.services.clickhouse.v2.query_builders.trace_list import (
     TraceListQueryBuilderV2,
 )
-from tracer.views.observation_span import _flatten_span_attributes_into_entry
+from tracer.services.clickhouse.v2.span_selectors import (
+    flatten_span_attributes_into_entry,
+)
 
 PROJECT_ID = "11111111-1111-1111-1111-111111111111"
 
 
 def _flatten(**row):
     entry: dict = {}
-    _flatten_span_attributes_into_entry(entry, row)
+    flatten_span_attributes_into_entry(entry, row)
     return entry
 
 
@@ -62,7 +64,7 @@ class TestFlattenSpanAttributes:
 
     def test_standard_columns_not_clobbered(self):
         entry = {"name": "keep"}
-        _flatten_span_attributes_into_entry(
+        flatten_span_attributes_into_entry(
             entry, {"attrs_string": {"name": "attr"}, "attributes_extra": "{}"}
         )
         assert entry["name"] == "keep"

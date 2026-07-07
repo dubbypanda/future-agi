@@ -85,6 +85,10 @@ from tracer.services.clickhouse.graph_dispatch import (
     fetch_system_metric_graph_ch,
 )
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
+from tracer.services.clickhouse.v2.span_selectors import (
+    flatten_span_attributes_into_entry,
+    merge_content_rows,
+)
 from tracer.utils.annotations import build_annotation_subqueries
 from tracer.utils.create_otel_span import create_single_otel_span
 from tracer.utils.eval import (
@@ -106,42 +110,6 @@ from tracer.utils.otel import (
 from tracer.utils.sql_queries import SQL_query_handler
 
 logger = structlog.get_logger(__name__)
-
-
-# Attribute keys hidden from custom columns: internal payloads / duplicates of
-# the input/output columns.
-_SKIP_ATTR_PREFIXES = (
-    "raw.",
-    "llm.input_messages",
-    "llm.output_messages",
-    "input.value",
-    "output.value",
-)
-
-
-def _flatten_span_attributes_into_entry(entry: dict, row: dict) -> None:
-    """Surface a span's attributes as top-level keys on `entry` for custom columns.
-
-    Merges the typed maps (attrs_string/number/bool) with attributes_extra via the
-    shared `merge_span_attributes` — reading attributes_extra alone drops typed
-    custom-attribute values. Standard columns already on `entry` are not clobbered;
-    internal/oversized payloads are skipped/truncated.
-    """
-    from tracer.services.clickhouse.v2.span_reader import merge_span_attributes
-
-    attrs = merge_span_attributes(
-        row.get("attrs_string"),
-        row.get("attrs_number"),
-        row.get("attrs_bool"),
-        row.get("attributes_extra", "{}"),
-    )
-    for key, value in attrs.items():
-        if key in entry or key.startswith(_SKIP_ATTR_PREFIXES):
-            continue
-        if isinstance(value, str) and len(value) > 500:
-            entry[key] = value[:500] + "..."
-        else:
-            entry[key] = value
 
 
 class AddObservationSpanAnnotationsSerializer(serializers.Serializer):
@@ -1535,15 +1503,19 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 content_result = analytics.execute_ch_query(
                     content_query, content_params, timeout_ms=10000
                 )
-                content_map = {str(r.get("id", "")): r for r in content_result.data}
-                for row in result.data:
-                    c = content_map.get(str(row.get("id", "")), {})
-                    row["input"] = c.get("input", "")
-                    row["output"] = c.get("output", "")
-                    row["attributes_extra"] = c.get("attributes_extra", "{}")
-                    row["attrs_string"] = c.get("attrs_string") or {}
-                    row["attrs_number"] = c.get("attrs_number") or {}
-                    row["attrs_bool"] = c.get("attrs_bool") or {}
+                merge_content_rows(
+                    result.data,
+                    content_result.data,
+                    id_key="id",
+                    keys=(
+                        "input",
+                        "output",
+                        "attributes_extra",
+                        "attrs_string",
+                        "attrs_number",
+                        "attrs_bool",
+                    ),
+                )
 
         # Count
         count_query, count_params = builder.build_count_query()
@@ -1718,7 +1690,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                     entry[label_id] = span_annotations[label_id]
 
             # Include span attributes (typed maps + attributes_extra) for custom columns
-            _flatten_span_attributes_into_entry(entry, row)
+            flatten_span_attributes_into_entry(entry, row)
 
             table_data.append(entry)
 
