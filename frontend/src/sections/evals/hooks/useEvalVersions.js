@@ -36,8 +36,13 @@ export function useSetDefaultVersion(templateId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (versionId) => {
+      // The endpoint's request body is ModelHubEmptyRequest (an empty
+      // object schema). The FE openapi-contract request validator zod-parses
+      // the body against z.record(z.any()), which rejects `undefined`.
+      // Send `{}` so the parse succeeds and the request actually fires.
       const { data } = await axios.put(
         endpoints.develop.eval.setDefaultVersion(templateId, versionId),
+        {},
       );
       return data?.result;
     },
@@ -56,8 +61,11 @@ export function useRestoreVersion(templateId) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (versionId) => {
+      // Contract body is ModelHubEmptyRequest, so send {}. The FE openapi
+      // request validator would reject `undefined` here.
       const { data } = await axios.post(
         endpoints.develop.eval.restoreVersion(templateId, versionId),
+        {},
       );
       return data?.result;
     },
