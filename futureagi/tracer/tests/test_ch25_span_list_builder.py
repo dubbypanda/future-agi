@@ -7,6 +7,7 @@ STRING contains only v2 column names. End-to-end parity (same SQL, same
 rows) is enforced by the parity-shadow harness when v1 and v2 run in
 production side-by-side.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -15,7 +16,6 @@ from django.test import override_settings
 from tracer.services.clickhouse.v2.query_builders.span_list import (
     SpanListQueryBuilderV2,
 )
-
 
 PROJECT_ID = "11111111-1111-1111-1111-111111111111"
 EVAL_CONFIG_ID = "22222222-2222-2222-2222-222222222222"
@@ -36,9 +36,15 @@ def _make_builder(filters=None, sort_params=None, eval_config_ids=None):
 def test_build_main_query_uses_v2_columns():
     sql, params = _make_builder().build()
     # No legacy column references
-    for legacy in ("_peerdb_is_deleted", "_peerdb_version",
-                   "span_attr_str", "span_attr_num", "span_attr_bool",
-                   "span_attributes_raw", "metadata_map"):
+    for legacy in (
+        "_peerdb_is_deleted",
+        "_peerdb_version",
+        "span_attr_str",
+        "span_attr_num",
+        "span_attr_bool",
+        "span_attributes_raw",
+        "metadata_map",
+    ):
         assert legacy not in sql, f"legacy column {legacy!r} leaked into v2 SQL"
     # And the canonical replacements ARE present where v1 would have used them
     assert "is_deleted" in sql, "v2 SQL must reference the is_deleted column"
@@ -73,13 +79,15 @@ def test_filter_compiler_class_yields_v2_columns():
     # that bypasses translate()), this test catches it.
     sql, _ = _make_builder(
         filters=[
-            {"column_id": "model",
-             "filter_config": {
-                 "col_type": "SYSTEM_METRIC",
-                 "filter_type": "text",
-                 "filter_op": "equals",
-                 "filter_value": "gpt-4o-mini",
-             }}
+            {
+                "column_id": "model",
+                "filter_config": {
+                    "col_type": "SYSTEM_METRIC",
+                    "filter_type": "text",
+                    "filter_op": "equals",
+                    "filter_value": "gpt-4o-mini",
+                },
+            }
         ],
     ).build()
     # The compiled query references the model column (not via the legacy
@@ -123,7 +131,11 @@ def test_build_eval_query_routes_to_v2_table():
     sql, _ = _make_builder(eval_config_ids=[EVAL_CONFIG_ID]).build_eval_query(
         span_ids=["sp1", "sp2"]
     )
-    assert "tracer_eval_logger_v2 FINAL" in sql
+    assert "tracer_eval_logger_v2" in sql
+    # PERF: no table-level FINAL — dedup happens on the page-scoped slice via
+    # `ORDER BY _version DESC LIMIT 1 BY id` inside the subquery.
+    assert "tracer_eval_logger_v2 FINAL" not in sql
+    assert "LIMIT 1 BY id" in sql
     assert "is_deleted = 0" in sql
     assert "_peerdb_is_deleted" not in sql
     assert "deleted IS NULL" not in sql
@@ -134,7 +146,9 @@ def test_build_eval_query_keeps_legacy_table_and_predicate():
     sql, _ = _make_builder(eval_config_ids=[EVAL_CONFIG_ID]).build_eval_query(
         span_ids=["sp1", "sp2"]
     )
-    assert "tracer_eval_logger FINAL" in sql
+    assert "tracer_eval_logger" in sql
+    assert "tracer_eval_logger FINAL" not in sql
+    assert "LIMIT 1 BY id" in sql
     assert "tracer_eval_logger_v2" not in sql
     assert "_peerdb_is_deleted = 0" in sql
     assert "deleted = 0 OR deleted IS NULL" in sql

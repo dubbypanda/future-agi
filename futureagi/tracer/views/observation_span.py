@@ -1490,16 +1490,32 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             ).select_related("eval_template")
             eval_config_ids = [str(c.id) for c in eval_configs]
         else:
-            ch_ids = analytics.get_eval_config_ids_with_data_ch(
-                str(project_id), timeout_ms=30000
-            )
-            if ch_ids:
-                eval_configs = CustomEvalConfig.objects.filter(
-                    id__in=ch_ids, deleted=False
+            # PERF: resolve this project's configs from PG first (indexed by the
+            # project FK), then ask CH which of them have recent data via a
+            # ``custom_eval_config_id IN (…)`` scope — the eval table's leading
+            # sort key, so CH prunes to just those configs. This replaces the old
+            # full-table trace-join discovery (tens of seconds / OOM-prone at
+            # scale) with a sub-second read. See
+            # AnalyticsQueryService.get_eval_config_ids_with_data_ch.
+            project_configs = list(
+                CustomEvalConfig.objects.filter(
+                    project_id=project_id, deleted=False
                 ).select_related("eval_template")
-                eval_config_ids = [str(c.id) for c in eval_configs]
-            else:
-                eval_configs = []
+            )
+            candidate_ids = [str(c.id) for c in project_configs]
+            ids_with_data = (
+                set(
+                    analytics.get_eval_config_ids_with_data_ch(
+                        str(project_id),
+                        timeout_ms=30000,
+                        candidate_config_ids=candidate_ids,
+                    )
+                )
+                if candidate_ids
+                else set()
+            )
+            eval_configs = [c for c in project_configs if str(c.id) in ids_with_data]
+            eval_config_ids = [str(c.id) for c in eval_configs]
 
         # Labels can be project-local or org/shared labels that are referenced
         # by span scores. Use the score-backed helper so span columns and
@@ -1526,6 +1542,21 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         # Phase 1: Paginated spans (light columns — no input/output)
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+
+        # De-dup the page by span id. The Phase-1 query dropped `LIMIT 1 BY id`
+        # (that clause forced an O(rows-in-window) full sort that OOM-crashed CH
+        # — see SpanListQueryBuilder.build). Duplicate ReplacingMergeTree span
+        # versions are rare and transient; keep the first occurrence, which is
+        # the most recent by the query's `ORDER BY start_time DESC`.
+        seen_ids: set[str] = set()
+        deduped = []
+        for row in result.data:
+            rid = str(row.get("id", ""))
+            if rid in seen_ids:
+                continue
+            seen_ids.add(rid)
+            deduped.append(row)
+        result.data = deduped
 
         # Truncate to page_size (query fetches page_size+1 for has_more detection)
         has_more = len(result.data) > page_size
@@ -1811,6 +1842,21 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         # Phase 1: Paginated spans (light columns — no input/output)
         query, params = builder.build()
         result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+
+        # De-dup the page by span id. The Phase-1 query dropped `LIMIT 1 BY id`
+        # (that clause forced an O(rows-in-window) full sort that OOM-crashed CH
+        # — see SpanListQueryBuilder.build). Duplicate ReplacingMergeTree span
+        # versions are rare and transient; keep the first occurrence, which is
+        # the most recent by the query's `ORDER BY start_time DESC`.
+        seen_ids: set[str] = set()
+        deduped = []
+        for row in result.data:
+            rid = str(row.get("id", ""))
+            if rid in seen_ids:
+                continue
+            seen_ids.add(rid)
+            deduped.append(row)
+        result.data = deduped
 
         # Truncate to page_size (query fetches page_size+1 for has_more detection)
         has_more = len(result.data) > page_size

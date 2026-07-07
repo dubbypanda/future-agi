@@ -408,9 +408,9 @@ class TestClickHouseSchema:
         assert names.index("span_metrics_hourly_mv") < names.index(
             "span_metrics_hourly"
         ), "MV must drop before its source table"
-        assert names.index("spans_mv") < names.index("tracer_observation_span"), (
-            "spans_mv must drop before tracer_observation_span"
-        )
+        assert names.index("spans_mv") < names.index(
+            "tracer_observation_span"
+        ), "spans_mv must drop before tracer_observation_span"
         # Idempotency: every drop wraps IF EXISTS so reruns are no-ops.
         for _, sql in drops:
             assert "IF EXISTS" in sql, f"drop must be idempotent: {sql}"
@@ -3244,9 +3244,7 @@ class TestUserListQueryBuilder:
             offset=0,
         )
         builder.build()
-        query, _ = builder.build_eval_query(
-            ["00000000-0000-0000-0000-000000000003"]
-        )
+        query, _ = builder.build_eval_query(["00000000-0000-0000-0000-000000000003"])
 
         assert "e.trace_id = toUUIDOrNull(ut.trace_id)" in query
         assert "toString(e.trace_id)" not in query
@@ -5244,8 +5242,12 @@ class TestSpanListQueryBuilderComprehensive:
         )
         builder.build()
         query, _ = builder.build_count_query()
-        # Post-revamp, the count query uses uniqExact(id) rather than count().
-        assert "uniqExact(id)" in query
+        # PERF: count() rather than uniqExact(id) — uniqExact built an unbounded
+        # exact hash set of every span id (GBs of memory, OOM-prone). count()
+        # reads only filter columns; a transient un-merged duplicate counts once
+        # extra, which is immaterial for a pagination total.
+        assert "count() AS total" in query
+        assert "uniqExact" not in query
         assert "LIMIT" not in query
         assert "OFFSET" not in query
 
@@ -6772,9 +6774,9 @@ class TestVoiceCallListPhase1bMigration:
         src = self._voice_list_source()
         # `FROM spans FINAL` collapses ReplacingMergeTree duplicates — the
         # v2 dedup contract. FINAL alone (without `spans`) is too permissive.
-        assert re.search(r"FROM\s+spans\s+FINAL", src), (
-            "_list_voice_calls_clickhouse must hydrate from v2 `spans FINAL`."
-        )
+        assert re.search(
+            r"FROM\s+spans\s+FINAL", src
+        ), "_list_voice_calls_clickhouse must hydrate from v2 `spans FINAL`."
         assert "is_deleted = 0" in src
 
     def test_phase_1b_selects_typed_map_columns_for_reconstruction(self):
@@ -7186,9 +7188,9 @@ class TestVoiceCallListQueryBuilderComprehensive:
         # Each phone number is still recognised as a simulator call in Python.
         for phone in VAPI_PHONE_NUMBERS:
             span_attrs = {"raw_log": {"customer": {"number": phone}}}
-            assert VoiceCallListQueryBuilder.is_simulator_call(span_attrs, "vapi"), (
-                f"Missing phone number: {phone}"
-            )
+            assert VoiceCallListQueryBuilder.is_simulator_call(
+                span_attrs, "vapi"
+            ), f"Missing phone number: {phone}"
 
     def test_simulation_filter_uses_json_extract(self):
         """Simulation filtering is now Python-side against parsed raw_log.

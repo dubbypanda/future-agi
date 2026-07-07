@@ -200,13 +200,23 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             )
             WHERE resolved_end_user_id = %(end_user_id)s
             {order_clause}
-            LIMIT 1 BY id
             LIMIT %(limit)s
             OFFSET %(offset)s
             """
             return query, self.params
 
-        # Light columns only — input/output fetched via build_content_query()
+        # Light columns only — input/output fetched via build_content_query().
+        #
+        # PERF: no `LIMIT 1 BY id`. On a wide time window that clause forced CH
+        # to read + full-sort EVERY matching row (the whole window) to dedup by
+        # id before applying ORDER BY … LIMIT — O(rows-in-window) memory that
+        # OOM-crashed the server at ~10M+ rows. Dropping it lets `ORDER BY
+        # start_time DESC LIMIT n` run as a bounded top-N (a size-n priority
+        # queue, O(n) memory), so the page returns without materializing the
+        # window. ReplacingMergeTree duplicate span versions are rare + transient
+        # (collapsed on the next merge); the view dedups the returned page by
+        # span_id in Python to keep one row per span. `is_deleted = 0` (from
+        # project_where) still excludes soft-deleted rows.
         query = f"""
         SELECT
             id,
@@ -234,7 +244,6 @@ class SpanListQueryBuilder(BaseQueryBuilder):
           {pv_fragment}
           {filter_fragment}
         {order_clause}
-        LIMIT 1 BY id
         LIMIT %(limit)s
         OFFSET %(offset)s
         """
@@ -291,7 +300,17 @@ class SpanListQueryBuilder(BaseQueryBuilder):
         return query, params
 
     def build_count_query(self) -> tuple[str, dict[str, Any]]:
-        """Build a count query for total matching spans."""
+        """Build a count query for total matching spans.
+
+        PERF: uses ``count()`` rather than ``uniqExact(id)``. ``uniqExact`` built
+        an exact hash set of every matching span id (tens of millions of 16-char
+        strings) — hundreds of MB to GBs of unbounded memory that OOM-crashed the
+        server on large windows. ``count()`` reads only the filter columns and
+        needs O(1) memory. The pagination total is a display value; the only
+        difference is that a transient un-merged ReplacingMergeTree duplicate is
+        counted once extra, which is immaterial and self-heals on the next merge
+        (and matches the list, which no longer de-dups via ``LIMIT 1 BY id``).
+        """
         fb = self._FILTER_BUILDER_CLS(
             table=self.TABLE,
             query_mode=self._FILTER_BUILDER_CLS.QUERY_MODE_SPAN,
@@ -325,7 +344,7 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             remap_join = remap_left_join("rs.end_user_id", "end_user_id_remap")
             resolved_eu = resolved_id_expr("rs.end_user_id")
             query = f"""
-            SELECT uniqExact(id) AS total
+            SELECT count() AS total
             FROM (
                 SELECT rs.id AS id, {resolved_eu} AS resolved_end_user_id
                 FROM (
@@ -345,7 +364,7 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             return query, params
 
         query = f"""
-        SELECT uniqExact(id) AS total
+        SELECT count() AS total
         FROM {self.TABLE}
         {self.project_where()}
           AND created_at >= %(start_date)s - INTERVAL 1 DAY
@@ -375,6 +394,12 @@ class SpanListQueryBuilder(BaseQueryBuilder):
         }
 
         eval_table, eval_not_deleted = eval_logger_source()
+        # ReplacingMergeTree version column: v2 uses `_version`, the legacy CDC
+        # mirror uses `_peerdb_version`. Used to keep the newest row per eval id
+        # when de-duplicating without FINAL (see the FROM clause below).
+        eval_version_col = (
+            "_version" if eval_table.endswith("_v2") else "_peerdb_version"
+        )
 
         # Aggregates are computed only over *completed*, non-errored rows so a
         # non-terminal (pending/running) or skipped row never skews a score or
@@ -423,10 +448,37 @@ class SpanListQueryBuilder(BaseQueryBuilder):
                 output_str_list,
                 error = 0 AND ifNull(output_str, '') != 'ERROR' AND status NOT IN ('pending', 'running', 'skipped', 'errored')
             ) AS str_lists
-        FROM {eval_table} FINAL
-        WHERE {eval_not_deleted}
-          AND observation_span_id IN %(span_ids)s
-          AND custom_eval_config_id IN %(eval_config_ids)s
+        -- PERF: no table-level FINAL. FINAL forces a merge across the WHOLE eval
+        -- table before the WHERE is applied, so a page of ~50 span ids dragged a
+        -- merge over tens of millions of rows — GBs of memory that OOM-crashed
+        -- the server. Instead we de-dup only the tiny page-scoped slice: the
+        -- inner scan is pruned to the page's span ids (idx_observation_span_id
+        -- bloom) + the config ids, then ORDER BY the version col DESC + LIMIT 1
+        -- BY id keeps the newest version of each eval row — verified identical
+        -- to FINAL for live rows (status transitions collapse to the newest
+        -- version), at O(rows-for-this-page) cost. One accepted divergence:
+        -- the not-deleted WHERE runs BEFORE dedup, so an eval whose newest
+        -- un-merged version is a soft-delete marker transiently surfaces its
+        -- previous version until the next merge collapses the parts (FINAL
+        -- merged first and hid it immediately).
+        FROM (
+            SELECT
+                observation_span_id,
+                custom_eval_config_id,
+                output_float,
+                output_bool,
+                output_str,
+                output_str_list,
+                error,
+                status,
+                skipped_reason
+            FROM {eval_table}
+            WHERE {eval_not_deleted}
+              AND observation_span_id IN %(span_ids)s
+              AND custom_eval_config_id IN %(eval_config_ids)s
+            ORDER BY {eval_version_col} DESC
+            LIMIT 1 BY id
+        )
         GROUP BY observation_span_id, custom_eval_config_id
         SETTINGS max_bytes_before_external_group_by = 1073741824, max_bytes_before_external_sort = 1073741824
         """
@@ -449,16 +501,26 @@ class SpanListQueryBuilder(BaseQueryBuilder):
             "label_ids": tuple(self.annotation_label_ids),
         }
 
+        # PERF: no table-level FINAL (same OOM risk as the eval phase — FINAL
+        # merges the whole model_hub_score table before the page filter). De-dup
+        # only the page-scoped slice: prune to the page's span ids + labels, keep
+        # the newest version per score id via `ORDER BY _peerdb_version DESC
+        # LIMIT 1 BY id`, then `anyLast(value)` per (span, label).
         query = f"""
         SELECT
             observation_span_id,
             toString(label_id) AS label_id,
             anyLast(value) AS value
-        FROM {self.ANNOTATION_TABLE} FINAL
-        WHERE _peerdb_is_deleted = 0
-          AND deleted = false
-          AND observation_span_id IN %(span_ids)s
-          AND label_id IN %(label_ids)s
+        FROM (
+            SELECT observation_span_id, label_id, value
+            FROM {self.ANNOTATION_TABLE}
+            WHERE _peerdb_is_deleted = 0
+              AND deleted = false
+              AND observation_span_id IN %(span_ids)s
+              AND label_id IN %(label_ids)s
+            ORDER BY _peerdb_version DESC
+            LIMIT 1 BY id
+        )
         GROUP BY observation_span_id, label_id
         """
         return query, params
