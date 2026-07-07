@@ -18,6 +18,10 @@ import { LoadingButton } from "@mui/lab";
 import { FormSelectField } from "src/components/FormSelectField";
 import { PromptSection } from "src/components/prompt-section";
 import { copyToClipboard } from "src/utils/utils";
+import {
+  authFailMessage,
+  isAuthFailCloseCode,
+} from "src/sections/workbench/createPrompt/common";
 import { enqueueSnackbar } from "notistack";
 import { useMutation } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
@@ -186,6 +190,21 @@ const LeftSection = ({
               type: "improve_prompt",
             },
             onMessage: (wsData) => {
+              // Surface top-level BE error frames (permission, workspace, etc.)
+              // before the type filter so the spinner doesn't hang on 4003/4004.
+              if (wsData?.type === "error") {
+                if (settled) return;
+                settled = true;
+                enqueueSnackbar(wsData?.message || "Failed to improve prompt", {
+                  variant: "error",
+                });
+                setIsGenerateVisible(false);
+                setStreamedText("");
+                reject(
+                  new Error(wsData?.message || "improve_permission_denied"),
+                );
+                return;
+              }
               if (wsData?.type !== "improve_prompt") return;
 
               const current_activity = wsData?.current_activity;
@@ -254,13 +273,19 @@ const LeftSection = ({
               setStreamedText("");
               reject(err);
             },
-            onClose: () => {
-              if (!settled) {
-                settled = true;
-                setIsGenerateVisible(false);
-                setStreamedText("");
-                reject(new Error("WebSocket connection closed unexpectedly"));
+            onClose: (event) => {
+              if (settled) return;
+              settled = true;
+              setIsGenerateVisible(false);
+              setStreamedText("");
+              const isAuthFail = isAuthFailCloseCode(event);
+              const message = isAuthFail
+                ? authFailMessage(event)
+                : "WebSocket connection closed unexpectedly";
+              if (isAuthFail) {
+                enqueueSnackbar(message, { variant: "error" });
               }
+              reject(new Error(message));
             },
           });
 

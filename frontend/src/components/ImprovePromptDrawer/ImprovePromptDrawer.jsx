@@ -14,7 +14,11 @@ import logger from "src/utils/logger";
 import { Events, PropertyName, trackEvent } from "src/utils/Mixpanel";
 import { useParams } from "react-router";
 import { usePromptStreamUrl } from "src/sections/workbench/createPrompt/hooks/usePromptStreamUrl";
-import { runPromptOverSocket } from "src/sections/workbench/createPrompt/common";
+import {
+  authFailMessage,
+  isAuthFailCloseCode,
+  runPromptOverSocket,
+} from "src/sections/workbench/createPrompt/common";
 import { useBeforeUnload } from "src/hooks/useBeforeUnload";
 import { useActiveSocket } from "src/hooks/use-active-socket";
 
@@ -85,6 +89,19 @@ export default function ImprovePromptDrawer({
           },
           onMessage: (data) => {
             const wsData = data;
+            // Surface top-level BE error frames (permission, workspace, etc.)
+            // before the type filter so the spinner doesn't hang on 4003/4004.
+            if (wsData?.type === "error") {
+              if (settled) return;
+              settled = true;
+              enqueueSnackbar(wsData?.message || "Failed to improve prompt", {
+                variant: "error",
+              });
+              setIsImprovingPrompt(false);
+              setLoadingStage("");
+              reject(new Error(wsData?.message || "improve_permission_denied"));
+              return;
+            }
             if (wsData?.type !== "improve_prompt") return;
             const generatePromptData = wsData;
             const current_activity = generatePromptData?.current_activity;
@@ -132,16 +149,18 @@ export default function ImprovePromptDrawer({
             );
             reject(err);
           },
-          onClose: () => {
-            if (!settled) {
-              settled = true;
-              setIsImprovingPrompt(false);
-              reject(
-                new Error(
-                  "WebSocket closed before prompt improvement completed",
-                ),
-              );
+          onClose: (event) => {
+            if (settled) return;
+            settled = true;
+            setIsImprovingPrompt(false);
+            const isAuthFail = isAuthFailCloseCode(event);
+            const message = isAuthFail
+              ? authFailMessage(event)
+              : "WebSocket closed before prompt improvement completed";
+            if (isAuthFail) {
+              enqueueSnackbar(message, { variant: "error" });
             }
+            reject(new Error(message));
           },
         });
         activeSocketRef.current = socket;

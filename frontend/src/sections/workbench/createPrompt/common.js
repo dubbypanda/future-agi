@@ -1,5 +1,29 @@
-import { PromptRoles } from "src/utils/constants";
+import { PromptRoles, WS_CLOSE_CODES } from "src/utils/constants";
 import { extractVariables } from "./Playground/common";
+
+/**
+ * Predicate: does this CloseEvent indicate a BE-initiated auth failure
+ * (unauthenticated / permission denied / not found)?
+ *
+ * Every WS consumer that calls runPromptOverSocket should branch on this in
+ * its `onClose` — if true, settle the pending Promise, clear any polling
+ * timers, and surface the reason. If false, fall through to the caller's
+ * normal disconnect handling.
+ *
+ * Kept as a shared helper so a) all four consumers stay in sync and b) the
+ * value set is testable in one place (see ws-close-codes.test.js).
+ */
+export const isAuthFailCloseCode = (event) =>
+  event?.code === WS_CLOSE_CODES.PERMISSION_DENIED ||
+  event?.code === WS_CLOSE_CODES.NOT_FOUND ||
+  event?.code === WS_CLOSE_CODES.UNAUTHENTICATED;
+
+/**
+ * Extract the human-visible reason from an auth-fail CloseEvent. Falls back
+ * to a canonical FE string when the server didn't attach one (e.g. some
+ * browsers strip long reasons per RFC 6455's 123-byte limit).
+ */
+export const authFailMessage = (event) => event?.reason || "Permission denied";
 
 export const dataTypeMapping = {
   "Pass/Fail": "boolean",

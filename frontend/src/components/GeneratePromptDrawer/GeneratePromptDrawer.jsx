@@ -22,7 +22,11 @@ import { ConfirmDialog } from "../custom-dialog";
 import { enqueueSnackbar } from "notistack";
 import { GENERATE_PROMPT_BUTTONS } from "src/utils/constants";
 import { usePromptStreamUrl } from "src/sections/workbench/createPrompt/hooks/usePromptStreamUrl";
-import { runPromptOverSocket } from "src/sections/workbench/createPrompt/common";
+import {
+  authFailMessage,
+  isAuthFailCloseCode,
+  runPromptOverSocket,
+} from "src/sections/workbench/createPrompt/common";
 import { useBeforeUnload } from "src/hooks/useBeforeUnload";
 import { useActiveSocket } from "src/hooks/use-active-socket";
 
@@ -92,6 +96,22 @@ export default function GeneratePromptDrawer({
           },
           onMessage: (data) => {
             const wsData = data;
+            // Surface top-level BE error frames (permission, workspace, etc.)
+            // before the type filter so the spinner doesn't hang on 4003/4004.
+            if (wsData?.type === "error") {
+              if (settled) return;
+              settled = true;
+              enqueueSnackbar(wsData?.message || "Failed to generate prompt", {
+                variant: "error",
+              });
+              setIsGeneratingPrompt(false);
+              setLoadingStage("");
+              setGeneratedPrompt("");
+              reject(
+                new Error(wsData?.message || "generate_permission_denied"),
+              );
+              return;
+            }
             if (wsData?.type !== "generate_prompt") return;
             const generatePromptData = wsData;
             const current_activity = generatePromptData?.current_activity;
@@ -137,16 +157,18 @@ export default function GeneratePromptDrawer({
             );
             reject(err);
           },
-          onClose: () => {
-            if (!settled) {
-              settled = true;
-              setIsGeneratingPrompt(false);
-              reject(
-                new Error(
-                  "WebSocket closed before prompt generation completed",
-                ),
-              );
+          onClose: (event) => {
+            if (settled) return;
+            settled = true;
+            setIsGeneratingPrompt(false);
+            const isAuthFail = isAuthFailCloseCode(event);
+            const message = isAuthFail
+              ? authFailMessage(event)
+              : "WebSocket closed before prompt generation completed";
+            if (isAuthFail) {
+              enqueueSnackbar(message, { variant: "error" });
             }
+            reject(new Error(message));
           },
         });
         activeSocketRef.current = socket;
