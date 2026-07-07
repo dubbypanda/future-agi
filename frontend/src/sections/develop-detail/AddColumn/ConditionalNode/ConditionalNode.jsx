@@ -374,26 +374,26 @@ def main(**kwargs):
     setType(formData.type);
     let updateConfig = {};
     switch (formData.type) {
-      case "api_call":
+      case "api_call": {
+        // Child now writes snake_case natively (TH-6543): top-level
+        // `column_name`, `concurrency`, and a nested `config` with
+        // `url/method/params/headers/body/output_type`. Flatten the nested
+        // `config` into `branch_node_config.config` so the persisted shape
+        // matches what the api_call read block (formattedData) below reads
+        // — no dead camelCase remaps.
+        const { config: apiCallConfig = {}, type: _type, ...rest } = formData;
         updateConfig = {
           ...currentConfig,
           branch_node_config: {
             ...currentConfig.branch_node_config,
             config: {
-              ...formData,
-              // column_id:formData.columnId,
-              url: formData.config.url,
-              method: formData.config.method,
-              params: formData.config.params,
-              headers: formData.config.headers,
-              body: formData.config.body,
-              outputType: formData.config.outputType,
-              concurrency: formData.concurrency,
-              columnName: formData.columnName,
+              ...rest, // column_name, concurrency
+              ...apiCallConfig, // url, method, params, headers, body, output_type
             },
           },
         };
         break;
+      }
       case "run_prompt":
         updateConfig = {
           ...currentConfig,
@@ -423,18 +423,16 @@ def main(**kwargs):
         };
         break;
       case "classification":
+        // Child form now writes snake_case fields (column_id,
+        // language_model_id, new_column_name) natively — see PR #1309 +
+        // TH-6543 refactor — so ...formData already carries the right
+        // shape. The explicit camelCase remaps that used to live here
+        // would now overwrite the real values with `undefined`.
         updateConfig = {
           ...currentConfig,
           branch_node_config: {
             ...currentConfig.branch_node_config,
-            config: {
-              ...formData,
-              column_id: formData.columnId,
-              language_model_id: formData.languageModelId,
-              concurrency: formData.concurrency,
-              labels: formData.labels,
-              newColumnName: formData.newColumnName,
-            },
+            config: { ...formData },
           },
         };
         break;
@@ -463,47 +461,15 @@ def main(**kwargs):
         };
         break;
       case "extract_entities":
-        updateConfig = {
-          ...currentConfig,
-          branch_node_config: {
-            ...currentConfig.branch_node_config,
-            config: {
-              ...formData,
-              column_id: formData.columnId,
-              language_model_id: formData.languageModelId,
-              concurrency: formData.concurrency,
-              instruction: formData.instruction,
-              newColumnName: formData.newColumnName,
-            },
-          },
-        };
-        break;
       case "extract_json":
-        updateConfig = {
-          ...currentConfig,
-          branch_node_config: {
-            ...currentConfig.branch_node_config,
-            config: {
-              ...formData,
-              column_id: formData.columnId,
-              jsonKey: formData.jsonKey,
-              concurrency: formData.concurrency,
-              newColumnName: formData.newColumnName,
-            },
-          },
-        };
-        break;
       case "extract_code":
+        // Child forms now write snake_case natively (PR #1309 + TH-6543);
+        // ...formData carries the correct shape without a remap.
         updateConfig = {
           ...currentConfig,
           branch_node_config: {
             ...currentConfig.branch_node_config,
-            config: {
-              ...formData,
-              code: formData.code,
-              concurrency: formData.concurrency,
-              newColumnName: formData.newColumnName,
-            },
+            config: { ...formData },
           },
         };
         break;
@@ -588,20 +554,25 @@ def main(**kwargs):
         switch (data.branch_node_config.type) {
           case "api_call":
             {
+              // New branches (post-TH-6543) persist `column_name` and
+              // `output_type` snake-side. Legacy branches saved before
+              // this PR still have `columnName` / `outputType` (camel).
+              // Read snake first, fall back to camel — no migration needed.
+              const cfg = data.branch_node_config.config || {};
               const configData = {
                 branch_type: data.branch_type,
                 condition: transformCondition(data.condition, allColumns),
                 branch_node_config: {
                   type: data.branch_node_config.type,
                   config: {
-                    url: data.branch_node_config.config.url,
-                    method: data.branch_node_config.config.method,
-                    params: data.branch_node_config.config.params,
-                    headers: data.branch_node_config.config.headers,
+                    url: cfg.url,
+                    method: cfg.method,
+                    params: cfg.params,
+                    headers: cfg.headers,
                     body: body.length ? JSON.parse(body) : {},
-                    column_name: data.branch_node_config.config.columnName,
-                    output_type: data.branch_node_config.config.outputType,
-                    concurrency: data.branch_node_config.config.concurrency,
+                    column_name: cfg.column_name ?? cfg.columnName,
+                    output_type: cfg.output_type ?? cfg.outputType,
+                    concurrency: cfg.concurrency,
                   },
                 },
               };
@@ -679,58 +650,41 @@ def main(**kwargs):
             break;
 
           case "extract_entities":
-            {
-              const configData = {
-                branch_type: data.branch_type,
-                condition: transformCondition(data.condition, allColumns),
-                branch_node_config: {
-                  type: data.branch_node_config.config.type,
-                  config: {
-                    column_id: data.branch_node_config.config.column_id,
-                    instruction: data.branch_node_config.config.instruction,
-                    language_model_id:
-                      data.branch_node_config.config.language_model_id,
-                    new_column_name:
-                      data.branch_node_config.config.newColumnName,
-                    concurrency: data.branch_node_config.config.concurrency,
-                  },
-                },
-              };
-              formattedData.config.push(configData);
-            }
-
-            break;
           case "extract_json":
-            {
-              const configData = {
-                branch_type: data.branch_type,
-                condition: transformCondition(data.condition, allColumns),
-                branch_node_config: {
-                  type: data.branch_node_config.config.type,
-                  config: {
-                    column_id: data.branch_node_config.config.column_id,
-                    json_key: data.branch_node_config.config.jsonKey,
-                    new_column_name:
-                      data.branch_node_config.config.newColumnName,
-                    concurrency: data.branch_node_config.config.concurrency,
-                  },
-                },
-              };
-              formattedData.config.push(configData);
-            }
-            break;
           case "extract_code":
             {
+              // New branches (post-PR #1309 + TH-6543) are stored in
+              // snake_case. Old branches persisted before those PRs kept
+              // camelCase (jsonKey, newColumnName). Read new first, fall
+              // back to legacy — no data migration needed.
+              const cfg = data.branch_node_config.config || {};
               const configData = {
                 branch_type: data.branch_type,
                 condition: transformCondition(data.condition, allColumns),
                 branch_node_config: {
-                  type: data.branch_node_config.config.type,
+                  type: cfg.type,
                   config: {
-                    code: data.branch_node_config.config.code,
+                    ...cfg,
+                    // Legacy-camel → snake fallbacks (harmless if already
+                    // snake, since ...cfg above set the snake key first).
+                    // extract_code has no `column_id` on either shape, so
+                    // skip that key entirely for that type to avoid
+                    // polluting the payload with `column_id: undefined`.
+                    ...((data.branch_node_config.type === "extract_json" ||
+                      data.branch_node_config.type === "extract_entities") && {
+                      column_id: cfg.column_id ?? cfg.columnId,
+                    }),
+                    ...(data.branch_node_config.type === "extract_json" && {
+                      json_key: cfg.json_key ?? cfg.jsonKey,
+                    }),
+                    ...(data.branch_node_config.type ===
+                      "extract_entities" && {
+                      language_model_id:
+                        cfg.language_model_id ?? cfg.languageModelId,
+                    }),
                     new_column_name:
-                      data.branch_node_config.config.newColumnName,
-                    concurrency: data.branch_node_config.config.concurrency,
+                      cfg.new_column_name ?? cfg.newColumnName,
+                    concurrency: cfg.concurrency,
                   },
                 },
               };
@@ -738,20 +692,34 @@ def main(**kwargs):
             }
             break;
           case "classification": {
+            // New branches (post-TH-6543) persist snake_case throughout.
+            // Legacy branches saved before this PR have `newColumnName`
+            // / `columnId` / `languageModelId`. Read snake first, fall
+            // back to camel — no migration needed.
+            //
+            // Labels: the child's zod schema `.transform((t) => t.map((e) => e.value))`
+            // already reduces `[{id,value}]` to `[value,value]` at submit
+            // time, so `cfg.labels` here is already the string-array the
+            // backend wants. Guard against the legacy object-array shape
+            // too in case a mid-session state slipped through.
+            const cfg = data.branch_node_config.config || {};
+            const labels = Array.isArray(cfg.labels)
+              ? cfg.labels.map((item) =>
+                  typeof item === "string" ? item : item?.value,
+                )
+              : [];
             const configData = {
               branch_type: data.branch_type,
               condition: transformCondition(data.condition, allColumns),
               branch_node_config: {
                 type: data.branch_node_config.config.type,
                 config: {
-                  column_id: data.branch_node_config.config.column_id,
-                  labels: data.branch_node_config.config.labels.map((item) => {
-                    return item.value;
-                  }),
-                  new_column_name: data.branch_node_config.config.newColumnName,
-                  concurrency: data.branch_node_config.config.concurrency,
+                  column_id: cfg.column_id ?? cfg.columnId,
+                  labels,
+                  new_column_name: cfg.new_column_name ?? cfg.newColumnName,
+                  concurrency: cfg.concurrency,
                   language_model_id:
-                    data.branch_node_config.config.language_model_id,
+                    cfg.language_model_id ?? cfg.languageModelId,
                 },
               },
             };

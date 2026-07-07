@@ -24,7 +24,7 @@ const getDefaultValue = () => {
 def main(**kwargs):
     return kwargs.get("column_name")
 `,
-    newColumnName: "",
+    new_column_name: "",
     concurrency: "",
   };
 };
@@ -55,7 +55,7 @@ export const ExecuteCodeChild = ({
 def main(**kwargs):
     return kwargs.get("column_name")
 `,
-      newColumnName: "",
+      new_column_name: "",
       concurrency: "",
     },
     resolver: zodResolver(ExecuteCodeValidation(!!onFormSubmit, !!editId)),
@@ -104,18 +104,12 @@ def main(**kwargs):
     },
   });
 
-  const transformFormToApi = (formValues) => {
-    const { newColumnName, ...rest } = formValues;
-    return {
-      ...rest,
-      new_column_name: newColumnName,
-    };
-  };
-
+  // Form fields are already snake_case (see defaultValues above), so we pass
+  // formValues straight through — no snake↔camel remap.
   const onSubmit = (formValues) => {
     if (editId) {
       updateColumn({
-        config: transformFormToApi(formValues),
+        config: formValues,
         operation_type: "execute_code",
       });
       return;
@@ -133,7 +127,7 @@ def main(**kwargs):
 
   const handlePreview = handleSubmit((formValues) => {
     if (!onFormSubmit) {
-      preview(transformFormToApi(formValues));
+      preview(formValues);
     }
   });
 
@@ -191,7 +185,7 @@ def main(**kwargs):
               size="small"
               placeholder="Enter column name"
               control={control}
-              fieldName="newColumnName"
+              fieldName="new_column_name"
             />
           )}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

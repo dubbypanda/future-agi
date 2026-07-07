@@ -32,14 +32,17 @@ import { transformDynamicColumnConfig } from "../common";
 
 const getDefaultValue = () => {
   return {
-    columnName: "",
+    // snake_case fields match the backend metadata shape directly so
+    // `reset(initialData)` on edit hydrates the form without a transform
+    // (same fix pattern as PR #1309 / TH-6423 / TH-6543).
+    column_name: "",
     config: {
       url: "",
       method: "POST",
       params: [],
       headers: [],
       body: "",
-      outputType: "string",
+      output_type: "string",
     },
     concurrency: "",
   };
@@ -151,18 +154,8 @@ export const AddColumnApiCallChild = ({
     },
   });
 
-  const transformFormToApi = (formValues) => {
-    const { columnName, ...rest } = formValues;
-    const { outputType, ...configRest } = rest.config || {};
-    return {
-      ...rest,
-      config: {
-        ...configRest,
-        output_type: outputType,
-      },
-      column_name: columnName,
-    };
-  };
+  // Form fields already match backend snake_case (see defaultValues above)
+  // — pass formValues straight through.
 
   // Block columns whose name contains a dot (dot is the JSON path separator).
   // Uses raw form values so we have display names + array indices for setError.
@@ -233,7 +226,7 @@ export const AddColumnApiCallChild = ({
     if (!validateBodyVariable(formValues)) return;
     if (editId) {
       updateColumn({
-        config: { ...transformFormToApi(formValues) },
+        config: { ...formValues },
         operation_type: "api_call",
       });
       return;
@@ -241,7 +234,7 @@ export const AddColumnApiCallChild = ({
     if (onFormSubmit) {
       onFormSubmit({ ...formValues, type: "api_call" });
     } else {
-      addColumn(transformFormToApi(formValues));
+      addColumn(formValues);
     }
   };
 
@@ -249,8 +242,10 @@ export const AddColumnApiCallChild = ({
     if (!validateDotInColumnNames()) return;
     if (!validateBodyVariable(formValues)) return;
     if (!onFormSubmit) {
-      const { config } = transformFormToApi(formValues);
-      preview({ config });
+      // Preview endpoint only needs the `config` payload (url/body/params/…).
+      // Form fields are already snake_case natively (see defaultValues), so
+      // no transform is needed on the way out.
+      preview({ config: formValues.config });
     }
   });
 
@@ -309,7 +304,7 @@ export const AddColumnApiCallChild = ({
               size="small"
               placeholder="Enter name"
               control={control}
-              fieldName="columnName"
+              fieldName="column_name"
             />
           </ShowComponent>
           <FormSearchSelectFieldControl
@@ -317,7 +312,7 @@ export const AddColumnApiCallChild = ({
             label="Output Type"
             size="small"
             control={control}
-            fieldName="config.outputType"
+            fieldName="config.output_type"
             options={OutputTypeOptions}
           />
           <RequestBody

@@ -1,12 +1,16 @@
 import { z } from "zod";
 
+// Field names match the snake_case shape the backend returns from
+// `GET /model-hub/columns/{id}/operation-config/` → `result.metadata`, so
+// `reset(initialData)` on edit hydrates the form directly without a
+// snake↔camel transform. Same pattern PR #1309 established for extract_json.
 export const ExtractEntitiesValidationSchema = (
   isConditioalNode = false,
   isEdit,
 ) => {
   return z.object({
     type: z.string().optional(),
-    columnId: z
+    column_id: z
       .string({
         required_error: "Column ID is required",
       })
@@ -20,7 +24,7 @@ export const ExtractEntitiesValidationSchema = (
       .min(1, {
         message: "Instruction is required",
       }),
-    languageModelId: z
+    language_model_id: z
       .string({
         required_error: "Language Model is required",
       })
@@ -28,7 +32,7 @@ export const ExtractEntitiesValidationSchema = (
         message: "Language Model is required",
       }),
     concurrency: z.number().positive("Concurrency must be a positive integer"),
-    newColumnName:
+    new_column_name:
       isConditioalNode || isEdit
         ? z.string().optional()
         : z
