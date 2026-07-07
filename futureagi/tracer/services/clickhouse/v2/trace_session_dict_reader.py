@@ -89,6 +89,7 @@ from tracer.services.clickhouse.v2.id_remap_sql import (
     remap_left_join,
     resolved_id_expr,
 )
+from tracer.services.clickhouse.v2.query_settings import current_settings
 
 log = structlog.get_logger("ch25.trace_session_dict_reader")
 
@@ -109,12 +110,48 @@ _LABEL_ATTR = "external_session_id"
 
 _client = None
 _client_lock = threading.Lock()
+# Cached client for non-empty settings contexts. At most one live client per
+# distinct settings dict; replaced (old closed) when the key changes.
+_settings_client = None
+_settings_client_key = None
 
 
 def _get_client():
     """Lazily build + cache a clickhouse-connect client (mirrors
     ``end_user_dict_reader._get_client``; kept separate so a reset here can't
-    disturb the enduser reader's or writer's cached handle)."""
+    disturb the enduser reader's or writer's cached handle).
+
+    When ``ch_query_settings`` is active, returns a cached client keyed by the
+    merged settings dict. Reuses it while the key matches; closes and replaces
+    the cached client when the key changes. At most one live settings-client at
+    any time, no per-call leak. The empty-settings path is unchanged."""
+    overrides = current_settings()
+    if overrides:
+        global _settings_client, _settings_client_key
+        key = tuple(sorted(overrides.items()))
+        with _client_lock:
+            if _settings_client_key == key and _settings_client is not None:
+                return _settings_client
+            # Key changed or no cached settings-client: close old, build new.
+            if _settings_client is not None:
+                try:
+                    _settings_client.close()
+                except Exception:
+                    pass
+            import clickhouse_connect
+
+            cfg = get_v2_config()
+            _settings_client = clickhouse_connect.get_client(
+                host=cfg["host"],
+                port=cfg["http_port"],
+                username=cfg["user"],
+                password=cfg["password"] or "",
+                database=cfg["database"],
+                send_receive_timeout=15,
+                settings=overrides,
+            )
+            _settings_client_key = key
+        return _settings_client
     global _client
     if _client is not None:
         return _client
@@ -135,7 +172,7 @@ def _get_client():
 
 
 def _reset_client() -> None:
-    global _client
+    global _client, _settings_client, _settings_client_key
     with _client_lock:
         try:
             if _client is not None:
@@ -143,6 +180,13 @@ def _reset_client() -> None:
         except Exception:
             pass
         _client = None
+        try:
+            if _settings_client is not None:
+                _settings_client.close()
+        except Exception:
+            pass
+        _settings_client = None
+        _settings_client_key = None
 
 
 def resolve_external_session_ids(

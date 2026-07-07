@@ -43,6 +43,7 @@ from tracer.services.clickhouse.v2.id_remap_sql import (
     remap_left_join,
     resolved_id_expr,
 )
+from tracer.services.clickhouse.v2.query_settings import current_settings
 
 
 # Field list that the eval runner actually reads off of an ObservationSpan.
@@ -373,6 +374,7 @@ class CHSpanReader:
             password=password,
             database=database,
             send_receive_timeout=timeout_sec,
+            settings=current_settings() or None,
         )
 
     def close(self) -> None:
