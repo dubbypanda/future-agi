@@ -41,7 +41,7 @@ def _build_mock_db_client(
 
     ``expected_replicas`` sets the ``system.clusters`` count.
     ``replicas_present`` (default: same as ``expected_replicas``) sets how
-    many replicas appear in ``per_replica_counts`` — set it below
+    many replicas appear in ``per_replica_counts``: set it below
     ``expected_replicas`` to simulate a follower that hasn't registered.
     ``columns`` overrides the shared-columns view of ``system.columns``.
     """
@@ -275,7 +275,7 @@ def test_parity_check_reads_system_tables_total_rows_not_leader_only_count():
     disappears from the result entirely and the parity check reads as
     "converged" over the replicas that happen to be present.
     ``system.tables.total_rows`` returns one row per replica that holds
-    the table — including the empty ones — which is the signal the gate
+    the table, including the empty ones, which is the signal the gate
     actually needs.
     """
     db_client, _ = _build_mock_db_client(source_distinct=14, target_count_before=0)

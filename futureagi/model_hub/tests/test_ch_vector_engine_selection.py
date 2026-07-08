@@ -221,7 +221,7 @@ def test_is_clustered_transient_probe_failure_does_not_poison_cache(
 
     If a transient failure poisoned the process cache with ``False``, every
     subsequent table create in that worker would silently emit a
-    non-replicated engine on what is actually a clustered CH — a large
+    non-replicated engine on what is actually a clustered CH, a large
     blast radius for a low-probability event. The next call after CH comes
     back must re-probe and return the true value.
     """
