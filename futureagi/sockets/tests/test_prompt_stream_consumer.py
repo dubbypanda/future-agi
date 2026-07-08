@@ -37,7 +37,6 @@ def _make_consumer(workspace_id=None, user=None):
     consumer.user = user or MagicMock()
     consumer.send_json = AsyncMock()
     consumer.close = AsyncMock()
-    consumer._last_org_id = None
     return consumer
 
 
@@ -136,8 +135,6 @@ def test_resolve_happy_path_pins_org_and_does_not_close(monkeypatch):
     assert workspace is workspace_obj
     assert org_id == "org-a"
     consumer.close.assert_not_awaited()
-    # _last_org_id cache set for the stop_* handlers.
-    assert consumer._last_org_id == "org-a"
 
 
 # ---------------------------------------------------------------------------
