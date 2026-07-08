@@ -298,6 +298,95 @@ class TestExecuteCompositeChildrenSync:
         assert outcome.summary is None
         assert len(outcome.child_results) == 2
 
+    def test_choices_children_score_via_shared_helper(
+        self, db, organization, workspace
+    ):
+        """Composite children with `output_type_normalized="deterministic"` and a
+        `choice_scores` mapping route the picked label to its numeric score via
+        the shared `score_eval_output` helper.
+
+        Regression pin for the case where the composite runner was passing the
+        run_eval_func response dict straight to `normalize_score`, which does
+        not resolve the choice label and returns `0.0` for every child."""
+        child_a = EvalTemplate.no_workspace_objects.create(
+            name="choices-child-a",
+            organization=organization,
+            workspace=workspace,
+            owner=OwnerChoices.USER.value,
+            config={"output": "choices", "eval_type_id": "CustomPromptEvaluator"},
+            output_type_normalized="deterministic",
+            choices=["Sad", "Happy", "Neutral"],
+            choice_scores={"Sad": 1.0, "Happy": 0.5, "Neutral": 0.0},
+            pass_threshold=0.5,
+            multi_choice=True,
+        )
+        child_b = EvalTemplate.no_workspace_objects.create(
+            name="choices-child-b",
+            organization=organization,
+            workspace=workspace,
+            owner=OwnerChoices.USER.value,
+            config={"output": "choices", "eval_type_id": "AgentEvaluator"},
+            output_type_normalized="deterministic",
+            choices=["Happy", "Sad", "Neutral"],
+            choice_scores={"Sad": 0.5, "Happy": 0.5, "Neutral": 0.5},
+            pass_threshold=0.5,
+        )
+        parent = EvalTemplate.no_workspace_objects.create(
+            name="choices-composite",
+            organization=organization,
+            workspace=workspace,
+            owner=OwnerChoices.USER.value,
+            template_type="composite",
+            aggregation_enabled=True,
+            aggregation_function="avg",
+            pass_threshold=0.5,
+            config={},
+        )
+        CompositeEvalChild.objects.create(parent=parent, child=child_a, order=0, weight=1.0)
+        CompositeEvalChild.objects.create(parent=parent, child=child_b, order=1, weight=1.0)
+
+        links = list(
+            CompositeEvalChild.objects.filter(parent=parent)
+            .select_related("child")
+            .order_by("order")
+        )
+
+        def _choices_fake_run_eval_func(_cfg, _mapping, template, *_a, **_k):
+            # Mirror the EE-path shape of `run_eval_func`: `output` carries the
+            # already-formatted verdict dict produced by `format_eval_value`.
+            canned = {
+                "choices-child-a": {"score": 1.0, "choice": "Sad"},
+                "choices-child-b": {"score": 0.5, "choice": "Sad"},
+            }
+            payload = canned.get(template.name)
+            return {
+                "output": payload,
+                "reason": f"{template.name} labelled Sad",
+                "output_type": "choices",
+                "model": "turing_large",
+                "metadata": {},
+                "log_id": None,
+            }
+
+        with patch(
+            "model_hub.views.utils.evals.run_eval_func",
+            side_effect=_choices_fake_run_eval_func,
+        ):
+            outcome = execute_composite_children_sync(
+                parent=parent,
+                child_links=links,
+                mapping={"input": "I am very sad today."},
+                config={},
+                org=organization,
+            )
+
+        by_name = {cr.child_name: cr for cr in outcome.child_results}
+        assert by_name["choices-child-a"].score == pytest.approx(1.0)
+        assert by_name["choices-child-b"].score == pytest.approx(0.5)
+        # Simple average, both weights 1.0 → (1.0 + 0.5) / 2 = 0.75
+        assert outcome.aggregate_score == pytest.approx(0.75)
+        assert outcome.aggregate_pass is True
+
     def test_failing_child_is_captured_not_raised(self, composite_parent, organization):
         links = list(
             CompositeEvalChild.objects.filter(parent=composite_parent)
