@@ -90728,7 +90728,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "value": {
           "title": "Value",
           "type": "object",
-          "x-nullable": true
+          "x-nullable": true,
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         }
       }
     },
@@ -92390,7 +92392,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "reason_column",
         "is_numeric_eval",
         "is_numeric_eval_percentage",
-        "eval_tag",
         "metadata",
         "choices_map"
       ],
@@ -92465,8 +92466,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "boolean"
         },
         "eval_tag": {
-          "title": "Eval tag",
-          "type": "object"
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
         },
         "metadata": {
           "title": "Metadata",
