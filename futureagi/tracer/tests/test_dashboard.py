@@ -1121,6 +1121,98 @@ class TestDashboardQueryBuilder:
         assert "eval_output_str" in sql
         assert "eval_score" in sql
 
+    def test_eval_metric_sum_uses_output_string_fallback(self):
+        config = {
+            "project_ids": ["proj1"],
+            "granularity": "day",
+            "time_range": {"preset": "7D"},
+            "metrics": [
+                {
+                    "id": "e2",
+                    "name": "conversation_hallucination",
+                    "type": "eval_metric",
+                    "config_id": str(uuid.uuid4()),
+                    "aggregation": "sum",
+                }
+            ],
+        }
+        builder = DashboardQueryBuilder(config)
+        queries = builder.build_all_queries()
+        sql, _, _ = queries[0]
+        assert "sum(if(e.eval_output_str = '', NULL" in sql
+        assert "lower(e.eval_output_str) IN ('passed', 'pass', 'true', '1')" in sql
+        assert "sum(e.eval_score)" not in sql
+
+    def test_eval_metric_combines_project_and_dataset_breakdowns(self):
+        config = {
+            "project_ids": ["proj1"],
+            "organization_id": str(uuid.uuid4()),
+            "workspace_id": str(uuid.uuid4()),
+            "granularity": "day",
+            "time_range": {"preset": "7D"},
+            "metrics": [
+                {
+                    "id": "e2",
+                    "name": "conversation_hallucination",
+                    "type": "eval_metric",
+                    "config_id": str(uuid.uuid4()),
+                    "aggregation": "count",
+                }
+            ],
+            "breakdowns": [
+                {"name": "project", "type": "system_metric"},
+                {"name": "dataset", "type": "system_metric"},
+            ],
+        }
+        builder = DashboardQueryBuilder(config)
+        queries = builder.build_all_queries()
+        sql, _, _ = queries[0]
+        assert "concat(" in sql
+        assert "' / '" in sql
+        assert " AS breakdown_value" in sql
+        assert sql.count(" AS breakdown_value") == 1
+        assert "dictGet('trace_dict', 'project_id'" in sql
+        assert "e.eval_dataset_id" in sql
+
+    def test_eval_metric_breakdown_buckets_all_eval_sources(self):
+        config = {
+            "project_ids": ["proj1"],
+            "organization_id": str(uuid.uuid4()),
+            "workspace_id": str(uuid.uuid4()),
+            "granularity": "day",
+            "time_range": {"preset": "7D"},
+            "metrics": [
+                {
+                    "id": "e2",
+                    "name": "conversation_hallucination",
+                    "type": "eval_metric",
+                    "config_id": str(uuid.uuid4()),
+                    "aggregation": "count",
+                }
+            ],
+            "breakdowns": [
+                {"name": "project", "type": "system_metric"},
+                {"name": "dataset", "type": "system_metric"},
+            ],
+        }
+        builder = DashboardQueryBuilder(config)
+        queries = builder.build_all_queries()
+        sql, _, _ = queries[0]
+        for source in (
+            "feedback",
+            "tracer_composite",
+            "prompt_template",
+            "simulate",
+            "simulate_tool_evaluation",
+            "voice_call",
+            "text_call",
+            "composite_eval",
+            "composite_eval_adhoc",
+            "composite_eval_dataset",
+        ):
+            assert f"e.source = '{source}'" in sql
+        assert "'(simulation)'" in sql
+
     def test_system_metric_sum_aggregation(self):
         config = {
             "project_ids": ["proj1"],
@@ -4044,10 +4136,6 @@ def _single_metric_config(metric, breakdowns=None):
 
 
 class TestDashboardV2RewriteRouting:
-    """The v2 builder rewrites spans-backed metric SQL to the CH 25.3 schema but
-    must leave eval/annotation metrics (non-migrated legacy tables) untouched.
-    """
-
     def test_system_metric_rewritten_to_v2_columns(self):
         config = _single_metric_config(
             {
@@ -4058,14 +4146,11 @@ class TestDashboardV2RewriteRouting:
             }
         )
         sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
-        # spans-backed → legacy column renamed, v2 SETTINGS appended.
         assert "is_deleted" in sql
         assert "_peerdb_is_deleted" not in sql
         assert "use_skip_indexes_if_final" in sql
 
     def test_settings_appended_exactly_once(self):
-        # Regression: a blanket re-rewrite of build_all_queries' output (on top
-        # of the per-metric rewrite in build_metric_query) doubled the SETTINGS.
         config = _single_metric_config(
             {
                 "id": "latency",
@@ -4079,9 +4164,6 @@ class TestDashboardV2RewriteRouting:
         assert sql.count("SETTINGS") == 1
 
     def test_eval_metric_keeps_legacy_columns(self):
-        # eval_metric reads usage_apicalllog (NOT migrated) — the rewrite must
-        # NOT rename _peerdb_is_deleted → is_deleted on the legacy alias, or
-        # CH 500s with "Identifier 'e.is_deleted' cannot be resolved".
         config = _single_metric_config(
             {
                 "id": str(uuid.uuid4()),
@@ -4094,15 +4176,13 @@ class TestDashboardV2RewriteRouting:
         )
         sql, _, _ = DashboardQueryBuilderV2(config).build_all_queries()[0]
         assert "usage_apicalllog" in sql
-        # Legacy alias (e.) keeps _peerdb_is_deleted
         assert "e._peerdb_is_deleted" in sql
         assert "e.is_deleted" not in sql
+        assert "argMax(d.id, tuple(d.created_at, d.id))" in sql
+        assert "d._peerdb_is_deleted" in sql
+        assert "d.is_deleted" not in sql
 
     def test_eval_metric_with_spans_breakdown_rewrites_spans_refs(self):
-        # An eval metric with a trace-dimension breakdown JOINs spans. The
-        # spans-alias refs (s._peerdb_is_deleted, s.span_attr_str) must be
-        # rewritten to v2, while the legacy-table alias (e._peerdb_is_deleted)
-        # stays on v1.
         config = _single_metric_config(
             {
                 "id": str(uuid.uuid4()),
