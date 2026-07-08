@@ -27,6 +27,21 @@ from model_hub.utils.scoring import determine_pass_fail, score_eval_output
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_PASS_THRESHOLD = 0.5
+
+
+def _resolve_child_pass_threshold(link: CompositeEvalChild) -> float:
+    """Precedence: link.config override -> pinned_version -> live template -> default."""
+    if link.config and isinstance(link.config, dict):
+        v = link.config.get("pass_threshold")
+        if isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0:
+            return float(v)
+    if link.pinned_version and link.pinned_version.pass_threshold is not None:
+        return float(link.pinned_version.pass_threshold)
+    if link.child.pass_threshold is not None:
+        return float(link.child.pass_threshold)
+    return _DEFAULT_PASS_THRESHOLD
+
 
 @dataclass
 class CompositeRunOutcome:
@@ -329,11 +344,7 @@ def execute_composite_children_sync(
 
     if parent.aggregation_enabled:
         threshold_map = {
-            str(link.child_id): (
-                link.child.pass_threshold
-                if link.child.pass_threshold is not None
-                else 0.5
-            )
+            str(link.child_id): _resolve_child_pass_threshold(link)
             for link in child_links
         }
         scores_and_weights: list[tuple[float, float]] = []
