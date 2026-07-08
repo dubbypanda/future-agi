@@ -250,7 +250,7 @@ def fetch_prompt_metrics_span_query(
             prompt_label_id__isnull=False,
         )
         .select_related("prompt_version", "project", "prompt_label")
-        .prefetch_related("prompt_version__labels", "eval_logs__custom_eval_config")
+        .prefetch_related("prompt_version__labels")
         .annotate(
             prompt_template_version=F("prompt_version__template_version"),
             session_id=F("project__sessions__id"),

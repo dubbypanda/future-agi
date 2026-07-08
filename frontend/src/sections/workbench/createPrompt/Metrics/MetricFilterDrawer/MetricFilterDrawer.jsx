@@ -28,10 +28,36 @@ const MetricFilterDrawer = React.memo(() => {
 
   const [filterDefs, setFilterDefs] = useState([]);
 
-  const [tempFilters, setTempFilters] = useState(() =>
-    filters?.length ? filters : getDefaultFilter(),
+  const normalizeFilterObj = useCallback((f) => {
+    if (!f) return f;
+    const nf = { ...f };
+    if (nf.column_id && !nf.columnId) {
+      nf.columnId = nf.column_id;
+    }
+    if (nf.filter_config && !nf.filterConfig) {
+      nf.filterConfig = {
+        filterType: nf.filter_config.filter_type || "",
+        filterOp: nf.filter_config.filter_op || "",
+        filterValue: nf.filter_config.filter_value ?? "",
+        col_type: nf.filter_config.col_type,
+      };
+    }
+    return nf;
+  }, []);
+
+  const normalizeFilters = useCallback((arr) => arr.map(normalizeFilterObj), [normalizeFilterObj]);
+
+  const [tempFilters, setTempFiltersRaw] = useState(() =>
+    filters?.length ? normalizeFilters(filters) : getDefaultFilter(),
   );
   const [tempFilterDefs, setTempFilterDefs] = useState([]);
+
+  const setTempFilters = useCallback((val) => {
+    setTempFiltersRaw((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      return Array.isArray(next) ? normalizeFilters(next) : next;
+    });
+  }, [normalizeFilters]);
 
   useEffect(() => {
     if (columns?.length) {
@@ -65,7 +91,7 @@ const MetricFilterDrawer = React.memo(() => {
         }
 
         // ✅ Normalize date filters into array form for the drawer
-        if (newFilter.filterConfig?.filterType === "date") {
+        if (newFilter.filterConfig?.filterType === "date" && newFilter.filterConfig?.filterValue) {
           const value = newFilter.filterConfig.filterValue;
 
           if (typeof value === "string") {
@@ -95,9 +121,10 @@ const MetricFilterDrawer = React.memo(() => {
         (f) =>
           f?.columnId ||
           (f?.filterConfig?.filterValue !== "" &&
+            f?.filterConfig &&
             !(
-              Array.isArray(f.filterConfig.filterValue) &&
-              f.filterConfig.filterValue.length === 0
+              Array.isArray(f?.filterConfig?.filterValue) &&
+              f?.filterConfig?.filterValue?.length === 0
             )),
       )
       .map((f) => {
@@ -121,7 +148,7 @@ const MetricFilterDrawer = React.memo(() => {
         }
 
         // 🔹 Normalize number filter values
-        if (newFilter.filterConfig.filterType === "number") {
+        if (newFilter.filterConfig?.filterType === "number" && newFilter.filterConfig?.filterValue) {
           const values = newFilter.filterConfig.filterValue;
 
           if (Array.isArray(values)) {
@@ -153,9 +180,10 @@ const MetricFilterDrawer = React.memo(() => {
       (f) =>
         f?.columnId ||
         (f?.filterConfig?.filterValue !== "" &&
+          f?.filterConfig &&
           !(
-            Array.isArray(f.filterConfig.filterValue) &&
-            f.filterConfig.filterValue.length === 0
+            Array.isArray(f?.filterConfig?.filterValue) &&
+            f?.filterConfig?.filterValue?.length === 0
           )),
     );
   }, [tempFilters]);
