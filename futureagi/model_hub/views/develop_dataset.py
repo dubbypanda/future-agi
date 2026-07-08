@@ -820,8 +820,11 @@ class AddRowsFromFile(CreateAPIView):
                     return
                 if validations_used[0] >= _MAX_VALIDATIONS:
                     return
-                validate_file_url(url_value, file_type)
+                # Count the attempt BEFORE the call so a slow external host
+                # can't blow the budget by returning errors — otherwise the
+                # counter never advances and every row pays the full timeout.
                 validations_used[0] += 1
+                validate_file_url(url_value, file_type)
 
             for index, row in data.iterrows():
                 new_row = Row.objects.create(

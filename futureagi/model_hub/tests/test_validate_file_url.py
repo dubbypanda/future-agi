@@ -224,3 +224,29 @@ def test_validate_file_url_rejects_svg_extension_with_generic_content_type(monke
     )
     with pytest.raises(ValueError):
         validate_file_url("https://public.example.com/pic.svg", "image")
+
+
+def test_validate_file_url_ignores_fragment_when_checking_extension(monkeypatch):
+    """URL fragment must not fool the extension check — the server only sees
+    the pre-fragment path, so a `.exe#pretty.png` URL must be rejected.
+    """
+    monkeypatch.setattr(
+        "model_hub.views.utils.utils.safe_fetch",
+        _stub_safe_fetch(
+            200,
+            {"Content-Type": "application/octet-stream"},
+            final_url="https://public.example.com/malware.exe#pretty.png",
+        ),
+    )
+    with pytest.raises(ValueError):
+        validate_file_url("https://public.example.com/malware.exe#pretty.png", "image")
+
+
+def test_validate_file_url_document_rejects_exe_with_png_fragment(monkeypatch):
+    """Same fragment-bypass check for the document path (extension-only check)."""
+    monkeypatch.setattr(
+        "model_hub.views.utils.utils.safe_fetch",
+        _stub_safe_fetch(200, {}, final_url="https://public.example.com/x.exe#a.pdf"),
+    )
+    with pytest.raises(ValueError):
+        validate_file_url("https://public.example.com/x.exe#a.pdf", "document")

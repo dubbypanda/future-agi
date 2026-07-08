@@ -210,13 +210,18 @@ FILE_TYPE_CONFIG = {
 _GENERIC_CONTENT_TYPES = {"application/octet-stream", "binary/octet-stream"}
 
 
+def _url_path(url: str) -> str:
+    # Strip query and fragment — the server only sees the path.
+    return url.lower().split("?")[0].split("#")[0]
+
+
 def _url_has_valid_extension(url: str, valid_extensions: tuple) -> bool:
-    path = url.lower().split("?")[0]
+    path = _url_path(url)
     return any(path.endswith(ext) for ext in valid_extensions)
 
 
 def _url_has_any_extension(url: str) -> bool:
-    return "." in url.lower().split("?")[0].rsplit("/", 1)[-1]
+    return "." in _url_path(url).rsplit("/", 1)[-1]
 
 
 def validate_file_url(
