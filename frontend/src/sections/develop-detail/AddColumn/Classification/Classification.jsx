@@ -60,7 +60,6 @@ export const ClassificationChild = ({
     if (initialData) {
       reset(initialData);
     } else if (!editId) {
-      // Reset to default values when opening for new column (no editId)
       reset(getDefaultValue());
     }
   }, [initialData, reset, editId]);
@@ -73,7 +72,6 @@ export const ClassificationChild = ({
         variant: "success",
       });
       reset();
-      // null for gridRef option and true for set column.
       refreshGrid(null, true);
       onClose();
     },
@@ -296,7 +294,6 @@ ClassificationChild.propTypes = {
 };
 
 const Classification = ({ initialData, onFormSubmit }) => {
-  // Using individual store
   const { openClassification, setOpenClassification } =
     useClassificationStore();
 

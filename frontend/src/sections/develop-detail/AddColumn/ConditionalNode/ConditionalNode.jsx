@@ -131,7 +131,6 @@ const transformCondition = (condition, allColumns) => {
 
 const ConditionalNodeChild = ({ editId }) => {
   const { refreshGrid } = useDevelopDetailContext();
-  // Using individual stores
   const { setOpenConditionalNode } = useConditionalNodeStore();
 
   const onClose = () => {
@@ -272,12 +271,6 @@ const ConditionalNodeChild = ({ editId }) => {
     let updateConfig = {};
     switch (formData.type) {
       case "api_call": {
-        // Child now writes snake_case natively (TH-6543): top-level
-        // `column_name`, `concurrency`, and a nested `config` with
-        // `url/method/params/headers/body/output_type`. Flatten the nested
-        // `config` into `branch_node_config.config` so the persisted shape
-        // matches what the api_call read block (formattedData) below reads
-        // — no dead camelCase remaps.
         const { config: apiCallConfig = {}, type: _type, ...rest } = formData;
         updateConfig = {
           ...currentConfig,
@@ -314,7 +307,6 @@ const ConditionalNodeChild = ({ editId }) => {
                   ? undefined
                   : formData.config.toolChoice,
               tools: formData.config.tools || [],
-              // runType  : formData.config.runType,
             },
           },
         };
@@ -497,7 +489,6 @@ const ConditionalNodeChild = ({ editId }) => {
                         ? undefined
                         : data.branch_node_config.config.config.toolChoice,
                     tools: data.branch_node_config.config.config.tools || [],
-                    // runType: branch.branch_node_config.config.runType,
                   },
                 },
               };
@@ -635,7 +626,6 @@ const ConditionalNodeChild = ({ editId }) => {
           width: "550px",
         }}
         component="form"
-        // onSubmit={handleCreateColumn}
       >
         <Box
           sx={{
@@ -785,7 +775,6 @@ const ConditionalNodeChild = ({ editId }) => {
             Test
           </LoadingButton>
           <LoadingButton
-            // type="submit"
             variant="contained"
             color="primary"
             fullWidth
@@ -806,7 +795,6 @@ ConditionalNodeChild.propTypes = {
 };
 
 const ConditionalNode = () => {
-  // Using individual stores
   const { openConditionalNode, setOpenConditionalNode } =
     useConditionalNodeStore();
 

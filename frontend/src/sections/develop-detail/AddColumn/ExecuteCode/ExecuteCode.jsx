@@ -66,7 +66,6 @@ def main(**kwargs):
     if (initialData) {
       reset(initialData);
     } else if (!editId) {
-      // Reset to default values when opening for new column (no editId)
       reset(getDefaultValue());
     }
   }, [initialData, reset, editId]);
@@ -251,7 +250,6 @@ ExecuteCodeChild.propTypes = {
 };
 
 const ExecuteCode = ({ initialData, onFormSubmit }) => {
-  // Using individual store
   const { openExecuteCode, setOpenExecuteCode } = useExecuteCodeStore();
 
   const onClose = () => {

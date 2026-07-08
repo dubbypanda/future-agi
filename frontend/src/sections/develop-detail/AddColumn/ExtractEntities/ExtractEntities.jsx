@@ -53,7 +53,6 @@ export const ExtractEntitiesChild = ({
     if (initialData) {
       reset(initialData);
     } else if (!editId) {
-      // Reset to default values when opening for new column (no editId)
       reset(getDefaultValue());
     }
   }, [initialData, reset, editId]);
@@ -66,13 +65,10 @@ export const ExtractEntitiesChild = ({
         variant: "success",
       });
       reset();
-      // null for gridRef option and true for set column.
       refreshGrid(null, true);
       onClose();
     },
   });
-
-  // const onSubmit = (formValues) => addColumn(formValues);
 
   const {
     data: previewData,
@@ -294,7 +290,6 @@ ExtractEntitiesChild.propTypes = {
 };
 
 const ExtractEntities = ({ initialData, onFormSubmit }) => {
-  // Using individual store
   const { openExtractEntities, setOpenExtractEntities } =
     useExtractEntitiesStore();
 
