@@ -11566,7 +11566,7 @@ export const ModelHubAiFilterCreateResponse = zod.object({
   "operator": zod.string().min(1),
   "value": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional().describe('Any valid JSON value.')
 })).optional(),
   "fields": zod.array(zod.string().min(1)).optional()
 })
@@ -35226,6 +35226,18 @@ export const TracerEvalTaskListResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35284,6 +35296,18 @@ export const TracerEvalTaskCreateBody = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35357,6 +35381,18 @@ export const TracerEvalTaskGetEvalDetailsResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35425,6 +35461,18 @@ export const TracerEvalTaskGetEvalTaskLogsResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35493,6 +35541,18 @@ export const TracerEvalTaskGetUsageResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35576,6 +35636,18 @@ export const TracerEvalTaskListEvalTasksResponseItem = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35659,6 +35731,18 @@ export const TracerEvalTaskListEvalTasksWithProjectNameResponseItem = zod.object
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35773,6 +35857,18 @@ export const TracerEvalTaskUpdateEvalTaskBody = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35837,6 +35933,18 @@ export const TracerEvalTaskReadResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35898,6 +36006,18 @@ export const TracerEvalTaskUpdateBody = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -35952,6 +36072,18 @@ export const TracerEvalTaskUpdateResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -36013,6 +36145,18 @@ export const TracerEvalTaskPartialUpdateBody = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
@@ -36067,6 +36211,18 @@ export const TracerEvalTaskPartialUpdateResponse = zod.object({
   "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
   "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
   "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional(),
   "span_attributes_filters": zod.array(zod.object({
   "column_id": zod.string().describe('Column or attribute id to filter on.'),
   "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),

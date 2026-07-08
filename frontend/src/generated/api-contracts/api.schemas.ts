@@ -5324,6 +5324,9 @@ export interface AIFilterRequestApi {
   dataset_id?: string;
 }
 
+/**
+ * Any valid JSON value.
+ */
 export type AIFilterConditionApiValue = { [key: string]: unknown };
 
 export interface AIFilterConditionApi {
@@ -5331,6 +5334,7 @@ export interface AIFilterConditionApi {
   field: string;
   /** @minLength 1 */
   operator: string;
+  /** Any valid JSON value. */
   value?: AIFilterConditionApiValue;
 }
 
@@ -18754,6 +18758,29 @@ export interface ObserveDatasetApi {
   readonly user?: string;
 }
 
+export type EvalTaskApiFiltersFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type EvalTaskApiFiltersFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: EvalTaskApiFiltersFiltersItemFilterConfig;
+};
+
 export type EvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig = {
   /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
   filter_type: string;
@@ -18796,6 +18823,7 @@ export type EvalTaskApiFilters = {
   span_id?: string[];
   /** Observation span type(s), for example llm, tool, or chain. */
   observation_type?: string[];
+  filters?: EvalTaskApiFiltersFiltersItem[];
   span_attributes_filters?: EvalTaskApiFiltersSpanAttributesFiltersItem[];
 };
 
@@ -18889,6 +18917,29 @@ export interface EvalTaskMessageResponseApi {
   result: EvalTaskMessageResultApi;
 }
 
+export type EvalTaskUpdateRequestApiFiltersFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type EvalTaskUpdateRequestApiFiltersFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: EvalTaskUpdateRequestApiFiltersFiltersItemFilterConfig;
+};
+
 export type EvalTaskUpdateRequestApiFiltersSpanAttributesFiltersItemFilterConfig = {
   /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
   filter_type: string;
@@ -18931,6 +18982,7 @@ export type EvalTaskUpdateRequestApiFilters = {
   span_id?: string[];
   /** Observation span type(s), for example llm, tool, or chain. */
   observation_type?: string[];
+  filters?: EvalTaskUpdateRequestApiFiltersFiltersItem[];
   span_attributes_filters?: EvalTaskUpdateRequestApiFiltersSpanAttributesFiltersItem[];
 };
 
