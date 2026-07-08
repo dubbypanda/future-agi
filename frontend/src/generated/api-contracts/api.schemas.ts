@@ -16302,7 +16302,6 @@ export interface CallExecutionDetailApi {
   duration_seconds?: number;
   readonly start_time?: string;
   readonly transcript?: string;
-  readonly transcript_preview?: string;
   /** @minLength 1 */
   readonly scenario?: string;
   readonly overall_score?: string;
