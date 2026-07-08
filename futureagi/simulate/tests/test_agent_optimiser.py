@@ -10,6 +10,12 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
+from model_hub.models.evals_metric import EvalTemplate
+from simulate.models import (
+    RunTest,
+    SimulateEvalConfig,
+    TestExecution,
+)
 
 from simulate.utils.agent_optimiser import (
     _build_chat_aggregate_metrics,
@@ -340,13 +346,15 @@ class TestGetPromptFromRunTest:
         assert result["inbound"] is True
 
     @patch("model_hub.models.run_prompt.PromptVersion")
-    def test_handles_generic_exception(self, MockVersion):
+    def test_propagates_generic_exception(self, MockVersion):
+        """Generic exceptions should propagate (only DoesNotExist is caught)."""
         MockVersion.DoesNotExist = self._DNE
         run_test = MagicMock()
         run_test.source_type = "prompt"
         run_test.prompt_version_id = uuid.uuid4()
         MockVersion.objects.get.side_effect = RuntimeError("db error")
-        assert _get_prompt_from_run_test(run_test) is None
+        with pytest.raises(RuntimeError, match="db error"):
+            _get_prompt_from_run_test(run_test)
 
 
 class TestGetFullTestExecutionData:
@@ -365,3 +373,64 @@ class TestGetFullTestExecutionData:
             RuntimeError("failure")
         )
         assert get_full_test_execution_data(str(uuid.uuid4())) is None
+
+
+class TestGetCallExecutionsWithDetailsDB:
+    """DB-backed tests verifying the N+1 fix holds at runtime."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_no_call_executions_returns_empty(self, organization):
+        """With a valid TestExecution but zero calls, returns an empty list."""
+        run_test = RunTest.objects.create(
+            name="N+1 Test",
+            source_type=RunTest.SourceTypes.AGENT_DEFINITION,
+            organization=organization,
+        )
+        test_execution = TestExecution.objects.create(
+            run_test=run_test,
+            status=TestExecution.ExecutionStatus.COMPLETED,
+            total_calls=0,
+            completed_calls=0,
+            failed_calls=0,
+        )
+
+        result = get_call_executions_with_details(str(test_execution.id))
+        assert result is not None
+        assert result == []
+
+    @pytest.mark.django_db(transaction=True)
+    def test_with_eval_configs_fixed_query_count(
+        self, organization, django_assert_num_queries
+    ):
+        """Eval configs are fetched once, not per call (N+1 guard)."""
+        run_test = RunTest.objects.create(
+            name="N+1 Test",
+            source_type=RunTest.SourceTypes.AGENT_DEFINITION,
+            organization=organization,
+        )
+        test_execution = TestExecution.objects.create(
+            run_test=run_test,
+            status=TestExecution.ExecutionStatus.COMPLETED,
+            total_calls=0,
+            completed_calls=0,
+            failed_calls=0,
+        )
+        template = EvalTemplate.objects.create(
+            name="Test Eval",
+            config={},
+            organization=organization,
+        )
+        SimulateEvalConfig.objects.create(
+            eval_template=template,
+            name="Config A",
+            run_test=run_test,
+        )
+
+        # get_call_executions_with_details: 1 query for TestExecution,
+        # 1 query for eval configs with select_related, 1 query for call_executions.
+        # No per-call eval config queries.
+        with django_assert_num_queries(3):
+            result = get_call_executions_with_details(str(test_execution.id))
+
+        assert result is not None
+        assert result == []

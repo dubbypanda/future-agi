@@ -1065,9 +1065,6 @@ def _get_prompt_from_run_test(run_test) -> dict | None:
     except PromptVersion.DoesNotExist:
         logger.warning(f"Prompt version {run_test.prompt_version_id} not found")
         return None
-    except Exception as e:
-        logger.exception(f"Error fetching prompt version {run_test.prompt_version_id}: {e}")
-        return None
 
 
 def get_full_test_execution_data(test_execution_id: str) -> dict | None:
@@ -1084,7 +1081,7 @@ def get_full_test_execution_data(test_execution_id: str) -> dict | None:
             "test_execution_id": str,
             "status": str,
             "run_test_name": str,
-            "agent_definition_prompt": dict | None,
+            "agent_definition_prompt": dict,
             "simulator_agent_prompt": dict | None,
             "call_executions": list[dict],
             "metadata": dict,
@@ -1093,7 +1090,6 @@ def get_full_test_execution_data(test_execution_id: str) -> dict | None:
     try:
         test_execution = TestExecution.objects.select_related(
             "run_test__prompt_version",
-            "run_test",
             "simulator_agent",
             "agent_definition",
             "agent_version",
