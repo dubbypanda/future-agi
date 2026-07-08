@@ -1,4 +1,4 @@
-"""Named budget constants for the eval-read stress suite (TH-6642).
+"""Named budget constants for the eval-read stress suite.
 
 Every budget assertion in tests/stress references a constant here — never an
 inline number. Red-baseline budgets (xfail until their fix lands) encode the
@@ -13,7 +13,10 @@ STRESS_SCALE=0.1 (target 8,000 spans / noise 58,777 / ~69k total in CH).
 # noise project and fails loudly (scale-invariance trick, design §3.1).
 # Measured baseline: 1,000-trace lookup reads 100,292 rows (the whole spans
 # table) at 69 MB — budget 8,000 × 1.5 = 12,000 rows → red on read_rows.
-ROOT_LOOKUP_MAX_READ_ROWS_FACTOR = 1.5
+# Granule floor — CH reads whole 8 192-row granules, so a scoped read of an
+# N-row project can round up to ~2 granules per part; 2.5× stays far below
+# the unscoped full-table read.
+ROOT_LOOKUP_MAX_READ_ROWS_FACTOR = 2.5
 ROOT_LOOKUP_MAX_MEMORY = 500 * 2**20
 
 # ── S12 / B1-B3: 500-entry drain batch ──────────────────────────────────────
@@ -38,11 +41,14 @@ TRACE_LOAD_MAX_PY_PEAK = 2**20
 RECONCILE_REQUEUE_MAX_PG_UPDATES = 2
 
 # ── S7 / A5: session resolve (`resolve_session_fields`) remap scoping ───────
-# Same scale-invariance shape as S4: read_rows bounded by the target
-# project's curated session count, not the whole `trace_sessions` table.
-# Measured baseline: resolving the target's 5 sessions reads 140 rows (every
-# project's sessions + remap scan) — budget 5 × 1.5 = 7.5 → red.
-SESSION_RESOLVE_MAX_READ_ROWS_FACTOR = 1.5
+# At CI scale `trace_sessions` holds only ~60 rows (all in ONE 8192-row
+# granule), so read_rows cannot discriminate scoped vs. unscoped — both read
+# the same single granule.  S7 therefore verifies A5 STRUCTURALLY via
+# `EXPLAIN indexes=1`: the planner must show `project_id` in the PrimaryKey
+# condition (not `Condition: true`) when the WHERE pins `project_id`.  This
+# is scale-independent (the planner recognises the sort-key prefix regardless
+# of how many granules are actually skipped at runtime).  No read_rows budget
+# constant needed; the EXPLAIN assertion lives in test_session_lookup.py.
 
 # ── S13 (green): desired-row stream over the mixed/fat-attrs project ────────
 # Pins the already-project-scoped `iter_desired_rows` scan: reads ≈ the
