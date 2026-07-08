@@ -1812,6 +1812,8 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                     return self._gm.bad_request(
                         "Some project_ids are invalid or not in this workspace"
                     )
+            trace_config["organization_id"] = str(workspace.organization_id)
+            trace_config["workspace_id"] = str(workspace.id)
             # v1↔v2 dispatch — flips with CH25_QUERY_TYPES_V2_PRIMARY=DASHBOARD
             from tracer.services.clickhouse.v2.dispatch import (
                 get_query_builder_class,

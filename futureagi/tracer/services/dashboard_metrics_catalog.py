@@ -384,7 +384,6 @@ def build_metrics_catalog(
         ]
     )
 
-
     # Eval-specific dimensions (available across all sources)
     metrics.extend(
         [
@@ -523,9 +522,7 @@ def build_metrics_catalog(
         )
     }
     if req_project_ids:
-        project_ids = [
-            pid for pid in req_project_ids if pid in workspace_project_ids
-        ]
+        project_ids = [pid for pid in req_project_ids if pid in workspace_project_ids]
     else:
         project_ids = list(workspace_project_ids)
 
@@ -576,8 +573,7 @@ def build_metrics_catalog(
                     for key in keys:
                         k = key if isinstance(key, str) else str(key)
                         if k not in [
-                            a.get("key") if isinstance(a, dict) else a
-                            for a in attrs
+                            a.get("key") if isinstance(a, dict) else a for a in attrs
                         ]:
                             attrs.append({"key": k, "type": "string"})
         except Exception as exc:
@@ -711,11 +707,9 @@ def build_metrics_catalog(
                 .distinct()
             )
             if used_label_ids:
-                annotation_labels = (
-                    AnnotationsLabels.no_workspace_objects.filter(
-                        id__in=used_label_ids,
-                    ).values("id", "name", "type", "settings")
-                )
+                annotation_labels = AnnotationsLabels.no_workspace_objects.filter(
+                    id__in=used_label_ids,
+                ).values("id", "name", "type", "settings")
             else:
                 annotation_labels = (
                     AnnotationsLabels.no_workspace_objects.none().values(
@@ -794,9 +788,7 @@ def build_metrics_catalog(
                     "display_name": col["name"],
                     "category": "custom_column",
                     "source": "datasets",
-                    "type": (
-                        "number" if col["data_type"] != "boolean" else "boolean"
-                    ),
+                    "type": ("number" if col["data_type"] != "boolean" else "boolean"),
                     "data_type": col["data_type"],
                 }
             )
@@ -1176,7 +1168,55 @@ def build_metrics_catalog(
             metric["allowed_aggregations"] = ["count", "count_distinct"]
 
     metrics = _suppress_customer_attribute_metric_aliases(metrics)
+    metrics = _annotate_metric_roles(metrics)
 
+    return metrics
+
+
+_COUNT_METRIC_RENAMES: dict[str, str] = {
+    "user_count": "Users",
+    "session_count": "Sessions",
+    "trace_count": "Traces",
+    "span_count": "Spans",
+}
+
+_DIMENSION_ONLY_NAMES: frozenset[str] = frozenset(
+    {
+        "user",
+        "session",
+        "user_id_type",
+        "model",
+        "status",
+        "service_name",
+        "span_kind",
+        "provider",
+        "prompt_name",
+        "prompt_version",
+        "prompt_label",
+        "tag",
+        "project",
+        "dataset",
+        "eval_source",
+    }
+)
+
+
+def _annotate_metric_roles(metrics: list[dict]) -> list[dict]:
+    """Tag every catalog entry with a ``role`` so the frontend picker can
+    filter metric-mode results down to Y-axis-suitable entries.
+
+    ``metric``    — numeric aggregatable, shows in the metric picker.
+    ``dimension`` — string-typed breakdown/filter target, hidden from the
+                    metric picker.
+    Also applies the ``user_count → Users`` family of display renames — the
+    frontend already groups these under a "Users"/"Sessions" tab, so the
+    old ``… Count`` suffix just doubled up on the tab label.
+    """
+    for m in metrics:
+        name = m.get("name", "")
+        if name in _COUNT_METRIC_RENAMES:
+            m["display_name"] = _COUNT_METRIC_RENAMES[name]
+        m["role"] = "dimension" if name in _DIMENSION_ONLY_NAMES else "metric"
     return metrics
 
 

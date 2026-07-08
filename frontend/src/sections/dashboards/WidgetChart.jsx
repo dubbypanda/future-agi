@@ -32,6 +32,16 @@ const COLORS = [
   "#A29BFE", // lavender
 ];
 
+const hashSeriesName = (name) => {
+  const s = String(name || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+};
+const getSeriesColor = (name) => COLORS[hashSeriesName(name) % COLORS.length];
+
 function getApexType(chartType) {
   const map = {
     line: "line",
@@ -69,6 +79,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
   const isPie = chartType === "pie";
   const isTable = chartType === "table";
   const isMetricCard = chartType === "metric";
+  const isLineChart = apexType === "line";
 
   // Measure container height so charts fill available space
   const containerRef = useRef(null);
@@ -330,7 +341,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
             <Box key={i} sx={{ textAlign: "center" }}>
               <Typography
                 variant="h3"
-                sx={{ color: COLORS[i % COLORS.length] }}
+                sx={{ color: getSeriesColor(s.name) }}
               >
                 {avg == null ? "—" : formatVal(avg)}
               </Typography>
@@ -428,7 +439,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
                         width: 8,
                         height: 8,
                         borderRadius: "2px",
-                        bgcolor: COLORS[i % COLORS.length],
+                        bgcolor: getSeriesColor(s.name),
                         display: "inline-block",
                         flexShrink: 0,
                       }}
@@ -526,7 +537,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
         animations: { enabled: true, easing: "easeinout", speed: 400 },
       },
       labels: chartSeries.map((s) => s.name),
-      colors: COLORS,
+      colors: chartSeries.map((s) => getSeriesColor(s.name)),
       plotOptions: {
         pie: {
           expandOnClick: false,
@@ -694,7 +705,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
                   width: 10,
                   height: 10,
                   borderRadius: "2px",
-                  bgcolor: COLORS[i % COLORS.length],
+                  bgcolor: getSeriesColor(s.name),
                   flexShrink: 0,
                 }}
               />
@@ -750,7 +761,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
         <Box sx={{ flex: 1, overflow: "auto", px: 2 }}>
           {barRows.map((row, i) => {
             const val = row.numericValue;
-            const color = COLORS[i % COLORS.length];
+            const color = getSeriesColor(chartSeries[i]?.name);
             const pct = maxVal > 0 ? (Math.abs(val) / maxVal) * 100 : 0;
             const name = chartSeries[i]?.name || "";
             const shortName =
@@ -1081,10 +1092,12 @@ export default function WidgetChart({ widget, globalDateRange }) {
       };
     })(),
     markers: {
-      size: apexType === "line" || apexType === "area" ? 4 : 0,
+      size: isLineChart ? 5 : apexType === "area" ? 4 : 0,
       strokeWidth: 2,
       strokeColors: isDark ? theme.palette.background.paper : "#fff",
-      hover: { size: 6, sizeOffset: 3 },
+      hover: isLineChart
+        ? { size: 8, sizeOffset: 2 }
+        : { size: 6, sizeOffset: 3 },
     },
     states: {
       hover: {
@@ -1112,7 +1125,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
       : {
           enabled: true,
           shared: false,
-          intersect: false,
+          intersect: isLineChart,
           custom: ({ series: s, seriesIndex, dataPointIndex, w }) => {
             const sName = w.globals.seriesNames[seriesIndex] || "";
             const color = w.globals.colors[seriesIndex] || "#6366F1";
@@ -1156,7 +1169,7 @@ export default function WidgetChart({ widget, globalDateRange }) {
       xaxis: { lines: { show: false } },
       padding: { left: 8, right: 8 },
     },
-    colors: COLORS,
+    colors: chartSeries.map((s) => getSeriesColor(s.name)),
     legend: { show: false, height: 0 },
   };
 

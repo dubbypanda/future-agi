@@ -1226,7 +1226,8 @@ class DashboardQueryBuilder:
 
         for metric_info, rows in metric_results:
             metric_name = metric_info.get("name", "")
-            unit = METRIC_UNITS.get(metric_name, "")
+            metric_id = metric_info.get("id", "")
+            unit = METRIC_UNITS.get(metric_name) or METRIC_UNITS.get(metric_id, "")
 
             # Group rows by breakdown value if present
             # Use a dict of {iso_timestamp: value} for easy merging
