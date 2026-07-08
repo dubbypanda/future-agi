@@ -48,36 +48,10 @@ const MetricFilterDrawer = React.memo(() => {
 
   const [filterDefs, setFilterDefs] = useState([]);
 
-  const normalizeFilterObj = useCallback((f) => {
-    if (!f) return f;
-    const nf = { ...f };
-    if (nf.column_id && !nf.columnId) {
-      nf.columnId = nf.column_id;
-    }
-    if (nf.filter_config && !nf.filterConfig) {
-      nf.filterConfig = {
-        filterType: nf.filter_config.filter_type || "",
-        filterOp: nf.filter_config.filter_op || "",
-        filterValue: nf.filter_config.filter_value ?? "",
-        col_type: nf.filter_config.col_type,
-      };
-    }
-    return nf;
-  }, []);
-
-  const normalizeFilters = useCallback((arr) => arr.map(normalizeFilterObj), [normalizeFilterObj]);
-
-  const [tempFilters, setTempFiltersRaw] = useState(() =>
-    filters?.length ? normalizeFilters(filters) : getDefaultFilter(),
+  const [tempFilters, setTempFilters] = useState(() =>
+    filters?.length ? filters : getDefaultFilter(),
   );
   const [tempFilterDefs, setTempFilterDefs] = useState([]);
-
-  const setTempFilters = useCallback((val) => {
-    setTempFiltersRaw((prev) => {
-      const next = typeof val === "function" ? val(prev) : val;
-      return Array.isArray(next) ? normalizeFilters(next) : next;
-    });
-  }, [normalizeFilters]);
 
   useEffect(() => {
     if (columns?.length) {

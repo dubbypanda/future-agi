@@ -137,7 +137,6 @@ class FilterEngine:
         "span_id": "id",
         "created_at": "created_at",
         "name": "name",
-        "spanName": "span_name",
         "run_name": "run_name",
         "span_name": "span_name",
         "trace_name": "trace_name",
@@ -710,14 +709,6 @@ class FilterEngine:
                         uuid.UUID(str(filter_value))
                     except ValueError:
                         return Q(pk__isnull=True)
-
-                # For UUID/FK columns, text operations (contains/not_contains/starts_with/ends_with)
-                # should use exact matching instead of icontains, since Django ORM cannot apply
-                # text lookups on ForeignKey columns.
-                if filter_op in ("contains", "starts_with", "ends_with"):
-                    filter_op = "equals"
-                elif filter_op == "not_contains":
-                    filter_op = "not_equals"
 
             # Handle duration fields — convert numeric seconds to timedelta
             if column_id == "duration" and filter_type == "number":
