@@ -483,6 +483,72 @@ class TestDatatypeConverter(APITestCase):
         assert result.success is True
         assert result.new_value is None
 
+    @patch("model_hub.views.develop_dataset.upload_image_to_s3")
+    @patch("model_hub.views.develop_dataset.validate_file_url")
+    def test_convert_to_image_skips_reupload_for_own_customer_bucket(
+        self, mock_validate, mock_upload
+    ):
+        """A `fi-customer-data*` URL wrapped in a single-element JSON array
+        must be linked, not re-downloaded/re-uploaded.
+        """
+        mock_validate.return_value = None
+        converter = DatatypeConverter(
+            DataTypeChoices.IMAGE.value, dataset_id=str(self.dataset.id)
+        )
+        own_url = "https://fi-customer-data-dev.s3.amazonaws.com/images/uuid/uuid"
+        cell = self._create_cell(json.dumps([own_url]))
+
+        result = converter._convert_single_cell(cell)
+
+        assert result.success is True
+        assert result.new_value == own_url
+        mock_upload.assert_not_called()
+
+    @patch("model_hub.views.develop_dataset.upload_image_to_s3")
+    @patch("model_hub.views.develop_dataset.validate_file_url")
+    def test_convert_to_image_skips_reupload_for_own_content_dev_bucket(
+        self, mock_validate, mock_upload
+    ):
+        """TH-5648 root cause #2: exported CSVs carry `fi-content-dev` URLs
+        (not just `fi-customer-data`) — those must also be linked, not
+        re-uploaded. This bucket was missed in earlier revisions of the fix.
+        """
+        mock_validate.return_value = None
+        converter = DatatypeConverter(
+            DataTypeChoices.IMAGE.value, dataset_id=str(self.dataset.id)
+        )
+        own_url = (
+            "https://fi-content-dev.s3.ap-south-1.amazonaws.com/images/uuid/uuid"
+        )
+        cell = self._create_cell(json.dumps([own_url]))
+
+        result = converter._convert_single_cell(cell)
+
+        assert result.success is True
+        assert result.new_value == own_url
+        mock_upload.assert_not_called()
+
+    @patch("model_hub.views.develop_dataset.upload_image_to_s3")
+    @patch("model_hub.views.develop_dataset.validate_file_url")
+    def test_convert_to_image_reuploads_third_party_url_in_json_array(
+        self, mock_validate, mock_upload
+    ):
+        """A third-party URL wrapped in the same single-element JSON array
+        shape must still be downloaded and re-uploaded to our own bucket.
+        """
+        mock_validate.return_value = None
+        mock_upload.return_value = "https://s3.bucket/image.jpg"
+        converter = DatatypeConverter(
+            DataTypeChoices.IMAGE.value, dataset_id=str(self.dataset.id)
+        )
+        cell = self._create_cell(json.dumps(["https://example.com/image.jpg"]))
+
+        result = converter._convert_single_cell(cell)
+
+        assert result.success is True
+        assert result.new_value == "https://s3.bucket/image.jpg"
+        mock_upload.assert_called_once()
+
     # ============= STRICT MODE TESTS =============
 
     def test_strict_mode_all_succeed(self):

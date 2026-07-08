@@ -6378,6 +6378,14 @@ class DatatypeConverter:
             # Catch any other unexpected errors
             raise ValueError(f"Failed to convert to JSON: {str(e)}") from e
 
+    # Buckets we already host content in. A URL pointing at any of these is
+    # ours and should be linked, not re-downloaded and re-uploaded. Exported
+    # CSVs carry URLs from both — `fi-customer-data*` (customer uploads) and
+    # `fi-content-dev` (platform-generated/exported content) — so both must
+    # be checked (TH-5648: only the first was covered, so re-exported
+    # `fi-content-dev` images were needlessly round-tripped).
+    _OWN_S3_BUCKET_MARKERS = ("fi-customer-data", "fi-content-dev")
+
     def _convert_cell_to_image(self, cell):
         """Convert to image - uploads to S3"""
         if self._is_default_empty_value(cell.value, self.new_data_type):
@@ -6393,9 +6401,9 @@ class DatatypeConverter:
                     parsed = json.loads(image_value)
                     if isinstance(parsed, list) and len(parsed) == 1:
                         image_value = parsed[0]
-                        is_s3_url = (
-                            isinstance(image_value, str)
-                            and "fi-customer-data" in image_value
+                        is_s3_url = isinstance(image_value, str) and any(
+                            marker in image_value
+                            for marker in self._OWN_S3_BUCKET_MARKERS
                         )
                 except (json.JSONDecodeError, TypeError):
                     pass

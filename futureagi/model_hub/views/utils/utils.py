@@ -1,8 +1,12 @@
+import ipaddress
 import re
+import socket
 from typing import Literal, Union
+from urllib.parse import urljoin, urlparse
 
-import requests
+import certifi
 import structlog
+import urllib3
 
 from tfc.ee_stub import _ee_stub
 
@@ -220,6 +224,150 @@ def is_valid_url(url_string: str) -> bool:
         return False
 
 
+# --- SSRF-safe fetch helpers -------------------------------------------------
+#
+# validate_file_url() has to make a real network request to a user-supplied
+# URL. That's an SSRF surface: naively using `requests.get/head(url)` lets a
+# caller point the server at cloud metadata endpoints (169.254.169.254),
+# loopback, or internal services, and — if redirects are involved — even a
+# URL that *looks* external can 30x into something internal.
+#
+# The guard below closes the two ways that kind of check is usually
+# bypassed:
+#   1. Every redirect hop is re-resolved and re-validated (not just the
+#      original URL) — otherwise an attacker just needs one public URL that
+#      redirects to an internal target.
+#   2. The IP we validate is the *exact* IP we connect to (we build the
+#      urllib3 connection pool directly against that IP, with the real
+#      hostname only used for the Host header / TLS SNI+cert check). This
+#      closes the DNS-rebinding/TOCTOU gap where a "validate hostname, then
+#      let requests independently re-resolve it" approach can validate one
+#      IP and connect to a different one if the attacker's DNS answers
+#      differently a few milliseconds later.
+_MAX_REDIRECTS = 5
+_FETCH_TIMEOUT_SECONDS = 5
+
+
+def _reject_unsafe_ip(ip_str: str, *, file_type: str, host: str) -> None:
+    ip = ipaddress.ip_address(ip_str)
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local  # covers the 169.254.169.254 cloud metadata address
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise ValueError(
+            f"{file_type.capitalize()} URL host '{host}' resolves to a "
+            f"private/internal address and cannot be used."
+        )
+
+
+def _resolve_pinned_ip(host: str, *, file_type: str) -> str:
+    """Resolve `host` to a single IP, validated as public/routable.
+
+    Callers MUST connect to the returned IP directly rather than letting the
+    HTTP client re-resolve `host` itself — that second, independent lookup is
+    exactly the gap DNS-rebinding attacks exploit.
+    """
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        raise ValueError(
+            f"Cannot resolve {file_type} URL host '{host}': {e}"
+        ) from None
+
+    resolved_ips = sorted({info[4][0] for info in infos})
+    if not resolved_ips:
+        raise ValueError(f"Cannot resolve {file_type} URL host '{host}'.")
+
+    # Validate every A/AAAA record, not just the one we'll use — a host that
+    # advertises both a public and a private address is still a hole.
+    for ip_str in resolved_ips:
+        _reject_unsafe_ip(ip_str, file_type=file_type, host=host)
+
+    return resolved_ips[0]
+
+
+def _safe_head(url: str, *, file_type: str):
+    """SSRF-safe HEAD request with manual, re-validated redirect handling.
+
+    Returns (status_code, headers, final_url). `final_url` is the URL after
+    following any redirects — callers must use it (not the original `url`)
+    for any further inspection (e.g. extension fallback), since checking the
+    pre-redirect URL while acting on the post-redirect response is its own
+    bypass.
+    """
+    current_url = url
+    for _ in range(_MAX_REDIRECTS):
+        parsed = urlparse(current_url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"Unsupported scheme for {file_type} URL: '{parsed.scheme}'."
+            )
+        host = parsed.hostname
+        if not host:
+            raise ValueError(f"Invalid {file_type} URL: missing host.")
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+
+        pinned_ip = _resolve_pinned_ip(host, file_type=file_type)
+
+        path = parsed.path or "/"
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
+
+        pool = None
+        try:
+            if parsed.scheme == "https":
+                pool = urllib3.HTTPSConnectionPool(
+                    pinned_ip,
+                    port=port,
+                    timeout=_FETCH_TIMEOUT_SECONDS,
+                    retries=False,
+                    assert_hostname=host,
+                    server_hostname=host,
+                    cert_reqs="CERT_REQUIRED",
+                    ca_certs=certifi.where(),
+                )
+            else:
+                pool = urllib3.HTTPConnectionPool(
+                    pinned_ip,
+                    port=port,
+                    timeout=_FETCH_TIMEOUT_SECONDS,
+                    retries=False,
+                )
+            response = pool.request(
+                "HEAD",
+                path,
+                headers={"Host": host},
+                redirect=False,
+                preload_content=False,
+            )
+        except urllib3.exceptions.HTTPError as e:
+            raise ValueError(f"Cannot access {file_type} URL: {e}") from None
+        finally:
+            if pool is not None:
+                pool.close()
+
+        if response.status in (301, 302, 303, 307, 308):
+            location = response.headers.get("Location")
+            if not location:
+                raise ValueError(
+                    f"{file_type.capitalize()} URL redirected with no Location header."
+                )
+            current_url = urljoin(current_url, location)
+            if not is_valid_url(current_url):
+                raise ValueError(
+                    f"{file_type.capitalize()} URL redirected to an invalid URL."
+                )
+            continue
+
+        return response.status, response.headers, current_url
+
+    raise ValueError(f"Too many redirects while validating {file_type} URL.")
+
+
 def validate_file_url(
     url: str, file_type: Union[Literal["image"], Literal["document"], Literal["audio"]]
 ) -> None:
@@ -253,73 +401,57 @@ def validate_file_url(
     # Generic types that carry no useful file-type signal.
     _GENERIC_CONTENT_TYPES = {"application/octet-stream", "binary/octet-stream"}
 
-    # SSRF guard: resolve hostname and block private/loopback/link-local ranges.
-    import socket as _socket, ipaddress as _ipaddress
-    try:
-        _host = url.split("://", 1)[-1].split("/")[0].split(":")[0]
-        _ip = _ipaddress.ip_address(_socket.gethostbyname(_host))
-        if _ip.is_private or _ip.is_loopback or _ip.is_link_local:
-            raise ValueError("URL resolves to a private or reserved address — not allowed.")
-    except ValueError:
-        raise
-    except _socket.gaierror as _e:
-        raise ValueError(f"Cannot resolve {file_type} URL host: {_e}") from None
+    status_code, headers, final_url = _safe_head(url, file_type=file_type)
 
-    try:
-        response = requests.head(url, timeout=5, allow_redirects=False)
-        # Follow at most one redirect, re-validating each hop for SSRF.
-        if response.status_code in (301, 302, 303, 307, 308):
-            location = response.headers.get("Location", "")
-            if location and is_valid_url(location):
-                response = requests.head(location, timeout=5, allow_redirects=False)
-        if response.status_code >= 400:
-            raise ValueError(
-                f"{file_type.capitalize()} URL returned status code {response.status_code}"
-            )
+    if status_code >= 400:
+        raise ValueError(
+            f"{file_type.capitalize()} URL returned status code {status_code}"
+        )
 
-        if config["check_content_type"]:
-            # Content-Type is the primary signal. Extensions are used as a
-            # fallback only when the server returns a generic or missing type.
-            raw_ct = response.headers.get("Content-Type", "")
-            content_type = raw_ct.lower().split(";")[0].strip()
-            expected_prefix = config["content_type_prefix"]
-            valid_extensions = config["extensions"]
-            url_path = url.lower().split("?")[0]
+    # From here on, use `final_url` (post-redirect) — not the original `url` —
+    # for any path/extension inspection.
+    if config["check_content_type"]:
+        # Content-Type is the primary signal. Extensions are used as a
+        # fallback only when the server returns a generic or missing type.
+        raw_ct = headers.get("Content-Type", "")
+        content_type = raw_ct.lower().split(";")[0].strip()
+        expected_prefix = config["content_type_prefix"]
+        valid_extensions = config["extensions"]
 
-            if content_type.startswith(expected_prefix):
-                pass  # explicit content-type match — accept
-            elif not content_type or content_type in _GENERIC_CONTENT_TYPES:
-                # Server returned no useful type signal (empty, octet-stream, etc.).
-                # Use extension as the signal:
-                #   - known good extension → accept
-                #   - no extension at all  → accept (S3/CDN URLs; magic-byte check downstream)
-                #   - explicit bad extension (.exe, .txt …) → reject
-                url_path_lower = url.lower().split("?")[0]
-                has_any_ext = "." in url_path_lower.rsplit("/", 1)[-1]
-                if has_any_ext and not any(url_path_lower.endswith(ext) for ext in valid_extensions):
-                    raise ValueError(
-                        f"URL has a non-{file_type} extension and no content-type signal."
-                    )
-            else:
-                # Server returned an explicit, non-generic content-type that
-                # doesn't match — reject outright, no extension fallback.
+        if content_type.startswith(expected_prefix):
+            pass  # explicit content-type match — accept
+        elif not content_type or content_type in _GENERIC_CONTENT_TYPES:
+            # Server returned no useful type signal (empty, octet-stream, etc.).
+            # Use extension as the signal:
+            #   - known good extension → accept
+            #   - no extension at all  → accept (S3/CDN URLs; magic-byte check downstream)
+            #   - explicit bad extension (.exe, .txt …) → reject
+            url_path_lower = final_url.lower().split("?")[0]
+            has_any_ext = "." in url_path_lower.rsplit("/", 1)[-1]
+            if has_any_ext and not any(
+                url_path_lower.endswith(ext) for ext in valid_extensions
+            ):
                 raise ValueError(
-                    f"URL does not appear to be a {file_type}: "
-                    f"content-type '{content_type}' is not '{expected_prefix}*'"
+                    f"URL has a non-{file_type} extension and no content-type signal."
                 )
         else:
-            # No content-type check available for this file type (e.g. documents).
-            # Validate by extension instead — without this an arbitrary reachable
-            # URL would pass.
-            valid_extensions = config["extensions"]
-            url_path = url.lower().split("?")[0]
-            if not any(url_path.endswith(ext) for ext in valid_extensions):
-                raise ValueError(
-                    f"URL does not appear to be a {file_type}. "
-                    f"Expected extensions: {', '.join(valid_extensions)}"
-                )
-    except requests.exceptions.RequestException as e:
-        raise ValueError(f"Cannot access {file_type} URL: {str(e)}")
+            # Server returned an explicit, non-generic content-type that
+            # doesn't match — reject outright, no extension fallback.
+            raise ValueError(
+                f"URL does not appear to be a {file_type}: "
+                f"content-type '{content_type}' is not '{expected_prefix}*'"
+            )
+    else:
+        # No content-type check available for this file type (e.g. documents).
+        # Validate by extension instead — without this an arbitrary reachable
+        # URL would pass.
+        valid_extensions = config["extensions"]
+        url_path = final_url.lower().split("?")[0]
+        if not any(url_path.endswith(ext) for ext in valid_extensions):
+            raise ValueError(
+                f"URL does not appear to be a {file_type}. "
+                f"Expected extensions: {', '.join(valid_extensions)}"
+            )
 
 
 def get_recommendations(new_dataset):
