@@ -1,4 +1,4 @@
-"""Backfill is_default=True on the highest-numbered version for templates where no version carries the flag."""
+"""Backfill is_default=True on the highest-numbered version for orphan templates + enforce the unique-default invariant at the DB layer."""
 
 import logging
 
@@ -47,5 +47,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Repair orphan templates FIRST, then lock the invariant. Order matters
+        # only conceptually — the constraint accepts zero-default rows, so it
+        # would apply either way, but keeping the sequence clean.
         migrations.RunPython(backfill_is_default, reverse_code=migrations.RunPython.noop),
+        migrations.AddConstraint(
+            model_name="evaltemplateversion",
+            constraint=models.UniqueConstraint(
+                fields=["eval_template"],
+                condition=models.Q(is_default=True, deleted=False),
+                name="unique_default_version_per_template",
+            ),
+        ),
     ]
