@@ -39,7 +39,6 @@ a backend pod that connects to the production CH cluster.
 from __future__ import annotations
 
 import os
-import re
 import time
 from dataclasses import dataclass
 from typing import Callable
@@ -50,6 +49,13 @@ from django.core.management.base import BaseCommand, CommandError
 from agentic_eval.core.database.ch_vector import (
     ClickHouseVectorDB,
     get_clickhouse_cluster_name,
+)
+from model_hub.services.ch_migration import (
+    expected_replica_count,
+    per_replica_counts,
+    poll_replica_parity,
+    require_identifier,
+    shared_columns,
 )
 from model_hub.services.legacy_ch_tables import (
     EVENTS_TABLE,
@@ -67,8 +73,6 @@ from tracer.services.clickhouse.clustering_tables import (
 )
 
 logger = structlog.get_logger(__name__)
-
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -112,15 +116,6 @@ _TABLES: dict[str, _LegacyTable] = {
 }
 
 
-def _require_identifier(value: str, flag: str) -> str:
-    if not _IDENTIFIER_RE.fullmatch(value):
-        raise CommandError(
-            f"{flag} {value!r} is not a valid ClickHouse identifier. "
-            "Allowed: letters, digits, underscores; must not start with a digit."
-        )
-    return value
-
-
 class Command(BaseCommand):
     help = (
         "Migrate the legacy non-replicated default-database CH tables "
@@ -143,11 +138,11 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **opts):
-        source_db = _require_identifier(opts["source_database"], "--source-database")
-        target_db = _require_identifier(
+        source_db = require_identifier(opts["source_database"], "--source-database")
+        target_db = require_identifier(
             opts["target_database"] or source_db, "--target-database"
         )
-        cluster = _require_identifier(opts["cluster"], "--cluster")
+        cluster = require_identifier(opts["cluster"], "--cluster")
         dry_run = opts["dry_run"]
         table_names = [t.strip() for t in opts["tables"].split(",") if t.strip()]
 
@@ -171,8 +166,8 @@ class Command(BaseCommand):
                 "Run from a backend pod that connects to the production CH cluster."
             )
 
-        expected_replicas = 0 if dry_run else self._expected_replica_count(
-            db_client, cluster
+        expected_replicas = (
+            0 if dry_run else expected_replica_count(db_client.client, cluster)
         )
 
         if not dry_run:
@@ -290,8 +285,8 @@ class Command(BaseCommand):
             f"'{cluster}', {source_qualified})"
         )[0][0]
 
-        before_counts = self._per_replica_counts(
-            db_client, target_db, spec.name, cluster
+        before_counts = per_replica_counts(
+            db_client.client, target_db, spec.name, cluster
         )
 
         if not spec.is_keyed:
@@ -342,8 +337,8 @@ class Command(BaseCommand):
         # Name-aligned copy: explicit shared column list, never SELECT *. Guards
         # against a drifted legacy source (column order/set) silently misaligning
         # by position; target-only columns fall back to their DEFAULT.
-        shared_cols, source_only = self._shared_columns(
-            db_client, source_db, target_db, spec.name
+        shared_cols, source_only = shared_columns(
+            db_client.client, source_db, target_db, spec.name
         )
         if not shared_cols:
             self.stderr.write(
@@ -376,15 +371,15 @@ class Command(BaseCommand):
         )
         insert_elapsed = time.monotonic() - insert_started
 
-        per_replica_counts, converged = self._poll_replica_parity(
-            db_client=db_client,
-            target_db=target_db,
+        replica_counts, converged = poll_replica_parity(
+            db_client.client,
+            database=target_db,
             table=spec.name,
             cluster=cluster,
             expected=source_count,
             expected_replicas=expected_replicas,
         )
-        after_target_count = min(per_replica_counts.values(), default=0)
+        after_target_count = min(replica_counts.values(), default=0)
         newly_copied = after_target_count - existing_target_count
 
         logger.info(
@@ -393,7 +388,7 @@ class Command(BaseCommand):
             target=target_qualified,
             source_count=source_count,
             target_count_before=existing_target_count,
-            per_replica_counts=per_replica_counts,
+            per_replica_counts=replica_counts,
             expected_replicas=expected_replicas,
             newly_copied=newly_copied,
             insert_elapsed_sec=round(insert_elapsed, 3),
@@ -402,117 +397,13 @@ class Command(BaseCommand):
         if not converged:
             self.stderr.write(
                 self.style.WARNING(
-                    f"  {spec.name}: NOT converged — per-replica {per_replica_counts}, "
+                    f"  {spec.name}: NOT converged: per-replica {replica_counts}, "
                     f"expected {source_count} on each of {expected_replicas} replicas."
                 )
             )
         else:
             self.stdout.write(
                 f"  {spec.name}: copied {newly_copied} rows; "
-                f"per-replica counts {per_replica_counts}"
+                f"per-replica counts {replica_counts}"
             )
         return newly_copied, converged
-
-    def _expected_replica_count(
-        self, db_client: ClickHouseVectorDB, cluster: str
-    ) -> int:
-        """Number of hosts the cluster spans — the number of per-replica rows a
-        complete ``_per_replica_counts`` result must contain before it is trusted
-        (an incomplete result means a replica is still registering or is down).
-        """
-        rows = db_client.client.execute(
-            "SELECT count() FROM system.clusters WHERE cluster = %(c)s",
-            {"c": cluster},
-        )
-        return rows[0][0] if rows else 0
-
-    def _shared_columns(
-        self,
-        db_client: ClickHouseVectorDB,
-        source_db: str,
-        target_db: str,
-        table: str,
-    ) -> tuple[list[str], list[str]]:
-        """Columns present in BOTH source and target, in target order, plus the
-        list of source-only columns (dropped by the copy)."""
-        def cols(db: str) -> list[str]:
-            return [
-                r[0]
-                for r in db_client.client.execute(
-                    "SELECT name FROM system.columns "
-                    "WHERE database = %(d)s AND table = %(t)s ORDER BY position",
-                    {"d": db, "t": table},
-                )
-            ]
-        src = cols(source_db)
-        tgt = cols(target_db)
-        src_set, tgt_set = set(src), set(tgt)
-        shared = [c for c in tgt if c in src_set]
-        source_only = [c for c in src if c not in tgt_set]
-        return shared, source_only
-
-    def _per_replica_counts(
-        self,
-        db_client: ClickHouseVectorDB,
-        database: str,
-        table: str,
-        cluster: str,
-    ) -> dict[str, int]:
-        """Per-replica row count via ``system.tables.total_rows``.
-
-        Read through ``clusterAllReplicas(system.tables)`` rather than
-        ``count() ... GROUP BY hostName()``: the latter yields NO group for a
-        replica where the table is empty, so a freshly-created (all-empty) target
-        would read as "zero replicas" and mislead both the one-shot guard and the
-        parity check. ``system.tables`` has one row per replica that holds the
-        table — including the empty ones — and omits a replica that is missing
-        the table entirely, which is exactly the signal we want.
-        """
-        rows = db_client.client.execute(
-            f"SELECT hostName(), total_rows FROM clusterAllReplicas("
-            f"'{cluster}', system.tables) "
-            f"WHERE database = %(d)s AND name = %(t)s",
-            {"d": database, "t": table},
-        )
-        return {host: int(cnt or 0) for host, cnt in rows}
-
-    def _poll_replica_parity(
-        self,
-        *,
-        db_client: ClickHouseVectorDB,
-        target_db: str,
-        table: str,
-        cluster: str,
-        expected: int,
-        expected_replicas: int,
-        max_wait_sec: float = 30.0,
-        poll_interval: float = 2.0,
-    ) -> tuple[dict[str, int], bool]:
-        """Poll until EVERY expected replica reports >= ``expected`` rows.
-
-        Returns ``(per_replica_counts, converged)``. Converged requires the full
-        set of replicas to be present AND each at/above the expected count — a
-        replica still registering (absent from the result) counts as not-yet.
-        """
-        deadline = time.monotonic() + max_wait_sec
-        counts: dict[str, int] = {}
-        while True:
-            counts = self._per_replica_counts(db_client, target_db, table, cluster)
-            converged = (
-                len(counts) >= expected_replicas
-                and bool(counts)
-                and all(c >= expected for c in counts.values())
-            )
-            if converged:
-                return counts, True
-            if time.monotonic() >= deadline:
-                logger.warning(
-                    "migrate_parity_wait_timed_out",
-                    target=f"{target_db}.{table}",
-                    expected=expected,
-                    expected_replicas=expected_replicas,
-                    per_replica_counts=counts,
-                    max_wait_sec=max_wait_sec,
-                )
-                return counts, False
-            time.sleep(poll_interval)

@@ -168,6 +168,77 @@ def test_append_only_and_softdelete_tables_never_become_replacing():
         assert "ENGINE = ReplicatedMergeTree(" in sql, table
 
 
+def _events_client(*, clustered: bool, existing_columns: list[tuple]):
+    """A client mock scripted for ``ensure_events_table``: replies to the
+    cluster probe, the CREATE, the DESCRIBE, and any subsequent ALTER.
+    """
+    client = MagicMock()
+
+    def execute_side_effect(sql, *args, **kwargs):
+        sql_lc = sql.lower()
+        if "from system.clusters" in sql_lc:
+            return [[1 if clustered else 0]]
+        if sql_lc.lstrip().startswith("describe table"):
+            return existing_columns
+        return []
+
+    client.execute.side_effect = execute_side_effect
+    return client
+
+
+def test_ensure_events_table_backfills_original_uuid_on_pre_existing_table():
+    """A CREATE TABLE IF NOT EXISTS against an existing pre-``original_uuid``
+    ``events`` is a no-op, so ``ensure_events_table`` must also run a
+    DESCRIBE and, if the column is missing, an idempotent
+    ``ALTER TABLE ... ADD COLUMN IF NOT EXISTS original_uuid ...``.
+    Otherwise downstream reads (``SELECT DISTINCT original_uuid FROM events``
+    in ``model_hub/tasks/agent.py`` and ``prompt_template_optimizer.py``)
+    error with "Unknown identifier" on any pre-existing table that predates
+    the column.
+    """
+    legacy_columns_without_original_uuid = [
+        ("UUID", "UUID", "", "", "", "", ""),
+        ("EventDate", "Date", "", "", "", "", ""),
+    ]
+    client = _events_client(
+        clustered=True,
+        existing_columns=legacy_columns_without_original_uuid,
+    )
+
+    ensure_events_table(client)
+
+    executed_sqls = [c.args[0] for c in client.execute.call_args_list]
+    alter_stmts = [
+        s for s in executed_sqls if s.lstrip().upper().startswith("ALTER TABLE")
+    ]
+    assert alter_stmts, "expected ALTER TABLE ... ADD COLUMN original_uuid"
+    assert "ADD COLUMN IF NOT EXISTS original_uuid" in alter_stmts[0]
+    # Clustered path must fan the ALTER out via ON CLUSTER; a leader-only
+    # ALTER would leave followers with the pre-column schema.
+    assert "ON CLUSTER 'cluster'" in alter_stmts[0]
+
+
+def test_ensure_events_table_does_not_alter_when_column_already_present():
+    """If ``original_uuid`` is already there, the ALTER is skipped so boot
+    doesn't fire a needless DDL replication round-trip on every pod start.
+    """
+    columns_with_original_uuid = [
+        ("UUID", "UUID", "", "", "", "", ""),
+        ("original_uuid", "UUID", "DEFAULT", "UUID", "", "", ""),
+    ]
+    client = _events_client(
+        clustered=True,
+        existing_columns=columns_with_original_uuid,
+    )
+
+    ensure_events_table(client)
+
+    executed_sqls = [c.args[0] for c in client.execute.call_args_list]
+    assert not any(
+        s.lstrip().upper().startswith("ALTER TABLE") for s in executed_sqls
+    )
+
+
 def test_build_replicated_engine_rejects_unknown_engine():
     with pytest.raises(ValueError):
         build_replicated_engine("TinyLog", "whatever", clustered=True)

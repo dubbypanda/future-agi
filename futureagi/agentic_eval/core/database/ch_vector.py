@@ -190,10 +190,14 @@ class ClickHouseVectorDB:
             rows = client.execute(
                 "SELECT count() FROM system.clusters WHERE replica_num > 1"
             )
-            cls._is_clustered_cached = bool(rows and rows[0][0])
         except Exception:
+            # Only cache successful probes: a transient CH outage on the very
+            # first call would otherwise poison the process cache with False,
+            # and every later table create in this worker would silently emit
+            # a non-replicated engine on what is actually a clustered CH.
             logger.warning("ch_vector_cluster_detect_failed", exc_info=True)
-            cls._is_clustered_cached = False
+            return False
+        cls._is_clustered_cached = bool(rows and rows[0][0])
         return cls._is_clustered_cached
 
     def _is_clustered(self) -> bool:

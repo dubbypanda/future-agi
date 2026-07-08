@@ -5,12 +5,15 @@ Reads via ``clusterAllReplicas`` so every replica's slice is captured;
 writes via ``ClickHouseVectorDB.create_table`` so the engine auto-selects
 ``ReplicatedReplacingMergeTree`` ON CLUSTER on a multi-replica cluster.
 Idempotent: ``WHERE id NOT IN target`` makes re-runs a no-op.
+
+Parity, column-alignment, and failure-propagation semantics come from the
+shared ``model_hub.services.ch_migration`` module so both this command
+and its sibling default-tables migrator behave identically.
 """
 
 from __future__ import annotations
 
 import os
-import re
 import time
 
 import structlog
@@ -24,22 +27,23 @@ from agentic_eval.core.embeddings.embedding_manager import (
     FEEDBACK_TABLE_NAME,
     GROUND_TRUTH_TABLE_NAME,
 )
+from model_hub.services.ch_migration import (
+    expected_replica_count,
+    per_replica_counts,
+    poll_replica_parity,
+    require_identifier,
+    shared_columns,
+)
 from model_hub.utils.kb_indexer import KB_TABLE_NAME
 
 logger = structlog.get_logger(__name__)
 
 
 KNOWN_TABLES = (FEEDBACK_TABLE_NAME, GROUND_TRUTH_TABLE_NAME, KB_TABLE_NAME)
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-
-def _require_identifier(value: str, flag: str) -> str:
-    if not _IDENTIFIER_RE.fullmatch(value):
-        raise CommandError(
-            f"{flag} {value!r} is not a valid ClickHouse identifier. "
-            "Allowed: letters, digits, underscores; must not start with a digit."
-        )
-    return value
+# Vector-table dedup key. All three tables use `id UUID` as their
+# ReplacingMergeTree order-by, so the copy anti-joins on it.
+_DEDUP_COLUMN = "id"
 
 
 class Command(BaseCommand):
@@ -60,11 +64,11 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **opts):
-        source_db = _require_identifier(opts["source_database"], "--source-database")
-        target_db = _require_identifier(
+        source_db = require_identifier(opts["source_database"], "--source-database")
+        target_db = require_identifier(
             opts["target_database"] or source_db, "--target-database"
         )
-        cluster = _require_identifier(opts["cluster"], "--cluster")
+        cluster = require_identifier(opts["cluster"], "--cluster")
         dry_run = opts["dry_run"]
         tables = [t.strip() for t in opts["tables"].split(",") if t.strip()]
 
@@ -88,6 +92,10 @@ class Command(BaseCommand):
                 "Run from a backend pod that connects to the production CH cluster."
             )
 
+        expected_replicas = (
+            0 if dry_run else expected_replica_count(db_client.client, cluster)
+        )
+
         if not dry_run:
             # Bootstrap the target DB on every replica before any CREATE TABLE.
             db_client.client.execute(
@@ -99,27 +107,42 @@ class Command(BaseCommand):
             source_database=source_db,
             target_database=target_db,
             tables=tables,
+            cluster=cluster,
+            expected_replicas=expected_replicas,
             dry_run=dry_run,
         )
 
         total_copied = 0
+        failures: list[str] = []
         for table in tables:
-            copied = self._migrate_one_table(
+            copied, ok = self._migrate_one_table(
                 db_client=db_client,
                 table=table,
                 source_db=source_db,
                 target_db=target_db,
                 cluster=cluster,
+                expected_replicas=expected_replicas,
                 dry_run=dry_run,
             )
             total_copied += copied
+            if not ok:
+                failures.append(table)
 
         logger.info(
             "migrate_legacy_vectors_to_replicated_complete",
             tables=tables,
             total_rows_copied=total_copied,
+            failures=failures,
             dry_run=dry_run,
         )
+        if failures:
+            # Non-zero exit so an exit-code-gated cutover can't flip
+            # CH_DATABASE before every replicated copy has converged.
+            raise CommandError(
+                f"Migration did not fully converge for {failures}. "
+                f"Do NOT flip CH_DATABASE. Inspect per-table logs; re-run once "
+                f"lagging replicas catch up (vector tables are idempotent)."
+            )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Done. Tables processed: {tables}. "
@@ -135,8 +158,10 @@ class Command(BaseCommand):
         source_db: str,
         target_db: str,
         cluster: str,
+        expected_replicas: int,
         dry_run: bool,
-    ) -> int:
+    ) -> tuple[int, bool]:
+        """Return ``(rows_copied, converged_ok)``."""
         source_qualified = f"{source_db}.{table}"
         target_qualified = f"{target_db}.{table}"
 
@@ -152,9 +177,9 @@ class Command(BaseCommand):
                     f"  dry-run: source {source_qualified} missing; "
                     f"would create empty target {target_qualified}"
                 )
-                return 0
+                return 0, True
             source_count_row = db_client.client.execute(
-                f"SELECT uniqExact(id) FROM clusterAllReplicas("
+                f"SELECT uniqExact({_DEDUP_COLUMN}) FROM clusterAllReplicas("
                 f"'{cluster}', {source_qualified})"
             )
             source_distinct_count = source_count_row[0][0] if source_count_row else 0
@@ -162,7 +187,7 @@ class Command(BaseCommand):
                 f"  dry-run: would copy {source_distinct_count} rows from "
                 f"{source_qualified} -> {target_qualified}"
             )
-            return 0
+            return 0, True
 
         # Create target unconditionally; ground_truths may have no source yet.
         # Qualify the table explicitly with database= rather than mutating
@@ -180,45 +205,61 @@ class Command(BaseCommand):
                 f"  {table}: target ready; source {source_qualified} "
                 f"missing, nothing to copy"
             )
-            return 0
+            return 0, True
 
-        source_count_row = db_client.client.execute(
-            f"SELECT uniqExact(id) FROM clusterAllReplicas("
+        source_distinct_count = db_client.client.execute(
+            f"SELECT uniqExact({_DEDUP_COLUMN}) FROM clusterAllReplicas("
             f"'{cluster}', {source_qualified})"
-        )
-        source_distinct_count = source_count_row[0][0] if source_count_row else 0
+        )[0][0]
 
-        # Use clusterAllReplicas + min so a leader-only read can't mask a
-        # follower that's still behind from a previous half-completed run.
-        existing_target_rows = db_client.client.execute(
-            f"SELECT hostName(), count() FROM clusterAllReplicas("
-            f"'{cluster}', {target_qualified}) GROUP BY hostName()"
+        before_counts = per_replica_counts(
+            db_client.client, target_db, table, cluster
         )
-        existing_target_count = (
-            min(c for _, c in existing_target_rows) if existing_target_rows else 0
+        existing_target_count = min(before_counts.values(), default=0)
+
+        # Name-aligned copy: explicit shared column list, never SELECT *.
+        # Guards a drifted legacy source (column order/set) against silent
+        # positional misalignment; target-only columns fall back to DEFAULT.
+        shared_cols, source_only = shared_columns(
+            db_client.client, source_db, target_db, table
         )
+        if not shared_cols:
+            self.stderr.write(
+                self.style.WARNING(
+                    f"  {table}: no shared columns between {source_qualified} "
+                    f"and {target_qualified}; refusing to copy."
+                )
+            )
+            return 0, False
+        if source_only:
+            logger.warning(
+                "migrate_source_only_columns_dropped",
+                table=table,
+                source_only_columns=source_only,
+            )
+        col_list = ", ".join(f"`{c}`" for c in shared_cols)
 
         insert_started = time.monotonic()
         db_client.client.execute(
-            f"INSERT INTO {target_qualified} "
-            f"SELECT * FROM clusterAllReplicas("
+            f"INSERT INTO {target_qualified} ({col_list}) "
+            f"SELECT {col_list} FROM clusterAllReplicas("
             f"'{cluster}', {source_qualified}) "
-            f"WHERE id NOT IN (SELECT id FROM {target_qualified})"
+            f"WHERE {_DEDUP_COLUMN} NOT IN "
+            f"(SELECT {_DEDUP_COLUMN} FROM {target_qualified})"
         )
         insert_elapsed = time.monotonic() - insert_started
 
         # Keeper pull-down is async, so a fresh INSERT lags briefly on followers.
-        per_replica_counts = self._poll_replica_parity(
-            db_client=db_client,
-            target_qualified=target_qualified,
+        replica_counts, converged = poll_replica_parity(
+            db_client.client,
+            database=target_db,
+            table=table,
             cluster=cluster,
             expected=source_distinct_count,
+            expected_replicas=expected_replicas,
         )
-        after_target_count = min(per_replica_counts.values()) if per_replica_counts else 0
+        after_target_count = min(replica_counts.values(), default=0)
         newly_copied = after_target_count - existing_target_count
-        parity_ok = bool(per_replica_counts) and all(
-            c >= source_distinct_count for c in per_replica_counts.values()
-        )
 
         logger.info(
             "migrate_table_complete",
@@ -226,53 +267,23 @@ class Command(BaseCommand):
             target=target_qualified,
             source_distinct_count=source_distinct_count,
             target_count_before=existing_target_count,
-            per_replica_counts=per_replica_counts,
+            per_replica_counts=replica_counts,
+            expected_replicas=expected_replicas,
             newly_copied=newly_copied,
             insert_elapsed_sec=round(insert_elapsed, 3),
-            parity_ok=parity_ok,
+            converged=converged,
         )
-        if not parity_ok:
+        if not converged:
             self.stderr.write(
                 self.style.WARNING(
-                    f"  parity mismatch on {table}: per-replica counts "
-                    f"{per_replica_counts}, source distinct = {source_distinct_count}"
+                    f"  {table}: NOT converged: per-replica {replica_counts}, "
+                    f"expected {source_distinct_count} on each of "
+                    f"{expected_replicas} replicas."
                 )
             )
         else:
             self.stdout.write(
                 f"  {table}: copied {newly_copied} rows; "
-                f"per-replica counts {per_replica_counts}"
+                f"per-replica counts {replica_counts}"
             )
-        return newly_copied
-
-    def _poll_replica_parity(
-        self,
-        *,
-        db_client: ClickHouseVectorDB,
-        target_qualified: str,
-        cluster: str,
-        expected: int,
-        max_wait_sec: float = 30.0,
-        poll_interval: float = 2.0,
-    ) -> dict[str, int]:
-        """Return per-replica row counts, polling until every replica reaches expected."""
-        deadline = time.monotonic() + max_wait_sec
-        counts: dict[str, int] = {}
-        while True:
-            rows = db_client.client.execute(
-                f"SELECT hostName(), count() FROM clusterAllReplicas("
-                f"'{cluster}', {target_qualified}) GROUP BY hostName()"
-            )
-            counts = {host: cnt for host, cnt in rows}
-            if counts and all(c >= expected for c in counts.values()):
-                return counts
-            if time.monotonic() >= deadline:
-                logger.warning(
-                    "migrate_parity_wait_timed_out",
-                    target=target_qualified,
-                    expected=expected,
-                    per_replica_counts=counts,
-                    max_wait_sec=max_wait_sec,
-                )
-                return counts
-            time.sleep(poll_interval)
+        return newly_copied, converged

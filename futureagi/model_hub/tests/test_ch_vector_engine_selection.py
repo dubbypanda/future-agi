@@ -214,6 +214,34 @@ def test_is_clustered_fails_safe_to_false(captured_sql_client):
     assert captured_sql_client._is_clustered() is False
 
 
+def test_is_clustered_transient_probe_failure_does_not_poison_cache(
+    captured_sql_client,
+):
+    """A first-call CH outage returns ``False`` but must NOT be cached.
+
+    If a transient failure poisoned the process cache with ``False``, every
+    subsequent table create in that worker would silently emit a
+    non-replicated engine on what is actually a clustered CH — a large
+    blast radius for a low-probability event. The next call after CH comes
+    back must re-probe and return the true value.
+    """
+    from agentic_eval.core.database import ch_vector
+
+    ch_vector.ClickHouseVectorDB._is_clustered_cached = None
+    captured_sql_client.client.execute.side_effect = RuntimeError("boom")
+
+    assert captured_sql_client._is_clustered() is False
+    assert ch_vector.ClickHouseVectorDB._is_clustered_cached is None, (
+        "transient probe failure must not be cached"
+    )
+
+    # CH recovers: the next probe returns a real answer and the cache picks it up.
+    captured_sql_client.client.execute.side_effect = None
+    captured_sql_client.client.execute.return_value = [[2]]
+    assert captured_sql_client._is_clustered() is True
+    assert ch_vector.ClickHouseVectorDB._is_clustered_cached is True
+
+
 def test_create_table_threads_explicit_cluster_into_on_cluster(captured_sql_client):
     """The cluster name must come from the caller (migration --cluster) or
     `get_clickhouse_cluster_name()`, not be hardcoded; otherwise a deployment

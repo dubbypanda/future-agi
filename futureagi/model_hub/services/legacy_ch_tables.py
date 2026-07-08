@@ -27,17 +27,25 @@ def _qualified(table: str, database: str | None) -> str:
 
 
 def ensure_events_table(client, *, database: str | None = None, cluster: str | None = None) -> None:
-    """Create the ML-monitoring ``events`` table if absent (idempotent)."""
+    """Create the ML-monitoring ``events`` table if absent (idempotent).
+
+    Also back-fills ``original_uuid`` on pre-existing tables that predate the
+    column: several downstream readers (``SELECT DISTINCT original_uuid FROM
+    events``) fail with "Unknown identifier" without it, and a bare
+    ``CREATE TABLE IF NOT EXISTS`` is a no-op against an existing table.
+    """
+    clustered = ClickHouseVectorDB.is_clustered(client)
     engine, on_cluster = build_replicated_engine(
         "MergeTree()",
         EVENTS_TABLE,
-        clustered=ClickHouseVectorDB.is_clustered(client),
+        clustered=clustered,
         database=database,
         cluster=cluster,
     )
+    qualified = _qualified(EVENTS_TABLE, database)
     client.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {_qualified(EVENTS_TABLE, database)}{on_cluster} (
+        CREATE TABLE IF NOT EXISTS {qualified}{on_cluster} (
             UUID UUID,
             original_uuid UUID DEFAULT UUID,
             EventDate Date,
@@ -91,6 +99,23 @@ def ensure_events_table(client, *, database: str | None = None, cluster: str | N
         PARTITION BY toYYYYMM(EventDate)
         ORDER BY (EventDate, EventName, OrgID, UUID)
         """
+    )
+    _backfill_events_original_uuid(client, qualified, on_cluster)
+
+
+def _backfill_events_original_uuid(client, qualified: str, on_cluster: str) -> None:
+    """Add ``original_uuid`` to an existing events table if absent.
+
+    ``ADD COLUMN IF NOT EXISTS`` is itself idempotent, but querying
+    ``system.columns`` first avoids a DDL replication round-trip on every
+    boot in the common case.
+    """
+    columns = client.execute(f"DESCRIBE TABLE {qualified}")
+    if any(row[0] == "original_uuid" for row in columns):
+        return
+    client.execute(
+        f"ALTER TABLE {qualified}{on_cluster} "
+        f"ADD COLUMN IF NOT EXISTS original_uuid UUID DEFAULT UUID"
     )
 
 

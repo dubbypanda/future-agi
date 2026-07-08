@@ -15,36 +15,64 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 
+# Canonical vector-table columns for tests. The exact set only matters for
+# assertions that check the explicit column list appears in the INSERT.
+_VECTOR_COLUMNS = [
+    "id",
+    "eval_id",
+    "vector",
+    "metadata.Key",
+    "metadata.Value",
+    "deleted",
+]
+
+
 def _build_mock_db_client(
     *,
     source_distinct: int = 14,
     target_count_before: int = 0,
     table_exists: bool = True,
     clustered: bool = True,
+    expected_replicas: int = 3,
+    replicas_present: int | None = None,
+    columns: list[str] | None = None,
 ):
     """A ClickHouseVectorDB stand-in with scripted query returns.
 
-    The command issues a small set of queries per table; we dispatch by
-    substring match. ``clustered`` toggles what ``_is_clustered`` returns
-    so we can exercise the "refuse on single-node CH" path.
+    ``expected_replicas`` sets the ``system.clusters`` count.
+    ``replicas_present`` (default: same as ``expected_replicas``) sets how
+    many replicas appear in ``per_replica_counts`` — set it below
+    ``expected_replicas`` to simulate a follower that hasn't registered.
+    ``columns`` overrides the shared-columns view of ``system.columns``.
     """
     db_client = MagicMock()
     target_count_state = {"value": target_count_before}
+    cols = columns if columns is not None else _VECTOR_COLUMNS
+    present = expected_replicas if replicas_present is None else replicas_present
 
     def execute_side_effect(sql, params=None):
         sql_lc = sql.lower()
+        # system.clusters -> expected replica count
+        if "from system.clusters" in sql_lc:
+            return [(expected_replicas,)]
+        # system.columns -> shared_columns
+        if "from system.columns" in sql_lc:
+            return [(c,) for c in cols]
+        # per_replica_counts reads system.tables.total_rows via clusterAllReplicas
+        if (
+            "from clusterallreplicas" in sql_lc
+            and "system.tables" in sql_lc
+            and "total_rows" in sql_lc
+        ):
+            return [
+                (f"ch-replica-{i}", target_count_state["value"])
+                for i in range(1, present + 1)
+            ]
+        # source_exists probe against system.tables (no clusterAllReplicas)
         if "from system.tables" in sql_lc:
             return [(1 if table_exists else 0,)]
         if "uniqexact(id)" in sql_lc and "clusterallreplicas" in sql_lc:
             return [(source_distinct,)]
-        if "hostname()" in sql_lc and "clusterallreplicas" in sql_lc:
-            return [
-                ("ch-replica-1", target_count_state["value"]),
-                ("ch-replica-2", target_count_state["value"]),
-                ("ch-replica-3", target_count_state["value"]),
-            ]
-        if "select count() from" in sql_lc and "clusterallreplicas" not in sql_lc:
-            return [(target_count_state["value"],)]
         if sql_lc.lstrip().startswith("insert into"):
             target_count_state["value"] = max(
                 target_count_state["value"], source_distinct
@@ -55,12 +83,16 @@ def _build_mock_db_client(
     db_client.client.execute.side_effect = execute_side_effect
     db_client.client.connection.database = "default"
     db_client.create_table = MagicMock()
-    # Explicit return so tests don't depend on MagicMock truthiness.
     db_client._is_clustered = MagicMock(return_value=clustered)
     return db_client, target_count_state
 
 
-def _run(*tables: str, db_client=None, dry_run: bool = False) -> str:
+def _run(
+    *tables: str,
+    db_client=None,
+    dry_run: bool = False,
+    cluster: str = "cluster",
+) -> str:
     """Invoke the command with the standard source/target and return stdout."""
     out = StringIO()
     args = [
@@ -68,6 +100,7 @@ def _run(*tables: str, db_client=None, dry_run: bool = False) -> str:
         "--source-database=default",
         "--target-database=futureagi",
         f"--tables={','.join(tables)}",
+        f"--cluster={cluster}",
     ]
     if dry_run:
         args.append("--dry-run")
@@ -178,8 +211,11 @@ def test_target_database_is_created_on_cluster_before_any_table_work():
     assert create_db_idx is not None, (
         "expected CREATE DATABASE IF NOT EXISTS futureagi ON CLUSTER 'cluster'"
     )
+    # First per-table probe is the source_exists check against system.tables
+    # (without clusterAllReplicas). Confirm the CREATE DATABASE ran first.
     first_per_table_idx = next(
-        i for i, s in enumerate(executed_sqls) if "from system.tables" in s.lower()
+        i for i, s in enumerate(executed_sqls)
+        if "from system.tables" in s.lower() and "clusterallreplicas" not in s.lower()
     )
     assert create_db_idx < first_per_table_idx
 
@@ -195,10 +231,11 @@ def test_dry_run_does_not_create_target_database():
     ), "dry-run must not issue CREATE DATABASE"
 
 
-def test_real_run_emits_insert_select_clusterallreplicas_with_id_not_in_target():
-    """The core behaviour: reads from every replica via clusterAllReplicas,
-    writes only the IDs that aren't already at the target. This is what
-    makes the migration both correct (no data loss) and idempotent.
+def test_real_run_emits_insert_with_explicit_column_list_and_id_anti_join():
+    """The core behaviour: reads from every replica via clusterAllReplicas
+    with an EXPLICIT column list (never ``SELECT *``) so a drifted legacy
+    source can't silently misalign by position; writes only the IDs that
+    aren't already at the target, so re-runs are idempotent.
     """
     db_client, target_state = _build_mock_db_client(
         source_distinct=14, target_count_before=0
@@ -215,30 +252,78 @@ def test_real_run_emits_insert_select_clusterallreplicas_with_id_not_in_target()
     assert "INSERT INTO futureagi.feedbacks" in insert_sql
     assert "clusterAllReplicas('cluster', default.feedbacks)" in insert_sql
     assert "WHERE id NOT IN (SELECT id FROM futureagi.feedbacks)" in insert_sql
+    # Explicit column list must be present; SELECT * would misalign a
+    # drifted legacy source silently.
+    assert "SELECT *" not in insert_sql, (
+        "INSERT must use an explicit column list, not SELECT *"
+    )
+    for col in _VECTOR_COLUMNS:
+        assert f"`{col}`" in insert_sql, (
+            f"column `{col}` missing from explicit list"
+        )
     assert target_state["value"] == 14
     assert "copied 14 rows" in stdout
 
 
-def test_post_insert_parity_check_queries_every_replica_not_just_leader():
-    """Querying ``SELECT count() FROM target`` would only hit the leader and
-    hide a replica that hasn't pulled the new rows from Keeper yet. The
-    post-INSERT parity check must go through ``clusterAllReplicas`` and
-    ``GROUP BY hostName()`` so a lagging replica surfaces as a divergence.
+def test_parity_check_reads_system_tables_total_rows_not_leader_only_count():
+    """Post-INSERT parity is read through
+    ``clusterAllReplicas(system.tables)`` on ``total_rows``, not
+    ``count() ... GROUP BY hostName()`` on the target table.
+
+    The older ``count() GROUP BY hostName()`` idiom drops any replica whose
+    local copy is empty (no group emitted), so a follower still lagging
+    disappears from the result entirely and the parity check reads as
+    "converged" over the replicas that happen to be present.
+    ``system.tables.total_rows`` returns one row per replica that holds
+    the table — including the empty ones — which is the signal the gate
+    actually needs.
     """
     db_client, _ = _build_mock_db_client(source_distinct=14, target_count_before=0)
     _run("feedbacks", db_client=db_client)
 
     executed_sqls = [c.args[0] for c in db_client.client.execute.call_args_list]
-    parity_sqls = [
-        s
-        for s in executed_sqls
-        if "hostName()" in s
-        and "clusterAllReplicas" in s
-        and "GROUP BY hostName()" in s
+    system_tables_reads = [
+        s for s in executed_sqls
+        if "clusterAllReplicas" in s
+        and "system.tables" in s
+        and "total_rows" in s
     ]
-    assert len(parity_sqls) >= 1, (
-        "post-INSERT parity check must use clusterAllReplicas + GROUP BY hostName()"
+    assert system_tables_reads, (
+        "post-INSERT parity must read through system.tables.total_rows"
     )
+    legacy_group_by_reads = [
+        s for s in executed_sqls
+        if "GROUP BY hostName()" in s
+    ]
+    assert not legacy_group_by_reads, (
+        "must not fall back to the empty-replica-hiding "
+        "'count() GROUP BY hostName()' idiom"
+    )
+
+
+def test_raises_command_error_when_a_replica_is_missing_from_parity():
+    """Convergence requires the FULL replica set to be present in the
+    per-replica-counts result. If ``system.clusters`` reports 3 replicas but
+    only 2 respond, the table has not converged and the command must exit
+    non-zero so an exit-code-gated cutover can't advance.
+    """
+    db_client, _ = _build_mock_db_client(
+        source_distinct=14,
+        expected_replicas=3,
+        replicas_present=2,  # one follower still registering
+    )
+    # Shrink the polling window so the test doesn't spend 30s waiting.
+    with patch(
+        "model_hub.services.ch_migration.time.sleep",
+        return_value=None,
+    ), patch(
+        "model_hub.services.ch_migration.time.monotonic",
+        side_effect=[0.0, 0.0, 0.0, 999.0, 999.0],
+    ):
+        with pytest.raises(CommandError) as excinfo:
+            _run("feedbacks", db_client=db_client)
+    assert "did not fully converge" in str(excinfo.value).lower()
+    assert "feedbacks" in str(excinfo.value)
 
 
 def test_cluster_flag_is_threaded_into_clusterallreplicas_and_create_table():
@@ -250,19 +335,7 @@ def test_cluster_flag_is_threaded_into_clusterallreplicas_and_create_table():
     calls the cluster anything other than the hardcoded literal.
     """
     db_client, _ = _build_mock_db_client(source_distinct=3)
-    out = StringIO()
-    with patch(
-        "model_hub.management.commands.migrate_legacy_vectors_to_replicated.ClickHouseVectorDB",
-        return_value=db_client,
-    ):
-        call_command(
-            "migrate_legacy_vectors_to_replicated",
-            "--source-database=default",
-            "--target-database=futureagi",
-            "--tables=feedbacks",
-            "--cluster=fi_cluster",
-            stdout=out,
-        )
+    _run("feedbacks", db_client=db_client, cluster="fi_cluster")
 
     executed_sqls = [c.args[0] for c in db_client.client.execute.call_args_list]
     assert any("clusterAllReplicas('fi_cluster'," in s for s in executed_sqls)
