@@ -189,7 +189,7 @@ class ClickHouseFilterBuilder:
             "if(mapContains(span_attr_num, 'call.talk_ratio') "
             "AND span_attr_num['call.talk_ratio'] > 0, "
             "round(span_attr_num['call.talk_ratio'] / "
-            "(span_attr_num['call.talk_ratio'] + 1) * 100), null)"
+            "(span_attr_num['call.talk_ratio'] + 1) * 100, 2), null)"
         ),
         "avg_agent_latency_ms": (
             "if(mapContains(span_attr_num, 'avg_agent_latency_ms'), "
@@ -218,6 +218,64 @@ class ClickHouseFilterBuilder:
         "ai_interruption_rate": (
             "if(mapContains(span_attr_num, 'ai_interruption_rate'), "
             "span_attr_num['ai_interruption_rate'], null)"
+        ),
+        "talk_ratio": (
+            "if(mapContains(span_attr_num, 'call.talk_ratio') "
+            "AND span_attr_num['call.talk_ratio'] > 0, "
+            "round(span_attr_num['call.talk_ratio'] / "
+            "(span_attr_num['call.talk_ratio'] + 1) * 100, 2), null)"
+        ),
+        "agent_latency": (
+            "if(mapContains(span_attr_num, 'avg_agent_latency_ms'), "
+            "round(span_attr_num['avg_agent_latency_ms']), null)"
+        ),
+        "ai_interruptions": (
+            "if(mapContains(span_attr_num, 'ai_interruption_count'), "
+            "round(span_attr_num['ai_interruption_count']), null)"
+        ),
+        "user_interruptions": (
+            "if(mapContains(span_attr_num, 'user_interruption_count'), "
+            "round(span_attr_num['user_interruption_count']), null)"
+        ),
+        "stop_time_after_interruption": (
+            "if(mapContains(span_attr_num, 'avg_stop_time_after_interruption_ms'), "
+            "span_attr_num['avg_stop_time_after_interruption_ms'], null)"
+        ),
+        "llm_cost": (
+            "if(mapContains(span_attr_num, 'cost_breakdown.llm'), "
+            "span_attr_num['cost_breakdown.llm'], null)"
+        ),
+        "stt_cost": (
+            "if(mapContains(span_attr_num, 'cost_breakdown.stt'), "
+            "span_attr_num['cost_breakdown.stt'], null)"
+        ),
+        "tts_cost": (
+            "if(mapContains(span_attr_num, 'cost_breakdown.tts'), "
+            "span_attr_num['cost_breakdown.tts'], null)"
+        ),
+        "total_cost": (
+            "if(mapContains(span_attr_num, 'cost_breakdown.total'), "
+            "span_attr_num['cost_breakdown.total'], null)"
+        ),
+        "customer_cost": (
+            "if(mapContains(span_attr_num, 'cost_breakdown.total'), "
+            "span_attr_num['cost_breakdown.total'], null)"
+        ),
+        "llm_latency": (
+            "if(mapContains(span_attr_num, 'modelLatencyAverage'), "
+            "span_attr_num['modelLatencyAverage'], null)"
+        ),
+        "stt_latency": (
+            "if(mapContains(span_attr_num, 'transcriberLatencyAverage'), "
+            "span_attr_num['transcriberLatencyAverage'], null)"
+        ),
+        "tts_latency": (
+            "if(mapContains(span_attr_num, 'voiceLatencyAverage'), "
+            "span_attr_num['voiceLatencyAverage'], null)"
+        ),
+        "response_time": (
+            "if(mapContains(span_attr_num, 'turnLatencyAverage'), "
+            "span_attr_num['turnLatencyAverage'], null)"
         ),
     }
 
