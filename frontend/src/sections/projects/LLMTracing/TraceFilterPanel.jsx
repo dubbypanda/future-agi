@@ -2128,10 +2128,19 @@ const TraceFilterPanel = ({
   // isn't dropped. On the Query tab a value can be typed but not committed
   // (no Enter) — it lives only in QueryInput's internal state, so flush that
   // partial token to rows first. applyIfChanged dedups, so an unchanged set
-  // is a no-op.
+  // is a no-op. bypassNextCloseFlushRef lets a path that already applied
+  // programmatically (AI-filter) skip the safety net — Zustand's onClose
+  // update can propagate before the accompanying React setRows commits,
+  // which would otherwise clobber the just-applied filter with null.
   const wasOpenRef = useRef(open);
+  const bypassNextCloseFlushRef = useRef(false);
   useEffect(() => {
     if (wasOpenRef.current && !open) {
+      if (bypassNextCloseFlushRef.current) {
+        bypassNextCloseFlushRef.current = false;
+        wasOpenRef.current = open;
+        return;
+      }
       if (autoApplyTimerRef.current) {
         clearTimeout(autoApplyTimerRef.current);
         autoApplyTimerRef.current = null;
@@ -2182,6 +2191,10 @@ const TraceFilterPanel = ({
       lastAppliedRef.current = serializeFilterSet(validFilters);
       onApply(validFilters);
       setAiQuery("");
+      // The close-flush effect's applyIfChanged(rows) can fire against
+      // stale rows before setRows(converted) commits, wiping the just-
+      // applied filter with null. Skip the safety net for this close.
+      bypassNextCloseFlushRef.current = true;
       onClose();
     }
   }, [aiQuery, aiParseQuery, observeId, source, properties, onApply, onClose]);
