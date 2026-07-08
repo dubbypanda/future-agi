@@ -5324,6 +5324,9 @@ export interface AIFilterRequestApi {
   dataset_id?: string;
 }
 
+/**
+ * Any valid JSON value.
+ */
 export type AIFilterConditionApiValue = { [key: string]: unknown };
 
 export interface AIFilterConditionApi {
@@ -5331,6 +5334,7 @@ export interface AIFilterConditionApi {
   field: string;
   /** @minLength 1 */
   operator: string;
+  /** Any valid JSON value. */
   value?: AIFilterConditionApiValue;
 }
 

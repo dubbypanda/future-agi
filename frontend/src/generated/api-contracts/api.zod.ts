@@ -11566,7 +11566,7 @@ export const ModelHubAiFilterCreateResponse = zod.object({
   "operator": zod.string().min(1),
   "value": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional().describe('Any valid JSON value.')
 })).optional(),
   "fields": zod.array(zod.string().min(1)).optional()
 })
