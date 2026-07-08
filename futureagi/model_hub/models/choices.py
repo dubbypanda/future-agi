@@ -10,7 +10,6 @@ from enum import Enum
 from urllib.parse import urlparse
 
 import pandas as pd
-import requests
 import structlog
 from PIL import Image
 
@@ -569,20 +568,27 @@ def is_document_url(url):
             if not parsed_url.netloc:  # No domain/host
                 return False
 
-            # Make a HEAD request to check if the URL is accessible
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
-            response = requests.head(
-                url, headers=headers, timeout=10, allow_redirects=True
-            )
+            # SSRF guard: this runs during column-type inference on *any*
+            # uploaded file whose values look like URLs, independent of
+            # whether the column is ever typed as Document -- a raw
+            # requests.head() here let a plain CSV upload make the server
+            # probe arbitrary internal/private addresses (TH-5648 follow-up).
+            # Import locally to avoid a models -> views import cycle.
+            from model_hub.views.utils.utils import _safe_head
 
-            if response.status_code != 200:
+            try:
+                status_code, response_headers, _final_url = _safe_head(
+                    url, file_type="document"
+                )
+            except ValueError:
+                return False
+
+            if status_code != 200:
                 return False
 
             # Check if the response indicates it's a downloadable document
-            content_type = response.headers.get("content-type", "").lower()
-            content_length = response.headers.get("content-length")
+            content_type = response_headers.get("content-type", "").lower()
+            content_length = response_headers.get("content-length")
 
             # If content-length is 0 or very small, it's probably not a real file
             if content_length and int(content_length) < 100:

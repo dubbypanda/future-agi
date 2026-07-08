@@ -622,3 +622,68 @@ class TestImagesDataTypeDetection:
         result = determine_data_type(column)
         # Should not be IMAGES since not all values have comma-separated multiple images
         assert result != DataTypeChoices.IMAGES.value
+
+
+class TestIsDocumentUrlSSRF:
+    """TH-5648 follow-up: `is_document_url` is called from `determine_data_type`
+    for *every* uploaded file (CSV/HuggingFace/etc.) whose column values look
+    like URLs -- independent of whether that column ever ends up typed as
+    Document. It used to call `requests.head(url, allow_redirects=True)`
+    directly, with zero SSRF protection: a plain CSV upload with a URL-like
+    column could make the server probe cloud metadata endpoints or any
+    internal/private address, and would also happily follow redirects to one.
+    It must now route through the same SSRF-safe `_safe_head` used by
+    `validate_file_url`, and reject unsafe targets outright (returning False,
+    since it's a best-effort classifier) instead of ever issuing the request.
+    """
+
+    def test_rejects_cloud_metadata_endpoint(self):
+        from model_hub.models.choices import is_document_url
+
+        assert is_document_url("http://169.254.169.254/latest/meta-data/") is False
+
+    def test_rejects_loopback(self):
+        from model_hub.models.choices import is_document_url
+
+        assert is_document_url("http://127.0.0.1:8080/secret") is False
+
+    def test_rejects_private_network(self):
+        from model_hub.models.choices import is_document_url
+
+        assert is_document_url("http://10.0.0.5/internal") is False
+
+    def test_uses_safe_head_not_raw_requests(self, monkeypatch):
+        """Pin the implementation detail: classification must go through
+        `_safe_head` (IP-pinned, redirect-revalidated) rather than a raw
+        `requests.head()` call.
+        """
+        from model_hub.views.utils import utils as utils_module
+
+        calls = []
+
+        def fake_safe_head(url, *, file_type):
+            calls.append((url, file_type))
+            return 200, {"content-type": "application/pdf"}, url
+
+        monkeypatch.setattr(utils_module, "_safe_head", fake_safe_head)
+
+        from model_hub.models.choices import is_document_url
+
+        assert is_document_url("https://example.com/report.pdf") is True
+        assert calls == [("https://example.com/report.pdf", "document")]
+
+    def test_safe_head_rejection_yields_false_not_exception(self, monkeypatch):
+        """If `_safe_head` raises (e.g. SSRF target, timeout, bad redirect),
+        `is_document_url` must degrade to False rather than propagating --
+        callers use it as a boolean classifier during column-type inference.
+        """
+        from model_hub.views.utils import utils as utils_module
+
+        def raising_safe_head(url, *, file_type):
+            raise ValueError("blocked")
+
+        monkeypatch.setattr(utils_module, "_safe_head", raising_safe_head)
+
+        from model_hub.models.choices import is_document_url
+
+        assert is_document_url("https://example.com/report.pdf") is False

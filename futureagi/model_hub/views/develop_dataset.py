@@ -821,6 +821,8 @@ class AddRowsFromFile(CreateAPIView):
 
                     if column.data_type == DataTypeChoices.IMAGE.value and value:
                         try:
+                            validate_file_url(str(value), "image")
+
                             # Generate a unique image key using dataset_id
                             image_key = f"images/{dataset_id}/{uuid.uuid4()}"
                             # Upload to S3 and get URL
@@ -834,6 +836,8 @@ class AddRowsFromFile(CreateAPIView):
 
                     elif column.data_type == DataTypeChoices.AUDIO.value and value:
                         try:
+                            validate_file_url(str(value), "audio")
+
                             audio_key = f"audio/{dataset_id}/{uuid.uuid4()}"
                             audio_url = upload_audio_to_s3(
                                 str(value), os.getenv("S3_FOR_DATA"), audio_key
@@ -6447,6 +6451,8 @@ class DatatypeConverter:
             uploaded_urls = []
             for img_value in images_list:
                 if img_value:
+                    validate_file_url(str(img_value), "image")
+
                     image_key = f"images/{self.dataset_id}/{uuid.uuid4()}"
                     image_url = upload_image_to_s3(
                         str(img_value),
