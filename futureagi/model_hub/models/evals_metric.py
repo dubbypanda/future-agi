@@ -588,15 +588,6 @@ class EvalTemplateVersionManager(models.Manager):
             )
             next_version = (last_version or 0) + 1
 
-            # Demote any existing default before creating the new one. The
-            # new version becomes the default so ``get_default()`` and the FE
-            # version picker both point to the most recent snapshot. Users
-            # can still pin a specific older version on a UserEvalMetric via
-            # ``pinned_version`` — that override is separate from and wins
-            # over the default. Historical shape (only v1 flagged, everyone
-            # else False) left the FE ("default = lowest fallback") and
-            # backend ("default = highest fallback") disagreeing on which
-            # version was current when no version carried the flag.
             self.filter(
                 eval_template=eval_template, is_default=True
             ).update(is_default=False)

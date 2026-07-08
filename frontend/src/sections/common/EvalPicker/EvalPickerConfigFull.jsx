@@ -171,12 +171,6 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
   const [evalName, setEvalName] = useState("");
   const [dataReady, setDataReady] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  // `useState` only reads the initializer on mount; if `evalData` hasn't
-  // arrived from the parent query by then, `selectedVersionId` stays `null`
-  // even after the pin id materialises — the dropdown then shows the
-  // "Default version" placeholder forever. Sync once the pin id becomes
-  // available. Guarded on both "no selection yet" AND "user hasn't started
-  // editing" so we never clobber a mid-edit switch.
   useEffect(() => {
     const pinned = evalData?.pinned_version_id ?? evalData?.pinnedVersionId ?? null;
     if (pinned && !selectedVersionId && !isDirty) {
@@ -392,23 +386,6 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
     () => evalType !== "llm" || hasNonEmptyPromptMessage(messages),
     [evalType, messages],
   );
-  // ── Load the selected version's full config_snapshot into form state ──
-  //
-  // Fires whenever the user picks a version in the dropdown (or the initial
-  // pinned version arrives from the query). Loads EVERY field the save
-  // payload uses — not just `instructions/code/messages/model` — because
-  // any drift in a not-reloaded field (e.g. `summary.type`) makes the
-  // request-side snap differ from the pinned version's `config_snapshot`,
-  // and `maybe_pin_new_version` on the backend then creates a duplicate
-  // version identical-except-for-the-drifting-field instead of just
-  // pinning the version the user asked for.
-  //
-  // The previous implementation guarded on a `pinnedVersionLoadDone.current`
-  // one-shot ref which meant only the *first* version pick reloaded state;
-  // subsequent picks silently kept the earlier form state. Dropped that
-  // guard — the effect is safe to fire every time `selectedVersionId`
-  // changes, and the `!isDirty` guard already prevents clobbering an
-  // in-progress user edit.
   useEffect(() => {
     if (!selectedVersionId || !versions.length || isDirty) return;
     const version = versions.find((v) => v.id === selectedVersionId);
@@ -419,7 +396,6 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
     const _type =
       normalizedFullEval?.evalType || normalizedEvalData?.evalType || "llm";
 
-    // Prompt / code / messages
     if (_type === "code") {
       setInstructions("");
       setCode(config.code || "");
@@ -433,7 +409,6 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
       setMessages([{ role: "system", content: promptText }]);
     }
 
-    // Model + LLM-tab scoring fields
     setModel(config.model || fullEval?.model || "turing_large");
     if (config.output) setOutputType(config.output);
     if (config.pass_threshold != null) setPassThreshold(config.pass_threshold);
@@ -443,9 +418,6 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
     if (Array.isArray(config.few_shot_examples))
       setFewShotExamples(config.few_shot_examples);
 
-    // Agent-tab runtime overrides — these all end up in `run_config` on the
-    // save payload and get flattened into the snap on the backend, so they
-    // must reflect the picked version or the snap will mismatch.
     if (config.agent_mode) setAgentMode(config.agent_mode);
     if (config.check_internet != null) setUseInternet(!!config.check_internet);
     const summaryVal =
