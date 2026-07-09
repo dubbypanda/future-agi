@@ -65,7 +65,7 @@ import {
   normalizeEvalPickerEval,
 } from "./evalPickerValue";
 import { getEvalBaseName } from "src/sections/common/EvaluationDrawer/common";
-import { canonicalEntries } from "src/utils/utils";
+import { canonicalEntries, extractVariablesFromMessages } from "src/utils/utils";
 import { format } from "date-fns";
 import {
   buildEvalTemplateConfig,
@@ -323,16 +323,22 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
       return [...new Set(requiredKeys)];
     }
 
-    // User evals (mustache): prefer live extraction so mapping updates as user types.
-    const matches =
-      (instructions || "").match(/\{\{\s*([^{}]+?)\s*\}\}/g) || [];
-    const templateVars = matches.map((m) => m.replace(/\{\{|\}\}/g, "").trim());
+    // User evals (mustache): prefer live extraction so mapping updates as user
+    // types. For LLM evals, scan every turn (System / User / Assistant), not
+    // just the System-derived instructions field.
+    const templateVars =
+      evalType === "llm"
+        ? extractVariablesFromMessages(instructions, messages, "mustache")
+        : (
+            (instructions || "").match(/\{\{\s*([^{}]+?)\s*\}\}/g) || []
+          ).map((m) => m.replace(/\{\{|\}\}/g, "").trim());
     if (templateVars.length > 0) return [...new Set(templateVars)];
     // Fallback: stored required_keys (before instructions hydrate)
     if (requiredKeys.length > 0) return [...new Set(requiredKeys)];
     return [];
   }, [
     instructions,
+    messages,
     normalizedFullEval,
     normalizedEvalData,
     evalType,
@@ -511,7 +517,15 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
           evalData?.multi_choice ??
           evalData?.multiChoice,
         params: rawRunConfig.params ?? evalData?.params,
-        messages: rawRunConfig.messages ?? evalData?.messages,
+        // Multi-turn LLM evals store the full message chain on the template
+        // config (fullEval.config.messages). Fall through every source so a
+        // dataset / simulate / task / experiment scoped copy of a template
+        // doesn't collapse into just the System turn on hydration.
+        messages:
+          rawRunConfig.messages ??
+          evalData?.messages ??
+          evalData?.config?.messages ??
+          fullEval?.config?.messages,
       };
       const config = {
         ...(fullEval.config || {}),
@@ -1997,7 +2011,13 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
           source !== "workbench" &&
           source !== "create-simulate" &&
           (() => {
-            const hasInstructions = !!(instructions || "").trim();
+            // LLM evals may keep prompt content in User / Assistant turns
+            // even if the System-derived instructions field is empty.
+            const hasInstructions =
+              !!(instructions || "").trim() ||
+              (evalType === "llm" &&
+                Array.isArray(messages) &&
+                messages.some((m) => (m?.content || "").trim()));
             const hasVariables =
               Array.isArray(variables) && variables.length > 0;
 
@@ -2084,7 +2104,13 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
           })()}
 
         {(() => {
-          const hasInstructions = !!(instructions || "").trim();
+          // LLM evals may keep prompt content in User / Assistant turns
+          // even if the System-derived instructions field is empty.
+          const hasInstructions =
+            !!(instructions || "").trim() ||
+            (evalType === "llm" &&
+              Array.isArray(messages) &&
+              messages.some((m) => (m?.content || "").trim()));
           const hasVariables = Array.isArray(variables) && variables.length > 0;
           const actionLabel =
             source === "composite"
