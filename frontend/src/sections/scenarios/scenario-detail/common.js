@@ -14,6 +14,7 @@ export function normalizeGraph(graph) {
     data: {
       ...data,
       editMode: undefined, // ignore editMode
+      highlightColor: undefined, // ignore transient orphan highlight
     },
   }));
 

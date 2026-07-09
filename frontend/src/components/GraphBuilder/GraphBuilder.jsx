@@ -9,7 +9,11 @@ import GraphBuilderLeftBar from "./GraphBuilderLeftBar";
 import PropTypes from "prop-types";
 import GraphView from "./GraphView";
 import NodeEdgeConfigureForm from "./ConfigForms/NodeEdgeConfigureForm";
-import { ValidateAndTransformGraphSchema } from "./validation";
+import {
+  ValidateAndTransformGraphSchema,
+  validateGraphConnectivity,
+} from "./validation";
+import DisconnectedNodesToast from "./DisconnectedNodesToast";
 import { useSnackbar } from "src/components/snackbar";
 import { dagreTransformAndLayout } from "./common";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -36,9 +40,12 @@ const GraphBuilder = ({ value, onChange, saveLoading, agentType }) => {
   }, []);
 
   const onSave = useCallback(() => {
+    const currentNodes = useGraphStore.getState().nodes;
+    const currentEdges = useGraphStore.getState().edges;
+
     const validatedGraph = ValidateAndTransformGraphSchema().safeParse({
-      nodes: useGraphStore.getState().nodes,
-      edges: useGraphStore.getState().edges,
+      nodes: currentNodes,
+      edges: currentEdges,
     });
 
     if (!validatedGraph.success) {
@@ -48,6 +55,19 @@ const GraphBuilder = ({ value, onChange, saveLoading, agentType }) => {
       enqueueSnackbar(messageString, { variant: "error" });
       return;
     }
+
+    const { orphanNames, orphanIds } = validateGraphConnectivity(
+      currentNodes,
+      currentEdges,
+    );
+    useGraphStore.getState().setOrphanHighlights(orphanIds);
+    if (orphanIds.length > 0) {
+      enqueueSnackbar(<DisconnectedNodesToast names={orphanNames} />, {
+        variant: "error",
+      });
+      return;
+    }
+
     onChange({
       ...value,
       nodes: validatedGraph.data.nodes,

@@ -75,6 +75,7 @@ const initialEdges = [];
 export const useGraphStore = create((set, get) => ({
   nodes: getInitialNodes(),
   edges: initialEdges,
+  orphanFocusSignal: 0,
 
   onNodesChange: (changes) => {
     set({
@@ -100,8 +101,23 @@ export const useGraphStore = create((set, get) => ({
       },
     };
 
+    const reconnected = new Set([connection.source, connection.target]);
+    let clearedHighlight = false;
+    const nodes = get().nodes.map((node) => {
+      if (!reconnected.has(node.id) || node.data?.highlightColor !== "error") {
+        return node;
+      }
+      clearedHighlight = true;
+      const data = { ...node.data };
+      delete data.highlightColor;
+      return { ...node, data };
+    });
     set({
       edges: addEdge(edge, get().edges),
+      nodes,
+      orphanFocusSignal: clearedHighlight
+        ? get().orphanFocusSignal + 1
+        : get().orphanFocusSignal,
     });
   },
 
@@ -139,6 +155,25 @@ export const useGraphStore = create((set, get) => ({
             : { ...node, ...newData }
           : node,
       ),
+    });
+  },
+
+  setOrphanHighlights: (orphanIds) => {
+    const idSet = new Set(orphanIds ?? []);
+    set({
+      orphanFocusSignal: get().orphanFocusSignal + 1,
+      nodes: get().nodes.map((node) => {
+        const shouldHighlight = idSet.has(node.id);
+        const isHighlighted = node.data?.highlightColor === "error";
+        if (shouldHighlight === isHighlighted) return node;
+        const data = { ...node.data };
+        if (shouldHighlight) {
+          data.highlightColor = "error";
+        } else {
+          delete data.highlightColor;
+        }
+        return { ...node, data };
+      }),
     });
   },
 
