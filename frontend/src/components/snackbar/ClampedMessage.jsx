@@ -47,7 +47,7 @@ export default function ClampedMessage({ children }) {
             background: "none",
             cursor: "pointer",
             font: "inherit",
-            fontWeight: 600,
+            fontWeight: "fontWeightSemiBold",
             color: "text.secondary",
             textDecoration: "underline",
             "&:hover": { color: "text.primary" },
