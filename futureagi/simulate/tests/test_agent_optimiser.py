@@ -12,7 +12,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from model_hub.models.evals_metric import EvalTemplate
 from simulate.models import (
+    CallExecution,
     RunTest,
+    Scenarios,
     SimulateEvalConfig,
     TestExecution,
 )
@@ -402,7 +404,7 @@ class TestGetCallExecutionsWithDetailsDB:
     def test_with_eval_configs_fixed_query_count(
         self, organization, django_assert_num_queries
     ):
-        """Eval configs are fetched once, not per call (N+1 guard)."""
+        """Eval configs fetched once regardless of call count (N+1 guard)."""
         run_test = RunTest.objects.create(
             name="N+1 Test",
             source_type=RunTest.SourceTypes.AGENT_DEFINITION,
@@ -411,8 +413,8 @@ class TestGetCallExecutionsWithDetailsDB:
         test_execution = TestExecution.objects.create(
             run_test=run_test,
             status=TestExecution.ExecutionStatus.COMPLETED,
-            total_calls=0,
-            completed_calls=0,
+            total_calls=2,
+            completed_calls=2,
             failed_calls=0,
         )
         template = EvalTemplate.objects.create(
@@ -425,15 +427,30 @@ class TestGetCallExecutionsWithDetailsDB:
             name="Config A",
             run_test=run_test,
         )
+        scenario = Scenarios.objects.create(
+            name="Test Scenario",
+            source="test",
+            organization=organization,
+        )
+        for _ in range(2):
+            CallExecution.objects.create(
+                test_execution=test_execution,
+                scenario=scenario,
+                simulation_call_type="text",
+                status="completed",
+            )
 
-        # get_call_executions_with_details:
+        # Eval configs: 1 query regardless of call count (the N+1 fix).
+        # Total queries with 2 calls:
         # 1 - TestExecution.objects.get (no select_related("run_test"))
-        # 1 - run_test lazy load on test_execution.run_test
-        # 1 - eval configs with select_related("eval_template")
+        # 1 - run_test lazy load
+        # 1 - eval configs with select_related("eval_template") — fetched ONCE
         # 1 - call_executions with select_related("scenario")
-        # No per-call eval config queries (N+1 guard).
-        with django_assert_num_queries(4):
+        # 2 - transcripts (per-call, separate N+1 — out of scope for this fix)
+        with django_assert_num_queries(6):
             result = get_call_executions_with_details(str(test_execution.id))
-
         assert result is not None
-        assert result == []
+        assert len(result) == 2
+        for call_data in result:
+            assert len(call_data["evaluations"]) == 1
+            assert call_data["evaluations"][0]["eval_name"] == "Config A"
