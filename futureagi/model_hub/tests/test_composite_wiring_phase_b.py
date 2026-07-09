@@ -867,30 +867,6 @@ class TestCompositeChildThresholdPrecedence:
             )
         assert outcome.aggregate_score == pytest.approx(1.0)
 
-    def test_link_config_invalid_pass_threshold_falls_through(
-        self, db, organization, workspace
-    ):
-        # Values outside [0, 1] or wrong types are ignored; next source used.
-        parent, links = self._setup_pass_rate_composite(
-            organization,
-            workspace,
-            child_pass_threshold=0.4,
-            link_config={"pass_threshold": "not-a-number"},
-        )
-        with patch(
-            "model_hub.views.utils.evals.run_eval_func",
-            side_effect=_canned_by_name({"prec-child": 0.45}),
-        ):
-            outcome = execute_composite_children_sync(
-                parent=parent,
-                child_links=links,
-                mapping={"input": "x"},
-                config={},
-                org=organization,
-            )
-        # Live template 0.4 used, 0.45 passes.
-        assert outcome.aggregate_score == pytest.approx(1.0)
-
 
 @pytest.mark.django_db
 class TestCompositeOutputTypesEndToEnd:

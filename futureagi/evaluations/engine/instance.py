@@ -142,48 +142,27 @@ def apply_version_overrides(config, resolved_version, criteria=None):
     return config, criteria
 
 
-def _coerce_threshold(value) -> float | None:
-    """Return a valid pass_threshold in [0, 1] or ``None`` if the input is
-    non-numeric or out of range. Guards every source
-    ``resolve_pass_threshold`` consults so a malformed override falls through
-    to the next one instead of raising."""
-    if value is None or isinstance(value, bool):
-        return None
-    if not isinstance(value, (int, float)):
-        return None
-    v = float(value)
-    if v < 0.0 or v > 1.0:
-        return None
-    return v
-
-
 def resolve_pass_threshold(
     eval_template,
     runtime_config: dict | None = None,
     resolved_version=None,
 ) -> float:
-    """Priority: ``runtime_config[run_config][pass_threshold]`` >
-    ``runtime_config[pass_threshold]`` > ``resolved_version.pass_threshold`` >
-    ``eval_template.pass_threshold`` > ``0.5``. Non-numeric or out-of-range
-    values from any source are skipped."""
+    """Priority: runtime_config[run_config][pass_threshold] > runtime_config[pass_threshold] > resolved_version.pass_threshold > eval_template.pass_threshold > 0.5."""
     if isinstance(runtime_config, dict):
         run_config = runtime_config.get("run_config") or {}
-        if isinstance(run_config, dict):
-            v = _coerce_threshold(run_config.get("pass_threshold"))
-            if v is not None:
-                return v
-        v = _coerce_threshold(runtime_config.get("pass_threshold"))
-        if v is not None:
-            return v
+        if isinstance(run_config, dict) and run_config.get("pass_threshold") is not None:
+            return float(run_config["pass_threshold"])
+        if runtime_config.get("pass_threshold") is not None:
+            return float(runtime_config["pass_threshold"])
 
     if resolved_version is not None:
-        v = _coerce_threshold(getattr(resolved_version, "pass_threshold", None))
-        if v is not None:
-            return v
+        version_threshold = getattr(resolved_version, "pass_threshold", None)
+        if version_threshold is not None:
+            return float(version_threshold)
 
-    v = _coerce_threshold(getattr(eval_template, "pass_threshold", None))
-    if v is not None:
-        return v
+    template_threshold = getattr(eval_template, "pass_threshold", None)
+    if template_threshold is not None:
+        return float(template_threshold)
 
     return 0.5
 
