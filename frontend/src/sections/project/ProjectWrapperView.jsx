@@ -27,7 +27,8 @@ import ProjectObserveContextProvider from "./context/ProjectObserveContextProvid
 import ProjectExperimentContextProvider from "./context/ProjectExperimentContextProvider";
 import ProjectRightSection from "./RightSection/ProjectRightSection";
 import ProjectFtux from "./ProjectFtux";
-import ProjectFilterPanel from "./ProjectFilterPanel";
+import TraceFilterPanel from "../projects/LLMTracing/TraceFilterPanel";
+import { PROJECT_FILTER_PROPERTIES, projectOperatorFilter } from "./common";
 
 export const SearchFieldBox = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -328,12 +329,17 @@ const ProjectWrapperView = () => {
                 setSelectedRowsData={setSelectedRowsData}
                 filters={observeFilters}
               />
-              <ProjectFilterPanel
+              <TraceFilterPanel
                 anchorEl={filterAnchorEl}
                 open={Boolean(filterAnchorEl)}
                 onClose={() => setFilterAnchorEl(null)}
                 currentFilters={observeFilters}
                 onApply={setObserveFilters}
+                properties={PROJECT_FILTER_PROPERTIES}
+                categories={[]}
+                source="observe"
+                showAi={false}
+                operatorFilter={projectOperatorFilter}
               />
             </>
           ) : (

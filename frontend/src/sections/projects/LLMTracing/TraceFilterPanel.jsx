@@ -1402,6 +1402,7 @@ function FilterRow({
   ValuePickerOverride,
   categories,
   freeSoloValues = false,
+  operatorFilter,
 }) {
   const [pickerAnchor, setPickerAnchor] = useState(null);
   const selectedProp = properties.find((p) => p.id === filter.field);
@@ -1409,9 +1410,11 @@ function FilterRow({
   const isNumber = normalizedType === "number";
   const isDate = normalizedType === "date";
   const isBoolean = normalizedType === "boolean";
-  const ops = getOperatorsForFilter(filter);
+  const allOps = getOperatorsForFilter(filter);
+  // Optional per-flow allowlist; currentOpDef resolves against the full set.
+  const ops = operatorFilter ? allOps.filter(operatorFilter) : allOps;
   const safeOperator = normalizeFilterRowOperator(filter).operator;
-  const currentOpDef = ops.find((o) => o.value === safeOperator);
+  const currentOpDef = allOps.find((o) => o.value === safeOperator);
   const updateRow = useCallback(
     (changes) =>
       onChange(index, {
@@ -1852,6 +1855,7 @@ const TraceFilterPanel = ({
   showQueryTab = true,
   categories: categoriesOverride,
   propertyFilter,
+  operatorFilter,
   panelWidth,
   defaultRow: defaultRowOverride,
   isSimulator = false,
@@ -2076,11 +2080,14 @@ const TraceFilterPanel = ({
   );
 
   const queryGetOperators = useCallback(
-    (type, field) =>
-      getOperatorsForFilter({ field, fieldType: type }).map((op) =>
+    (type, field) => {
+      const ops = getOperatorsForFilter({ field, fieldType: type });
+      const allowed = operatorFilter ? ops.filter(operatorFilter) : ops;
+      return allowed.map((op) =>
         NO_VALUE_OPS.has(op.value) ? { ...op, noValue: true } : op,
-      ),
-    [],
+      );
+    },
+    [operatorFilter],
   );
 
   const handleChange = useCallback((idx, updated) => {
@@ -2292,8 +2299,8 @@ const TraceFilterPanel = ({
                 variant="caption"
                 sx={{ fontSize: 11, color: "text.secondary", px: 0.5 }}
               >
-                Could not derive filters from that query. Try rephrasing or
-                add a filter manually below.
+                Could not derive filters from that query. Try rephrasing or add
+                a filter manually below.
               </Typography>
             )}
           </>
@@ -2346,6 +2353,7 @@ const TraceFilterPanel = ({
                     ValuePickerOverride={ValuePickerOverride}
                     categories={effectiveCategories}
                     freeSoloValues={freeSoloValues}
+                    operatorFilter={operatorFilter}
                   />
                 ))}
               </Stack>
@@ -2459,6 +2467,7 @@ TraceFilterPanel.propTypes = {
   showQueryTab: PropTypes.bool,
   categories: PropTypes.array,
   propertyFilter: PropTypes.func,
+  operatorFilter: PropTypes.func,
   panelWidth: PropTypes.number,
   defaultRow: PropTypes.object,
   isSimulator: PropTypes.bool,
