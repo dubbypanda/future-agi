@@ -352,8 +352,8 @@ class TestExecuteCompositeChildrenSync:
         )
 
         def _choices_fake_run_eval_func(_cfg, _mapping, template, *_a, **_k):
-            # Mirror the EE-path shape of `run_eval_func`: `output` carries the
-            # already-formatted verdict dict produced by `format_eval_value`.
+            # `run_eval_func` returns `output` as the formatted verdict dict from
+            # `format_eval_value` — `{"score": float, "choice": str}` for choices.
             canned = {
                 "choices-child-a": {"score": 1.0, "choice": "Sad"},
                 "choices-child-b": {"score": 0.5, "choice": "Sad"},
