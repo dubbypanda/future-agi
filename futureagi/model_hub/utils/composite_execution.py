@@ -132,8 +132,9 @@ def _execute_child(
             call_context=call_context,
         )
 
-        score: float = score_eval_output(
-            result.get("output"), child_template, default_score=0.0
+        # None: unscoreable children fall through to the exclusion branch below.
+        score: float | None = score_eval_output(
+            result.get("output"), child_template, default_score=None
         )
 
         return CompositeChildResult(
