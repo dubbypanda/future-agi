@@ -347,7 +347,7 @@ class TestExecuteCompositeChildrenSync:
 
         def _choices_fake_run_eval_func(_cfg, _mapping, template, *_a, **_k):
             # `run_eval_func` returns `output` as the formatted verdict dict from
-            # `format_eval_value` — `{"score": float, "choice": str}` for choices.
+            # `format_eval_value`: `{"score": float, "choice": str}` for choices.
             canned = {
                 "choices-child-a": {"score": 1.0, "choice": "Sad"},
                 "choices-child-b": {"score": 0.5, "choice": "Sad"},
@@ -934,7 +934,7 @@ class TestCompositeOutputTypesEndToEnd:
     def test_code_children_score_correctly(
         self, db, organization, workspace
     ):
-        # Code eval with output_type_normalized="percentage" — the runtime
+        # Code eval with output_type_normalized="percentage": the runtime
         # emits a numeric score directly via the CustomCodeEval evaluator.
         child = EvalTemplate.no_workspace_objects.create(
             name="code-child",
