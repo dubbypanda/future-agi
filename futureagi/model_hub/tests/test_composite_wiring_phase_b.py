@@ -301,13 +301,7 @@ class TestExecuteCompositeChildrenSync:
     def test_choices_children_score_via_shared_helper(
         self, db, organization, workspace
     ):
-        """Composite children with `output_type_normalized="deterministic"` and a
-        `choice_scores` mapping route the picked label to its numeric score via
-        the shared `score_eval_output` helper.
-
-        Regression pin for the case where the composite runner was passing the
-        run_eval_func response dict straight to `normalize_score`, which does
-        not resolve the choice label and returns `0.0` for every child."""
+        """Deterministic-typed children route the picked label to its choice_scores value."""
         child_a = EvalTemplate.no_workspace_objects.create(
             name="choices-child-a",
             organization=organization,
@@ -509,11 +503,6 @@ class TestExecuteCompositeChildrenSync:
         )
 
 
-# ---------------------------------------------------------------------------
-# Behaviour tests: aggregation functions, threshold precedence, output types
-# ---------------------------------------------------------------------------
-
-
 def _make_percentage_child(
     organization, workspace, name, pass_threshold=0.5
 ):
@@ -570,9 +559,7 @@ def _canned_by_name(name_to_output, output_type="score"):
 
 @pytest.mark.django_db
 class TestCompositeAggregationFunctions:
-    """Behaviour tests: each of the 5 aggregation functions applied to a
-    real composite with real EvalTemplate + CompositeEvalChild rows,
-    exercising the runner end-to-end with `run_eval_func` mocked."""
+    """One test per aggregation function against a real 3-child composite."""
 
     def _build(self, organization, workspace, function, weights):
         children = [
@@ -670,8 +657,7 @@ class TestCompositeAggregationFunctions:
         assert outcome.aggregate_pass is True
 
     def test_pass_rate_uses_per_child_thresholds(self, db, organization, workspace):
-        """pass_rate compares each child's score against ITS OWN pass_threshold,
-        then returns fraction of scored children that passed."""
+        """pass_rate gates each child on its own threshold, returns pass fraction."""
         child_a = _make_percentage_child(
             organization, workspace, "pr-child-a", pass_threshold=0.5
         )
@@ -712,10 +698,7 @@ class TestCompositeAggregationFunctions:
 
 @pytest.mark.django_db
 class TestCompositeChildThresholdPrecedence:
-    """The runner resolves each child's effective pass_threshold from a
-    four-source precedence chain: link.config -> pinned_version -> live
-    template -> default 0.5. Each branch is pinned by a targeted test that
-    varies exactly the source it exercises."""
+    """One test per source in link.config -> pinned_version -> live -> 0.5."""
 
     def _setup_pass_rate_composite(
         self,
@@ -870,8 +853,7 @@ class TestCompositeChildThresholdPrecedence:
 
 @pytest.mark.django_db
 class TestCompositeOutputTypesEndToEnd:
-    """A composite child can be one of four axes: pass_fail, percentage,
-    choices, code. Each should score correctly through the shared helper."""
+    """Score routing across the four child output-type axes."""
 
     def test_pass_fail_children_score_correctly(
         self, db, organization, workspace
