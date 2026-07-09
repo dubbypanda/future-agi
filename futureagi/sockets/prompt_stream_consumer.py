@@ -6,15 +6,15 @@ from uuid import uuid4
 import structlog
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from django.core.exceptions import ValidationError
 
-from accounts.models import User, Workspace  # noqa: F401 — User re-exported for tests
+from accounts.models import User, Workspace  # noqa: F401 — both re-exported for tests
 from model_hub.models.run_prompt import PromptTemplate, PromptVersion
 from model_hub.utils.async_generate_prompt_runner import generate_prompt_async
 from model_hub.utils.async_improve_prompt_runner import improve_prompt_async
 from model_hub.utils.async_prompt_runner import run_template_async
 from model_hub.utils.websocket_direct_manager import WebSocketDirectManager
 from model_hub.views.prompt_template import replace_ids_with_column_name_async
+from sockets.workspace_access import NOT_FOUND, WorkspaceAccessGate
 
 logger = structlog.get_logger(__name__)
 
@@ -97,36 +97,30 @@ class PromptStreamConsumer(AsyncJsonWebsocketConsumer):
     # Access resolution — the single gate.
     # ------------------------------------------------------------------
 
+    def _access_gate(self):
+        return WorkspaceAccessGate(user=self.user, workspace_id=self.workspace_id)
+
     async def _resolve_workspace_and_org(self, *, correlation=None):
         """Resolve the workspace + derive its org for execute paths.
 
-        Emits a structured error frame + closes the socket with the appropriate
-        WS_CLOSE_CODE_* on failure, and returns ``(None, None)``. Returns
-        ``(workspace, org_id)`` on success.
+        Delegates the actual access rules to :class:`WorkspaceAccessGate` —
+        this method's job is purely the WS-specific part: turn a denied
+        result into an error frame + the right WS_CLOSE_CODE_* and close the
+        socket. Returns ``(None, None)`` on failure, ``(workspace, org_id)``
+        on success.
         """
-        workspace = await self._fetch_workspace()
-        if workspace is None:
-            await self._send_ws_error(
-                "Workspace not found or inactive."
-                if self.workspace_id
-                else "workspace_id query param is required.",
-                correlation=correlation,
+        result = await self._access_gate().resolve()
+        if not result.ok:
+            await self._send_ws_error(result.message, correlation=correlation)
+            close_code = (
+                WS_CLOSE_CODE_NOT_FOUND
+                if result.reason == NOT_FOUND
+                else WS_CLOSE_CODE_PERMISSION_DENIED
             )
-            await self.close(code=WS_CLOSE_CODE_NOT_FOUND)
+            await self.close(code=close_code)
             return None, None
 
-        can_access = await database_sync_to_async(self.user.can_access_workspace)(
-            workspace
-        )
-        if not can_access:
-            await self._send_ws_error(
-                "You do not have permission to use this workspace.",
-                correlation=correlation,
-            )
-            await self.close(code=WS_CLOSE_CODE_PERMISSION_DENIED)
-            return None, None
-
-        return workspace, workspace.organization_id
+        return result.workspace, result.org_id
 
     async def _resolve_org_for_stop(self):
         """Best-effort org resolution for stop handlers.
@@ -136,18 +130,7 @@ class PromptStreamConsumer(AsyncJsonWebsocketConsumer):
         a soft error instead of tearing down the socket the way execute paths
         do on the same failure.
         """
-        workspace = await self._fetch_workspace()
-        return workspace.organization_id if workspace else None
-
-    async def _fetch_workspace(self):
-        if not self.workspace_id:
-            return None
-        try:
-            return await database_sync_to_async(
-                lambda: Workspace.objects.get(id=self.workspace_id, is_active=True)
-            )()
-        except (Workspace.DoesNotExist, ValueError, ValidationError):
-            return None
+        return await self._access_gate().resolve_org_for_stop()
 
     async def _send_ws_error(self, message, *, correlation=None):
         payload = {
