@@ -23,11 +23,8 @@ from model_hub.utils.composite_aggregation import (
     aggregate_scores,
     aggregate_summaries,
 )
-from model_hub.utils.scoring import (
-    determine_pass_fail,
-    resolve_pass_threshold,
-    score_eval_output,
-)
+from evaluations.engine.instance import resolve_pass_threshold
+from model_hub.utils.scoring import determine_pass_fail, score_eval_output
 
 logger = logging.getLogger(__name__)
 
