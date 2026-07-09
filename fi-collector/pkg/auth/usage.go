@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -21,15 +22,17 @@ const (
 // emitter (ee/usage/services/emitter.py).
 type UsageEmitter struct {
 	rdb *redis.Client
+	pg  *pgxpool.Pool
 	log *slog.Logger
 }
 
 // NewUsageEmitter creates an emitter. Returns nil if rdb is nil (disabled).
-func NewUsageEmitter(rdb *redis.Client, log *slog.Logger) *UsageEmitter {
+// pg (read pool) resolves the org's tracing billing mode; nil → storage default.
+func NewUsageEmitter(rdb *redis.Client, pg *pgxpool.Pool, log *slog.Logger) *UsageEmitter {
 	if rdb == nil {
 		return nil
 	}
-	return &UsageEmitter{rdb: rdb, log: log}
+	return &UsageEmitter{rdb: rdb, pg: pg, log: log}
 }
 
 // Namespace for deterministic billing event_ids (re-poll → same id → consumer dedups).
@@ -44,8 +47,11 @@ func billingEventID(dedupKey, eventType string) string {
 	return uuid.NewSHA1(billingDedupNS, []byte(eventType+":"+dedupKey)).String()
 }
 
-// EmitIngestion records trace + storage usage. Non-empty dedupKey → deterministic
-// event_ids so re-exports bill once. Fire-and-forget; errors logged, not returned.
+// EmitIngestion records usage for the ONE dimension the org is billed on,
+// resolved from its tracing_billing_mode (mirrors Python emit_span_ingestion_usage):
+// storage mode → observe_add (bytes); events mode → tracing_event (traces+spans).
+// Emitting both would double-bill. Non-empty dedupKey → deterministic event_ids
+// so re-exports bill once. Fire-and-forget; errors logged, not returned.
 func (u *UsageEmitter) EmitIngestion(orgID string, numTraces, numSpans int, payloadBytes int64, dedupKey string) {
 	if u == nil {
 		return
@@ -56,25 +62,31 @@ func (u *UsageEmitter) EmitIngestion(orgID string, numTraces, numSpans int, payl
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	if numTraces > 0 {
+	if tracingBillingMode(ctx, u.rdb, u.pg, u.log, orgID) == "storage" {
+		if payloadBytes > 0 {
+			u.xadd(ctx, map[string]any{
+				"event_id":   billingEventID(dedupKey, "observe_add"),
+				"org_id":     orgID,
+				"event_type": "observe_add",
+				"timestamp":  now,
+				"amount":     strconv.FormatInt(payloadBytes, 10),
+				"properties": fmt.Sprintf(`{"spans":%d,"source":"fi-collector"}`, numSpans),
+			})
+		}
+		return
+	}
+
+	// events mode: bill traces+spans; span storage is not billed here, so
+	// payloadBytes is intentionally ignored.
+	tracingUnits := numTraces + numSpans
+	if tracingUnits > 0 {
 		u.xadd(ctx, map[string]any{
 			"event_id":   billingEventID(dedupKey, "tracing_event"),
 			"org_id":     orgID,
 			"event_type": "tracing_event",
 			"timestamp":  now,
-			"amount":     strconv.Itoa(numTraces),
-			"properties": fmt.Sprintf(`{"traces":%d,"source":"fi-collector"}`, numTraces),
-		})
-	}
-
-	if payloadBytes > 0 {
-		u.xadd(ctx, map[string]any{
-			"event_id":   billingEventID(dedupKey, "observe_add"),
-			"org_id":     orgID,
-			"event_type": "observe_add",
-			"timestamp":  now,
-			"amount":     strconv.FormatInt(payloadBytes, 10),
-			"properties": fmt.Sprintf(`{"spans":%d,"source":"fi-collector"}`, numSpans),
+			"amount":     strconv.Itoa(tracingUnits),
+			"properties": fmt.Sprintf(`{"traces":%d,"source":"fi-collector"}`, tracingUnits),
 		})
 	}
 }
