@@ -238,6 +238,23 @@ class EvalUpdateResponse(BaseModel):
     updated: bool = True
 
 
+class PlaygroundEvalResponse(BaseModel):
+    """Response schema for POST /model-hub/eval-playground/ and related
+    single-run evaluation endpoints. `output` is polymorphic per
+    `output_type`: string for pass_fail, float for score, string or list
+    for choices. `log_id` is None on stripped-ee builds where the billing
+    entry point never ran."""
+
+    output: Any = None
+    reason: Optional[str] = None
+    model: Optional[str] = None
+    metadata: Any = None
+    output_type: Optional[str] = None
+    log_id: Optional[str] = None
+    ground_truth_examples: list = Field(default_factory=list)
+    warnings: Optional[list] = None
+
+
 # =============================================================================
 # Eval Versioning Types (Phase 5)
 # =============================================================================

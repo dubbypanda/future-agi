@@ -34,20 +34,23 @@ except ImportError:
 
 
 def _canonical_playground_output(value, response, template, api_call_log_row):
-    output = {
-        "output": value,
-        "reason": response.get("reason"),
-        "model": response.get("model"),
-        "metadata": response.get("metadata"),
-        "output_type": template.config.get("output"),
-        "log_id": (
+    from model_hub.types import PlaygroundEvalResponse
+
+    payload = PlaygroundEvalResponse(
+        output=value,
+        reason=response.get("reason"),
+        model=response.get("model"),
+        metadata=response.get("metadata"),
+        output_type=template.config.get("output"),
+        log_id=(
             str(api_call_log_row.log_id) if api_call_log_row is not None else None
         ),
-        "ground_truth_examples": response.get("ground_truth_examples") or [],
-    }
-    if response.get("warnings"):
-        output["warnings"] = response["warnings"]
-    return output
+        ground_truth_examples=response.get("ground_truth_examples") or [],
+        warnings=response.get("warnings") or None,
+    ).model_dump()
+    if payload.get("warnings") is None:
+        payload.pop("warnings", None)
+    return payload
 
 
 def run_eval_func(
