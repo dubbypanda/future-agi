@@ -285,6 +285,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  python manage.py migrate_ch_default_tables \\")
         self.stdout.write(f"    --source-database {source_db} \\")
         self.stdout.write(f"    --target-database {target_db} \\")
+        self.stdout.write(f"    --tables {','.join(tables)} \\")
         self.stdout.write(f"    --cluster {cluster}")
         self.stdout.write(self._BAR)
 
