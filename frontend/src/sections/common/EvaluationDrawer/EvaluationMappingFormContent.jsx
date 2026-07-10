@@ -77,6 +77,7 @@ export default function EvaluationMappingFormContent({
   disabledName,
   isViewMode,
   isFutureagiBuilt,
+  alwaysShowModel = false,
   modelsToShow,
   hideModel,
   modeHelpMessage,
@@ -411,7 +412,9 @@ export default function EvaluationMappingFormContent({
           }
         />
       </ShowComponent>
-      {isFutureagiBuilt && modelsToShow?.length > 0 && !hideModel && (
+      {(isFutureagiBuilt || alwaysShowModel) &&
+        modelsToShow?.length > 0 &&
+        !hideModel && (
         <HeadingAndSubHeading
           heading={
             <FormSearchSelectFieldControl
@@ -596,12 +599,12 @@ export default function EvaluationMappingFormContent({
         <ShowComponent condition={selectedEval?.isGroupEvals}>
           {groupedRequiredKeys?.map((group, index) => {
             const evals = group?.evals?.map((evalItm) => evalItm?.name);
-            const groupedKeys = group?.required_keys?.filter((gKey) =>
+            const groupedKeys = group?.requiredKeys?.filter((gKey) =>
               filteredRequiredKeys?.includes(gKey),
             );
             const uniqueOptionalKeys = [
               ...new Set(
-                group?.required_keys
+                group?.requiredKeys
                   ?.filter((item) => String(item).startsWith("OPT"))
                   ?.map((item) => {
                     return item.slice(4, item?.length);
@@ -1087,6 +1090,7 @@ EvaluationMappingFormContent.propTypes = {
   disabledName: PropTypes.string,
   isViewMode: PropTypes.bool,
   isFutureagiBuilt: PropTypes.bool,
+  alwaysShowModel: PropTypes.bool,
   modelsToShow: PropTypes.array,
   hideModel: PropTypes.bool,
   modeHelpMessage: PropTypes.string,

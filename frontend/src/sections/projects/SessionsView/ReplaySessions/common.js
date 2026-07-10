@@ -198,26 +198,21 @@ const getEvaluationMappingPayload = (
 
     // Determine model for this eval
     let evalModel = globalModel;
-    if (evalItem.tags?.includes("FUTURE_EVALS")) {
-      // Use global model if it's in the eval's allowed models
-      const allowedEvalModels = evalItem.models || [];
-      if (
-        !allowedEvalModels.includes(globalModel) &&
-        allowedEvalModels.length > 0
-      ) {
-        evalModel = allowedEvalModels[0]; // Fallback to first allowed model
-      }
-    } else {
-      evalModel = ""; // No model needed for non-FUTURE_EVALS
+    const allowedEvalModels = evalItem.models || [];
+    if (
+      allowedEvalModels.length > 0 &&
+      !allowedEvalModels.includes(globalModel)
+    ) {
+      evalModel = allowedEvalModels[0];
     }
 
     return {
       name: evalItem.name,
-      templateId: evalItem.evalTemplateId,
+      template_id: evalItem.evalTemplateId,
       mapping: evalMapping,
       model: evalModel || undefined,
-      errorLocalizer: globalErrorLocalizer,
-      kbId: globalKbId || undefined,
+      error_localizer: globalErrorLocalizer,
+      kb_id: globalKbId || undefined,
       config: {
         mapping: evalMapping,
         config: {},
@@ -302,13 +297,14 @@ export const buildEvaluationMappingFormSchema = (requiredKeys) => {
 export const formatProjectEvals = (evalConfigs) => {
   if (!evalConfigs) return [];
   return evalConfigs?.map((evalItem) => ({
-    evalTemplateId: evalItem.evalTemplate?.id,
+    evalTemplateId: evalItem.eval_template?.id,
+    eval_template_id: evalItem.eval_template?.id,
     name: evalItem.name,
-    description: evalItem.evalTemplate?.description,
-    requiredKeys: evalItem.evalTemplate?.requiredKeys,
-    optionalKeys: evalItem.evalTemplate?.optionalKeys,
-    models: evalItem?.availableModels ?? [],
-    tags: evalItem.evalTemplate?.tags ?? [],
+    description: evalItem.eval_template?.description,
+    requiredKeys: evalItem.eval_template?.required_keys,
+    optionalKeys: evalItem.eval_template?.optional_keys,
+    models: evalItem?.available_models ?? [],
+    tags: evalItem.eval_template?.tags ?? [],
     fromProject: true,
   }));
 };
