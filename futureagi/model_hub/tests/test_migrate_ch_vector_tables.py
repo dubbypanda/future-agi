@@ -14,7 +14,6 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-
 # Canonical vector-table columns for tests. The exact set only matters for
 # assertions that check the explicit column list appears in the INSERT.
 _VECTOR_COLUMNS = [
