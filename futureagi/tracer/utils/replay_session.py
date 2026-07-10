@@ -104,7 +104,10 @@ def _get_agent_definition_from_replay_sessions(
     project: Project,
 ) -> Optional[AgentDefinition]:
     """
-    Get agent definition from existing replay sessions for this project.
+    Get agent definition from existing replay sessions or observability provider for this project.
+
+    First checks if an agent definition was linked by a prior replay session.
+    Falls back to the agent definition linked via the project's observability provider.
 
     Args:
         project: The Project instance
@@ -125,7 +128,14 @@ def _get_agent_definition_from_replay_sessions(
 
     if replay_session:
         return replay_session.agent_definition
-    return None
+
+    # Fallback: check if an agent definition exists via the project's observability provider
+    agent_def_from_provider = AgentDefinition.objects.filter(
+        observability_provider__project=project,
+        deleted=False,
+    ).first()
+
+    return agent_def_from_provider
 
 
 def _get_next_replay_scenario_version(

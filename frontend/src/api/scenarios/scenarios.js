@@ -8,7 +8,7 @@ export const useGetScenarioDetail = (scenarioId, options = {}) => {
     select: (d) => d.data,
     enabled: !!scenarioId,
     refetchInterval: ({ state }) => {
-      return state?.data?.data?.status === "Processing" ? 5000 : false;
+      return state?.data?.status === "Processing" ? 5000 : false;
     },
     ...options,
   });

@@ -93,21 +93,21 @@ export const getReplaySessionsFormDefaultValues = (createdReplay) => {
 
   return {
     agentDefinition: {
-      id: createdReplay?.agentDefinitionId,
-      name: createdReplay?.suggestions?.agentName ?? "",
-      version: createdReplay?.suggestions?.versionName ?? "v1",
+      id: createdReplay?.agent_definition_id,
+      name: createdReplay?.suggestions?.agent_name ?? "",
+      version: createdReplay?.suggestions?.version_name ?? "v1",
       versionId: "",
-      prompt: createdReplay?.suggestions?.agentDescription ?? "",
+      prompt: createdReplay?.suggestions?.agent_description ?? "",
     },
-    scenarioName: createdReplay?.suggestions?.scenarioName ?? "",
+    scenarioName: createdReplay?.suggestions?.scenario_name ?? "",
     numOfScenarios: createdReplay?.numOfScenarios ?? 10,
     // numOfSessions: editData?.numOfSessions ?? 0,
     // columns: [],
     personas: [],
     addPersonaAutomatically: createdReplay?.addPersonaAutomatically ?? true,
-    hasAgentPrompt: Boolean(createdReplay?.suggestions?.agentDescription),
+    hasAgentPrompt: Boolean(createdReplay?.suggestions?.agent_description),
     agentDefExists: Boolean(agentDefinitionExists),
-    agentType: createdReplay?.suggestions?.agentType ?? "text",
+    agentType: createdReplay?.suggestions?.agent_type ?? "text",
     replaySessionId: createdReplay?.id,
   };
 };
@@ -247,12 +247,12 @@ export const getRunSimulationPayload = (
         )
       : [];
   return {
-    agent_definition_id: data?.createdScenario?.agentDefinitionId,
-    agent_version: data?.createdScenario?.agentDefinitionLatestVersionId,
+    agent_definition_id: data?.createdScenario?.agent_definition_id,
+    agent_version: data?.createdScenario?.agent_definition_latest_version_id,
     name: name,
     description: description,
     enable_tool_evaluation: false,
-    scenario_ids: [data?.createdScenario?.scenarioId],
+    scenario_ids: [data?.createdScenario?.scenario_id],
     eval_config_ids: [],
     evaluations_config: evaluationsConfig,
     replay_session_id: data?.replaySessionId,
