@@ -5324,6 +5324,9 @@ export interface AIFilterRequestApi {
   dataset_id?: string;
 }
 
+/**
+ * Any valid JSON value.
+ */
 export type AIFilterConditionApiValue = { [key: string]: unknown };
 
 export interface AIFilterConditionApi {
@@ -5331,6 +5334,7 @@ export interface AIFilterConditionApi {
   field: string;
   /** @minLength 1 */
   operator: string;
+  /** Any valid JSON value. */
   value?: AIFilterConditionApiValue;
 }
 
@@ -8309,12 +8313,30 @@ export interface CreateEmptyDatasetRequestApi {
   row?: number;
 }
 
-export type SyntheticDatasetCreationApiDataset = { [key: string]: unknown };
+export type SyntheticDatasetColumnApiProperty = { [key: string]: unknown };
+
+export interface SyntheticDatasetColumnApi {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  data_type: string;
+  description: string;
+  property: SyntheticDatasetColumnApiProperty;
+  skip?: boolean;
+  is_new?: boolean;
+}
+
+export interface SyntheticDatasetPayloadApi {
+  name?: string;
+  description: string;
+  objective: string;
+  patterns: string;
+}
 
 export interface SyntheticDatasetCreationApi {
   num_rows: number;
-  columns: string[];
-  dataset: SyntheticDatasetCreationApiDataset;
+  columns: SyntheticDatasetColumnApi[];
+  dataset: SyntheticDatasetPayloadApi;
   kb_id?: string;
 }
 
@@ -8768,12 +8790,10 @@ export interface DatasetStaticColumnRequestApi {
   source?: string;
 }
 
-export type SyntheticDataApiDataset = { [key: string]: unknown };
-
 export interface SyntheticDataApi {
   num_rows: number;
-  columns: string[];
-  dataset: SyntheticDataApiDataset;
+  columns: SyntheticDatasetColumnApi[];
+  dataset: SyntheticDatasetPayloadApi;
   kb_id?: string;
   fill_existing_rows?: boolean;
 }
@@ -8860,8 +8880,6 @@ export interface DatasetTableMetadataApi {
   status?: DatasetTableMetadataApiStatus;
 }
 
-export type DatasetTableColumnApiEvalTag = { [key: string]: unknown };
-
 export type DatasetTableColumnApiMetadata = { [key: string]: unknown };
 
 export type DatasetTableColumnApiChoicesMap = { [key: string]: unknown };
@@ -8887,7 +8905,7 @@ export interface DatasetTableColumnApi {
   reason_column: boolean;
   is_numeric_eval: boolean;
   is_numeric_eval_percentage: boolean;
-  eval_tag: DatasetTableColumnApiEvalTag;
+  eval_tag?: string[];
   metadata: DatasetTableColumnApiMetadata;
   choices_map: DatasetTableColumnApiChoicesMap;
 }
@@ -9088,14 +9106,10 @@ export interface SyntheticDatasetConfigResponseApi {
   result: SyntheticDatasetConfigResultApi;
 }
 
-export type SyntheticDatasetConfigApiColumnsItem = { [key: string]: unknown };
-
-export type SyntheticDatasetConfigApiDataset = { [key: string]: unknown };
-
 export interface SyntheticDatasetConfigApi {
   num_rows: number;
-  columns: SyntheticDatasetConfigApiColumnsItem[];
-  dataset: SyntheticDatasetConfigApiDataset;
+  columns: SyntheticDatasetColumnApi[];
+  dataset: SyntheticDatasetPayloadApi;
   kb_id?: string;
   regenerate?: boolean;
 }

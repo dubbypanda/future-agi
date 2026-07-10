@@ -80,7 +80,7 @@ SYSTEM_METRICS: dict[str, tuple[str, str]] = {
     # String dimensions (for breakdown/filter)
     "model": ("spans", "model"),
     "status": ("spans", "status"),
-    "service_name": ("spans", "trace_name"),
+    "service_name": ("spans", "service_name"),
     "span_kind": ("spans", "observation_type"),
     "provider": ("spans", "provider"),
     "session": ("spans", "trace_session_id"),
@@ -319,9 +319,9 @@ _ID_RESOLVED_NAMES = frozenset(
 )
 
 
-# ClickHouse omits materialized columns from sp.*, so re-project the ones used
-# by outer dashboard queries.
-_MATERIALIZED_DASHBOARD_COLS = ("trace_name",)
+# ClickHouse omits materialized columns from sp.*. The current dashboard
+# dimensions only use stored columns, so no re-projection is needed.
+_MATERIALIZED_DASHBOARD_COLS: tuple[str, ...] = ()
 
 
 def _resolved_spans_source(alias: str | None = None) -> str:
@@ -839,7 +839,7 @@ class DashboardQueryBuilder:
                 _span_col_map = {
                     "model": "model",
                     "status": "status",
-                    "service_name": "name",
+                    "service_name": "service_name",
                     "span_kind": "observation_type",
                     "provider": "provider",
                     "session": "trace_session_id",
@@ -1321,7 +1321,7 @@ class DashboardQueryBuilder:
         "project": "toString(project_id)",
         "model": "model",
         "status": "status",
-        "service_name": "trace_name",
+        "service_name": "service_name",
         "span_kind": "observation_type",
         "provider": "provider",
         "session": "toString(trace_session_id)",
@@ -1542,7 +1542,7 @@ class DashboardQueryBuilder:
             "project": "toString(project_id)",
             "status": "status",
             "model": "model",
-            "service_name": "trace_name",
+            "service_name": "service_name",
             "span_kind": "observation_type",
             "provider": "provider",
             "session": "toString(trace_session_id)",

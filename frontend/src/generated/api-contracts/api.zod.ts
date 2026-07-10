@@ -11566,7 +11566,7 @@ export const ModelHubAiFilterCreateResponse = zod.object({
   "operator": zod.string().min(1),
   "value": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional().describe('Any valid JSON value.')
 })).optional(),
   "fields": zod.array(zod.string().min(1)).optional()
 })
@@ -12121,7 +12121,7 @@ export const ModelHubAnnotationQueuesAddLabelParams = zod.object({
   "id": zod.string().uuid().describe('A UUID string identifying this annotation queue.')
 })
 
-export const modelHubAnnotationQueuesAddLabelBodyRequiredDefault = true;
+export const modelHubAnnotationQueuesAddLabelBodyRequiredDefault = false;
 
 export const ModelHubAnnotationQueuesAddLabelBody = zod.object({
   "label_id": zod.string().uuid(),
@@ -12410,7 +12410,7 @@ export const ModelHubAnnotationQueuesRemoveLabelParams = zod.object({
   "id": zod.string().uuid().describe('A UUID string identifying this annotation queue.')
 })
 
-export const modelHubAnnotationQueuesRemoveLabelBodyRequiredDefault = true;
+export const modelHubAnnotationQueuesRemoveLabelBodyRequiredDefault = false;
 
 export const ModelHubAnnotationQueuesRemoveLabelBody = zod.object({
   "label_id": zod.string().uuid(),
@@ -17200,12 +17200,28 @@ export const ModelHubDevelopsCreateEmptyDatasetCreateResponse = zod.object({
 })
 
 
+
+
+
+
 export const ModelHubDevelopsCreateSyntheticDatasetCreateBody = zod.object({
   "num_rows": zod.number(),
-  "columns": zod.array(zod.string()),
-  "dataset": zod.object({
+  "columns": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "data_type": zod.string().min(1),
+  "description": zod.string(),
+  "property": zod.object({
 
 }).passthrough(),
+  "skip": zod.boolean().optional(),
+  "is_new": zod.boolean().optional()
+})),
+  "dataset": zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string(),
+  "objective": zod.string(),
+  "patterns": zod.string()
+}),
   "kb_id": zod.string().uuid().optional()
 })
 
@@ -17872,14 +17888,28 @@ export const ModelHubDevelopsAddSyntheticDataCreateParams = zod.object({
   "dataset_id": zod.string()
 })
 
+
+
 export const modelHubDevelopsAddSyntheticDataCreateBodyFillExistingRowsDefault = false;
 
 export const ModelHubDevelopsAddSyntheticDataCreateBody = zod.object({
   "num_rows": zod.number(),
-  "columns": zod.array(zod.string()),
-  "dataset": zod.object({
+  "columns": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "data_type": zod.string().min(1),
+  "description": zod.string(),
+  "property": zod.object({
 
 }).passthrough(),
+  "skip": zod.boolean().optional(),
+  "is_new": zod.boolean().optional()
+})),
+  "dataset": zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string(),
+  "objective": zod.string(),
+  "patterns": zod.string()
+}),
   "kb_id": zod.string().uuid().optional(),
   "fill_existing_rows": zod.boolean().default(modelHubDevelopsAddSyntheticDataCreateBodyFillExistingRowsDefault)
 })
@@ -18098,6 +18128,7 @@ export const ModelHubDevelopsGetDatasetTableListQueryParams = zod.object({
 
 
 
+export const modelHubDevelopsGetDatasetTableListResponseResultColumnConfigItemEvalTagDefault = [];
 
 export const ModelHubDevelopsGetDatasetTableListResponse = zod.object({
   "status": zod.boolean(),
@@ -18128,9 +18159,7 @@ export const ModelHubDevelopsGetDatasetTableListResponse = zod.object({
   "reason_column": zod.boolean(),
   "is_numeric_eval": zod.boolean(),
   "is_numeric_eval_percentage": zod.boolean(),
-  "eval_tag": zod.object({
-
-}).passthrough(),
+  "eval_tag": zod.array(zod.string().min(1)).default(modelHubDevelopsGetDatasetTableListResponseResultColumnConfigItemEvalTagDefault),
   "metadata": zod.object({
 
 }).passthrough(),
@@ -18386,16 +18415,28 @@ export const ModelHubDevelopsUpdateSyntheticConfigUpdateParams = zod.object({
   "dataset_id": zod.string()
 })
 
+
+
 export const modelHubDevelopsUpdateSyntheticConfigUpdateBodyRegenerateDefault = false;
 
 export const ModelHubDevelopsUpdateSyntheticConfigUpdateBody = zod.object({
   "num_rows": zod.number(),
   "columns": zod.array(zod.object({
-
-}).passthrough()),
-  "dataset": zod.object({
+  "name": zod.string().min(1),
+  "data_type": zod.string().min(1),
+  "description": zod.string(),
+  "property": zod.object({
 
 }).passthrough(),
+  "skip": zod.boolean().optional(),
+  "is_new": zod.boolean().optional()
+})),
+  "dataset": zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string(),
+  "objective": zod.string(),
+  "patterns": zod.string()
+}),
   "kb_id": zod.string().uuid().optional(),
   "regenerate": zod.boolean().default(modelHubDevelopsUpdateSyntheticConfigUpdateBodyRegenerateDefault)
 })
@@ -18528,6 +18569,7 @@ export const ModelHubDevelopsGetExperimentDatasetTableListParams = zod.object({
 
 
 
+export const modelHubDevelopsGetExperimentDatasetTableListResponseResultColumnConfigItemEvalTagDefault = [];
 
 export const ModelHubDevelopsGetExperimentDatasetTableListResponse = zod.object({
   "status": zod.boolean(),
@@ -18558,9 +18600,7 @@ export const ModelHubDevelopsGetExperimentDatasetTableListResponse = zod.object(
   "reason_column": zod.boolean(),
   "is_numeric_eval": zod.boolean(),
   "is_numeric_eval_percentage": zod.boolean(),
-  "eval_tag": zod.object({
-
-}).passthrough(),
+  "eval_tag": zod.array(zod.string().min(1)).default(modelHubDevelopsGetExperimentDatasetTableListResponseResultColumnConfigItemEvalTagDefault),
   "metadata": zod.object({
 
 }).passthrough(),
