@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta
-from django.db import transaction
 
 import structlog
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework.decorators import action

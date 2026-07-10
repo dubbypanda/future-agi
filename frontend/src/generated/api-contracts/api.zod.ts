@@ -41636,6 +41636,17 @@ export const TracerTraceListTracesOfSessionQueryParams = zod.object({
   "interval": zod.string().optional()
 })
 
+
+
+
+
+
+
+
+
+
+
+
 export const TracerTraceListTracesOfSessionResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
@@ -41646,8 +41657,27 @@ export const TracerTraceListTracesOfSessionResponse = zod.object({
 
 }).passthrough().describe('Any valid JSON value.'))),
   "config": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "is_visible": zod.boolean(),
+  "group_by": zod.string().min(1).optional(),
+  "output_type": zod.string().min(1).optional(),
+  "reverse_output": zod.boolean().optional(),
+  "annotation_label_type": zod.string().min(1).optional(),
+  "choices": zod.array(zod.string().min(1)).optional(),
+  "settings": zod.object({
 
-}).passthrough().describe('Any valid JSON value.'))
+}).passthrough().optional().describe('Any valid JSON value.'),
+  "choices_map": zod.object({
+
+}).passthrough().optional().describe('Any valid JSON value.'),
+  "eval_template_id": zod.string().min(1).optional(),
+  "annotators": zod.object({
+
+}).passthrough().optional().describe('Any valid JSON value.'),
+  "source_field": zod.string().min(1).optional(),
+  "parent_eval_id": zod.string().min(1).optional()
+}))
 })
 })
 

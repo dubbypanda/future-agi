@@ -40,7 +40,7 @@ import _ from "lodash";
 import GraphSkeleton from "./GraphSkeleton";
 import CustomDateRangePicker from "src/components/custom-datepicker/DatePicker";
 import { formatDate } from "src/utils/report-utils";
-import { FILTER_FOR_HAS_EVAL } from "../common";
+import { combineGraphFilters } from "./graphFilterUtils";
 
 // ---------------------------------------------------------------------------
 // Map dashboard category → graph API type
@@ -157,7 +157,7 @@ function useGraphMetrics() {
 // ---------------------------------------------------------------------------
 const PrimaryGraph = ({
   filters = [],
-  extraFilters = [],
+  extraFilters,
   dateFilter,
   setDateFilter,
   selectedInterval = "day",
@@ -305,61 +305,11 @@ const PrimaryGraph = ({
     return result;
   }, [metricGroups, pickerSearch]);
 
-  // Shared constant — avoids the "created_at" string literal appearing in
-  // multiple files (also duplicated in GraphSection.jsx).
-  const CREATED_AT = "created_at";
-
-  // Combine filters for the graph POST body.
-  //
-  // Two modes depending on whether the caller provides extraFilters:
-  //   Trace/Span mode (extraFilters defined): strip `filters` down to the
-  //     date entry only — other col-level filters (name, status, …) carry no
-  //     col_type and the trace/span graph endpoint rejects them. All non-date
-  //     graph filters come via extraFilters from the toolbar.
-  //   Users/Sessions mode (extraFilters undefined): the caller already merged
-  //     everything into `filters`; pass them all through unchanged so the
-  //     users/sessions graph stays in sync with its table.
-  //
-  // In both modes, strip the FE-only `id` key before sending to the API.
-  const stripId = (f) => {
-    if (!f) return f;
-    const { id: _id, ...rest } = f; // eslint-disable-line no-unused-vars
-    return rest;
-  };
-
-  const combinedFilters = useMemo(() => {
-    const isTracingMode = extraFilters !== undefined;
-    const baseFilters = isTracingMode
-      ? (filters || []).filter((f) => f?.column_id === CREATED_AT)
-      : (filters || []);
-    const base = [...baseFilters, ...(extraFilters || [])];
-    const hasDateFilter = base.some((f) => f?.column_id === CREATED_AT);
-    const startDate = dateFilter?.dateFilter?.[0];
-    const endDate = dateFilter?.dateFilter?.[1];
-
-    const dateEntry =
-      !hasDateFilter && startDate && endDate
-        ? [
-            {
-              column_id: CREATED_AT,
-              filter_config: {
-                filter_type: "datetime",
-                filter_op: "between",
-                filter_value: [
-                  new Date(startDate).toISOString(),
-                  new Date(endDate).toISOString(),
-                ],
-              },
-            },
-          ]
-        : [];
-
-    return [
-      ...base,
-      ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
-      ...dateEntry,
-    ].map(stripId);
-  }, [filters, extraFilters, dateFilter, hasEvalFilter]);
+  const combinedFilters = useMemo(
+    () =>
+      combineGraphFilters({ filters, extraFilters, dateFilter, hasEvalFilter }),
+    [filters, extraFilters, dateFilter, hasEvalFilter],
+  );
 
   // Fetch graph data
   const apiEndpoint = graphEndpoint || endpoints.project.getTraceGraphData();

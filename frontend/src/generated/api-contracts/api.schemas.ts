@@ -20716,17 +20716,55 @@ export interface TraceObserveListMetadataApi {
   total_rows: number;
 }
 
-export type TraceObserveListResultApiTableItem = {[key: string]: { [key: string]: unknown }};
+/**
+ * Any valid JSON value.
+ */
+export type TraceObserveColumnConfigApiSettings = { [key: string]: unknown };
 
 /**
  * Any valid JSON value.
  */
-export type TraceObserveListResultApiConfigItem = { [key: string]: unknown };
+export type TraceObserveColumnConfigApiChoicesMap = { [key: string]: unknown };
+
+/**
+ * Any valid JSON value.
+ */
+export type TraceObserveColumnConfigApiAnnotators = { [key: string]: unknown };
+
+export interface TraceObserveColumnConfigApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  is_visible: boolean;
+  /** @minLength 1 */
+  group_by?: string;
+  /** @minLength 1 */
+  output_type?: string;
+  reverse_output?: boolean;
+  /** @minLength 1 */
+  annotation_label_type?: string;
+  choices?: string[];
+  /** Any valid JSON value. */
+  settings?: TraceObserveColumnConfigApiSettings;
+  /** Any valid JSON value. */
+  choices_map?: TraceObserveColumnConfigApiChoicesMap;
+  /** @minLength 1 */
+  eval_template_id?: string;
+  /** Any valid JSON value. */
+  annotators?: TraceObserveColumnConfigApiAnnotators;
+  /** @minLength 1 */
+  source_field?: string;
+  /** @minLength 1 */
+  parent_eval_id?: string;
+}
+
+export type TraceObserveListResultApiTableItem = {[key: string]: { [key: string]: unknown }};
 
 export interface TraceObserveListResultApi {
   metadata: TraceObserveListMetadataApi;
   table: TraceObserveListResultApiTableItem[];
-  config: TraceObserveListResultApiConfigItem[];
+  config: TraceObserveColumnConfigApi[];
 }
 
 export interface TraceObserveListResponseApi {
