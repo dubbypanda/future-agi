@@ -37,10 +37,10 @@ class TestWSVariableNamesPersistence:
         return org, template, execution
 
     @patch("sockets.prompt_stream_consumer.run_template_async")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.get_workspace_id")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.validate_template_access")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._resolve_workspace_and_org")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._fetch_template_for_run")
     async def test_variable_names_persisted_from_ws_content(
-        self, mock_validate, mock_get_ws_id, mock_run_template
+        self, mock_fetch_template, mock_resolve, mock_run_template
     ):
         """
         When execute_template_async receives content with variable_names,
@@ -49,10 +49,12 @@ class TestWSVariableNamesPersistence:
         """
         from model_hub.models.run_prompt import PromptVersion
 
-        mock_validate.return_value = True
-        mock_get_ws_id.return_value = None
-
         org, template, execution = await self._create_minimal_data()
+
+        mock_fetch_template.return_value = template
+        workspace = MagicMock()
+        workspace.id = None
+        mock_resolve.return_value = (workspace, org.id)
 
         from sockets.prompt_stream_consumer import PromptStreamConsumer
 
@@ -88,10 +90,10 @@ class TestWSVariableNamesPersistence:
         )
 
     @patch("sockets.prompt_stream_consumer.run_template_async")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.get_workspace_id")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.validate_template_access")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._resolve_workspace_and_org")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._fetch_template_for_run")
     async def test_no_variable_names_does_not_overwrite(
-        self, mock_validate, mock_get_ws_id, mock_run_template
+        self, mock_fetch_template, mock_resolve, mock_run_template
     ):
         """
         When content has no variable_names key, execution.variable_names
@@ -99,14 +101,16 @@ class TestWSVariableNamesPersistence:
         """
         from model_hub.models.run_prompt import PromptVersion
 
-        mock_validate.return_value = True
-        mock_get_ws_id.return_value = None
-
         org, template, execution = await self._create_minimal_data()
 
         existing_vars = {"existing_key": ["existing_val"]}
         execution.variable_names = existing_vars
         await database_sync_to_async(execution.save)()
+
+        mock_fetch_template.return_value = template
+        workspace = MagicMock()
+        workspace.id = None
+        mock_resolve.return_value = (workspace, org.id)
 
         from sockets.prompt_stream_consumer import PromptStreamConsumer
 
@@ -132,10 +136,10 @@ class TestWSVariableNamesPersistence:
         assert execution_refreshed.variable_names == existing_vars
 
     @patch("sockets.prompt_stream_consumer.run_template_async")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.get_workspace_id")
-    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer.validate_template_access")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._resolve_workspace_and_org")
+    @patch("sockets.prompt_stream_consumer.PromptStreamConsumer._fetch_template_for_run")
     async def test_empty_variable_names_does_not_overwrite(
-        self, mock_validate, mock_get_ws_id, mock_run_template
+        self, mock_fetch_template, mock_resolve, mock_run_template
     ):
         """
         When content has empty variable_names dict, it should not overwrite
@@ -143,14 +147,16 @@ class TestWSVariableNamesPersistence:
         """
         from model_hub.models.run_prompt import PromptVersion
 
-        mock_validate.return_value = True
-        mock_get_ws_id.return_value = None
-
         org, template, execution = await self._create_minimal_data()
 
         existing_vars = {"name": ["Alice"]}
         execution.variable_names = existing_vars
         await database_sync_to_async(execution.save)()
+
+        mock_fetch_template.return_value = template
+        workspace = MagicMock()
+        workspace.id = None
+        mock_resolve.return_value = (workspace, org.id)
 
         from sockets.prompt_stream_consumer import PromptStreamConsumer
 
