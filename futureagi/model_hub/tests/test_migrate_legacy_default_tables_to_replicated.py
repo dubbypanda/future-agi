@@ -1,4 +1,4 @@
-"""Behavioural tests for ``migrate_ch_default_tables``.
+"""Behavioural tests for ``migrate_legacy_default_tables_to_replicated``.
 
 ClickHouseVectorDB is mocked; we assert on the SQL the command sends (name-
 aligned column list, per-table dedup clause, one-shot guard, CREATE DATABASE
@@ -16,10 +16,10 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-_CMD = "migrate_ch_default_tables"
+_CMD = "migrate_legacy_default_tables_to_replicated"
 _DOTTED = (
     "model_hub.management.commands."
-    "migrate_ch_default_tables.ClickHouseVectorDB"
+    "migrate_legacy_default_tables_to_replicated.ClickHouseVectorDB"
 )
 
 
@@ -256,7 +256,7 @@ def test_source_missing_creates_target_and_skips_copy():
 def test_parity_failure_raises_nonzero(monkeypatch):
     # A replica that never reaches source_count must fail the whole command so
     # an exit-code-gated CH_DATABASE flip cannot proceed.
-    import model_hub.management.commands.migrate_ch_default_tables as m
+    import model_hub.management.commands.migrate_legacy_default_tables_to_replicated as m
     monkeypatch.setattr(m.time, "sleep", lambda *_: None)
     clock = {"t": 0.0}
     monkeypatch.setattr(m.time, "monotonic", lambda: clock.__setitem__("t", clock["t"] + 100) or clock["t"])

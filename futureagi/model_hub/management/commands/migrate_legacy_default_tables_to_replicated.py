@@ -175,7 +175,7 @@ class Command(BaseCommand):
             )
 
         logger.info(
-            "migrate_ch_default_tables_started",
+            "migrate_legacy_default_tables_started",
             source_database=source_db,
             target_database=target_db,
             tables=table_names,
@@ -206,7 +206,7 @@ class Command(BaseCommand):
                 failures.append(name)
 
         logger.info(
-            "migrate_ch_default_tables_complete",
+            "migrate_legacy_default_tables_complete",
             tables=table_names,
             total_rows_copied=total_copied,
             failures=failures,
@@ -256,7 +256,7 @@ class Command(BaseCommand):
         self.stdout.write(self._BAR)
         self.stdout.write("CH Migration DRY RUN  (no writes will occur)")
         self.stdout.write(self._BAR)
-        self.stdout.write("Command:            migrate_ch_default_tables")
+        self.stdout.write("Command:            migrate_legacy_default_tables_to_replicated")
         self.stdout.write(f"Source database:    {source_db}")
         self.stdout.write(f"Target database:    {target_db}")
         self.stdout.write(f"Cluster:            {cluster}")
@@ -282,7 +282,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  {refused_line}")
         self.stdout.write("")
         self.stdout.write("Real run:  same command without --dry-run:")
-        self.stdout.write("  python manage.py migrate_ch_default_tables \\")
+        self.stdout.write("  python manage.py migrate_legacy_default_tables_to_replicated \\")
         self.stdout.write(f"    --source-database {source_db} \\")
         self.stdout.write(f"    --target-database {target_db} \\")
         self.stdout.write(f"    --tables {','.join(tables)} \\")
