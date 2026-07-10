@@ -2,7 +2,7 @@
 location (``cluster_centroids``, ``trace_input_embeddings``, ``error_embeddings``,
 ``llm_logs``, ``events``) into a replicated target database.
 
-Sibling of ``migrate_legacy_vectors_to_replicated``: same shape (read every
+Sibling of ``migrate_ch_vector_tables``: same shape (read every
 replica via ``clusterAllReplicas``, create the target with the replicated
 engine, poll per-replica parity), but each table here has its own schema and
 dedup key, so the copy is driven by a per-table spec instead of a fixed
@@ -172,7 +172,7 @@ class Command(BaseCommand):
             )
 
         logger.info(
-            "migrate_legacy_default_tables_started",
+            "migrate_ch_default_tables_started",
             source_database=source_db,
             target_database=target_db,
             tables=table_names,
@@ -198,7 +198,7 @@ class Command(BaseCommand):
                 failures.append(name)
 
         logger.info(
-            "migrate_legacy_default_tables_complete",
+            "migrate_ch_default_tables_complete",
             tables=table_names,
             total_rows_copied=total_copied,
             failures=failures,

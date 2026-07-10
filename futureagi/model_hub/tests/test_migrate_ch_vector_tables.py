@@ -1,4 +1,4 @@
-"""Behavioural tests for ``migrate_legacy_vectors_to_replicated``.
+"""Behavioural tests for ``migrate_ch_vector_tables``.
 
 ClickHouseVectorDB is mocked so no real CH is required. We assert on the
 SQL the command actually sends, the stdout it writes, and the conditions
@@ -96,7 +96,7 @@ def _run(
     """Invoke the command with the standard source/target and return stdout."""
     out = StringIO()
     args = [
-        "migrate_legacy_vectors_to_replicated",
+        "migrate_ch_vector_tables",
         "--source-database=default",
         "--target-database=futureagi",
         f"--tables={','.join(tables)}",
@@ -105,7 +105,7 @@ def _run(
     if dry_run:
         args.append("--dry-run")
     cm = patch(
-        "model_hub.management.commands.migrate_legacy_vectors_to_replicated.ClickHouseVectorDB",
+        "model_hub.management.commands.migrate_ch_vector_tables.ClickHouseVectorDB",
         return_value=db_client,
     ) if db_client is not None else patch("builtins.print")  # no-op patch
     with cm:
@@ -120,7 +120,7 @@ def _run(
 def test_refuses_when_source_equals_target():
     with pytest.raises(CommandError) as excinfo:
         call_command(
-            "migrate_legacy_vectors_to_replicated",
+            "migrate_ch_vector_tables",
             "--source-database=default",
             "--target-database=default",
             "--tables=feedbacks",
@@ -151,7 +151,7 @@ def test_runs_on_single_node_ch():
 def test_refuses_unknown_table_name():
     with pytest.raises(CommandError) as excinfo:
         call_command(
-            "migrate_legacy_vectors_to_replicated",
+            "migrate_ch_vector_tables",
             "--source-database=default",
             "--target-database=futureagi",
             "--tables=feedbacks,not_a_real_table",

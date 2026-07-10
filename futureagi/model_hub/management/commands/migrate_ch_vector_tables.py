@@ -100,7 +100,7 @@ class Command(BaseCommand):
             )
 
         logger.info(
-            "migrate_legacy_vectors_to_replicated_started",
+            "migrate_ch_vector_tables_started",
             source_database=source_db,
             target_database=target_db,
             tables=tables,
@@ -126,7 +126,7 @@ class Command(BaseCommand):
                 failures.append(table)
 
         logger.info(
-            "migrate_legacy_vectors_to_replicated_complete",
+            "migrate_ch_vector_tables_complete",
             tables=tables,
             total_rows_copied=total_copied,
             failures=failures,
