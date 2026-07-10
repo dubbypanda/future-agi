@@ -89,6 +89,10 @@ from tracer.services.clickhouse.graph_dispatch import (
 )
 from tracer.services.clickhouse.page_dedup import paginate_deduped
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
+from tracer.services.clickhouse.v2.span_selectors import (
+    flatten_span_attributes_into_entry,
+    merge_content_rows,
+)
 from tracer.utils.annotations import build_annotation_subqueries
 from tracer.utils.create_otel_span import create_single_otel_span
 from tracer.utils.eval import (
@@ -1842,29 +1846,8 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 if label_id in span_annotations:
                     entry[label_id] = span_annotations[label_id]
 
-            # Include span attributes for custom columns
-            raw_attrs = row.get("attributes_extra", "{}")
-            try:
-                attrs = (
-                    json.loads(raw_attrs)
-                    if isinstance(raw_attrs, str)
-                    else (raw_attrs or {})
-                )
-            except (json.JSONDecodeError, TypeError):
-                attrs = {}
-            _SKIP_ATTR_PREFIXES = (
-                "raw.",
-                "llm.input_messages",
-                "llm.output_messages",
-                "input.value",
-                "output.value",
-            )
-            for key, value in attrs.items():
-                if key not in entry and not key.startswith(_SKIP_ATTR_PREFIXES):
-                    if isinstance(value, str) and len(value) > 500:
-                        entry[key] = value[:500] + "..."
-                    else:
-                        entry[key] = value
+            # Include span attributes (typed maps + attributes_extra) for custom columns
+            flatten_span_attributes_into_entry(entry, row)
 
             table_data.append(entry)
 
