@@ -119,10 +119,17 @@ def test_refuses_unknown_table():
                      "--tables=not_a_table", stdout=StringIO())
 
 
-def test_refuses_when_not_clustered():
-    db_client, _, _ = _make_db_client(clustered=False)
-    with pytest.raises(CommandError, match="replica"):
-        _run("llm_logs", db_client=db_client)
+def test_runs_on_single_node_ch():
+    """Single-node CH is a valid target: the engine choice per env is
+    owned by the per-table ``ensure_*`` helpers, which fall back to plain
+    engines when the cluster has one replica.
+    """
+    db_client, executed, _ = _make_db_client(
+        clustered=False, replicas=("ch-0",), source_count=5
+    )
+    out, _ = _run("cluster_centroids", db_client=db_client)
+    assert "cluster_centroids:" in out
+    assert any(s.lower().lstrip().startswith("insert into") for s in executed)
 
 
 # ---------------------------------------------------------------------------

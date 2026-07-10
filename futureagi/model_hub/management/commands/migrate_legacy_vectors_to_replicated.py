@@ -85,13 +85,6 @@ class Command(BaseCommand):
             )
 
         db_client = ClickHouseVectorDB()
-        if not dry_run and not db_client._is_clustered():
-            raise CommandError(
-                "CH server is not a multi-replica cluster member "
-                "(no row in `system.clusters` with `replica_num > 1`). "
-                "Run from a backend pod that connects to the production CH cluster."
-            )
-
         expected_replicas = (
             0 if dry_run else expected_replica_count(db_client.client, cluster)
         )

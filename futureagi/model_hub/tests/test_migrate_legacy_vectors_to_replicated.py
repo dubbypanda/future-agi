@@ -129,24 +129,16 @@ def test_refuses_when_source_equals_target():
     assert "must differ" in str(excinfo.value)
 
 
-def test_refuses_when_ch_is_not_clustered():
-    """Running on a single-node CH would create the target as plain
-    ReplacingMergeTree and re-introduce the non-replicated bug.
+def test_runs_on_single_node_ch():
+    """Single-node CH is a valid target: create_table's own engine probe
+    emits plain ``ReplacingMergeTree`` when there's only one replica, so
+    the migration proceeds without forcing a Replicated engine on a
+    non-clustered environment.
     """
-    db_client, _ = _build_mock_db_client(clustered=False)
-    with patch(
-        "model_hub.management.commands.migrate_legacy_vectors_to_replicated.ClickHouseVectorDB",
-        return_value=db_client,
-    ):
-        with pytest.raises(CommandError) as excinfo:
-            call_command(
-                "migrate_legacy_vectors_to_replicated",
-                "--source-database=default",
-                "--target-database=futureagi",
-                "--tables=feedbacks",
-                stdout=StringIO(),
-            )
-    assert "replica" in str(excinfo.value).lower()
+    db_client, _ = _build_mock_db_client(clustered=False, expected_replicas=1)
+    out = _run("feedbacks", db_client=db_client)
+    assert "feedbacks:" in out
+    db_client.create_table.assert_called_once()
 
 
 def test_refuses_unknown_table_name():
