@@ -40,6 +40,17 @@ SOURCE_MODEL_MAP = {
     ),
 }
 
+# Tracer-owned sources live only in ClickHouse (the tracer app is CH-native; the
+# legacy PG tables are gone). Annotation reads of these resolve/render/filter from
+# CH, never PG. The remaining source types stay PG-backed.
+_CH_NATIVE_SOURCE_TYPES = frozenset(
+    {
+        QueueItemSourceType.TRACE.value,
+        QueueItemSourceType.OBSERVATION_SPAN.value,
+        QueueItemSourceType.TRACE_SESSION.value,
+    }
+)
+
 FILTER_MODE_SOURCE_TYPES = {
     QueueItemSourceType.DATASET_ROW.value,
     QueueItemSourceType.TRACE.value,
@@ -526,49 +537,30 @@ def resolve_default_queue_item_for_source(source_type, source_obj, organization,
     return item
 
 
-def resolve_source_object(
-    source_type,
-    source_id,
-    organization=None,
-    workspace=None,
-    *,
-    allow_ch_fallback=False,
-):
-    """Look up a source model instance by type and ID.
+def resolve_source_object(source_type, source_id, organization=None, workspace=None):
+    """Look up a source object by type and ID.
 
-    When *organization* is provided the returned object is verified to belong
-    to that organization.  The check accounts for the fact that some source
-    models store ``organization`` directly while others reach it through a
-    related FK (e.g. ``project.organization`` or ``dataset.organization``).
-    ``None`` is returned when the object exists but does not belong to the
-    requested organization.
+    Tracer sources (trace / observation_span / trace_session) live only in
+    ClickHouse — the tracer app is CH-native — so they resolve straight from CH and
+    come back duck-typed (``.id`` / ``.project_id``); the CH resolver tenant-scopes
+    them against the PG ``Project`` (which is not a tracer table), fail-closed.
 
-    When *workspace* is provided, an additional check ensures the object
-    belongs to that workspace (via direct FK or through a related project /
-    dataset).  ``None`` is returned on mismatch.
-
-    ``allow_ch_fallback`` (opt-in): when ``True`` and no PG row exists, fall back
-    to ClickHouse for collector observation_span / trace_session sources, returning
-    a duck-typed CH object (``.id`` / ``.project_id``). Only soft-id-storing add
-    paths opt in; callers that deref ``.pk`` / FKs keep the PG-only default.
+    Non-tracer source types (dataset_row / call_execution / prototype_run) are
+    PG-backed models, verified to belong to *organization* / *workspace* (directly or
+    via a related project / dataset). ``None`` on mismatch or absence.
     """
+    if source_type in _CH_NATIVE_SOURCE_TYPES:
+        return _resolve_ch_source_object(
+            source_type, source_id, organization=organization, workspace=workspace
+        )
+
     model = get_source_model(source_type)
     if not model:
         return None
 
-    # PG-first by row existence, not by source type: a curated span/session has a
-    # PG row and must resolve there (richer object, no CH round-trip); only a
-    # collector one (no PG row) needs CH. `source_type` alone can't tell them apart
-    # — both are e.g. `observation_span` — so the missing row is the discriminator.
     obj = model.objects.filter(pk=source_id).first()
     if obj is None:
-        if not allow_ch_fallback:
-            return None
-        # No PG row: collector spans/sessions live only in CH (fail closed). A
-        # PG-native source type that's genuinely absent resolves to None there.
-        return _resolve_ch_source_object(
-            source_type, source_id, organization=organization, workspace=workspace
-        )
+        return None
 
     if organization is not None:
         obj_org = _get_source_organization(obj)

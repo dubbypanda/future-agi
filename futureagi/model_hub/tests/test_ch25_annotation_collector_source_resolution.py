@@ -171,7 +171,6 @@ def test_collector_span_resolves_via_ch(organization, workspace):
             span.id,
             organization=organization,
             workspace=workspace,
-            allow_ch_fallback=True,
         )
     assert resolved is span
     assert resolved.id == span.id
@@ -192,7 +191,6 @@ def test_collector_span_cross_org_denied(organization, workspace, django_user_mo
             QueueItemSourceType.OBSERVATION_SPAN.value,
             span.id,
             organization=organization,  # requesting org != other_org
-            allow_ch_fallback=True,
         )
     assert resolved is None
 
@@ -238,7 +236,6 @@ def test_collector_span_org_omitted_denied():
             QueueItemSourceType.OBSERVATION_SPAN.value,
             span.id,
             # org AND workspace deliberately omitted — mirrors the serializer hole
-            allow_ch_fallback=True,
         )
     assert resolved is None
 
@@ -254,7 +251,6 @@ def test_collector_span_empty_project_id_denied(organization):
             QueueItemSourceType.OBSERVATION_SPAN.value,
             span.id,
             organization=organization,
-            allow_ch_fallback=True,
         )
     assert resolved is None
 
@@ -267,74 +263,8 @@ def test_span_absent_in_both_pg_and_ch_returns_none(organization):
             QueueItemSourceType.OBSERVATION_SPAN.value,
             f"missing-{uuid.uuid4().hex}",
             organization=organization,
-            allow_ch_fallback=True,
         )
     assert resolved is None
-
-
-@pytest.mark.django_db
-def test_pg_span_resolves_without_touching_ch(organization, workspace):
-    """Regression guard: an existing PG ObservationSpan still resolves via the PG
-    branch and the CH reader is NOT called (PG-first)."""
-    project = _make_project(organization=organization, workspace=workspace)
-    from tracer.models.trace import Trace
-
-    trace = Trace.objects.create(project=project, name="pg-trace")
-    pg_span = ObservationSpan.objects.create(
-        id=f"pg-span-{uuid.uuid4().hex[:12]}",
-        project=project,
-        trace=trace,
-        parent_span_id=None,
-        name="pg span",
-        observation_type="agent",
-        start_time=datetime.now(tz=UTC),
-        status="OK",
-    )
-
-    with mock.patch(CH_READER_PATH) as get_reader:
-        resolved = helpers.resolve_source_object(
-            QueueItemSourceType.OBSERVATION_SPAN.value,
-            pg_span.id,
-            organization=organization,
-            workspace=workspace,
-            allow_ch_fallback=True,  # even WITH fallback allowed, PG wins
-        )
-    assert resolved.id == pg_span.id
-    get_reader.assert_not_called()
-
-
-# ───────────────── opt-in CH fallback: out-of-scope callers stay PG-only ──────
-
-
-@pytest.mark.django_db
-def test_ch_fallback_is_opt_in(organization, workspace):
-    """``resolve_source_object`` must NOT return a CH object by default: callers
-    that dereference ``.pk`` / FK relations (scores, span-notes — out of scope)
-    keep the PG-only behavior, so my change can't turn their graceful not-found
-    into a crash. Only ``allow_ch_fallback=True`` reaches CH."""
-    project = _make_project(organization=organization, workspace=workspace)
-    span = _make_chspan(project_id=project.id)
-
-    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)) as get_reader:
-        # default (out-of-scope callers): PG-only → None, CH never queried.
-        resolved_default = helpers.resolve_source_object(
-            QueueItemSourceType.OBSERVATION_SPAN.value,
-            span.id,
-            organization=organization,
-            workspace=workspace,
-        )
-        assert resolved_default is None
-        get_reader.assert_not_called()
-
-        # opt-in (in-scope add paths): CH fallback fires.
-        resolved_optin = helpers.resolve_source_object(
-            QueueItemSourceType.OBSERVATION_SPAN.value,
-            span.id,
-            organization=organization,
-            workspace=workspace,
-            allow_ch_fallback=True,
-        )
-        assert resolved_optin is span
 
 
 # ─────────────────────── observation_span: serializer store ──────────────────
@@ -594,7 +524,6 @@ def test_collector_session_resolves_via_ch(organization, workspace):
             session_id,
             organization=organization,
             workspace=workspace,
-            allow_ch_fallback=True,
         )
     assert resolved is not None
     assert str(resolved.id) == session_id
@@ -625,7 +554,6 @@ def test_collector_session_cross_project_denied(organization, workspace):
             QueueItemSourceType.TRACE_SESSION.value,
             session_id,
             organization=organization,
-            allow_ch_fallback=True,
         )
     assert resolved is None
 
@@ -943,7 +871,6 @@ def test_collector_trace_resolves_via_ch(organization, workspace):
             trace_id,
             organization=organization,
             workspace=workspace,
-            allow_ch_fallback=True,
         )
     assert resolved is not None
     assert str(resolved.id) == trace_id
@@ -966,7 +893,6 @@ def test_collector_trace_cross_org_denied(organization, workspace):
             QueueItemSourceType.TRACE.value,
             trace_id,
             organization=organization,  # requesting org != other_org
-            allow_ch_fallback=True,
         )
     assert resolved is None
 
@@ -979,7 +905,6 @@ def test_collector_trace_absent_returns_none(organization):
             QueueItemSourceType.TRACE.value,
             str(uuid.uuid4()),
             organization=organization,
-            allow_ch_fallback=True,
         )
     assert resolved is None
 

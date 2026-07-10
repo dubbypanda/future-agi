@@ -361,7 +361,6 @@ class ScoreViewSet(viewsets.ModelViewSet):
             source_id,
             organization=request.organization,
             workspace=getattr(request, "workspace", None),
-            allow_ch_fallback=(source_type == "trace"),
         )
         if not source_obj and source_type == "observation_span":
             source_obj = resolve_ch_span_source(
@@ -477,7 +476,6 @@ class ScoreViewSet(viewsets.ModelViewSet):
             source_id,
             organization=request.organization,
             workspace=getattr(request, "workspace", None),
-            allow_ch_fallback=(source_type == "trace"),
         )
         if not source_obj and source_type == "observation_span":
             source_obj = resolve_ch_span_source(

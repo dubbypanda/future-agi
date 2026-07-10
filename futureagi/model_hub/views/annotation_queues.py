@@ -125,13 +125,12 @@ from model_hub.utils.annotation_queue_helpers import (
     filter_available_source_ids_for_annotation,
     get_fk_field_name,
     is_source_available_for_annotation,
-    resolve_ch_span_source,
     resolve_source_content,
     resolve_source_object,
 )
+from model_hub.utils.utils import send_message_to_channel
 from simulate.models.test_execution import CallTranscript
 from simulate.utils.stored_transcript_roles import get_displayable_transcript_roles
-from model_hub.utils.utils import send_message_to_channel
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
     ApiSelectionTooLargeErrorSerializer,
@@ -180,6 +179,7 @@ def _queue_item_export_prefetches():
             to_attr="_displayable_transcripts",
         ),
     )
+
 
 SOURCE_TYPE_EXPORT_LABELS = {
     QueueItemSourceType.DATASET_ROW.value: "dataset row",
@@ -1783,10 +1783,7 @@ def _eval_metrics_for_queue_items(items):
             and item.observation_span_id
         ):
             span_item_ids[str(item.observation_span_id)].append(item.id)
-        elif (
-            item.source_type == QueueItemSourceType.TRACE.value
-            and item.trace_id
-        ):
+        elif item.source_type == QueueItemSourceType.TRACE.value and item.trace_id:
             trace_item_ids[str(item.trace_id)].append(item.id)
         elif (
             item.source_type == QueueItemSourceType.CALL_EXECUTION.value
@@ -1848,6 +1845,7 @@ LABEL_TYPE_TO_DATA_TYPE = {
     AnnotationTypeChoices.STAR.value: DataTypeChoices.FLOAT.value,
     AnnotationTypeChoices.THUMBS_UP_DOWN.value: DataTypeChoices.TEXT.value,
 }
+
 
 def _unique_export_column_name(name, used):
     base = (name or "column").strip() or "column"
@@ -4191,9 +4189,6 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
                     "observation_span",
                     span_notes_source_id,
                     organization=request.organization,
-                ) or resolve_ch_span_source(
-                    span_notes_source_id,
-                    organization=request.organization,
                 )
                 if not span_notes_source:
                     return self._gm.not_found(
@@ -4867,8 +4862,6 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 source_id,
                 organization=request.organization,
                 workspace=getattr(request, "workspace", None),
-                # stores the soft id below, so a CH-resolved collector source is fine
-                allow_ch_fallback=True,
             )
             if not source_obj:
                 errors.append(f"Not found: {source_type}={source_id}")
