@@ -52,6 +52,17 @@ export const PROJECT_FILTER_PROPERTIES = [
   { id: "tags", name: "Tags", category: "system", type: "text" },
 ];
 
+// Text search defaults to `contains` (substring), not the panel-wide `in`.
+export const PROJECT_FILTER_DEFAULT_OPERATORS = { text: "contains" };
+
+// Empty/added rows start on `contains` so picking a field doesn't flip it.
+export const PROJECT_FILTER_DEFAULT_ROW = {
+  field: "",
+  fieldCategory: "system",
+  operator: "contains",
+  value: [],
+};
+
 // Operators apply_project_list_filters can honor; hides the rest from the panel.
 const PROJECT_FILTER_SUPPORTED_OPS = new Set([
   "in",
@@ -79,6 +90,8 @@ export const buildProjectListApiFilters = (filters) => {
     .map((f) => {
       const backendOp = PANEL_OP_TO_BACKEND_OP[f.operator];
       if (!backendOp) return null;
+      // Observe text fields always yield a string here; the array branch is
+      // defensive for any future multi-value field wired into this flow.
       const value = Array.isArray(f.value) ? f.value[0] : f.value;
       if (value == null || value === "") return null;
       return buildApiFilterFromPanelRow({

@@ -28,7 +28,12 @@ import ProjectExperimentContextProvider from "./context/ProjectExperimentContext
 import ProjectRightSection from "./RightSection/ProjectRightSection";
 import ProjectFtux from "./ProjectFtux";
 import TraceFilterPanel from "../projects/LLMTracing/TraceFilterPanel";
-import { PROJECT_FILTER_PROPERTIES, projectOperatorFilter } from "./common";
+import {
+  PROJECT_FILTER_PROPERTIES,
+  PROJECT_FILTER_DEFAULT_OPERATORS,
+  PROJECT_FILTER_DEFAULT_ROW,
+  projectOperatorFilter,
+} from "./common";
 
 export const SearchFieldBox = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -340,6 +345,8 @@ const ProjectWrapperView = () => {
                 source="observe"
                 showAi={false}
                 operatorFilter={projectOperatorFilter}
+                defaultOperatorForType={PROJECT_FILTER_DEFAULT_OPERATORS}
+                defaultRow={PROJECT_FILTER_DEFAULT_ROW}
               />
             </>
           ) : (

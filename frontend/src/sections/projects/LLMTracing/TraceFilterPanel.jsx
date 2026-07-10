@@ -1403,6 +1403,7 @@ function FilterRow({
   categories,
   freeSoloValues = false,
   operatorFilter,
+  defaultOperatorForType,
 }) {
   const [pickerAnchor, setPickerAnchor] = useState(null);
   const selectedProp = properties.find((p) => p.id === filter.field);
@@ -1448,9 +1449,10 @@ function FilterRow({
           ? prop.type
           : normalizeFieldType(prop.type);
       // ID-only fields only support "is"; fallback would render blank.
+      // defaultOperatorForType: optional per-flow { type: op } override.
       const defaultOp = ID_ONLY_FIELDS.has(prop.id)
         ? "is"
-        : DEFAULT_OP_FOR_TYPE[nt] || "equals";
+        : defaultOperatorForType?.[nt] || DEFAULT_OP_FOR_TYPE[nt] || "equals";
       let defaultValue;
       if (nt === "number" || nt === "date") defaultValue = "";
       else if (nt === "boolean") defaultValue = "true";
@@ -1466,7 +1468,7 @@ function FilterRow({
         value: defaultValue,
       });
     },
-    [index, onChange],
+    [index, onChange, defaultOperatorForType],
   );
 
   const handleOperatorChange = useCallback(
@@ -1856,6 +1858,7 @@ const TraceFilterPanel = ({
   categories: categoriesOverride,
   propertyFilter,
   operatorFilter,
+  defaultOperatorForType,
   panelWidth,
   defaultRow: defaultRowOverride,
   isSimulator = false,
@@ -2354,6 +2357,7 @@ const TraceFilterPanel = ({
                     categories={effectiveCategories}
                     freeSoloValues={freeSoloValues}
                     operatorFilter={operatorFilter}
+                    defaultOperatorForType={defaultOperatorForType}
                   />
                 ))}
               </Stack>
@@ -2468,6 +2472,7 @@ TraceFilterPanel.propTypes = {
   categories: PropTypes.array,
   propertyFilter: PropTypes.func,
   operatorFilter: PropTypes.func,
+  defaultOperatorForType: PropTypes.object,
   panelWidth: PropTypes.number,
   defaultRow: PropTypes.object,
   isSimulator: PropTypes.bool,
