@@ -3947,7 +3947,6 @@ export interface ConversationCreateRequestApi {
   title?: string;
   /** @maxLength 500 */
   context_page?: string;
-  hidden?: boolean;
 }
 
 export type FalconMessageApiRole = typeof FalconMessageApiRole[keyof typeof FalconMessageApiRole];
@@ -17668,6 +17667,8 @@ export const ScenarioDetailResponseApiStatus = {
 
 export type ScenarioDetailResponseApiGraph = {[key: string]: string};
 
+export type ScenarioDetailResponseApiDatasetColumnConfig = {[key: string]: string};
+
 export type ScenarioPromptItemApiRole = typeof ScenarioPromptItemApiRole[keyof typeof ScenarioPromptItemApiRole];
 
 
@@ -17705,6 +17706,7 @@ export interface ScenarioDetailResponseApi {
   readonly graph?: ScenarioDetailResponseApiGraph;
   readonly prompts?: readonly ScenarioPromptItemApi[];
   readonly dataset_rows?: number;
+  readonly dataset_column_config?: ScenarioDetailResponseApiDatasetColumnConfig;
 }
 
 export interface ScenarioAddColumnsRequestApi {

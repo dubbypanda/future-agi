@@ -9572,12 +9572,11 @@ export const falconAiConversationsCreateBodyTitleMax = 255;
 
 export const falconAiConversationsCreateBodyContextPageMax = 500;
 
-export const falconAiConversationsCreateBodyHiddenDefault = false;
+
 
 export const FalconAiConversationsCreateBody = zod.object({
   "title": zod.string().max(falconAiConversationsCreateBodyTitleMax).optional(),
-  "context_page": zod.string().max(falconAiConversationsCreateBodyContextPageMax).optional(),
-  "hidden": zod.boolean().default(falconAiConversationsCreateBodyHiddenDefault)
+  "context_page": zod.string().max(falconAiConversationsCreateBodyContextPageMax).optional()
 })
 
 
@@ -32696,7 +32695,8 @@ export const SimulateScenariosReadResponse = zod.object({
   "role": zod.enum(['system', 'user', 'assistant']).optional(),
   "content": zod.string().min(1).optional()
 })).optional(),
-  "dataset_rows": zod.number().optional()
+  "dataset_rows": zod.number().optional(),
+  "dataset_column_config": zod.record(zod.string(), zod.string()).optional()
 })
 
 
