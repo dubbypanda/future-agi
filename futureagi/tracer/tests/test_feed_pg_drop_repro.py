@@ -239,6 +239,17 @@ class TestDeepAnalysisState:
         das.clear(tid)
         assert das.status(tid, has_analysis=False) == "idle"
 
+    def test_failed_run_does_not_block_retry(self):
+        from tracer.queries import deep_analysis_state as das
+
+        tid = str(uuid.uuid4())
+        assert das.set_running(tid) is True
+        das.set_failed(tid)
+        assert das.status(tid, has_analysis=False) == "failed"
+        # A retry must claim cleanly — the failed marker can't wedge the guard.
+        assert das.set_running(tid) is True
+        assert das.status(tid, has_analysis=False) == "running"
+
 
 @pytest.mark.integration
 @pytest.mark.django_db

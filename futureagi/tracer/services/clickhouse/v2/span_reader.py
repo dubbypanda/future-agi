@@ -1763,8 +1763,12 @@ class CHSpanReader:
         if created_at_range:
             where.append("created_at BETWEEN %(cr_s)s AND %(cr_e)s")
             params["cr_s"], params["cr_e"] = created_at_range
+        # roots_only counts distinct traces, not root rows — a trace with more
+        # than one parentless span must count once (mirrors the GROUP BY tid /
+        # first-root-per-trace dedupe elsewhere in this reader).
+        select = "count(DISTINCT trace_id)" if roots_only else "count()"
         rows = self._client.query(
-            f"SELECT count() FROM spans FINAL {session_join} "
+            f"SELECT {select} FROM spans FINAL {session_join} "
             f"WHERE {' AND '.join(where)}",
             parameters=params,
         ).result_rows

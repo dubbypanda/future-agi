@@ -2506,7 +2506,9 @@ def _project_scope_total(project_id: str, source: str, start, end=None) -> int:
     """
     if source == ClusterSource.EVAL:
         # Denominator = distinct traces in the window. The PG ``Trace`` table is
-        # gone, so count CH root spans (one per trace) over the same window.
+        # gone, so count distinct CH root traces over the same window. (CH uses an
+        # inclusive BETWEEN vs the scanner branch's exclusive ``created_at__lt``
+        # below — a boundary-microsecond difference on a rate denominator.)
         with get_reader() as reader:
             if end is not None:
                 return reader.count_with_filters(
