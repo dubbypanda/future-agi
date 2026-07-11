@@ -130,10 +130,14 @@ def _get_agent_definition_from_replay_sessions(
         return replay_session.agent_definition
 
     # Fallback: check if an agent definition exists via the project's observability provider
-    agent_def_from_provider = AgentDefinition.objects.filter(
-        observability_provider__project=project,
-        deleted=False,
-    ).first()
+    agent_def_from_provider = (
+        AgentDefinition.objects.filter(
+            observability_provider__project=project,
+            deleted=False,
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
     return agent_def_from_provider
 

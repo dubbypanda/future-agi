@@ -661,14 +661,21 @@ class ScenarioDetailView(APIView):
                 response_data["dataset_rows"] = 0
 
             # Add dataset column config so frontend can show actual column names in eval mapping
-            from model_hub.models.develop_dataset import Column
-
             if scenario.dataset:
                 column_order = scenario.dataset.column_order
-                columns = Column.objects.filter(deleted=False, id__in=column_order)
+                columns_by_id = {
+                    col.id: col
+                    for col in Column.objects.filter(deleted=False, id__in=column_order)
+                }
+                # Preserve column_order ordering (Django's id__in does not guarantee order)
+                ordered_columns = [
+                    columns_by_id[cid]
+                    for cid in column_order
+                    if cid in columns_by_id
+                ]
                 column_config = {}
-                for column in columns:
-                    column_config[f"{column.id}"] = {
+                for column in ordered_columns:
+                    column_config[str(column.id)] = {
                         "name": column.name,
                         "type": column.data_type,
                     }

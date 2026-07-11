@@ -32675,6 +32675,8 @@ export const SimulateScenariosReadParams = zod.object({
 
 
 
+
+
 export const SimulateScenariosReadResponse = zod.object({
   "id": zod.string().uuid().optional(),
   "name": zod.string().min(1).optional(),
@@ -32696,7 +32698,10 @@ export const SimulateScenariosReadResponse = zod.object({
   "content": zod.string().min(1).optional()
 })).optional(),
   "dataset_rows": zod.number().optional(),
-  "dataset_column_config": zod.record(zod.string(), zod.string()).optional()
+  "dataset_column_config": zod.record(zod.string(), zod.object({
+  "name": zod.string().min(1).optional(),
+  "type": zod.string().min(1).optional()
+})).optional()
 })
 
 

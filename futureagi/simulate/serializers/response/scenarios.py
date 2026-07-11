@@ -182,6 +182,16 @@ class ScenarioPromptItemSerializer(serializers.Serializer):
     content = serializers.CharField(read_only=True)
 
 
+class DatasetColumnConfigEntrySerializer(serializers.Serializer):
+    """Nested serializer for individual dataset column config entries.
+
+    Maps to the shape {col_id: {name: str, type: str}} built in the view.
+    """
+
+    name = serializers.CharField(read_only=True)
+    type = serializers.CharField(read_only=True)
+
+
 class ScenarioDetailResponseSerializer(serializers.Serializer):
     """Response serializer for GET /scenarios/{scenario_id}/.
 
@@ -210,7 +220,9 @@ class ScenarioDetailResponseSerializer(serializers.Serializer):
         child=ScenarioPromptItemSerializer(), read_only=True
     )
     dataset_rows = serializers.IntegerField(read_only=True)
-    dataset_column_config = serializers.DictField(read_only=True, allow_null=True)
+    dataset_column_config = serializers.DictField(
+        child=DatasetColumnConfigEntrySerializer(), read_only=True, allow_null=True
+    )
 
 
 class ScenarioListResponseSerializer(serializers.Serializer):

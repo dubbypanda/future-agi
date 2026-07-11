@@ -49378,11 +49378,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Context page",
           "type": "string",
           "maxLength": 500
-        },
-        "hidden": {
-          "title": "Hidden",
-          "type": "boolean",
-          "default": false
         }
       }
     },
@@ -67664,6 +67659,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Dataset rows",
           "type": "integer",
           "readOnly": true
+        },
+        "dataset_column_config": {
+          "title": "Dataset column config",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/DatasetColumnConfigEntry"
+          },
+          "readOnly": true,
+          "x-nullable": true
         }
       }
     },
@@ -88074,6 +88078,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Agent type",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "DatasetColumnConfigEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
         }
       }
     },
