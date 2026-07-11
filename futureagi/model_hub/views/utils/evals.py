@@ -45,11 +45,13 @@ def _canonical_playground_output(value, response, template, api_call_log_row):
         log_id=(
             str(api_call_log_row.log_id) if api_call_log_row is not None else None
         ),
-        ground_truth_examples=response.get("ground_truth_examples") or [],
+        ground_truth_examples=response.get("ground_truth_examples"),
         warnings=response.get("warnings") or None,
     ).model_dump()
     if payload.get("warnings") is None:
         payload.pop("warnings", None)
+    if payload.get("ground_truth_examples") is None:
+        payload.pop("ground_truth_examples", None)
     return payload
 
 

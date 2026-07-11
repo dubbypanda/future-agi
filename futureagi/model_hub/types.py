@@ -251,7 +251,8 @@ class PlaygroundEvalResponse(BaseModel):
       - choices + choice_scores single-pick  -> {"score": 0.7, "choice": "Good"}       (dict)
       - choices + choice_scores multi-choice -> {"score": 0.5, "choices": ["A", "B"]}  (dict)
 
-    `log_id` is None on stripped-ee builds where the billing entry point never ran."""
+    `log_id` is None on stripped-ee builds where the billing entry point never ran.
+    `ground_truth_examples` is omitted when GT is not configured on the template."""
 
     output: str | float | list | dict | None = None
     reason: Optional[str] = None
@@ -259,7 +260,7 @@ class PlaygroundEvalResponse(BaseModel):
     metadata: Any = None
     output_type: Optional[str] = None
     log_id: Optional[str] = None
-    ground_truth_examples: list = Field(default_factory=list)
+    ground_truth_examples: Optional[list] = None
     warnings: Optional[list] = None
 
 

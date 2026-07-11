@@ -18,7 +18,6 @@ _CANONICAL_KEYS = {
     "metadata",
     "output_type",
     "log_id",
-    "ground_truth_examples",
 }
 
 
@@ -84,9 +83,11 @@ def _patch_runner(monkeypatch, format_output_return):
         lambda *_args, **_kwargs: format_output_return,
     )
     # Ground-truth preview call talks to CH; short-circuit it.
+    # resolve_preview_examples returns None when GT is not configured on the
+    # template; the canonical response omits the key in that case.
     monkeypatch.setattr(
         "model_hub.views.utils.evals.GroundTruthService.resolve_preview_examples",
-        lambda **_kwargs: [],
+        lambda **_kwargs: None,
     )
 
 
@@ -113,7 +114,7 @@ def test_response_shape_is_canonical_when_metering_is_stripped(
     )
     assert output["output_type"] == "Pass/Fail"
     assert output["log_id"] is None
-    assert output["ground_truth_examples"] == []
+    assert "ground_truth_examples" not in output
     assert output["reason"] == "not toxic"
     assert output["model"] == "gpt-4.1"
     # Old shape's fields must not leak through as top-level keys.
@@ -172,7 +173,7 @@ def test_response_shape_is_canonical_when_metering_is_available(
     assert output["output"] == "Failed"
     assert output["output_type"] == "Pass/Fail"
     assert output["log_id"] == "log-abc"
-    assert output["ground_truth_examples"] == []
+    assert "ground_truth_examples" not in output
 
 
 @pytest.mark.parametrize(
