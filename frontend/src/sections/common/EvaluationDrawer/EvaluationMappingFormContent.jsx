@@ -122,6 +122,9 @@ export default function EvaluationMappingFormContent({
     control,
     name: "model",
   });
+  const visibleModels = (modelsToShow || []).filter((m) =>
+    ["turing_large", "turing_small", "turing_flash"].includes(m.value),
+  );
   const functionConfigSchema =
     evalConfig?.functionParamsSchema ||
     evalConfig?.function_params_schema ||
@@ -413,14 +416,14 @@ export default function EvaluationMappingFormContent({
         />
       </ShowComponent>
       {(isFutureagiBuilt || alwaysShowModel) &&
-        modelsToShow?.length > 0 &&
+        visibleModels.length > 0 &&
         !hideModel && (
         <HeadingAndSubHeading
           heading={
             <FormSearchSelectFieldControl
               control={control}
               disabled={isViewMode}
-              options={modelsToShow.map((model) => {
+              options={visibleModels.map((model) => {
                 return {
                   ...model,
                   component: (
