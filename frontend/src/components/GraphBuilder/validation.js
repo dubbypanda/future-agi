@@ -196,24 +196,6 @@ export const ValidateAndTransformEdgeSchema = () =>
       },
     }));
 
-export const validateGraphConnectivity = (nodes, edges) => {
-  if (!Array.isArray(nodes) || nodes.length <= 1) {
-    return { orphanNames: [], orphanIds: [] };
-  }
-  const connectedIds = new Set();
-  edges?.forEach((edge) => {
-    connectedIds.add(edge.source);
-    connectedIds.add(edge.target);
-  });
-  const orphans = nodes.filter(
-    (node) => !node?.data?.isGlobal && !connectedIds.has(node.id),
-  );
-  return {
-    orphanNames: orphans.map((node) => node?.data?.name || node.id),
-    orphanIds: orphans.map((node) => node.id),
-  };
-};
-
 export const ValidateAndTransformGraphSchema = () =>
   z.object({
     nodes: z.array(ValidateAndTransformNodeSchema()),

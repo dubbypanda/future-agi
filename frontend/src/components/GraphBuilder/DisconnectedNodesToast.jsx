@@ -13,13 +13,16 @@ const DisconnectedNodesToast = ({ names = [] }) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
       <Typography typography="s1">
-        {names.length === 1 ? "Disconnected node: " : "Disconnected nodes: "}
+        {names.length === 1
+          ? "Node not reachable from Start: "
+          : "Nodes not reachable from Start: "}
         <Box component="span" fontWeight="fontWeightSemiBold">
           {label}
         </Box>
       </Typography>
       <Typography typography="s2" color="text.secondary">
-        Connect all nodes before saving.
+        The flow only follows outgoing edges from the Start node. Connect these
+        nodes downstream of Start before saving.
       </Typography>
     </Box>
   );

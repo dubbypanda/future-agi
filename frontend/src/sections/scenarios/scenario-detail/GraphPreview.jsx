@@ -9,10 +9,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { enqueueSnackbar } from "src/components/snackbar";
 import axios, { endpoints } from "src/utils/axios";
 import { ReactFlowProvider } from "@xyflow/react";
-import {
-  ValidateAndTransformGraphSchema,
-  validateGraphConnectivity,
-} from "src/components/GraphBuilder/validation";
+import { ValidateAndTransformGraphSchema } from "src/components/GraphBuilder/validation";
+import { validateGraphConnectivity } from "src/components/GraphBuilder/connectivity";
 import DisconnectedNodesToast from "src/components/GraphBuilder/DisconnectedNodesToast";
 import { useGraphStore } from "src/components/GraphBuilder/store/graphStore";
 import { hasGraphChanged } from "./common";
@@ -100,11 +98,18 @@ const GraphPreview = ({ scenario, agentType, viewOnly = false }) => {
       return;
     }
 
-    const { orphanNames, orphanIds } = validateGraphConnectivity(
+    const { orphanNames, orphanIds, noStartNode } = validateGraphConnectivity(
       currentNodes,
       currentEdges,
     );
     useGraphStore.getState().setOrphanHighlights(orphanIds);
+    if (noStartNode) {
+      enqueueSnackbar("Graph has no start node. Add one before saving.", {
+        variant: "error",
+      });
+      setOpenConfirmClose(false);
+      return;
+    }
     if (orphanIds.length > 0) {
       enqueueSnackbar(<DisconnectedNodesToast names={orphanNames} />, {
         variant: "error",

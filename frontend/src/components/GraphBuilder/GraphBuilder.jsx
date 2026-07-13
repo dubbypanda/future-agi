@@ -9,10 +9,8 @@ import GraphBuilderLeftBar from "./GraphBuilderLeftBar";
 import PropTypes from "prop-types";
 import GraphView from "./GraphView";
 import NodeEdgeConfigureForm from "./ConfigForms/NodeEdgeConfigureForm";
-import {
-  ValidateAndTransformGraphSchema,
-  validateGraphConnectivity,
-} from "./validation";
+import { ValidateAndTransformGraphSchema } from "./validation";
+import { validateGraphConnectivity } from "./connectivity";
 import DisconnectedNodesToast from "./DisconnectedNodesToast";
 import { useSnackbar } from "src/components/snackbar";
 import { dagreTransformAndLayout } from "./common";
@@ -56,11 +54,17 @@ const GraphBuilder = ({ value, onChange, saveLoading, agentType }) => {
       return;
     }
 
-    const { orphanNames, orphanIds } = validateGraphConnectivity(
+    const { orphanNames, orphanIds, noStartNode } = validateGraphConnectivity(
       currentNodes,
       currentEdges,
     );
     useGraphStore.getState().setOrphanHighlights(orphanIds);
+    if (noStartNode) {
+      enqueueSnackbar("Graph has no start node. Add one before saving.", {
+        variant: "error",
+      });
+      return;
+    }
     if (orphanIds.length > 0) {
       enqueueSnackbar(<DisconnectedNodesToast names={orphanNames} />, {
         variant: "error",
