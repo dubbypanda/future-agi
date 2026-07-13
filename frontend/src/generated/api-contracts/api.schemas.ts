@@ -17668,6 +17668,15 @@ export const ScenarioDetailResponseApiStatus = {
 
 export type ScenarioDetailResponseApiGraph = {[key: string]: string};
 
+export interface DatasetColumnConfigEntryApi {
+  /** @minLength 1 */
+  readonly name?: string;
+  /** @minLength 1 */
+  readonly type?: string;
+}
+
+export type ScenarioDetailResponseApiDatasetColumnConfig = {[key: string]: DatasetColumnConfigEntryApi};
+
 export type ScenarioPromptItemApiRole = typeof ScenarioPromptItemApiRole[keyof typeof ScenarioPromptItemApiRole];
 
 
@@ -17705,6 +17714,7 @@ export interface ScenarioDetailResponseApi {
   readonly graph?: ScenarioDetailResponseApiGraph;
   readonly prompts?: readonly ScenarioPromptItemApi[];
   readonly dataset_rows?: number;
+  readonly dataset_column_config?: ScenarioDetailResponseApiDatasetColumnConfig;
 }
 
 export interface ScenarioAddColumnsRequestApi {

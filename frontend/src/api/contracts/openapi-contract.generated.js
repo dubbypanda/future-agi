@@ -67661,6 +67661,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Dataset rows",
           "type": "integer",
           "readOnly": true
+        },
+        "dataset_column_config": {
+          "title": "Dataset column config",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/DatasetColumnConfigEntry"
+          },
+          "readOnly": true,
+          "x-nullable": true
         }
       }
     },
@@ -88087,6 +88096,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Agent type",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "DatasetColumnConfigEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
         }
       }
     },
