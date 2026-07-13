@@ -42,7 +42,7 @@ func isOfficialAPI(baseURL string) bool {
 	if err != nil {
 		return false
 	}
-	return u.Hostname() == officialAPIHost
+	return strings.EqualFold(u.Hostname(), officialAPIHost)
 }
 
 // New creates a new OpenAI-compatible provider.

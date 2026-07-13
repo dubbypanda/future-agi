@@ -1384,8 +1384,8 @@ func TestSupportsMaxCompletionTokens(t *testing.T) {
 		apiVersion string
 		want       bool
 	}{
-		{"2024-10-21", true},  // current default
-		{"2024-09-01", true},  // first supporting version
+		{"2024-10-21", true}, // current default
+		{"2024-09-01", true}, // first supporting version
 		{"2025-01-01-preview", true},
 		{"preview", true}, // newer non-date labels sort above the cutoff
 		{"v1", true},

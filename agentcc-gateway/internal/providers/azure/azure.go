@@ -124,7 +124,6 @@ func (p *Provider) setAuth(req *http.Request) {
 	}
 }
 
-// ChatCompletion sends a non-streaming chat completion request.
 // normalizeMaxTokens rewrites max_tokens to max_completion_tokens, which reasoning
 // deployments require and which Azure rejects alongside max_tokens, so max_tokens
 // is always cleared.
@@ -154,6 +153,7 @@ func supportsMaxCompletionTokens(apiVersion string) bool {
 	return apiVersion >= minAPIVersionMaxCompletionTokens
 }
 
+// ChatCompletion sends a non-streaming chat completion request.
 func (p *Provider) ChatCompletion(ctx context.Context, req *models.ChatCompletionRequest) (*models.ChatCompletionResponse, error) {
 	if err := p.acquireSemaphore(ctx); err != nil {
 		return nil, models.ErrGatewayTimeout("provider concurrency limit reached")

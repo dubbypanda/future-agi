@@ -1289,8 +1289,8 @@ func TestNormalizeMaxTokens(t *testing.T) {
 		name        string
 		officialAPI bool
 		req         models.ChatCompletionRequest
-		wantMCT     any  // expected max_completion_tokens (nil = key absent)
-		wantMax     any  // expected max_tokens (nil = key absent)
+		wantMCT     any // expected max_completion_tokens (nil = key absent)
+		wantMax     any // expected max_tokens (nil = key absent)
 	}{
 		{
 			name:        "official API rewrites max_tokens",
