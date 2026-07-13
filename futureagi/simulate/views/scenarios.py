@@ -580,6 +580,42 @@ class CreateScenarioView(APIView):
             raise Exception(f"Failed to create simulator agent: {str(e)}")  # noqa: B904
 
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+def get_dataset_column_config(dataset) -> dict[str, dict[str, str]] | None:
+    if dataset is None:
+        return None
+    column_order = dataset.column_order or []
+    columns_by_id = {
+        col.id: col
+        for col in Column.objects.filter(
+            deleted=False,
+            id__in=column_order,
+            dataset=dataset,
+        )
+    }
+    
+    config = {}
+    for cid in column_order:
+        if cid not in columns_by_id:
+            logger.warning(
+                "scenario_column_order_references_missing_column",
+                extra={
+                    "dataset_id": str(dataset.id),
+                    "column_id": str(cid),
+                }
+            )
+            continue
+            
+        config[str(cid)] = {
+            "name": columns_by_id[cid].name,
+            "type": columns_by_id[cid].data_type,
+        }
+    return config
+
 class ScenarioDetailView(APIView):
     """
     API View to get details of a specific scenario
@@ -661,27 +697,7 @@ class ScenarioDetailView(APIView):
                 response_data["dataset_rows"] = 0
 
             # Add dataset column config so frontend can show actual column names in eval mapping
-            if scenario.dataset:
-                column_order = scenario.dataset.column_order
-                columns_by_id = {
-                    col.id: col
-                    for col in Column.objects.filter(deleted=False, id__in=column_order)
-                }
-                # Preserve column_order ordering (Django's id__in does not guarantee order)
-                ordered_columns = [
-                    columns_by_id[cid]
-                    for cid in column_order
-                    if cid in columns_by_id
-                ]
-                column_config = {}
-                for column in ordered_columns:
-                    column_config[str(column.id)] = {
-                        "name": column.name,
-                        "type": column.data_type,
-                    }
-                response_data["dataset_column_config"] = column_config
-            else:
-                response_data["dataset_column_config"] = None
+            response_data["dataset_column_config"] = get_dataset_column_config(scenario.dataset)
 
             # Return the response — pass through serializer to whitelist permitted fields
             return Response(

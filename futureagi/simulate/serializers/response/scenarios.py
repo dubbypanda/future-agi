@@ -183,10 +183,7 @@ class ScenarioPromptItemSerializer(serializers.Serializer):
 
 
 class DatasetColumnConfigEntrySerializer(serializers.Serializer):
-    """Nested serializer for individual dataset column config entries.
-
-    Maps to the shape {col_id: {name: str, type: str}} built in the view.
-    """
+    """Nested serializer for individual dataset column config entries."""
 
     name = serializers.CharField(read_only=True)
     type = serializers.CharField(read_only=True)
