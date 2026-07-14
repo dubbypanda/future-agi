@@ -703,6 +703,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
 
         import json as _json
 
+        from tracer.utils.vapi_recording import VapiRecordingService
+
         def _parse_json(val, default=None):
             if default is None:
                 default = {}
@@ -794,7 +796,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 "provider_logo": (
                     PROVIDER_LOGOS.get(provider.lower()) if provider else None
                 ),
-                "span_attributes": span_attrs,
+                "span_attributes": VapiRecordingService.sanitize_recording_urls_in_attrs(
+                    span_attrs
+                ),
                 "custom_eval_config": (
                     str(row["custom_eval_config_id"])
                     if row.get("custom_eval_config_id")
@@ -3896,6 +3900,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         from tracer.services.clickhouse.query_builders.trace_list import (
             TraceListQueryBuilder,
         )
+        from tracer.utils.vapi_recording import VapiRecordingService
 
         # 1. Fetch root conversation span for this trace
         root_query = """
@@ -4015,7 +4020,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 ),
                 "latency_ms": row.get("latency_ms"),
                 "provider": provider,
-                "span_attributes": span_attrs,
+                "span_attributes": VapiRecordingService.sanitize_recording_urls_in_attrs(
+                    span_attrs
+                ),
                 "metadata": metadata,
             }
         ]
@@ -4073,7 +4080,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                         if child.get("parent_span_id")
                         else None
                     ),
-                    "span_attributes": child_span_attrs,
+                    "span_attributes": VapiRecordingService.sanitize_recording_urls_in_attrs(
+                        child_span_attrs
+                    ),
                     "metadata": child.get("metadata_map") or {},
                     "tags": child.get("tags") or [],
                 }

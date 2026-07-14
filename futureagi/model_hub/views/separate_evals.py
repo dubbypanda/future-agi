@@ -5197,6 +5197,8 @@ def _build_span_context(span) -> dict:
     instead of the deeply-nested real locations
     (`{{span.span_attributes.provider_transcript}}` etc.).
     """
+    from tracer.utils.vapi_recording import VapiRecordingService
+
     base = {
         "id": span.id,
         "trace_id": str(span.trace_id) if getattr(span, "trace_id", None) else None,
@@ -5204,7 +5206,9 @@ def _build_span_context(span) -> dict:
         "observation_type": span.observation_type,
         "input": span.input,
         "output": span.output,
-        "span_attributes": span.span_attributes or {},
+        "span_attributes": VapiRecordingService.sanitize_recording_urls_in_attrs(
+            span.span_attributes or {}
+        ),
         "resource_attributes": span.resource_attributes or {},
         "status": span.status,
         "status_message": span.status_message,
