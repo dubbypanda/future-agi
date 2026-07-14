@@ -116,13 +116,19 @@ class VapiRecordingService:
         auth from 2026-07-15. Read guards refuse to surface these URLs
         because a browser cannot attach the Authorization header to an
         ``<audio src>`` tag.
+
+        An S3 / MinIO URL is always safe even if the object key path
+        happens to contain a Vapi host substring — matches the FE
+        ``isDeadVapiUrl`` semantics in ``frontend/src/utils/safeAudioUrl.js``.
         """
         if not url:
             return False
-        is_dead = any(host in url for host in _DEAD_PROVIDER_HOSTS)
-        if is_dead:
-            logger.debug("vapi_dead_provider_url_detected", url=url, reason="provider host requires Bearer auth")
-        return is_dead
+        if not any(host in url for host in _DEAD_PROVIDER_HOSTS):
+            return False
+        if cls.is_s3_url(url):
+            return False
+        logger.debug("vapi_dead_provider_url_detected", url=url, reason="provider host requires Bearer auth")
+        return True
 
     @classmethod
     def is_s3_url(cls, url: Optional[str]) -> bool:
