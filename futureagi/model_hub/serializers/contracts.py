@@ -1267,7 +1267,7 @@ class ColumnConfigResultSerializer(serializers.Serializer):
     presence_penalty = serializers.FloatField(required=False, allow_null=True)
     max_tokens = serializers.IntegerField(required=False, allow_null=True)
     top_p = serializers.FloatField(required=False, allow_null=True)
-    response_format = serializers.JSONField(required=False)
+    response_format = StringOrObjectField(required=False)
     tool_choice = serializers.CharField(
         required=False, allow_blank=True, allow_null=True
     )
