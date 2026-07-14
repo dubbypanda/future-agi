@@ -1307,19 +1307,7 @@ def download_audio_from_url(
     call_id: str | None = None,
     artifact_type: str | None = None,
 ):
-    """
-    Downloads an audio file from the provided URL with retries and error handling.
-    Processes audio data in memory and converts to MP3 format if needed.
-
-    When ``provider == "vapi"`` and ``api_key`` + ``call_id`` +
-    ``artifact_type`` are all supplied, the download is routed through
-    :meth:`VapiRecordingService.download_artifact_sync` (authenticated
-    ``api.vapi.ai`` endpoint + Bearer + 302 follow). Otherwise the
-    historical unauthenticated retry loop is used.
-    """
-    # Route Vapi fetches through the authenticated endpoint. Signed URLs
-    # are single-use / short-lived; the service re-issues per call, so
-    # we do not cache the redirect target.
+    """Download an audio file and return MP3 bytes; routes Vapi through the auth endpoint."""
     from tracer.utils.vapi_recording import (
         VapiArtifactNotReadyError,
         VapiAuthError,
@@ -1330,17 +1318,13 @@ def download_audio_from_url(
     if VapiRecordingService.is_authenticated_download(
         provider, api_key, call_id, artifact_type
     ):
-
-        logger.info("vapi_authenticated_download_start", call_id=call_id, artifact_type=artifact_type)
         try:
-            audio_data = VapiRecordingService.download_artifact_sync(
+            return VapiRecordingService.download_artifact_sync(
                 call_id=call_id,
                 artifact_type=artifact_type,
                 api_key=api_key,
                 timeout_seconds=timeout,
             )
-            logger.info("vapi_authenticated_download_succeeded", call_id=call_id, artifact_type=artifact_type, bytes=len(audio_data))
-            return audio_data
         except (VapiAuthError, VapiArtifactNotReadyError, VapiRateLimitError):
             raise
         except Exception as exc:

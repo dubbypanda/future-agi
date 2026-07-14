@@ -1,10 +1,4 @@
-"""Single service for Vapi recording + call-log operations.
-
-Handles endpoint URLs, Bearer auth (mandatory from 2026-07-15), API-key
-resolution, S3 rehost, DB mirroring, dead-URL guards, and call-log
-parsing so callers can just import, call a classmethod, and use the
-result.
-"""
+"""Vapi recording + call-log service."""
 
 from __future__ import annotations
 
@@ -24,24 +18,12 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Constants — keep in one place; every callsite reads from here.
-# ---------------------------------------------------------------------------
-
 VAPI_API_BASE_URL = "https://api.vapi.ai"
-
-# Provider hosts. Recording URLs at these hosts required Bearer auth
-# starting 2026-07-15 and stop resolving entirely on 2026-07-25. The
-# read guards below intentionally do NOT sanitize these URLs today so
-# historic recordings in the DB continue to play until Vapi actually
-# turns them off. Post-cutover clean-up ships as a separate backfill.
 _DEAD_PROVIDER_HOSTS = ("storage.vapi.ai", "calllogs.vapi.ai")
 
 
 class VapiArtifactType(str):
-    """Artifact-type path segments for
-    ``api.vapi.ai/call/{call_id}/{artifact_type}``.
-    """
+    """Path segments for /call/{id}/{artifact}."""
 
     MONO = "mono-recording"
     STEREO = "stereo-recording"
@@ -52,8 +34,6 @@ class VapiArtifactType(str):
     PCAP = "pcap"
 
 
-# Map from the internal url_type label (used by the rehost recording-keys
-# table) to the Vapi artifact path segment.
 _URL_TYPE_TO_ARTIFACT: dict[str, str] = {
     "mono_combined": VapiArtifactType.MONO,
     "mono_customer": VapiArtifactType.CUSTOMER,
@@ -66,37 +46,20 @@ DEFAULT_TIMEOUT_SECONDS = 60.0
 S3_URL_MARKERS = ("amazonaws.com", "minio")
 
 
-# ---------------------------------------------------------------------------
-# Typed exceptions — callers can distinguish rotate-key from transient errors.
-# ---------------------------------------------------------------------------
-
-
 class VapiAuthError(Exception):
-    """401 or 403 from Vapi. The api_key is rotated or invalid."""
+    """401 or 403 from Vapi."""
 
 
 class VapiArtifactNotReadyError(Exception):
-    """404 from Vapi. Artifact is not yet finalised (retry later)."""
+    """404 from Vapi."""
 
 
 class VapiRateLimitError(Exception):
-    """429 from Vapi. Back off and retry."""
-
-
-# ---------------------------------------------------------------------------
-# The service.
-# ---------------------------------------------------------------------------
+    """429 from Vapi."""
 
 
 class VapiRecordingService:
-    """Single entry point for Vapi recording + call-log operations.
-
-    All methods are classmethods. Callers do not instantiate.
-    """
-
-    # =====================================================================
-    # URL builders + guards
-    # =====================================================================
+    """Single entry point for Vapi recording and call-log operations."""
 
     @classmethod
     def build_artifact_url(cls, call_id: str, artifact_type: str) -> str:
@@ -105,26 +68,12 @@ class VapiRecordingService:
 
     @classmethod
     def artifact_for_url_type(cls, url_type: str) -> Optional[str]:
-        """Map a rehost-pipeline url_type to a Vapi artifact path.
-
-        Returns None for unknown mappings (e.g. Retell keys) — callers
-        should fall back to the non-Vapi download path.
-        """
+        """Map url_type to Vapi artifact path; None if unknown."""
         return _URL_TYPE_TO_ARTIFACT.get(url_type)
 
     @classmethod
     def is_dead_provider_url(cls, url: Optional[str]) -> bool:
-        """Intentionally returns ``False`` today.
-
-        The read-side sanitisers still call this because we want a single
-        toggle to flip once Vapi's public URLs actually stop working (a
-        follow-up will re-enable the check, at which point the rehost
-        backfill for historic recordings will also have landed). Today,
-        historic ``storage.vapi.ai`` URLs still resolve for playback, so
-        every consumer surface must continue to surface them as-is; the
-        rehost pipeline overwrites the URL with the durable S3 mirror for
-        every newly-ingested span, so new data is unaffected regardless.
-        """
+        """Currently returns False; re-enabled when historic URLs are backfilled to S3."""
         del url
         return False
 
@@ -136,23 +85,16 @@ class VapiRecordingService:
         call_id: Optional[str],
         artifact_type: Optional[str],
     ) -> bool:
-        """True when the caller has enough context to fetch a Vapi
-        artifact via the authenticated endpoint. Every downloader in the
-        codebase (`tfc/utils/storage.py`, `simulate/temporal/utils/async_storage.py`,
-        etc.) delegates the routing decision here so there's a single
-        source of truth for what counts as a Vapi auth call.
-        """
+        """True when provider is Vapi and all download-context kwargs are present."""
         if not (api_key and call_id and artifact_type):
             return False
-        # Lazy import so this method can be called from low-level utils
-        # that must not create a Django-app-order dependency at module load.
         from tracer.models.observability_provider import ProviderChoices
 
         return provider == ProviderChoices.VAPI
 
     @classmethod
     def is_s3_url(cls, url: Optional[str]) -> bool:
-        """True if ``url`` is a durable S3 / MinIO URL (safe to serve)."""
+        """True if url is on FA S3 or MinIO."""
         if not url:
             return False
         return any(marker in url for marker in S3_URL_MARKERS)
@@ -161,21 +103,10 @@ class VapiRecordingService:
     def sanitize_recording_urls_in_attrs(
         cls, attrs: Optional[dict[str, Any]]
     ) -> dict[str, Any]:
-        """Return a shallow copy of ``attrs`` with recording-URL values
-        that still point at a Vapi provider host replaced by ``None``.
-
-        Applied at every read boundary that surfaces raw span attributes
-        or provider payloads to a consumer — shared trace links,
-        annotation-queue detail, CallExecution serializers, voice call
-        list. A downstream `<audio src>` never receives a URL it cannot
-        fetch, and external viewers of shared trace links never see the
-        raw ``storage.vapi.ai`` host.
-        """
+        """Return a shallow copy of attrs with dead-Vapi recording URLs replaced with None."""
         if not isinstance(attrs, dict) or not attrs:
             return dict(attrs) if isinstance(attrs, dict) else {}
         cleaned = dict(attrs)
-        # Nested `conversation.recording.*` keys (STEP 1 storage
-        # location) and the flat aliases the rehost mirror writes to.
         keys = (
             "conversation.recording.mono_combined",
             "conversation.recording.mono_customer",
@@ -196,11 +127,7 @@ class VapiRecordingService:
     def sanitize_provider_call_data(
         cls, provider_call_data: Optional[dict[str, Any]]
     ) -> dict[str, Any]:
-        """Return a shallow copy of ``provider_call_data`` with any
-        Vapi-hosted recording URL inside ``<provider>.artifact.recording.*``
-        replaced by ``None``. Preserves the payload shape so downstream
-        consumers still find the keys they expect.
-        """
+        """Return a shallow copy of provider_call_data with dead-Vapi recording URLs replaced with None."""
         if not isinstance(provider_call_data, dict) or not provider_call_data:
             return dict(provider_call_data) if isinstance(provider_call_data, dict) else {}
         cleaned_root: dict[str, Any] = {}
@@ -228,8 +155,6 @@ class VapiRecordingService:
                         recording["stereoUrl"] = None
                     artifact["recording"] = recording
                 cleaned_payload["artifact"] = artifact
-            # Top-level provider-payload shortcuts sometimes carry the
-            # legacy `recordingUrl` / `stereoRecordingUrl` too.
             for k in ("recordingUrl", "stereoRecordingUrl"):
                 v = cleaned_payload.get(k)
                 if isinstance(v, str) and cls.is_dead_provider_url(v):
@@ -237,33 +162,9 @@ class VapiRecordingService:
             cleaned_root[provider_key] = cleaned_payload
         return cleaned_root
 
-    # =====================================================================
-    # API key resolution
-    # =====================================================================
-    #
-    # AgentDefinition carries the customer's provider API key in two
-    # places: the plaintext ``api_key`` column (legacy) and the latest
-    # ``AgentVersion.configuration_snapshot["api_key"]`` (versioned
-    # snapshot). Prefer the version snapshot when available so we always
-    # use the key that was current when the observability integration
-    # was last configured.
-
     @classmethod
     def get_api_key_for_project(cls, project_id: Any) -> Optional[str]:
-        """Resolve the customer's Vapi API key for a project.
-
-        Order:
-          1. ``ObservabilityProvider`` (provider=vapi, enabled) ->
-             ``agent_definition.latest_version.configuration_snapshot["api_key"]``
-          2. ``ObservabilityProvider.agent_definition.api_key`` (legacy
-             plaintext column)
-          3. Any voice ``AgentDefinition`` on the same project with a
-             Vapi provider carrying a non-empty api_key
-          4. ``None``
-
-        Returns None on any error (fail-open — the caller falls back to
-        the legacy unauthenticated download path).
-        """
+        """Resolve the Vapi api_key for a project; None on failure."""
         if project_id is None:
             return None
 
@@ -294,12 +195,7 @@ class VapiRecordingService:
     def get_api_key_for_agent_definition(
         cls, agent_definition_id: Any
     ) -> Optional[str]:
-        """Resolve the api_key for a specific AgentDefinition id.
-
-        Prefers the latest version's configuration snapshot; falls back
-        to the AgentDefinition's plaintext ``api_key`` column. Returns
-        None on missing / errors.
-        """
+        """Resolve the Vapi api_key for an AgentDefinition; None on failure."""
         if agent_definition_id is None:
             return None
 
@@ -322,8 +218,6 @@ class VapiRecordingService:
         if agent_def is None:
             return None
         return cls._api_key_from_agent_definition(agent_def)
-
-    # ----- Internal key-resolution helpers --------------------------------
 
     @classmethod
     def _get_vapi_provider_for_project(cls, project_id: Any):
@@ -378,8 +272,6 @@ class VapiRecordingService:
 
     @classmethod
     def _api_key_from_agent_definition(cls, agent_def) -> Optional[str]:
-        # Prefer the versioned snapshot: it reflects the credential that
-        # was active when the observability integration was last saved.
         try:
             latest_version = getattr(agent_def, "latest_version", None)
         except Exception:
@@ -389,14 +281,8 @@ class VapiRecordingService:
             snapshot_key = snapshot.get("api_key") if isinstance(snapshot, dict) else None
             if snapshot_key:
                 return snapshot_key
-
-        # Fall back to the plaintext column.
         raw_key = getattr(agent_def, "api_key", None) or None
         return raw_key or None
-
-    # =====================================================================
-    # Download primitives — hit api.vapi.ai with Bearer, follow 302.
-    # =====================================================================
 
     @classmethod
     async def download_artifact_async(
@@ -407,15 +293,8 @@ class VapiRecordingService:
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     ) -> bytes:
-        """Download a Vapi artifact via the authenticated endpoint.
-
-        ``httpx.AsyncClient(follow_redirects=True)`` follows the 302 to
-        the short-lived signed URL. The redirect target is single-use;
-        callers must re-invoke this method for retries — never cache
-        the redirected URL.
-        """
+        """Download a Vapi artifact via the authenticated endpoint."""
         cls._require_download_args(call_id, artifact_type, api_key)
-        logger.info("vapi_download_artifact_start", call_id=call_id, artifact_type=artifact_type)
         url = cls.build_artifact_url(call_id, artifact_type)
         headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -432,9 +311,7 @@ class VapiRecordingService:
                     error=str(exc),
                 )
                 raise
-            result = cls._raise_or_return_body(response, call_id, artifact_type)
-            logger.info("vapi_download_artifact_succeeded", call_id=call_id, artifact_type=artifact_type, bytes=len(result))
-            return result
+            return cls._raise_or_return_body(response, call_id, artifact_type)
 
     @classmethod
     def download_artifact_sync(
@@ -445,9 +322,8 @@ class VapiRecordingService:
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     ) -> bytes:
-        """Synchronous variant of :meth:`download_artifact_async`."""
+        """Sync variant of download_artifact_async."""
         cls._require_download_args(call_id, artifact_type, api_key)
-        logger.info("vapi_download_artifact_start", call_id=call_id, artifact_type=artifact_type)
         url = cls.build_artifact_url(call_id, artifact_type)
         headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -464,9 +340,7 @@ class VapiRecordingService:
                     error=str(exc),
                 )
                 raise
-            result = cls._raise_or_return_body(response, call_id, artifact_type)
-            logger.info("vapi_download_artifact_succeeded", call_id=call_id, artifact_type=artifact_type, bytes=len(result))
-            return result
+            return cls._raise_or_return_body(response, call_id, artifact_type)
 
     @staticmethod
     def _require_download_args(
@@ -503,10 +377,6 @@ class VapiRecordingService:
         response.raise_for_status()
         return response.content
 
-    # =====================================================================
-    # Rehost — download + upload + return durable S3 URL.
-    # =====================================================================
-
     @classmethod
     async def rehost_recording_bytes(
         cls,
@@ -515,17 +385,10 @@ class VapiRecordingService:
         url_type: str,
         api_key: str,
     ) -> tuple[str, int]:
-        """Download the artifact bytes via Bearer and upload to FA S3.
-
-        Returns ``(s3_url, bytes_uploaded)``. The returned URL is ALWAYS
-        a durable S3 URL — this method never returns a raw provider URL.
-        On failure the method raises; callers decide whether to retry.
-        """
+        """Download an artifact via Bearer and upload to FA S3; returns (s3_url, bytes)."""
         audio_bytes = await cls.download_artifact_async(
             call_id, artifact_type, api_key
         )
-
-        # S3 upload is sync; run in the worker's thread pool.
         import asyncio
 
         from tfc.utils.storage import upload_audio_to_s3
@@ -549,46 +412,16 @@ class VapiRecordingService:
         call_id: str,
         s3_url_by_url_type: dict[str, str],
     ) -> dict[str, Any]:
-        """Propagate the S3 URL to every stored copy of the recording URL
-        so no downstream consumer ever reads a raw provider URL from the
-        DB.
-
-        Updates in order (each guarded so a durable S3 URL is never
-        clobbered by a later run):
-
-        * ``span_attributes["recording_url"]`` (flat alias for
-          ``mono_combined``).
-        * ``span_attributes["stereo_recording_url"]`` (flat alias for
-          ``stereo``).
-        * ``CallExecution.recording_url`` /
-          ``CallExecution.stereo_recording_url`` on the row linked by
-          ``service_provider_call_id == call_id`` (best-effort — no-op
-          if no CallExecution row exists).
-        * ``CallExecutionSnapshot.recording_url`` /
-          ``CallExecutionSnapshot.stereo_recording_url`` for every
-          snapshot linked by the same ``service_provider_call_id``
-          (best-effort — snapshots are immutable but pre-mirror
-          snapshots must not surface the dead URL).
-
-        Accepts the span-attributes dict directly (not the span row)
-        and returns a fresh dict for the caller to persist alongside
-        its own writes (single ``.save`` per span).
-        """
+        """Propagate S3 URLs to span_attributes flat aliases + CallExecution + CallExecutionSnapshot."""
         attrs = dict(attrs or {})
-
-        logger.info("mirror_s3_url_to_consumer_fields", call_id=call_id, url_types=list(s3_url_by_url_type.keys()))
 
         mono_s3 = s3_url_by_url_type.get("mono_combined")
         stereo_s3 = s3_url_by_url_type.get("stereo")
 
         if mono_s3 and not cls.is_s3_url(attrs.get("recording_url")):
             attrs["recording_url"] = mono_s3
-        elif mono_s3:
-            logger.debug("mirror_s3_url_skip_already_s3", field="recording_url", call_id=call_id, existing=attrs.get("recording_url"))
         if stereo_s3 and not cls.is_s3_url(attrs.get("stereo_recording_url")):
             attrs["stereo_recording_url"] = stereo_s3
-        elif stereo_s3:
-            logger.debug("mirror_s3_url_skip_already_s3", field="stereo_recording_url", call_id=call_id, existing=attrs.get("stereo_recording_url"))
 
         if call_id and (mono_s3 or stereo_s3):
             cls._mirror_to_call_execution(call_id, mono_s3, stereo_s3)
@@ -653,9 +486,6 @@ class VapiRecordingService:
             if update_fields:
                 row.save(update_fields=update_fields)
 
-    # =====================================================================
-    # Call logs — Tier 1 (Bearer) with fallback to Tier 2 legacy URL.
-    # =====================================================================
 
     @classmethod
     def fetch_and_parse_call_logs(
@@ -667,20 +497,7 @@ class VapiRecordingService:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         verify_ssl: bool = True,
     ) -> Optional[list[dict[str, Any]]]:
-        """Fetch and parse gzip-JSONL call logs.
-
-        Tier 1 (preferred): ``GET api.vapi.ai/call/{id}/call-logs`` with
-        ``Authorization: Bearer <api_key>`` (302 -> signed URL). Requires
-        both ``call_id`` and ``api_key``.
-
-        Tier 2 (grace fallback): unauthenticated GET against
-        ``legacy_url`` — the ``artifact.logUrl`` pointing at
-        ``calllogs.vapi.ai``. Works until 2026-07-25.
-
-        Returns the parsed entries list on success, or ``None`` if
-        neither tier could fetch anything (fail-open — the caller
-        continues without ``call_logs`` on the span).
-        """
+        """Fetch and parse gzip-JSONL call logs (Tier 1 auth then Tier 2 legacy fallback)."""
         content = cls._fetch_call_logs_content(
             call_id=call_id,
             api_key=api_key,
@@ -708,11 +525,7 @@ class VapiRecordingService:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         verify_ssl: bool = True,
     ) -> Optional[bytes]:
-        """Fetch raw gzip-JSONL bytes for a call's logs via Tier 1/Tier 2.
-
-        Public entry point for callers (e.g. ``ee.voice.services``) that
-        need to stream entries themselves. Returns None on failure.
-        """
+        """Fetch raw gzip-JSONL call-log bytes (Tier 1 auth then Tier 2 legacy fallback)."""
         return cls._fetch_call_logs_content(
             call_id=call_id,
             api_key=api_key,

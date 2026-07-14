@@ -1,15 +1,4 @@
-"""Async storage utilities for Temporal activities.
-
-Provides async versions of storage operations to avoid thread-pool
-exhaustion in high-concurrency scenarios. Uses ``httpx`` for async HTTP.
-
-Downloads route through :class:`VapiRecordingService` whenever a
-provider that requires authenticated fetches (currently Vapi) is passed
-in; that service builds the correct ``api.vapi.ai/call/{id}/{artifact_type}``
-endpoint, adds the ``Authorization: Bearer`` header, and follows the
-302 to the short-lived signed URL. Non-Vapi providers keep the historical
-unauthenticated stream flow.
-"""
+"""Async storage helpers for Temporal activities."""
 
 from __future__ import annotations
 
@@ -37,26 +26,16 @@ async def download_audio_from_url_async(
     call_id: Optional[str] = None,
     artifact_type: Optional[str] = None,
 ) -> bytes:
-    """Async download of an audio file to bytes.
-
-    When ``provider`` is ``ProviderChoices.VAPI`` and all of ``api_key``
-    / ``call_id`` / ``artifact_type`` are supplied, the download routes
-    through :meth:`VapiRecordingService.download_artifact_async`
-    (authenticated endpoint, Bearer token, 302 follow). Otherwise, the
-    download is a plain unauthenticated stream against ``audio_url``.
-    """
+    """Async download of an audio file to bytes; routes Vapi through the auth endpoint."""
     from tracer.utils.vapi_recording import VapiRecordingService
 
     if VapiRecordingService.is_authenticated_download(provider, api_key, call_id, artifact_type):
-        logger.info("vapi_async_download_start", call_id=call_id, artifact_type=artifact_type)
-        audio_bytes = await VapiRecordingService.download_artifact_async(
+        return await VapiRecordingService.download_artifact_async(
             call_id=call_id,
             artifact_type=artifact_type,
             api_key=api_key,
             timeout_seconds=timeout,
         )
-        logger.info("vapi_async_download_succeeded", call_id=call_id, artifact_type=artifact_type, bytes=len(audio_bytes))
-        return audio_bytes
 
     if not audio_url:
         raise ValueError("audio_url is required for unauthenticated download")

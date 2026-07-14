@@ -1,11 +1,4 @@
-"""Per-call rehost of provider recordings onto FA S3.
-
-Vapi downloads route through :class:`VapiRecordingService` (Bearer +
-authenticated endpoint + 302). Retell uses the unauthenticated fetch.
-On success the S3 URL is mirrored onto every consumer-facing storage
-location so no downstream reader sees a raw provider URL. ``raw_log``
-is left untouched.
-"""
+"""Per-call rehost of provider recordings to FA S3."""
 
 from __future__ import annotations
 
@@ -28,8 +21,6 @@ from tracer.utils.vapi_recording import VapiRecordingService
 logger = structlog.get_logger(__name__)
 
 
-# Recording attribute keys per provider — overwritten in place with S3
-# URLs after rehost. Raw provider URLs remain in ``span_attributes["raw_log"]``.
 RECORDING_KEYS_BY_PROVIDER: dict[str, list[tuple[str, str]]] = {
     ProviderChoices.VAPI: [
         (
@@ -85,17 +76,7 @@ def _resolve_call_id(span: ObservationSpan) -> str:
     queue="tasks_s",
 )
 def rehost_external_recordings(span_id: str) -> None:
-    """Re-host external provider recording URLs on FA S3.
-
-    Each non-S3 ``conversation.recording.*`` URL is downloaded and
-    re-uploaded through :func:`convert_audio_url_to_s3_async_with_size`.
-    For Vapi spans, an ``api_key`` and ``artifact_type`` are threaded
-    through so the download hits the authenticated ``api.vapi.ai``
-    endpoint. On success, S3 URLs are written to the span attributes and
-    mirrored onto every consumer-facing storage location.
-
-    Idempotent: URLs already on S3 are skipped before dispatch.
-    """
+    """Rehost a span's provider recording URLs to FA S3 and mirror to consumer fields."""
     try:
         span = ObservationSpan.objects.get(id=span_id)
     except ObservationSpan.DoesNotExist:

@@ -348,21 +348,15 @@ class ObservabilityService:
         created_at = raw_log_get("createdAt")
         ended_at = raw_log_get("endedAt")
         status = "completed" if raw_log_get("status") == "ended" else "in-progress"
-        # Mono recording — prefer S3-rehosted alias first, then new shape,
-        # then legacy top-level field.  Matches the Site-4 fallback order
-        # in separate_evals.py so every consumer prefers the durable URL.
         recording_url = (
-            sa.get("recording_url")                                       # (a) flat S3 alias — mirror target
-            or raw_log.get("artifact", {}).get("recording", {}).get("mono", {}).get("combinedUrl")  # (c) new shape
-            or raw_log.get("recordingUrl")                                 # (d) legacy, NOT under artifact
+            sa.get("recording_url")
+            or raw_log.get("artifact", {}).get("recording", {}).get("mono", {}).get("combinedUrl")
+            or raw_log.get("recordingUrl")
         )
-        logger.debug("vapi_recording_url_flat_alias", call_id=call_id, recording_url=recording_url)
-
-        # Stereo recording — same order as mono.
         stereo_recording_url = (
-            sa.get("stereo_recording_url")                                # (b) flat S3 alias — mirror target
-            or raw_log.get("artifact", {}).get("recording", {}).get("stereoUrl")  # (c) new shape
-            or (raw_log.get("artifact") or {}).get("stereoRecordingUrl")  # (d) legacy, under artifact
+            sa.get("stereo_recording_url")
+            or raw_log.get("artifact", {}).get("recording", {}).get("stereoUrl")
+            or (raw_log.get("artifact") or {}).get("stereoRecordingUrl")
         )
 
         recording_available = bool(recording_url)
@@ -711,10 +705,6 @@ class ObservabilityService:
         else:
             raise ValueError(f"Invalid choice for provider: {provider}")
 
-        # Post-processing: if span_attributes carry S3 URLs that the
-        # inner method missed (e.g. because it was read from the nested
-        # path rather than the flat alias), apply them here.  Guard so a
-        # durable S3 URL is never clobbered by a stale overlay.
         if span_attributes:
             from tracer.utils.vapi_recording import VapiRecordingService
 
@@ -724,13 +714,9 @@ class ObservabilityService:
                 processed.get("recording_url")
             ):
                 processed["recording_url"] = mono_s3
-            elif mono_s3:
-                logger.debug("vapi_recording_url_already_s3_skipping_override", mono_s3=mono_s3, current=processed.get("recording_url"))
             if stereo_s3 and not VapiRecordingService.is_s3_url(
                 processed.get("stereo_recording_url")
             ):
                 processed["stereo_recording_url"] = stereo_s3
-            elif stereo_s3:
-                logger.debug("vapi_recording_url_already_s3_skipping_override", stereo_s3=stereo_s3, current=processed.get("stereo_recording_url"))
 
         return processed

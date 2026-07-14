@@ -501,14 +501,7 @@ def fetch_voice_trace_comparison_transcripts(
 
 
 def fetch_baseline_trace_recordings(trace_id: str, _span: dict | None = None) -> dict:
-    """Fetch recording URLs from the baseline voice trace's conversation span.
-
-    Reads from the ``conversation.recording.*`` span attributes that the
-    rehost pipeline overwrites with S3 URLs after upload. Any URL still
-    pointing at a Vapi provider host (rehost pending or failed) is
-    dropped so the comparison view does not surface a URL that requires
-    Bearer credentials to fetch.
-    """
+    """Return recording URLs from a baseline voice trace, filtered by is_dead_provider_url."""
     from tracer.utils.vapi_recording import VapiRecordingService
 
     try:
@@ -526,19 +519,7 @@ def fetch_baseline_trace_recordings(trace_id: str, _span: dict | None = None) ->
 
 
 def fetch_simulated_call_recordings(call_execution: CallExecution) -> dict:
-    """Fetch recording URLs from a simulated CallExecution.
-
-    Order:
-      1. Model-level fields (``recording_url``, ``stereo_recording_url``)
-         — these are the durable S3 mirror the rehost pipeline writes to.
-      2. Only if the model fields are absent, fall back to walking
-         ``provider_call_data.<provider>.artifact.recording.*`` — the
-         raw ingest snapshot, which still holds the original Vapi URL.
-
-    Any URL still pointing at a Vapi provider host is dropped so this
-    reader never surfaces a URL that requires Bearer credentials to
-    fetch.
-    """
+    """Recording URLs for a simulated call: model fields first, provider_call_data fallback."""
     from tracer.utils.vapi_recording import VapiRecordingService
 
     def _safe(url):
@@ -546,10 +527,6 @@ def fetch_simulated_call_recordings(call_execution: CallExecution) -> dict:
             return None
         return url
 
-    # Prefer the durable S3 mirror on CallExecution. This is what the
-    # rehost pipeline writes to after upload — reading it first means a
-    # dead Vapi URL in the raw ingest snapshot never wins over the
-    # mirrored value.
     recordings = _fallback_model_recordings(call_execution)
     if recordings:
         return recordings

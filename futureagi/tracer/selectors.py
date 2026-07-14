@@ -1,11 +1,4 @@
-"""Selector functions for observability DB lookups.
-
-All ORM queries related to observability providers go through selectors.
-The Vapi API-key lookups delegate to
-:class:`tracer.utils.vapi_recording.VapiRecordingService` — the single
-source of truth for Vapi credential resolution — and return None on any
-missing link or error.
-"""
+"""Observability DB selectors."""
 
 from __future__ import annotations
 
@@ -33,14 +26,7 @@ def get_observability_provider(
 
 
 def get_agent_api_key(project_id, provider_name: str) -> Optional[str]:
-    """Resolve the agent API key for a given project and provider.
-
-    For Vapi, delegates to
-    :meth:`VapiRecordingService.get_api_key_for_project` (which prefers
-    the versioned ``AgentVersion.configuration_snapshot`` before falling
-    back to ``AgentDefinition.api_key``). Returns None on any missing
-    link or error.
-    """
+    """Resolve the agent api_key for a project/provider pair; None if unresolved."""
     if provider_name == ProviderChoices.VAPI:
         return VapiRecordingService.get_api_key_for_project(project_id)
 

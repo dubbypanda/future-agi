@@ -29,14 +29,7 @@ metrics_calculator = ConversationMetricsCalculator() if ConversationMetricsCalcu
 
 
 def normalize_vapi_data(log: dict, *, api_key: str | None = None) -> dict:
-    """
-    Normalizes a single log entry from Vapi into a structured format.
-
-    ``api_key`` is threaded through to :func:`_extract_call_logs` so the
-    call-log download can hit the authenticated
-    ``api.vapi.ai/call/{id}/call-logs`` endpoint. When absent the call-log
-    fetch falls back to the legacy unauthenticated ``artifact.logUrl``.
-    """
+    """Normalize a Vapi log entry; api_key routes call-logs through the auth endpoint."""
     status = _map_status(log.get("status", ""))
     start_time, end_time = _extract_timestamps(log)
     eval_attributes = _extract_eval_attributes(log, api_key=api_key)
@@ -87,15 +80,7 @@ def _extract_eval_attributes(
     include_call_logs: bool = True,
     api_key: str | None = None,
 ) -> dict:
-    """Extracts and flattens evaluation attributes from a Vapi log.
-
-    When ``include_call_logs`` is False the blocking GET against the
-    call-log endpoint is skipped — useful in request-path callers that
-    surface these attributes synchronously (e.g. simulate drawer detail
-    view) and rely on a separate background task to persist logs.
-
-    ``api_key`` enables the authenticated call-log download path.
-    """
+    """Extract and flatten eval attributes from a Vapi log; skip call-logs via include_call_logs=False."""
     eval_attributes = {
         SpanAttributes.SPAN_KIND: "conversation",
         "raw_log": log,
@@ -367,14 +352,7 @@ def _coerce_log_datetime(payload: dict) -> str | None:
 
 
 def _extract_call_logs(log: dict, eval_attributes: dict, *, api_key: str | None = None):
-    """Download call logs and store them under ``call_logs`` in span_attributes.
-
-    Delegates the fetch to
-    :meth:`VapiRecordingService.fetch_and_parse_call_logs`, which tries
-    the authenticated ``api.vapi.ai/call/{id}/call-logs`` endpoint first
-    when ``api_key`` is available and falls back to the legacy
-    unauthenticated ``artifact.logUrl`` in the grace window.
-    """
+    """Fetch call logs (Tier 1 auth then Tier 2 legacy) and store under call_logs in span_attributes."""
     from tracer.utils.vapi_recording import VapiRecordingService
 
     call_id = log.get("id")

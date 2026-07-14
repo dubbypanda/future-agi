@@ -680,16 +680,7 @@ def _load_voice_conversation_spans(trace_query: QuerySet) -> list[dict]:
 
 
 def _extract_recording_urls_from_spans(spans: list[dict]) -> dict[str, str]:
-    """
-    Extract the best recording URL for each voice trace from pre-loaded spans.
-    Prefers mono_combined (single-channel mixed audio), falls back to stereo.
-
-    Provider URLs whose rehost has not yet landed are dropped so replay
-    setup does not surface a URL that requires customer credentials to
-    fetch. The mono / stereo candidates are checked independently: if
-    mono is still the raw provider URL but stereo has been rehosted,
-    stereo wins rather than dropping the whole span.
-    """
+    """Return trace_id -> best recording URL (mono then stereo), skipping dead-provider URLs."""
     from tracer.utils.vapi_recording import VapiRecordingService
 
     recording_key_stereo = f"{ConversationAttributes.CONVERSATION_RECORDING}.{ConversationAttributes.STEREO}"

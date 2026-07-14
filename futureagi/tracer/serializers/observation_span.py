@@ -65,16 +65,7 @@ class ObservationSpanSerializer(serializers.ModelSerializer):
         return None
 
     def get_span_attributes(self, obj):
-        """
-        Return span_attributes as the canonical source.
-        Falls back to eval_attributes for old data.
-
-        Recording-URL values that still point at a Vapi provider host
-        (rehost pending / failed / historic pre-migration span) are
-        replaced with ``None`` before serialization so no serialized
-        payload — including shared-link and public trace views — ever
-        surfaces a URL the browser cannot fetch.
-        """
+        """Return span_attributes (falling back to eval_attributes), sanitized for dead-provider URLs."""
         from tracer.utils.vapi_recording import VapiRecordingService
 
         raw = obj.span_attributes if obj.span_attributes else obj.eval_attributes

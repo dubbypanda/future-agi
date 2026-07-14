@@ -5298,11 +5298,7 @@ def _build_span_context(span) -> dict:
     if not isinstance(raw_log, dict):
         raw_log = {}
 
-    # Prefer the flat span-attribute alias first — the rehost mirror step
-    # (VapiRecordingService.mirror_s3_url_to_consumer_fields) writes the
-    # durable S3 URL there after upload. raw_log paths are the immutable
-    # ingest snapshot; reading them first would return the dead provider
-    # URL post-2026-07-15 even for successfully rehosted spans.
+    # Prefer the S3-mirrored flat alias over the raw ingest snapshot.
     base["recording_url"] = (
         sa.get("recording_url")
         or sa.get("recordingUrl")

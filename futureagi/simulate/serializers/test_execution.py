@@ -337,19 +337,7 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
         return row_session_id_map.get(str(row_id)) if row_id else None
 
     def get_recordings(self, obj):
-        """Return recording URLs for the detail view. Skipped in list mode.
-
-        Order:
-          1. The durable S3 mirror on ``CallExecution.recording_url`` /
-             ``.stereo_recording_url`` — this is what the rehost pipeline
-             writes to after upload.
-          2. If the mirror is absent (rehost pending / failed / historic
-             call that never rehosted), walk ``provider_call_data.<provider>``
-             for the raw ingest snapshot as a last resort.
-
-        Every URL passes through ``VapiRecordingService.is_dead_provider_url``
-        so a raw ``storage.vapi.ai`` URL never reaches the response.
-        """
+        """Return combined/stereo/customer/assistant URLs; model fields first, provider_call_data fallback."""
         if not self.context.get("detail_mode", True):
             return {}
 
@@ -359,16 +347,6 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
             if not url or VapiRecordingService.is_dead_provider_url(url):
                 return None
             return url
-
-        # Prefer the S3 mirror on the model. Only if both mirrors are
-        # absent do we fall back to the raw provider payload.
-        mirror = {}
-        if _safe(obj.recording_url):
-            mirror["combined"] = obj.recording_url
-        if _safe(obj.stereo_recording_url):
-            mirror["stereo"] = obj.stereo_recording_url
-        if mirror:
-            return mirror
 
         provider_payload = None
         if hasattr(obj, "provider_call_data") and isinstance(
@@ -381,16 +359,27 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                     ProviderChoices.VAPI.value
                 )
 
-        if not isinstance(provider_payload, dict):
-            return {}
+        shortcut = {}
+        if isinstance(provider_payload, dict):
+            raw_shortcut = provider_payload.get("recording")
+            if isinstance(raw_shortcut, dict):
+                shortcut = {k: v for k, v in raw_shortcut.items() if _safe(v)}
 
-        # ``recording`` shortcut written by voice_large.py already carries
-        # S3 URLs (or is absent). Apply the guard defensively.
-        shortcut = provider_payload.get("recording")
-        if isinstance(shortcut, dict) and shortcut:
-            return {k: v for k, v in shortcut.items() if _safe(v)}
+        recordings: dict[str, str] = {}
+        combined = _safe(obj.recording_url) or shortcut.get("combined")
+        if combined:
+            recordings["combined"] = combined
+        stereo = _safe(obj.stereo_recording_url) or shortcut.get("stereo")
+        if stereo:
+            recordings["stereo"] = stereo
+        if shortcut.get("customer"):
+            recordings["customer"] = shortcut["customer"]
+        if shortcut.get("assistant"):
+            recordings["assistant"] = shortcut["assistant"]
+        if recordings:
+            return recordings
 
-        if VoiceServiceManager is None:
+        if not isinstance(provider_payload, dict) or VoiceServiceManager is None:
             return {}
         vsm = VoiceServiceManager(system_voice_provider=ProviderChoices.VAPI)
         raw = vsm.get_recording_urls(provider_payload) or {}
