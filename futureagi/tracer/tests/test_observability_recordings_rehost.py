@@ -71,7 +71,7 @@ class TestRehostExternalRecordings:
             observe_project, provider="vapi", span_attributes=dict(original)
         )
 
-        async def _fake_convert(call_id, url, url_type):
+        async def _fake_convert(call_id, url, url_type, **kwargs):
             return f"https://fagi.s3.amazonaws.com/{call_id}/{url_type}.mp3", 1024
 
         with patch(
@@ -103,7 +103,7 @@ class TestRehostExternalRecordings:
             observe_project, provider="retell", span_attributes=dict(original)
         )
 
-        async def _fake_convert(call_id, url, url_type):
+        async def _fake_convert(call_id, url, url_type, **kwargs):
             return f"https://fagi.s3.amazonaws.com/{call_id}/{url_type}.mp3", 1024
 
         with patch(
@@ -159,7 +159,7 @@ class TestRehostExternalRecordings:
             observe_project, provider="vapi", span_attributes=dict(original)
         )
 
-        async def _flaky_convert(call_id, url, url_type):
+        async def _flaky_convert(call_id, url, url_type, **kwargs):
             # Combined succeeds, stereo fails (helper returns input on failure).
             if url_type == "stereo":
                 return url, 0
@@ -336,7 +336,8 @@ class TestMaybeEnqueueRecordingRehost:
 class TestProcessRawLogsOverlay:
     """Tests for the span_attributes overlay in ObservabilityService.process_raw_logs."""
 
-    def test_vapi_overlay_overrides_recording_url(self):
+    def test_vapi_overlay_prefers_flat_s3_alias(self):
+        """The flat S3 alias (recording_url) is preferred over raw_log provider URLs."""
         from tracer.services.observability_providers import ObservabilityService
 
         raw_log = {
@@ -346,22 +347,40 @@ class TestProcessRawLogsOverlay:
             "messages": [],
         }
         span_attributes = {
-            "conversation.recording.mono.combined": "https://fagi.s3.amazonaws.com/x/combined.mp3",
-            "conversation.recording.stereo": "https://fagi.s3.amazonaws.com/x/stereo.mp3",
+            "recording_url": "https://fagi.s3.amazonaws.com/x/combined.mp3",
+            "stereo_recording_url": "https://fagi.s3.amazonaws.com/x/stereo.mp3",
         }
 
         result = ObservabilityService.process_raw_logs(
             raw_log, ProviderChoices.VAPI, span_attributes=span_attributes
         )
 
-        assert result["recording_url"] == span_attributes[
-            "conversation.recording.mono.combined"
-        ]
+        assert result["recording_url"] == span_attributes["recording_url"]
         assert result["stereo_recording_url"] == span_attributes[
-            "conversation.recording.stereo"
+            "stereo_recording_url"
         ]
 
+    def test_vapi_overlay_new_shape_before_legacy(self):
+        """New shape (artifact.recording.mono.combinedUrl) beats legacy recordingUrl."""
+        from tracer.services.observability_providers import ObservabilityService
+
+        raw_log = {
+            "id": "vapi-call-1",
+            "recordingUrl": "https://storage.vapi.ai/legacy.mp3",
+            "artifact": {
+                "recording": {"mono": {"combinedUrl": "https://storage.vapi.ai/new-shape.mp3"}}
+            },
+            "messages": [],
+        }
+
+        result = ObservabilityService.process_raw_logs(
+            raw_log, ProviderChoices.VAPI
+        )
+
+        assert result["recording_url"] == "https://storage.vapi.ai/new-shape.mp3"
+
     def test_no_overlay_keeps_provider_urls(self):
+        """Without span_attributes, the field-chain fallback returns the raw_log value."""
         from tracer.services.observability_providers import ObservabilityService
 
         raw_log = {

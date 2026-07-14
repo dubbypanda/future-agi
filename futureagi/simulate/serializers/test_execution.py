@@ -301,8 +301,7 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
         return row_session_id_map.get(str(row_id)) if row_id else None
 
     def get_recordings(self, obj):
-        """Return provider recording URLs from stored provider payload (no external API calls).
-        Skipped when detail_mode=False (list view) to reduce response size."""
+        """Return combined/stereo/customer/assistant URLs; model fields first, provider_call_data fallback."""
         if not self.context.get("detail_mode", True):
             return {}
 
@@ -310,19 +309,31 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
         if hasattr(obj, "provider_call_data") and isinstance(
             obj.provider_call_data, dict
         ):
-            if len(obj.provider_call_data.keys()) == 1:
-                provider_payload = next(iter(obj.provider_call_data.values()))
-            else:
-                # Prefer VAPI payload when present (current tooling support)
-                provider_payload = obj.provider_call_data.get(
-                    ProviderChoices.VAPI.value
-                )
+            provider_payload = obj.provider_call_data.get(
+                ProviderChoices.VAPI.value
+            )
 
-        if provider_payload:
-            if provider_payload.get("recording"):
-                return provider_payload.get("recording")
+        shortcut = {}
+        if isinstance(provider_payload, dict):
+            raw_shortcut = provider_payload.get("recording")
+            if isinstance(raw_shortcut, dict):
+                shortcut = raw_shortcut
 
-        if VoiceServiceManager is None:
+        recordings: dict[str, str] = {}
+        combined = obj.recording_url or shortcut.get("combined")
+        if combined:
+            recordings["combined"] = combined
+        stereo = obj.stereo_recording_url or shortcut.get("stereo")
+        if stereo:
+            recordings["stereo"] = stereo
+        if shortcut.get("customer"):
+            recordings["customer"] = shortcut["customer"]
+        if shortcut.get("assistant"):
+            recordings["assistant"] = shortcut["assistant"]
+        if recordings:
+            return recordings
+
+        if not isinstance(provider_payload, dict) or VoiceServiceManager is None:
             return {}
         vsm = VoiceServiceManager(system_voice_provider=ProviderChoices.VAPI)
         return vsm.get_recording_urls(provider_payload) or {}
