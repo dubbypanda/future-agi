@@ -17058,17 +17058,6 @@ export interface AddEvalConfigsRequestApi {
   evaluations_config: EvalConfigDefinitionApi[];
 }
 
-export type EvalConfigResponseApiModel = typeof EvalConfigResponseApiModel[keyof typeof EvalConfigResponseApiModel];
-
-
-export const EvalConfigResponseApiModel = {
-  turing_large: 'turing_large',
-  turing_small: 'turing_small',
-  protect: 'protect',
-  protect_flash: 'protect_flash',
-  turing_flash: 'turing_flash',
-} as const;
-
 export type EvalConfigResponseApiStatus = typeof EvalConfigResponseApiStatus[keyof typeof EvalConfigResponseApiStatus];
 
 
@@ -17106,7 +17095,8 @@ export interface EvalConfigResponseApi {
   mapping?: EvalConfigResponseApiMapping;
   filters?: EvalConfigResponseApiFilters;
   error_localizer?: boolean;
-  model?: EvalConfigResponseApiModel;
+  /** @maxLength 255 */
+  model?: string;
   status?: EvalConfigResponseApiStatus;
   readonly eval_group?: string;
   readonly template_id?: string;
@@ -18306,17 +18296,6 @@ export type CustomEvalConfigApiMapping = { [key: string]: unknown };
 
 export type CustomEvalConfigApiFilters = { [key: string]: unknown };
 
-export type CustomEvalConfigApiModel = typeof CustomEvalConfigApiModel[keyof typeof CustomEvalConfigApiModel];
-
-
-export const CustomEvalConfigApiModel = {
-  turing_large: 'turing_large',
-  turing_small: 'turing_small',
-  protect: 'protect',
-  protect_flash: 'protect_flash',
-  turing_flash: 'turing_flash',
-} as const;
-
 export interface CustomEvalConfigApi {
   readonly id?: string;
   eval_template: string;
@@ -18328,7 +18307,8 @@ export interface CustomEvalConfigApi {
   filters?: CustomEvalConfigApiFilters;
   error_localizer?: boolean;
   kb_id?: string;
-  model?: CustomEvalConfigApiModel;
+  /** @maxLength 255 */
+  model?: string;
   readonly eval_group?: string;
 }
 
