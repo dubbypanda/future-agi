@@ -3,6 +3,7 @@ import json
 import re
 import traceback
 import uuid
+from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
@@ -848,6 +849,13 @@ class EvaluationRunner:
         self.workspace_id = workspace_id
         self.version_number = version_number
         self._resolved_version = None
+        # Memoized effective config (template_config + snapshot overlay).
+        # Populated on first _get_effective_eval_config() call and reused
+        # for the rest of the run since neither eval_template nor the
+        # resolved version change per row. Invalidated in map_fields when
+        # a caller passes an explicit `eval_template` arg.
+        self._effective_config_cache: dict | None = None
+        self._effective_config_cache_key: tuple | None = None
         if not format_output:
             self._initialize_eval_metric()
 
@@ -931,7 +939,25 @@ class EvaluationRunner:
         self.user_eval_metric.save(update_fields=["status"])
 
     def _get_effective_eval_config(self):
-        """Return template config with the resolved version snapshot applied."""
+        """Return template config with the resolved version snapshot applied.
+
+        The overlay covers only the config *dict* — model-level attributes
+        (`choice_scores`, `choices`, `criteria`, `multi_choice`) are still
+        read from the live `self.eval_template`. Callers that need those
+        should not assume this fully represents the pinned version.
+
+        Memoized on `self` — invariant across rows within a single run,
+        invalidated automatically when `self.eval_template` or
+        `self._resolved_version` identity changes.
+        """
+        cache_key = (id(getattr(self, "eval_template", None)),
+                     id(getattr(self, "_resolved_version", None)))
+        if (
+            self._effective_config_cache is not None
+            and self._effective_config_cache_key == cache_key
+        ):
+            return self._effective_config_cache
+
         template_config = getattr(self.eval_template, "config", None) or {}
         effective_config = (
             dict(template_config) if isinstance(template_config, dict) else {}
@@ -965,6 +991,12 @@ class EvaluationRunner:
         if isinstance(snapshot, dict):
             effective_config.update(snapshot)
 
+        # Refresh the cache key in case _resolved_version got populated above.
+        self._effective_config_cache_key = (
+            id(getattr(self, "eval_template", None)),
+            id(getattr(self, "_resolved_version", None)),
+        )
+        self._effective_config_cache = effective_config
         return effective_config
 
     def _get_column_config(self, dataset):
@@ -1580,6 +1612,9 @@ class EvaluationRunner:
         input_required_field = list(required_field or [])
         if eval_template:
             self.eval_template = eval_template
+            # Invalidate memoized effective config — caller swapped the template.
+            self._effective_config_cache = None
+            self._effective_config_cache_key = None
 
             if not self.organization_id and eval_template.organization:
                 self.organization_id = eval_template.organization.id
@@ -1782,8 +1817,11 @@ class EvaluationRunner:
                 "Invalid UserEvalMetric ID or EvalTemplate does not exist."
             )
 
-        # Fetch the eval class from the eval_type_id in the config
-        eval_type_id = self.eval_template.config.get("eval_type_id")
+        # Fetch the eval class from the eval_type_id in the config — read
+        # through the overlay so a pinned version that snapshots a different
+        # eval_type_id (rare, but possible for user templates) resolves to
+        # the correct class instead of the live template's.
+        eval_type_id = self._get_effective_eval_config().get("eval_type_id")
         from evaluations.engine.registry import get_eval_class
 
         self.eval_class = get_eval_class(eval_type_id)
@@ -1930,7 +1968,7 @@ class EvaluationRunner:
             if isinstance(data, dict):
                 value = "Passed" if not result_data.get("failure") else "Failed"
             elif (
-                self.eval_template.config.get("eval_type_id")
+                self._get_effective_eval_config().get("eval_type_id")
                 == "DeterministicEvaluator"
             ):
                 if not self.eval_template.multi_choice:
@@ -2153,11 +2191,8 @@ class EvaluationRunner:
 
         validation_template = self.eval_template
         if effective_config != (getattr(self.eval_template, "config", None) or {}):
-            validation_template = type(
-                "EffectiveEvalTemplate",
-                (),
-                {"config": effective_config},
-            )()
+            # Confirmed validate_eval_inputs only reads `.config`.
+            validation_template = SimpleNamespace(config=effective_config)
 
         partial_input_warning, _normalized_values = validate_eval_inputs(
             validation_template,
@@ -2295,7 +2330,7 @@ class EvaluationRunner:
             row,
             self.replace_column_id,
             self.column.id,
-            self.eval_template.config.get("run_prompt_column", False),
+            self._get_effective_eval_config().get("run_prompt_column", False),
             runner=self,
             eval_template_name=self.eval_template.name,
         )
