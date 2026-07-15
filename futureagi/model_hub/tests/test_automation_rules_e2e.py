@@ -2189,13 +2189,24 @@ class TestAutomationRulesE2E:
     def test_evaluate_rule_span_observe_filter_payload(
         self, auth_client, organization, workspace, user
     ):
-        """Span rules support the same Observe-style filter payloads."""
-        from model_hub.models.score import Score
+        """Span filter-mode rules resolve via ClickHouse; verify the rule→queue
+        plumbing (Observe-style payload accepted, resolved id added).
+
+        Span resolution is ClickHouse-only, so the CH resolver is mocked here and
+        the filter-translation semantics (span attributes, eval metrics,
+        annotation labels) are covered by ``test_bulk_selection_span_ch.py`` and
+        the ``ch_rehearsal`` parity suite — a PG-seeded ``matched`` assertion
+        would only re-test the mock.
+        """
+        from model_hub.services.bulk_selection import ResolveResult
         from tracer.models.observation_span import ObservationSpan
 
         project = _create_project(organization, workspace, name="Span Filter Rule")
         trace = _create_trace(project, "span-rule-trace")
-        label = _create_label(organization, workspace, name="span_rule_quality", label_type="numeric")
+        label = _create_label(
+            organization, workspace, name="span_rule_quality", label_type="numeric"
+        )
+        # A real PG span keeps the QueueItem FK valid; resolution is mocked.
         match = ObservationSpan.objects.create(
             id=str(uuid.uuid4()),
             project=project,
@@ -2204,33 +2215,6 @@ class TestAutomationRulesE2E:
             observation_type="llm",
             span_attributes={"customer_tier": "vip"},
             parent_span_id=None,
-        )
-        skip = ObservationSpan.objects.create(
-            id=str(uuid.uuid4()),
-            project=project,
-            trace=trace,
-            name="skip-span",
-            observation_type="tool",
-            span_attributes={"customer_tier": "free"},
-            parent_span_id=None,
-        )
-        Score.objects.create(
-            source_type="observation_span",
-            observation_span=match,
-            label=label,
-            value={"value": 92},
-            annotator=user,
-            organization=organization,
-            workspace=workspace,
-        )
-        Score.objects.create(
-            source_type="observation_span",
-            observation_span=skip,
-            label=label,
-            value={"value": 96},
-            annotator=user,
-            organization=organization,
-            workspace=workspace,
         )
 
         queue_id = _create_queue(auth_client, name="Span observe filter rule")
@@ -2269,98 +2253,18 @@ class TestAutomationRulesE2E:
             },
             format="json",
         )
+        assert resp.status_code == status.HTTP_201_CREATED
         rule_id = resp.data["id"]
-        resp = auth_client.post(
-            f"{_rule_detail_url(queue_id, rule_id)}evaluate/", format="json"
-        )
 
-        result = resp.data.get("result", resp.data)
-        assert result["matched"] == 1
-        assert result["added"] == 1
-        assert QueueItem.objects.get(queue_id=queue_id).observation_span_id == match.id
-
-    def test_evaluate_rule_span_eval_choice_multiselect_filter(
-        self, auth_client, organization, workspace
-    ):
-        """Span rules must honor eval choice filters sent as multi-select `in`."""
-        from model_hub.models.evals_metric import EvalTemplate
-        from tracer.models.custom_eval_config import CustomEvalConfig
-        from tracer.models.observation_span import EvalLogger, ObservationSpan
-
-        project = _create_project(organization, workspace, name="Span Choice Rule")
-        trace = _create_trace(project, "span-choice-trace")
-        template = EvalTemplate.objects.create(
-            name="Span Choice Eval",
-            organization=organization,
-            workspace=workspace,
-            config={"output": "choices"},
-            choices=["Fast", "Slow"],
-        )
-        config = CustomEvalConfig.objects.create(
-            name="Span Choice Config",
-            eval_template=template,
-            project=project,
-        )
-        match = ObservationSpan.objects.create(
-            id=str(uuid.uuid4()),
-            project=project,
-            trace=trace,
-            name="span-choice-match",
-            observation_type="llm",
-            parent_span_id=None,
-        )
-        skip = ObservationSpan.objects.create(
-            id=str(uuid.uuid4()),
-            project=project,
-            trace=trace,
-            name="span-choice-skip",
-            observation_type="tool",
-            parent_span_id=None,
-        )
-        EvalLogger.objects.create(
-            trace=trace,
-            observation_span=match,
-            custom_eval_config=config,
-            output_str_list=["Fast"],
-        )
-        EvalLogger.objects.create(
-            trace=trace,
-            observation_span=skip,
-            custom_eval_config=config,
-            output_str_list=["Slow"],
-        )
-
-        queue_id = _create_queue(auth_client, name="Span choice filter rule")
-        AnnotationQueue.objects.filter(pk=queue_id).update(project=project)
-        resp = auth_client.post(
-            _rules_url(queue_id),
-            {
-                "name": "Fast spans",
-                "source_type": "observation_span",
-                "conditions": {
-                    "operator": "and",
-                    "rules": [],
-                    "filter": [
-                        {
-                            "column_id": str(config.id),
-                            "filter_config": {
-                                "filter_type": "categorical",
-                                "filter_op": "in",
-                                "filter_value": ["Fast"],
-                                "col_type": "EVAL_METRIC",
-                            },
-                        },
-                    ],
-                    "scope": {"project_id": str(project.id)},
-                },
-                "enabled": True,
-            },
-            format="json",
-        )
-        rule_id = resp.data["id"]
-        resp = auth_client.post(
-            f"{_rule_detail_url(queue_id, rule_id)}evaluate/", format="json"
-        )
+        with patch(
+            "model_hub.services.bulk_selection.resolve_filtered_span_ids",
+            return_value=ResolveResult(
+                ids=[match.id], total_matching=1, truncated=False
+            ),
+        ):
+            resp = auth_client.post(
+                f"{_rule_detail_url(queue_id, rule_id)}evaluate/", format="json"
+            )
 
         result = resp.data.get("result", resp.data)
         assert result["matched"] == 1
