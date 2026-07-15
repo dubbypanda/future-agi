@@ -99,6 +99,10 @@ export const getAggColumnLabel = (metrics, allAggregations) => {
   return "Agg.";
 };
 
+// True if any series entry has at least one data point.
+export const seriesHasDataPoints = (series = []) =>
+  series.some((s) => (s?.data || []).length > 0);
+
 // ApexCharts silently clips any series point outside yaxis min/max — if
 // every point in every series falls outside the configured bounds, the
 // chart renders fully blank with no indication why. Surface that as a
