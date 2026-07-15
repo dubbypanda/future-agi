@@ -17,7 +17,7 @@ from tfc.utils.general_methods import GeneralMethods
 from tracer.db_routing import DATABASE_FOR_DASHBOARD_LIST
 from tracer.models.custom_eval_config import CustomEvalConfig
 from tracer.models.dashboard import Dashboard, DashboardWidget
-from tracer.models.project import Project, ProjectSourceChoices
+from tracer.models.project import Project
 from tracer.serializers.dashboard import (
     DashboardCreateUpdateSerializer,
     DashboardDetailSerializer,

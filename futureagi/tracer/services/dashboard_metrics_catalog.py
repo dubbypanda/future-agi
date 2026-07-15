@@ -1180,26 +1180,6 @@ _COUNT_METRIC_RENAMES: dict[str, str] = {
     "span_count": "Spans",
 }
 
-_DIMENSION_ONLY_NAMES: frozenset[str] = frozenset(
-    {
-        "user",
-        "session",
-        "user_id_type",
-        "model",
-        "status",
-        "service_name",
-        "span_kind",
-        "provider",
-        "prompt_name",
-        "prompt_version",
-        "prompt_label",
-        "tag",
-        "project",
-        "dataset",
-        "eval_source",
-    }
-)
-
 
 def _annotate_metric_roles(metrics: list[dict]) -> list[dict]:
     """Tag every catalog entry with a ``role`` so the frontend picker can
@@ -1208,6 +1188,12 @@ def _annotate_metric_roles(metrics: list[dict]) -> list[dict]:
     ``metric``    — numeric aggregatable, shows in the metric picker.
     ``dimension`` — string-typed breakdown/filter target, hidden from the
                     metric picker.
+
+    Derived from ``type`` (not a name whitelist) so a new string-typed
+    dimension added later can't silently become a selectable Y-axis metric.
+    Entries without ``type`` (eval / annotation / custom_column) default to
+    ``metric`` — they are all numeric aggregatable today.
+
     Also applies the ``user_count → Users`` family of display renames — the
     frontend already groups these under a "Users"/"Sessions" tab, so the
     old ``… Count`` suffix just doubled up on the tab label.
@@ -1216,7 +1202,7 @@ def _annotate_metric_roles(metrics: list[dict]) -> list[dict]:
         name = m.get("name", "")
         if name in _COUNT_METRIC_RENAMES:
             m["display_name"] = _COUNT_METRIC_RENAMES[name]
-        m["role"] = "dimension" if name in _DIMENSION_ONLY_NAMES else "metric"
+        m["role"] = "dimension" if m.get("type") == "string" else "metric"
     return metrics
 
 
@@ -1243,7 +1229,11 @@ def get_cached_metrics_catalog(
         f"dashboard:metrics_catalog:v2:{workspace.id}:"
         f"{pids_key}:{agent_definition_id}:{int(per_eval_config)}"
     )
-    metrics = cache.get(cache_key)
+    try:
+        metrics = cache.get(cache_key)
+    except Exception:
+        logger.warning("metrics_catalog_cache_get_failed", exc_info=True)
+        metrics = None
     if metrics is None:
         metrics = build_metrics_catalog(
             workspace,
@@ -1251,5 +1241,8 @@ def get_cached_metrics_catalog(
             agent_definition_id=agent_definition_id,
             per_eval_config=per_eval_config,
         )
-        cache.set(cache_key, metrics, timeout=ttl)
+        try:
+            cache.set(cache_key, metrics, timeout=ttl)
+        except Exception:
+            logger.warning("metrics_catalog_cache_set_failed", exc_info=True)
     return metrics

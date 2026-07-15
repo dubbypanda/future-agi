@@ -353,7 +353,26 @@ const hashSeriesName = (name) => {
   }
   return Math.abs(h);
 };
-const getSeriesColor = (name) =>
+const buildSeriesColorMap = (names) => {
+  const map = {};
+  const used = new Set();
+  (names || []).forEach((name) => {
+    const start = hashSeriesName(name) % SERIES_COLORS.length;
+    let picked = start;
+    for (let i = 0; i < SERIES_COLORS.length; i += 1) {
+      const candidate = (start + i) % SERIES_COLORS.length;
+      if (!used.has(candidate)) {
+        picked = candidate;
+        break;
+      }
+    }
+    used.add(picked);
+    map[name] = SERIES_COLORS[picked];
+  });
+  return map;
+};
+const getSeriesColor = (name, map) =>
+  (map && map[name]) ||
   SERIES_COLORS[hashSeriesName(name) % SERIES_COLORS.length];
 
 const LETTER_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -2201,13 +2220,18 @@ export default function WidgetEditorView() {
     setAutoAppliedLeftAxisUnit(suggested || null);
   }, [axisConfig.leftY.unit, autoAppliedLeftAxisUnit, suggestedLeftAxisUnit]);
 
-  // Color per series by hashed name so a project keeps its color across
-  // reloads and across widgets, even when its siblings change.
-  const chartColors = useMemo(() => {
-    return previewSeries
-      .filter((_, i) => visibleSeries === null || visibleSeries.has(i))
-      .map((s) => getSeriesColor(s.name));
-  }, [previewSeries, visibleSeries]);
+  // Hash-derived colors give cross-reload stability; the map walker
+  // advances to the next free slot on collision so ≤10 series never
+  // share a color inside one widget. Built from previewSeries so hidden
+  // series keep their color when re-checked.
+  const seriesColorMap = useMemo(
+    () => buildSeriesColorMap(previewSeries.map((s) => s.name)),
+    [previewSeries],
+  );
+  const chartColors = useMemo(
+    () => chartSeries.map((s) => getSeriesColor(s.name, seriesColorMap)),
+    [chartSeries, seriesColorMap],
+  );
 
   // Legend hover → highlight series by dimming others via SVG opacity
   const handleLegendHover = useCallback((seriesIndex) => {
@@ -3372,7 +3396,7 @@ export default function WidgetEditorView() {
                         sx={{ px: 2, pt: 2, pb: 1 }}
                       >
                         {chartSeries.map((s, i) => {
-                          const color = getSeriesColor(s.name);
+                          const color = getSeriesColor(s.name, seriesColorMap);
                           return (
                             <Stack
                               key={i}
@@ -3455,7 +3479,7 @@ export default function WidgetEditorView() {
                           <Box sx={{ flex: 1, overflow: "auto", px: 2 }}>
                             {barData.rows.map((row, i) => {
                               const val = row.numericValue;
-                              const color = getSeriesColor(row.name || row.label);
+                              const color = getSeriesColor(row.name || row.label, seriesColorMap);
                               const pct =
                                 maxVal > 0 ? (Math.abs(val) / maxVal) * 100 : 0;
                               const fmtVal =
@@ -3632,7 +3656,7 @@ export default function WidgetEditorView() {
                               const checked =
                                 visibleSeries === null ||
                                 visibleSeries?.has(si);
-                              const color = getSeriesColor(s.name);
+                              const color = getSeriesColor(s.name, seriesColorMap);
                               return (
                                 <Box
                                   key={si}
@@ -3810,7 +3834,7 @@ export default function WidgetEditorView() {
                                             width: 8,
                                             height: 8,
                                             borderRadius: "2px",
-                                            bgcolor: getSeriesColor(s.name),
+                                            bgcolor: getSeriesColor(s.name, seriesColorMap),
                                             display: "inline-block",
                                           }}
                                         />
@@ -4402,7 +4426,7 @@ export default function WidgetEditorView() {
                             const checked =
                               visibleSeries === null || visibleSeries.has(si);
                             const avg = getSeriesAverage(s.data);
-                            const color = getSeriesColor(s.name);
+                            const color = getSeriesColor(s.name, seriesColorMap);
                             return (
                               <tr
                                 key={si}
@@ -5993,7 +6017,7 @@ export default function WidgetEditorView() {
                       Axis Assignment
                     </Typography>
                     {previewSeries.map((s, si) => {
-                      const seriesColor = getSeriesColor(s.name);
+                      const seriesColor = getSeriesColor(s.name, seriesColorMap);
                       return (
                       <Stack
                         key={si}

@@ -771,10 +771,14 @@ class DashboardQueryBuilder:
             if self.workspace_id
             else "d.organization_id = toUUID(%(organization_id)s)"
         )
+        # `d._peerdb_is_deleted = 0` already filters CDC tombstones; the outer
+        # `e … FINAL` still collapses duplicate parts for the join. argMax(id)
+        # picks the latest attempt deterministically even across unmerged parts,
+        # so we can skip the extra FINAL scan on this subquery.
         where_parts.append(
             "(e.eval_trace_id = '' OR (e.eval_trace_id, e.id) IN ("
             "SELECT d.eval_trace_id, argMax(d.id, tuple(d.created_at, d.id)) "
-            "FROM usage_apicalllog AS d FINAL "
+            "FROM usage_apicalllog AS d "
             f"WHERE {_dedup_scope_d} "
             "AND d._peerdb_is_deleted = 0 AND d.status = 'success' "
             "AND d.source_id = %(eval_template_id)s "
