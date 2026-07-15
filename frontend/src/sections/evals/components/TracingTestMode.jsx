@@ -561,7 +561,9 @@ const TracingTestMode = React.forwardRef(
         const r = resp.data?.result || {};
         return {
           trace: r.trace,
-          spans: sortSpansForMapping(flattenSpanTree(r.observation_spans || [])),
+          spans: sortSpansForMapping(
+            flattenSpanTree(r.observation_spans || []),
+          ),
         };
       },
       enabled: !!sessionFirstTraceId,
@@ -1730,10 +1732,32 @@ const TracingTestMode = React.forwardRef(
                                   : "text.primary",
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
-                                textOverflow: "ellipsis",
+                                containerType: "inline-size",
+                                // The option <li> is a flex row, so the span
+                                // is a flex item: releasing max-width alone
+                                // won't widen it — flex-shrink must go too.
+                                "&:hover > span, &.Mui-focused > span": {
+                                  maxWidth: "none",
+                                  flexShrink: 0,
+                                  // Slide left just far enough to reveal the
+                                  // clipped tail; fitting text stays put.
+                                  transform:
+                                    "translateX(min(0px, calc(100cqw - 100%)))",
+                                },
                               }}
                             >
-                              {col}
+                              <Box
+                                component="span"
+                                sx={{
+                                  display: "inline-block",
+                                  maxWidth: "100%",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  verticalAlign: "top",
+                                }}
+                              >
+                                {col}
+                              </Box>
                             </Box>
                           );
                         }}

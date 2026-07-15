@@ -91,45 +91,47 @@ export function walkPaths(root, { maxDepth = EAGER_DEPTH } = {}) {
   return flattenAndDedupe(rawPaths, rawTruncated);
 }
 
-// Walk one dotted path segment-by-segment. At each object node, if the next
-// segment misses, retry inside node.span_attributes — the same aliasing the
-// BE resolver applies, and what makes soft-flattened paths resolvable.
+// Walk a dotted path with backtracking. span_attributes bags are flat maps
+// whose keys are themselves dotted ("metadata.deep_object"), so a pure
+// segment-by-segment descent can never re-find the atomic key walkNode
+// enumerated through. Mirror the BE resolver (_resolve_attr): at every
+// object node try the longest literal dotted-key join first, backtrack to
+// shorter joins, then retry the whole tail inside node.span_attributes.
 // Returns { found: boolean, value, unknown: boolean }.
-function descend(root, path) {
-  let node = root;
-  const segments = path.split(".");
-  for (let i = 0; i < segments.length; i += 1) {
-    const seg = segments[i];
-    if (!isObjectLike(node)) return { found: false, unknown: false };
-    if (Array.isArray(node)) {
-      const idx = Number(seg);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= node.length) {
-        return { found: false, unknown: false };
-      }
-      node = node[idx];
-      continue;
+const NOT_FOUND = { found: false, unknown: false };
+
+function descendSegments(node, segments) {
+  if (!segments.length) return { found: true, value: node, unknown: false };
+  if (!isObjectLike(node)) return NOT_FOUND;
+  if (Array.isArray(node)) {
+    const idx = Number(segments[0]);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= node.length) {
+      return NOT_FOUND;
     }
-    // Descending into a collection whose contents were never fetched
-    // (session traces beyond the first) is unknowable, not missing.
-    if (seg === "spans" && node._spansLoaded === false) {
-      return { found: false, unknown: true };
-    }
-    const entries = Object.fromEntries(canonicalEntries(node));
-    if (seg in entries) {
-      node = entries[seg];
-      continue;
-    }
-    const attrs = entries.span_attributes;
-    if (isObjectLike(attrs) && !Array.isArray(attrs)) {
-      const attrEntries = Object.fromEntries(canonicalEntries(attrs));
-      if (seg in attrEntries) {
-        node = attrEntries[seg];
-        continue;
-      }
-    }
-    return { found: false, unknown: false };
+    return descendSegments(node[idx], segments.slice(1));
   }
-  return { found: true, value: node, unknown: false };
+  // Descending into a collection whose contents were never fetched
+  // (session traces beyond the first) is unknowable, not missing.
+  if (segments[0] === "spans" && node._spansLoaded === false) {
+    return { found: false, unknown: true };
+  }
+  const entries = Object.fromEntries(canonicalEntries(node));
+  for (let k = segments.length; k >= 1; k -= 1) {
+    const key = segments.slice(0, k).join(".");
+    if (key in entries) {
+      const res = descendSegments(entries[key], segments.slice(k));
+      if (res.found || res.unknown) return res;
+    }
+  }
+  const attrs = entries.span_attributes ?? entries.spanAttributes;
+  if (isObjectLike(attrs) && !Array.isArray(attrs) && attrs !== node) {
+    return descendSegments(attrs, segments);
+  }
+  return NOT_FOUND;
+}
+
+function descend(root, path) {
+  return descendSegments(root, path.split("."));
 }
 
 export function expandPaths(root, prefixPath, { maxDepth = EAGER_DEPTH } = {}) {
