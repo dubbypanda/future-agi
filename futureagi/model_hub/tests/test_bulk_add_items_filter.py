@@ -145,7 +145,9 @@ class TestAddItemsFilterMode:
         self, auth_client, active_queue, observe_project
     ):
         for i in range(3):
-            Trace.objects.create(project=observe_project, name=f"t-{i}")
+            _seed_ch_trace_root(
+                Trace.objects.create(project=observe_project, name=f"t-{i}")
+            )
 
         resp = auth_client.post(
             _add_items_url(active_queue.id),
@@ -170,7 +172,9 @@ class TestAddItemsFilterMode:
     ):
         """Filter-mode add stamps project_id from the selection too (TH-6864), so
         every path that fills a queue leaves items scope-able by the render read."""
-        Trace.objects.create(project=observe_project, name="t-fp")
+        _seed_ch_trace_root(
+            Trace.objects.create(project=observe_project, name="t-fp")
+        )
         resp = auth_client.post(
             _add_items_url(active_queue.id),
             {
@@ -194,6 +198,8 @@ class TestAddItemsFilterMode:
             Trace.objects.create(project=observe_project, name=f"t-{i}")
             for i in range(5)
         ]
+        for _t in traces:
+            _seed_ch_trace_root(_t)
         exclude = [str(traces[0].id), str(traces[1].id)]
 
         resp = auth_client.post(
@@ -218,6 +224,8 @@ class TestAddItemsFilterMode:
     ):
         target = Trace.objects.create(project=observe_project, name="target-trace")
         other = Trace.objects.create(project=observe_project, name="other-trace")
+        _seed_ch_trace_root(target)
+        _seed_ch_trace_root(other)
 
         resp = auth_client.post(
             _add_items_url(active_queue.id),
@@ -285,7 +293,9 @@ class TestAddItemsFilterMode:
         views_mod.MAX_SELECTION_CAP = 2
         try:
             for i in range(3):
-                Trace.objects.create(project=observe_project, name=f"t-{i}")
+                _seed_ch_trace_root(
+                    Trace.objects.create(project=observe_project, name=f"t-{i}")
+                )
             resp = auth_client.post(
                 _add_items_url(active_queue.id),
                 {
@@ -313,7 +323,9 @@ class TestAddItemsFilterMode:
         self, auth_client, active_queue, observe_project
     ):
         for i in range(4):
-            Trace.objects.create(project=observe_project, name=f"t-{i}")
+            _seed_ch_trace_root(
+                Trace.objects.create(project=observe_project, name=f"t-{i}")
+            )
 
         resp = auth_client.post(
             _add_items_url(active_queue.id),
