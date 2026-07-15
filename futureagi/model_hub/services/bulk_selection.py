@@ -375,6 +375,10 @@ def resolve_filtered_trace_ids(
     # silently drop older rows a "select all matching this filter" must include.
     # Widen to all-history so the resolve spans everything, matching the
     # enumerated path; an explicit user time filter prunes normally.
+    #
+    # Injected here at the caller (not inside the resolvers) so one site covers
+    # both the trace and voice branches; span/session self-inject inside their
+    # single resolver.
     ch_filters = list(filters or [])
     if not _has_explicit_time_filter(filters):
         ch_filters.append(_all_history_time_filter())
