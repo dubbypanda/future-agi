@@ -338,6 +338,24 @@ def test_dataset_table_array_contains_not_contains_and_multi_term(array_col_seed
 
 
 @pytest.mark.django_db
+def test_dataset_table_none_value_contains_is_noop(dataset_filter_seed):
+    """A text ``contains`` sent without a filter_value degrades to a no-op
+    (matches every row) instead of matching the literal repr of ``None``. Pins
+    the unified None handling that ``or_text_filter_q`` shares across both sites.
+    """
+    dataset, rows, text_col, bool_col = dataset_filter_seed
+
+    assert (
+        _apply(
+            dataset,
+            [_filter(text_col.id, "text", "contains")],
+            [text_col, bool_col],
+        )
+        == rows
+    )
+
+
+@pytest.mark.django_db
 def test_filter_dataset_cells_array_contains_list_value(array_col_seed):
     """The annotation-queue cell filter (``_filter_dataset_cells``) has the same
     list-payload path and must match per-element, not the list's repr."""

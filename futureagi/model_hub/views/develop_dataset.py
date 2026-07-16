@@ -230,6 +230,10 @@ from model_hub.services.derived_variable_service import (
 )
 from model_hub.tasks.develop_dataset import ingest_files_to_s3, remove_kb_files
 from model_hub.types import ConversionResult
+from model_hub.utils.annotation_queue_helpers import (
+    TEXT_FILTER_LOOKUPS,
+    or_text_filter_q,
+)
 from model_hub.utils.eval_reasons import (
     MIN_ROWS_FOR_CRITICAL_ISSUES,
     get_explanation_summary,
@@ -2033,43 +2037,15 @@ class GetDatasetTableView(APIView):
                         )
                         continue
 
-                    # The UI sends filter_value as a list (e.g. ["C"]) for
-                    # array-typed columns; stringifying the list would emit a
-                    # Python repr ("['c']") that never matches a json.dumps cell.
-                    # Match each element instead — any element for the positive
-                    # ops, none of them for the negated ones.
-                    terms = (
-                        filter_value
-                        if isinstance(filter_value, list)
-                        else [filter_value]
-                    )
-                    terms = [str(term).lower() for term in terms]
-
-                    lookup_map = {
-                        "contains": "value__icontains",
-                        "not_contains": "value__icontains",
-                        "equals": "value__iexact",
-                        "not_equals": "value__iexact",
-                        "starts_with": "value__istartswith",
-                        "ends_with": "value__iendswith",
-                    }
-                    if filter_op not in lookup_map:
+                    condition = or_text_filter_q("value", filter_op, filter_value)
+                    if condition is None:
                         message = (
-                            "Invalid filter operation. \
-                            Allowed operations are: "
-                            + ", ".join(lookup_map.keys())
+                            "Invalid filter operation. Allowed operations are: "
+                            + ", ".join(TEXT_FILTER_LOOKUPS)
                         )
                         error_messages.append(message)
                         raise ValueError(message)
-
-                    lookup = lookup_map[filter_op]
-                    condition = Q()
-                    for term in terms:
-                        condition |= Q(**{lookup: term})
-                    if filter_op in ("not_contains", "not_equals"):
-                        cells = cells.filter(~condition, deleted=False)
-                    else:
-                        cells = cells.filter(condition, deleted=False)
+                    cells = cells.filter(condition, deleted=False)
 
                 elif filter_type == "boolean":
                     filter_value = str(filter_value).lower()
