@@ -2165,18 +2165,24 @@ def _filter_dataset_cells(cells, filter_type, filter_op, filter_value, column_ty
             if filter_op == "not_in":
                 return cells.filter(~condition)
             return cells.filter(condition)
-        text_value = "" if filter_value is None else str(filter_value)
-        op_map = {
-            "contains": Q(value__icontains=text_value),
-            "not_contains": Q(value__icontains=text_value),
-            "equals": Q(value__iexact=text_value),
-            "not_equals": Q(value__iexact=text_value),
-            "starts_with": Q(value__istartswith=text_value),
-            "ends_with": Q(value__iendswith=text_value),
+        # The UI sends filter_value as a list (e.g. ["C"]) for array-typed
+        # columns; stringifying it would emit a Python repr ("['c']") that never
+        # matches. Match each element instead (``values`` is already normalized
+        # above) — any element for the positive ops, none for the negated ones.
+        lookup_map = {
+            "contains": "value__icontains",
+            "not_contains": "value__icontains",
+            "equals": "value__iexact",
+            "not_equals": "value__iexact",
+            "starts_with": "value__istartswith",
+            "ends_with": "value__iendswith",
         }
-        condition = op_map.get(filter_op)
-        if condition is None:
+        lookup = lookup_map.get(filter_op)
+        if lookup is None:
             return cells.none()
+        condition = Q()
+        for term in values:
+            condition |= Q(**{lookup: "" if term is None else str(term)})
         if filter_op in ("not_contains", "not_equals"):
             return cells.filter(~condition)
         return cells.filter(condition)

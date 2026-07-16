@@ -2033,36 +2033,43 @@ class GetDatasetTableView(APIView):
                         )
                         continue
 
-                    filter_value = str(filter_value).lower()
-                    text_ops = {
-                        "contains": {"value__icontains": filter_value},
-                        "not_contains": {
-                            "value__icontains": filter_value,
-                            "negate": True,
-                        },
-                        "equals": {"value__iexact": filter_value},
-                        "not_equals": {
-                            "value__iexact": filter_value,
-                            "negate": True,
-                        },
-                        "starts_with": {"value__istartswith": filter_value},
-                        "ends_with": {"value__iendswith": filter_value},
-                    }
+                    # The UI sends filter_value as a list (e.g. ["C"]) for
+                    # array-typed columns; stringifying the list would emit a
+                    # Python repr ("['c']") that never matches a json.dumps cell.
+                    # Match each element instead — any element for the positive
+                    # ops, none of them for the negated ones.
+                    terms = (
+                        filter_value
+                        if isinstance(filter_value, list)
+                        else [filter_value]
+                    )
+                    terms = [str(term).lower() for term in terms]
 
-                    if filter_op not in text_ops:
+                    lookup_map = {
+                        "contains": "value__icontains",
+                        "not_contains": "value__icontains",
+                        "equals": "value__iexact",
+                        "not_equals": "value__iexact",
+                        "starts_with": "value__istartswith",
+                        "ends_with": "value__iendswith",
+                    }
+                    if filter_op not in lookup_map:
                         message = (
                             "Invalid filter operation. \
                             Allowed operations are: "
-                            + ", ".join(text_ops.keys())
+                            + ", ".join(lookup_map.keys())
                         )
                         error_messages.append(message)
                         raise ValueError(message)
 
-                    filter_kwargs = text_ops[filter_op]
-                    if filter_kwargs.pop("negate", False):
-                        cells = cells.filter(~Q(**filter_kwargs), deleted=False)
+                    lookup = lookup_map[filter_op]
+                    condition = Q()
+                    for term in terms:
+                        condition |= Q(**{lookup: term})
+                    if filter_op in ("not_contains", "not_equals"):
+                        cells = cells.filter(~condition, deleted=False)
                     else:
-                        cells = cells.filter(**filter_kwargs, deleted=False)
+                        cells = cells.filter(condition, deleted=False)
 
                 elif filter_type == "boolean":
                     filter_value = str(filter_value).lower()
