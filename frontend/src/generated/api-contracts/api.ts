@@ -21696,6 +21696,11 @@ export type modelHubAnnotationQueuesExportAnnotationsResponse409 = {
   status: 409
 }
 
+export type modelHubAnnotationQueuesExportAnnotationsResponse413 = {
+  data: ApiTextErrorResponseApi
+  status: 413
+}
+
 export type modelHubAnnotationQueuesExportAnnotationsResponse500 = {
   data: ApiTextErrorResponseApi
   status: 500
@@ -21703,13 +21708,13 @@ export type modelHubAnnotationQueuesExportAnnotationsResponse500 = {
 
 export type modelHubAnnotationQueuesExportAnnotationsResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 413 | 500>
 }
 
 export type modelHubAnnotationQueuesExportAnnotationsResponseSuccess = (modelHubAnnotationQueuesExportAnnotationsResponse200) & {
   headers: Headers;
 };
-export type modelHubAnnotationQueuesExportAnnotationsResponseError = (modelHubAnnotationQueuesExportAnnotationsResponse400 | modelHubAnnotationQueuesExportAnnotationsResponse403 | modelHubAnnotationQueuesExportAnnotationsResponse404 | modelHubAnnotationQueuesExportAnnotationsResponse409 | modelHubAnnotationQueuesExportAnnotationsResponse500 | modelHubAnnotationQueuesExportAnnotationsResponseDefault) & {
+export type modelHubAnnotationQueuesExportAnnotationsResponseError = (modelHubAnnotationQueuesExportAnnotationsResponse400 | modelHubAnnotationQueuesExportAnnotationsResponse403 | modelHubAnnotationQueuesExportAnnotationsResponse404 | modelHubAnnotationQueuesExportAnnotationsResponse409 | modelHubAnnotationQueuesExportAnnotationsResponse413 | modelHubAnnotationQueuesExportAnnotationsResponse500 | modelHubAnnotationQueuesExportAnnotationsResponseDefault) & {
   headers: Headers;
 };
 

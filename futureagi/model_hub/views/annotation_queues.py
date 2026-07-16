@@ -133,6 +133,7 @@ from model_hub.utils.utils import send_message_to_channel
 from simulate.models.test_execution import CallTranscript
 from simulate.utils.stored_transcript_roles import get_displayable_transcript_roles
 from tfc.utils.api_contracts import validated_request
+from tfc.utils.api_errors import ApiErrorCode
 from tfc.utils.api_serializers import (
     ApiSelectionTooLargeErrorSerializer,
     ApiTextErrorResponseSerializer,
@@ -3287,7 +3288,11 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
 
     @validated_request(
         query_serializer=QueueExportQuerySerializer,
-        responses={200: QueueExportAnnotationsResponseSerializer, **ERROR_RESPONSES},
+        responses={
+            200: QueueExportAnnotationsResponseSerializer,
+            413: ApiTextErrorResponseSerializer,
+            **ERROR_RESPONSES,
+        },
     )
     @action(detail=True, methods=["get"], url_path="export")
     def export_annotations(self, request, pk=None):
@@ -3331,7 +3336,7 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
                     "large to export in a single download. Filter to a smaller set "
                     "of items and try again."
                 ),
-                code="export_too_large",
+                code=ApiErrorCode.EXPORT_TOO_LARGE.value,
             )
         queue_label_ids = list(
             queue.queue_labels.filter(deleted=False).values_list("label_id", flat=True)
