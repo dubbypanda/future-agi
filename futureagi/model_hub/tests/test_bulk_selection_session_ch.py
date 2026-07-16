@@ -10,6 +10,7 @@ carve-out, workspace mismatch, cross-org). Real CH parity lives in the
 from __future__ import annotations
 
 import pytest
+from structlog.testing import capture_logs
 
 from model_hub.models.ai_model import AIModel
 from model_hub.services.bulk_selection import (
@@ -113,11 +114,18 @@ def test_ch_failure_propagates(monkeypatch):
         "tracer.services.clickhouse.v2.dispatch.get_query_builder_class",
         lambda name: _Boom,
     )
-    with pytest.raises(RuntimeError, match="CH down"):
-        _resolve_session_ids_clickhouse(
-            project_id="p1", non_score_filters=[], score_filters=[],
-            exclude_ids=set(), organization=None, cap=10,
-        )
+    with capture_logs() as logs:
+        with pytest.raises(RuntimeError, match="CH down"):
+            _resolve_session_ids_clickhouse(
+                project_id="p1", non_score_filters=[], score_filters=[],
+                exclude_ids=set(), organization=None, cap=10,
+            )
+    # The failure must leave a breadcrumb for log-based alerting before it raises.
+    assert any(
+        e["event"] == "bulk_selection_resolve_session_ch_query_failed"
+        and e["log_level"] == "warning"
+        for e in logs
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ the ``ch_rehearsal`` suite — here the builder + CH client are faked so the
 from __future__ import annotations
 
 import pytest
+from structlog.testing import capture_logs
 
 from model_hub.models.ai_model import AIModel
 from model_hub.services.bulk_selection import (
@@ -153,11 +154,18 @@ def test_ch_query_failure_propagates(monkeypatch):
         "tracer.services.clickhouse.v2.dispatch.get_query_builder_class",
         lambda name: _Boom,
     )
-    with pytest.raises(RuntimeError, match="CH down"):
-        _resolve_span_ids_clickhouse(
-            project_id="p1", filters=[], exclude_ids=set(), cap=10,
-            annotation_label_ids=[],
-        )
+    with capture_logs() as logs:
+        with pytest.raises(RuntimeError, match="CH down"):
+            _resolve_span_ids_clickhouse(
+                project_id="p1", filters=[], exclude_ids=set(), cap=10,
+                annotation_label_ids=[],
+            )
+    # The failure must leave a breadcrumb for log-based alerting before it raises.
+    assert any(
+        e["event"] == "bulk_selection_resolve_span_ch_query_failed"
+        and e["log_level"] == "warning"
+        for e in logs
+    )
 
 
 # ---------------------------------------------------------------------------

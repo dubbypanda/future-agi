@@ -948,8 +948,22 @@ def _resolve_span_ids_clickhouse(
     # build_id_query(limit=cap+1) gives the LIMIT cap+1 truncation sentinel
     # without a separate COUNT scan (same trick as the trace/voice/session CH
     # paths).
-    query, params = builder.build_id_query(limit=cap + 1)
-    result = AnalyticsQueryService().execute_ch_query(query, params, timeout_ms=15_000)
+    try:
+        query, params = builder.build_id_query(limit=cap + 1)
+        result = AnalyticsQueryService().execute_ch_query(
+            query, params, timeout_ms=15_000
+        )
+    except Exception as exc:
+        # CH is the sole span backend (PG tracer tables dropped); fail closed.
+        # Breadcrumb the outage for log-based alerting — the re-raise carries the
+        # Sentry error, so this stays WARNING to avoid a duplicate event.
+        logger.warning(
+            "bulk_selection_resolve_span_ch_query_failed",
+            project_id=str(project_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        raise
 
     ids = [str(r.get("id", "")) for r in result.data if r.get("id")]
     raw_truncated = len(ids) > cap
@@ -1270,8 +1284,20 @@ def _resolve_session_ids_clickhouse(
         filters=ch_filters,
         sort_params=[],
     )
-    query, params = builder.build()
-    result = analytics.execute_ch_query(query, params, timeout_ms=15_000)
+    try:
+        query, params = builder.build()
+        result = analytics.execute_ch_query(query, params, timeout_ms=15_000)
+    except Exception as exc:
+        # CH is the sole session backend (PG aggregate fallback removed); fail
+        # closed. Breadcrumb for log-based alerting; the re-raise carries the
+        # Sentry error, so this stays WARNING to avoid a duplicate event.
+        logger.warning(
+            "bulk_selection_resolve_session_ch_query_failed",
+            project_id=str(project_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        raise
     ids = [
         str(row.get("session_id", "")) for row in result.data if row.get("session_id")
     ]
