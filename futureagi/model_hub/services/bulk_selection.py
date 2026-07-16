@@ -163,8 +163,22 @@ def _resolve_voice_call_ids_clickhouse(
     # results it was the dominant /preview timeout. ``build()`` already adds
     # ``LIMIT cap + 1`` (voice_call_list.py:97), so the cap+1 sentinel gives
     # us "≥ cap" without a second scan.
-    ids_query, ids_params = builder.build()
-    ids_result = analytics.execute_ch_query(ids_query, ids_params, timeout_ms=15_000)
+    try:
+        ids_query, ids_params = builder.build()
+        ids_result = analytics.execute_ch_query(
+            ids_query, ids_params, timeout_ms=15_000
+        )
+    except Exception as exc:
+        # CH is the sole voice backend (PG tracer tables dropped); fail closed.
+        # Breadcrumb for log-based alerting; the re-raise carries the Sentry
+        # error, so this stays WARNING to avoid a duplicate event.
+        logger.warning(
+            "bulk_selection_resolve_voice_ch_query_failed",
+            project_id=str(project_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        raise
     ids = [str(r.get("trace_id", "")) for r in ids_result.data if r.get("trace_id")]
     raw_truncated = len(ids) > cap
 
@@ -281,8 +295,22 @@ def _resolve_trace_ids_clickhouse(
     # without a second uniqExact scan (the dominant /preview timeout source).
     # ``build()`` dedups per trace (``LIMIT 1 BY trace_id``) so ``len > cap`` is
     # an honest distinct-trace count.
-    ids_query, ids_params = builder.build()
-    ids_result = analytics.execute_ch_query(ids_query, ids_params, timeout_ms=15_000)
+    try:
+        ids_query, ids_params = builder.build()
+        ids_result = analytics.execute_ch_query(
+            ids_query, ids_params, timeout_ms=15_000
+        )
+    except Exception as exc:
+        # CH is the sole trace backend (PG tracer tables dropped); fail closed.
+        # Breadcrumb for log-based alerting; the re-raise carries the Sentry
+        # error, so this stays WARNING to avoid a duplicate event.
+        logger.warning(
+            "bulk_selection_resolve_trace_ch_query_failed",
+            project_id=str(project_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        raise
     ids = [str(r.get("trace_id", "")) for r in ids_result.data if r.get("trace_id")]
     raw_truncated = len(ids) > cap
 

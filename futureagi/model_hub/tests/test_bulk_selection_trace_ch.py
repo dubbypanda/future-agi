@@ -13,6 +13,7 @@ faked so the *wiring* is asserted deterministically without a live ClickHouse.
 from __future__ import annotations
 
 import pytest
+from structlog.testing import capture_logs
 
 from model_hub.models.ai_model import AIModel
 from model_hub.services.bulk_selection import (
@@ -136,11 +137,18 @@ def test_trace_ch_query_failure_propagates(monkeypatch):
         "tracer.services.clickhouse.query_builders.trace_list.TraceListQueryBuilder",
         _Boom,
     )
-    with pytest.raises(RuntimeError, match="CH down"):
-        _resolve_trace_ids_clickhouse(
-            project_id="p1", filters=[], exclude_ids=set(), cap=10,
-            annotation_label_ids=[],
-        )
+    with capture_logs() as logs:
+        with pytest.raises(RuntimeError, match="CH down"):
+            _resolve_trace_ids_clickhouse(
+                project_id="p1", filters=[], exclude_ids=set(), cap=10,
+                annotation_label_ids=[],
+            )
+    # The failure must leave a breadcrumb for log-based alerting before it raises.
+    assert any(
+        e["event"] == "bulk_selection_resolve_trace_ch_query_failed"
+        and e["log_level"] == "warning"
+        for e in logs
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -178,11 +186,18 @@ def test_voice_ch_query_failure_propagates(monkeypatch):
         "tracer.services.clickhouse.query_builders.VoiceCallListQueryBuilder",
         _Boom,
     )
-    with pytest.raises(RuntimeError, match="CH down"):
-        _resolve_voice_call_ids_clickhouse(
-            project_id="p1", filters=[], exclude_ids=set(), cap=10,
-            remove_simulation_calls=False, annotation_label_ids=[],
-        )
+    with capture_logs() as logs:
+        with pytest.raises(RuntimeError, match="CH down"):
+            _resolve_voice_call_ids_clickhouse(
+                project_id="p1", filters=[], exclude_ids=set(), cap=10,
+                remove_simulation_calls=False, annotation_label_ids=[],
+            )
+    # The failure must leave a breadcrumb for log-based alerting before it raises.
+    assert any(
+        e["event"] == "bulk_selection_resolve_voice_ch_query_failed"
+        and e["log_level"] == "warning"
+        for e in logs
+    )
 
 
 # ---------------------------------------------------------------------------
