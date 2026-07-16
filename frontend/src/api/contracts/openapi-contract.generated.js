@@ -41927,6 +41927,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "selection": {
           "$ref": "#/definitions/Selection"
+        },
+        "project_id": {
+          "title": "Project id",
+          "type": "string",
+          "format": "uuid"
         }
       }
     },

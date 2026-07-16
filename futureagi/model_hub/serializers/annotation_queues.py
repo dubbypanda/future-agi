@@ -684,7 +684,7 @@ class AddItemsSerializer(StrictInputSerializer):
     # The project the enumerated items belong to (the add dialog is project-scoped, like
     # filter mode). Lets the server scope the source-resolution reads to one tenant on
     # the ClickHouse PK prefix; optional so existing clients keep working.
-    project_id = serializers.UUIDField(required=False, allow_null=True)
+    project_id = serializers.UUIDField(required=False)
 
     def validate_items(self, value):
         if not value:
