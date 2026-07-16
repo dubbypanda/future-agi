@@ -553,10 +553,6 @@ SummarySubmenu.propTypes = {
   onSelect: PropTypes.func.isRequired,
 };
 
-// ---------------------------------------------------------------------------
-// Skeleton rows for the Knowledge Base list — checkbox + label placeholders
-// that mirror each KB MenuItem while pages load.
-// ---------------------------------------------------------------------------
 function KBSkeletonRows({ count }) {
   return Array.from({ length: count }).map((_, i) => (
     <Box
@@ -693,9 +689,6 @@ const ModelSelector = ({
     return Array.isArray(results) ? results : [];
   }, [connectorsData]);
 
-  // Fetch knowledge bases (paginated /get/ endpoint, searched server-side).
-  // The API has no `next` cursor, so paginate off `total_rows`: request the
-  // next zero-indexed page while fewer rows are loaded than the total.
   const {
     data: kbData,
     fetchNextPage: fetchNextKBPage,
@@ -964,10 +957,10 @@ const ModelSelector = ({
                 Knowledge Bases
               </Typography>
               {selectedKBs.map((kbId) => {
-                const kb = knowledgeBases.find((k) => (k.id || k.pk) === kbId);
+                const kb = knowledgeBases.find((k) => k.id === kbId);
                 return (
                   <Typography key={kbId} sx={{ fontSize: "11px" }}>
-                    • {kb?.name || kb?.title || "KB"}
+                    • {kb?.name || "KB"}
                   </Typography>
                 );
               })}
@@ -1681,8 +1674,8 @@ const ModelSelector = ({
 
                 {knowledgeBases.length > 0 ? (
                   knowledgeBases.map((kb) => {
-                    const kbId = kb.id || kb.pk;
-                    const kbName = kb.name || kb.title || "Untitled";
+                    const kbId = kb.id;
+                    const kbName = kb.name;
                     const isSelected = selectedKBs.includes(kbId);
                     return (
                       <MenuItem
