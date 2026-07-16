@@ -319,6 +319,32 @@ class TestAddItemsFilterMode:
         assert err.get("total_matching") == 3
         assert err.get("cap") == 2
 
+    def test_filter_mode_ch_failure_returns_503_not_500(
+        self, auth_client, active_queue, observe_project, monkeypatch
+    ):
+        # The filter-mode resolvers are ClickHouse-only (no PG fallback). A CH
+        # outage must surface as a structured, retryable 503 the FE can show —
+        # not a raw 500 from Django's default handler.
+        import model_hub.views.annotation_queues as views_mod
+
+        def _boom(**kwargs):
+            raise RuntimeError("CH down")
+
+        monkeypatch.setitem(views_mod.FILTER_MODE_RESOLVERS, "trace", _boom)
+        resp = auth_client.post(
+            _add_items_url(active_queue.id),
+            {
+                "selection": {
+                    "mode": "filter",
+                    "source_type": "trace",
+                    "project_id": str(observe_project.id),
+                }
+            },
+            format="json",
+        )
+        assert resp.status_code == 503, resp.data
+        assert resp.data.get("code") == "source_resolve_unavailable"
+
     def test_filter_mode_queue_item_count_matches_added(
         self, auth_client, active_queue, observe_project
     ):
