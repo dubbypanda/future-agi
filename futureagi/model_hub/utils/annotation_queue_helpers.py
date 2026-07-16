@@ -180,7 +180,9 @@ def filter_available_source_ids_for_annotation(
         return ordered_ids, 0, None
 
     roots_by_trace = _batch_ch_trace_roots(
-        ordered_ids, project_id=str(project_id) if project_id else None
+        ordered_ids,
+        project_id=str(project_id) if project_id else None,
+        caller="add_items",
     )
 
     def _available(trace_id):
@@ -733,7 +735,7 @@ def _ch_session_fields_for_item(session_id):
         return None
 
 
-def _batch_ch_spans(span_ids, *, project_id=None, include_heavy=True):
+def _batch_ch_spans(span_ids, *, project_id=None, include_heavy=True, caller="render"):
     """Batch CH point-read for a render path: ``{str(id): CHSpan}`` over *span_ids*
     in one query. CH error → ``{}`` (FAIL OPEN — the per-item collector branch then
     renders the ``deleted`` sentinel, same as a single-read miss). Backs
@@ -756,7 +758,10 @@ def _batch_ch_spans(span_ids, *, project_id=None, include_heavy=True):
             )
     except Exception as exc:
         logger.warning(
-            "ch_span_batch_render_error", count=len(span_ids), error=str(exc)
+            "ch_span_batch_render_error",
+            count=len(span_ids),
+            error=str(exc),
+            caller=caller,
         )
         return {}
     return {str(span.id): span for span in spans}
@@ -768,7 +773,7 @@ def _batch_ch_spans(span_ids, *, project_id=None, include_heavy=True):
 _CH_TRACE_ID_BATCH = 500
 
 
-def _batch_ch_trace_roots(trace_ids, *, project_id=None):
+def _batch_ch_trace_roots(trace_ids, *, project_id=None, caller="render"):
     """Batch CH read of each trace's root span for a render/availability path:
     ``{str(trace_id): CHSpan}`` over *trace_ids* (chunked, LEAN).
 
@@ -800,7 +805,12 @@ def _batch_ch_trace_roots(trace_ids, *, project_id=None):
                 ):
                     roots_by_trace.setdefault(str(span.trace_id), []).append(span)
     except Exception as exc:
-        logger.warning("ch_trace_roots_batch_error", count=len(ids), error=str(exc))
+        logger.warning(
+            "ch_trace_roots_batch_error",
+            count=len(ids),
+            error=str(exc),
+            caller=caller,
+        )
         return {}
     return {
         trace_id: _pick_conversation_root(spans)
@@ -808,7 +818,7 @@ def _batch_ch_trace_roots(trace_ids, *, project_id=None):
     }
 
 
-def _batch_ch_session_fields(session_ids, *, project_id=None):
+def _batch_ch_session_fields(session_ids, *, project_id=None, caller="render"):
     """Batch CH read of session identity fields: ``{str(id): fields}`` in one query.
     CH error → ``{}`` (FAIL OPEN). Companion to :func:`_batch_ch_spans`. ``project_id``
     (optional) scopes the read to one tenant on the ``trace_sessions`` PK prefix."""
@@ -825,7 +835,10 @@ def _batch_ch_session_fields(session_ids, *, project_id=None):
         )
     except Exception as exc:
         logger.warning(
-            "ch_session_batch_render_error", count=len(session_ids), error=str(exc)
+            "ch_session_batch_render_error",
+            count=len(session_ids),
+            error=str(exc),
+            caller=caller,
         )
         return {}
 
@@ -1030,17 +1043,19 @@ def _resolve_ch_sources_bulk(source_type, ids, *, project_id, organization, work
 
     pid = str(project_id)
     if source_type == QueueItemSourceType.TRACE.value:
-        roots = _batch_ch_trace_roots(ids, project_id=pid)
+        roots = _batch_ch_trace_roots(ids, project_id=pid, caller="add_items")
         return {
             (source_type, str(trace_id)): _CHTraceSource(trace_id, root)
             for trace_id, root in roots.items()
             if root is not None
         }
     if source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
-        spans = _batch_ch_spans(ids, project_id=pid, include_heavy=False)
+        spans = _batch_ch_spans(
+            ids, project_id=pid, include_heavy=False, caller="add_items"
+        )
         return {(source_type, str(span_id)): span for span_id, span in spans.items()}
     if source_type == QueueItemSourceType.TRACE_SESSION.value:
-        fields_by_id = _batch_ch_session_fields(ids, project_id=pid)
+        fields_by_id = _batch_ch_session_fields(ids, project_id=pid, caller="add_items")
         resolved = {}
         for session_id, fields in fields_by_id.items():
             if not fields:

@@ -161,6 +161,13 @@ ERROR_RESPONSES = {
 # ``selection_too_large`` so the UI can prompt the user to narrow the filter.
 MAX_SELECTION_CAP = 10_000
 
+# Enumerated add-items is synchronous: the whole payload is resolved (one CH
+# IN-list per kind) and inserted in one request. The FE chunks at 500, so cap the
+# raw payload at 2x that — an SDK/API caller can otherwise POST a pathological
+# list that becomes one giant CH IN(...) plus a long sequential INSERT run under
+# the gateway timeout. Filter-mode has its own MAX_SELECTION_CAP.
+ADD_ITEMS_SYNC_MAX = 1_000
+
 
 def _queue_item_export_prefetches():
     # Tracer sources (trace / observation_span) render CH-native via
@@ -4773,8 +4780,20 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         if data.get("selection"):
             return self._add_items_filter_mode(request, queue, data["selection"])
 
+        items = data["items"]
+        if len(items) > ADD_ITEMS_SYNC_MAX:
+            return self._gm.custom_error_response(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                result=(
+                    f"This request has {len(items)} items, over the "
+                    f"{ADD_ITEMS_SYNC_MAX}-item cap for a single add. "
+                    "Split it into smaller batches."
+                ),
+                code="items_too_large",
+            )
+
         return self._add_items_enumerated(
-            request, queue, data["items"], project_id=data.get("project_id")
+            request, queue, items, project_id=data.get("project_id")
         )
 
     def _add_items_enumerated(self, request, queue, items_data, project_id=None):

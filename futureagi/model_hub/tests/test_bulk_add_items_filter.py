@@ -14,6 +14,7 @@ from datetime import timedelta
 
 import pytest
 from django.utils import timezone
+from structlog.testing import capture_logs
 
 from model_hub.models.ai_model import AIModel
 from model_hub.models.annotation_queues import AnnotationQueue, QueueItem
@@ -285,12 +286,49 @@ class TestAddItemsEnumeratedRegression:
             "tracer.services.clickhouse.v2.get_reader",
             return_value=_RaisingReaderCM(),
         ):
-            resp = auth_client.post(
-                _add_items_url(active_queue.id), payload, format="json"
-            )
+            with capture_logs() as logs:
+                resp = auth_client.post(
+                    _add_items_url(active_queue.id), payload, format="json"
+                )
         assert resp.status_code == 200, resp.data
         assert resp.data["result"]["added"] == 0
         assert resp.data["result"]["errors"]
+        # The CH failure must be attributed to the add path (caller="add_items"),
+        # not the default "render", so an add-time outage doesn't get bucketed
+        # under render errors and misdirect oncall.
+        assert any(
+            e["event"] == "ch_span_batch_render_error"
+            and e.get("caller") == "add_items"
+            for e in logs
+        )
+
+    def test_enumerated_over_cap_returns_413(
+        self, auth_client, active_queue, observe_project
+    ):
+        """An enumerated payload larger than the sync cap is rejected with a 413 +
+        code before any resolve/insert, so an oversized add can't pin the worker
+        pool on one giant IN(...) + sequential INSERT run."""
+        import uuid
+
+        import model_hub.views.annotation_queues as views_mod
+
+        # Lower the cap for the test instead of POSTing 1001 items.
+        original = views_mod.ADD_ITEMS_SYNC_MAX
+        views_mod.ADD_ITEMS_SYNC_MAX = 2
+        try:
+            items = [
+                {"source_type": "trace", "source_id": str(uuid.uuid4())}
+                for _ in range(3)
+            ]
+            resp = auth_client.post(
+                _add_items_url(active_queue.id),
+                {"items": items, "project_id": str(observe_project.id)},
+                format="json",
+            )
+        finally:
+            views_mod.ADD_ITEMS_SYNC_MAX = original
+        assert resp.status_code == 413, resp.data
+        assert resp.data.get("code") == "items_too_large"
 
 
 # --------------------------------------------------------------------------
