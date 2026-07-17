@@ -153,7 +153,9 @@ def is_source_available_for_annotation(source_type, source_obj):
     if source_type != QueueItemSourceType.TRACE.value:
         return True, None
     root_span = getattr(source_obj, "root_span", None)
-    if root_span is None or _is_terminal_span_status(getattr(root_span, "status", None)):
+    if root_span is None or _is_terminal_span_status(
+        getattr(root_span, "status", None)
+    ):
         return True, None
     return False, TRACE_IN_PROGRESS_ADD_ERROR
 
@@ -178,7 +180,9 @@ def filter_available_source_ids_for_annotation(
         return ordered_ids, 0, None
 
     roots_by_trace = _batch_ch_trace_roots(
-        ordered_ids, project_id=str(project_id) if project_id else None
+        ordered_ids,
+        project_id=str(project_id) if project_id else None,
+        caller="add_items",
     )
 
     def _available(trace_id):
@@ -467,6 +471,22 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
     if obj is None:
         return None
 
+    if not _source_passes_tenant_gate(
+        obj, source_type, source_id, organization=organization, workspace=workspace
+    ):
+        return None
+
+    return obj
+
+
+def _source_passes_tenant_gate(
+    obj, source_type, source_id, *, organization=None, workspace=None
+):
+    """Org + workspace gate for a PG-backed source, shared by the per-item
+    (:func:`resolve_source_object`) and bulk (:func:`_resolve_pg_sources_bulk`)
+    resolvers so both apply the identical rule. FAIL CLOSED: a missing/mismatched org,
+    or a workspace that doesn't match (allowing a null source workspace only under a
+    default workspace), denies. ``None`` org/workspace skips that check (unscoped call)."""
     if organization is not None:
         obj_org = _get_source_organization(obj)
         if obj_org is None or obj_org != organization:
@@ -477,7 +497,7 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
                 expected_org=str(organization.pk),
                 actual_org=str(obj_org.pk) if obj_org else None,
             )
-            return None
+            return False
 
     if workspace is not None:
         obj_ws = _get_source_workspace(obj)
@@ -492,9 +512,9 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
                 expected_workspace=str(workspace.pk),
                 actual_workspace=str(obj_ws.pk) if obj_ws else None,
             )
-            return None
+            return False
 
-    return obj
+    return True
 
 
 def _tenant_scoped_project(project_id, *, organization=None, workspace=None):
@@ -715,13 +735,16 @@ def _ch_session_fields_for_item(session_id):
         return None
 
 
-def _batch_ch_spans(span_ids, *, project_id=None):
+def _batch_ch_spans(span_ids, *, project_id=None, include_heavy=True, caller="render"):
     """Batch CH point-read for a render path: ``{str(id): CHSpan}`` over *span_ids*
     in one query. CH error → ``{}`` (FAIL OPEN — the per-item collector branch then
     renders the ``deleted`` sentinel, same as a single-read miss). Backs
     :class:`CollectorSourceCache` so list/export pages do one CH read, not one per item.
     ``project_id`` (optional) scopes the read to one tenant on the ``spans`` PK prefix;
-    omit for prior behavior — see :func:`_batch_ch_trace_roots` on why not ``org_id``."""
+    omit for prior behavior — see :func:`_batch_ch_trace_roots` on why not ``org_id``.
+    ``include_heavy`` defaults True (the render path needs the preview/content columns);
+    the add path passes ``False`` to read only the identity/status columns it gates and
+    stamps on, so a large scoped add stays a sub-second point read, not a heavy scan."""
     if not span_ids:
         return {}
     from tracer.services.clickhouse.v2 import get_reader
@@ -729,11 +752,17 @@ def _batch_ch_spans(span_ids, *, project_id=None):
     try:
         with get_reader() as reader:
             spans = reader.list_by_ids(
-                [str(s) for s in span_ids], project_id=project_id
+                [str(s) for s in span_ids],
+                project_id=project_id,
+                include_heavy=include_heavy,
             )
     except Exception as exc:
         logger.warning(
-            "ch_span_batch_render_error", count=len(span_ids), error=str(exc)
+            "ch_bulk_resolve_failed",
+            source_type="span",
+            count=len(span_ids),
+            error=str(exc),
+            caller=caller,
         )
         return {}
     return {str(span.id): span for span in spans}
@@ -745,7 +774,7 @@ def _batch_ch_spans(span_ids, *, project_id=None):
 _CH_TRACE_ID_BATCH = 500
 
 
-def _batch_ch_trace_roots(trace_ids, *, project_id=None):
+def _batch_ch_trace_roots(trace_ids, *, project_id=None, caller="render"):
     """Batch CH read of each trace's root span for a render/availability path:
     ``{str(trace_id): CHSpan}`` over *trace_ids* (chunked, LEAN).
 
@@ -777,7 +806,13 @@ def _batch_ch_trace_roots(trace_ids, *, project_id=None):
                 ):
                     roots_by_trace.setdefault(str(span.trace_id), []).append(span)
     except Exception as exc:
-        logger.warning("ch_trace_roots_batch_error", count=len(ids), error=str(exc))
+        logger.warning(
+            "ch_bulk_resolve_failed",
+            source_type="trace",
+            count=len(ids),
+            error=str(exc),
+            caller=caller,
+        )
         return {}
     return {
         trace_id: _pick_conversation_root(spans)
@@ -785,7 +820,7 @@ def _batch_ch_trace_roots(trace_ids, *, project_id=None):
     }
 
 
-def _batch_ch_session_fields(session_ids, *, project_id=None):
+def _batch_ch_session_fields(session_ids, *, project_id=None, caller="render"):
     """Batch CH read of session identity fields: ``{str(id): fields}`` in one query.
     CH error → ``{}`` (FAIL OPEN). Companion to :func:`_batch_ch_spans`. ``project_id``
     (optional) scopes the read to one tenant on the ``trace_sessions`` PK prefix."""
@@ -797,14 +832,16 @@ def _batch_ch_session_fields(session_ids, *, project_id=None):
 
     try:
         return (
-            resolve_session_fields(
-                [str(s) for s in session_ids], project_id=project_id
-            )
+            resolve_session_fields([str(s) for s in session_ids], project_id=project_id)
             or {}
         )
     except Exception as exc:
         logger.warning(
-            "ch_session_batch_render_error", count=len(session_ids), error=str(exc)
+            "ch_bulk_resolve_failed",
+            source_type="session",
+            count=len(session_ids),
+            error=str(exc),
+            caller=caller,
         )
         return {}
 
@@ -871,9 +908,7 @@ class CollectorSourceCache:
             sessions.update(
                 _batch_ch_session_fields(buckets["sessions"], project_id=pid)
             )
-            trace_roots.update(
-                _batch_ch_trace_roots(buckets["traces"], project_id=pid)
-            )
+            trace_roots.update(_batch_ch_trace_roots(buckets["traces"], project_id=pid))
         return cls(spans=spans, sessions=sessions, trace_roots=trace_roots)
 
     def span(self, span_id):
@@ -930,6 +965,169 @@ class _CHTraceSessionSource:
         self.project_id = project_id
         self.name = name
         self.first_seen = first_seen
+
+
+# Above this many CH-native ids resolved without a project to scope by, the add path
+# takes the per-item CH fallback (bounded, but slow enough to be worth a log line).
+# 25 keeps that fallback's sequential point-reads well under the gateway timeout while
+# still flagging an unusually large no-project add: a project-scoped UI add takes the
+# batched path and never reaches here, so crossing this is an SDK/API caller.
+_CH_BULK_FALLBACK_WARN = 25
+
+# select_related paths that let the PG tenant gate traverse org/workspace off a batched
+# fetch without a lazy load per row. Only dataset_row is common on the enumerated add
+# path; the rarer kinds keep their multi-hop traversal lazy (small N).
+_PG_SOURCE_SELECT_RELATED = {
+    QueueItemSourceType.DATASET_ROW.value: ("dataset",),
+}
+
+
+def resolve_source_objects_bulk(
+    items_data, *, project_id=None, organization=None, workspace=None
+):
+    """Batch sibling of :func:`resolve_source_object` for the enumerated add path.
+
+    Returns ``{(source_type, str(source_id)): source_obj}`` for every resolved,
+    tenant-verified source in *items_data* (a missing or cross-tenant id is simply
+    absent — the caller reports it). One scoped CH read per tracer kind + one ``pk__in``
+    fetch per PG kind, replacing the former per-item N+1 (a fresh CH client + point read
+    + ``.exists()`` per item, which blew the 30s gateway on large adds).
+
+    The CH-native kinds need *project_id* (the payload's project) to scope the read to
+    the ``spans`` PK prefix — an unscoped batch of a few hundred ids scans the whole
+    multi-tenant table and times out, so batching without scoping is strictly worse than
+    the N+1. The tenant is gated against that project **once** here (fail closed); a
+    scoped read then only returns that project's rows, so no per-row project check is
+    needed. When *project_id* is absent (or not the caller's), the CH kinds fall back to
+    the per-item resolver (bounded — a point read per id). PG kinds resolve regardless."""
+    from collections import defaultdict
+
+    ids_by_type: dict[str, list[str]] = defaultdict(list)
+    seen: set[tuple[str, str]] = set()
+    for item in items_data:
+        source_type = item["source_type"]
+        source_id = str(item["source_id"])
+        if (source_type, source_id) in seen:
+            continue
+        seen.add((source_type, source_id))
+        ids_by_type[source_type].append(source_id)
+
+    ch_scope_ok = (
+        project_id is not None
+        and _tenant_scoped_project(
+            project_id, organization=organization, workspace=workspace
+        )
+        is not None
+    )
+
+    resolved: dict[tuple[str, str], object] = {}
+    for source_type, ids in ids_by_type.items():
+        if source_type in _CH_NATIVE_SOURCE_TYPES:
+            resolved.update(
+                _resolve_ch_sources_bulk(
+                    source_type,
+                    ids,
+                    project_id=project_id if ch_scope_ok else None,
+                    organization=organization,
+                    workspace=workspace,
+                )
+            )
+        else:
+            resolved.update(
+                _resolve_pg_sources_bulk(
+                    source_type,
+                    ids,
+                    organization=organization,
+                    workspace=workspace,
+                )
+            )
+    return resolved
+
+
+def _resolve_ch_sources_bulk(source_type, ids, *, project_id, organization, workspace):
+    """Resolve CH-native sources (trace / observation_span / trace_session) for the add
+    path → ``{(source_type, str(id)): source_obj}``. With *project_id* (already tenant-
+    gated by the caller): one scoped, LEAN batch read — the only shape that stays under
+    the gateway timeout at scale. Without it: per-item fallback via
+    :func:`resolve_source_object` (bounded — a point read per id, never a full scan).
+    FAIL OPEN on CH errors is inherited from the batch helpers (a miss ⇒ the id is
+    absent ⇒ the caller reports it as an add error)."""
+    if not ids:
+        return {}
+
+    if not project_id:
+        if len(ids) > _CH_BULK_FALLBACK_WARN:
+            logger.warning(
+                "add_items_ch_resolve_unscoped_fallback",
+                source_type=source_type,
+                count=len(ids),
+            )
+        resolved = {}
+        for source_id in ids:
+            obj = resolve_source_object(
+                source_type,
+                source_id,
+                organization=organization,
+                workspace=workspace,
+            )
+            if obj is not None:
+                resolved[(source_type, str(source_id))] = obj
+        return resolved
+
+    pid = str(project_id)
+    if source_type == QueueItemSourceType.TRACE.value:
+        roots = _batch_ch_trace_roots(ids, project_id=pid, caller="add_items")
+        return {
+            (source_type, str(trace_id)): _CHTraceSource(trace_id, root)
+            for trace_id, root in roots.items()
+            if root is not None
+        }
+    if source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
+        spans = _batch_ch_spans(
+            ids, project_id=pid, include_heavy=False, caller="add_items"
+        )
+        return {(source_type, str(span_id)): span for span_id, span in spans.items()}
+    if source_type == QueueItemSourceType.TRACE_SESSION.value:
+        fields_by_id = _batch_ch_session_fields(ids, project_id=pid, caller="add_items")
+        resolved = {}
+        for session_id, fields in fields_by_id.items():
+            if not fields:
+                continue
+            session_pid = fields.get("project_id")
+            resolved[(source_type, str(session_id))] = _CHTraceSessionSource(
+                id=str(session_id),
+                project_id=str(session_pid) if session_pid else None,
+                name=fields.get("display_name")
+                or fields.get("external_session_id")
+                or "",
+                first_seen=fields.get("first_seen"),
+            )
+        return resolved
+    return {}
+
+
+def _resolve_pg_sources_bulk(source_type, ids, *, organization, workspace):
+    """Batch-fetch + tenant-gate PG-backed sources (dataset_row / call_execution /
+    prototype_run) for the add path → ``{(source_type, str(pk)): obj}``. One ``pk__in``
+    query for the fetch (vs one per item), gated per row through the SAME
+    :func:`_source_passes_tenant_gate` the per-item resolver uses (fail closed). A row
+    that isn't found or doesn't pass the gate is simply absent."""
+    if not ids:
+        return {}
+    model = get_source_model(source_type)
+    if model is None:
+        return {}
+    queryset = model.objects.filter(pk__in=list(ids))
+    select_related = _PG_SOURCE_SELECT_RELATED.get(source_type)
+    if select_related:
+        queryset = queryset.select_related(*select_related)
+    resolved = {}
+    for obj in queryset:
+        if _source_passes_tenant_gate(
+            obj, source_type, obj.pk, organization=organization, workspace=workspace
+        ):
+            resolved[(source_type, str(obj.pk))] = obj
+    return resolved
 
 
 def _get_source_organization(obj):

@@ -6038,6 +6038,7 @@ export interface SelectionApi {
 export interface AddItemsApi {
   items?: AddQueueItemApi[];
   selection?: SelectionApi;
+  project_id?: string;
 }
 
 export interface QueueAddItemsResultApi {
@@ -6088,6 +6089,49 @@ export interface ApiSelectionTooLargeErrorApi {
   /** @minLength 1 */
   message: string;
   error: ApiSelectionTooLargeDetailApi;
+}
+
+export type ApiTooLargeErrorApiType = typeof ApiTooLargeErrorApiType[keyof typeof ApiTooLargeErrorApiType];
+
+
+export const ApiTooLargeErrorApiType = {
+  validation_error: 'validation_error',
+  authentication_error: 'authentication_error',
+  payment_required: 'payment_required',
+  entitlement_error: 'entitlement_error',
+  permission_error: 'permission_error',
+  not_found: 'not_found',
+  conflict: 'conflict',
+  client_error: 'client_error',
+  rate_limit: 'rate_limit',
+  server_error: 'server_error',
+  service_unavailable: 'service_unavailable',
+  timeout: 'timeout',
+  api_error: 'api_error',
+} as const;
+
+export type ApiTooLargeErrorApiCode = typeof ApiTooLargeErrorApiCode[keyof typeof ApiTooLargeErrorApiCode];
+
+
+export const ApiTooLargeErrorApiCode = {
+  export_too_large: 'export_too_large',
+  items_too_large: 'items_too_large',
+} as const;
+
+export type ApiTooLargeErrorApiDetails = {[key: string]: string[]};
+
+export interface ApiTooLargeErrorApi {
+  status?: boolean;
+  type?: ApiTooLargeErrorApiType;
+  code?: ApiTooLargeErrorApiCode;
+  detail?: string;
+  /** @minLength 1 */
+  result?: string;
+  /** @minLength 1 */
+  message?: string;
+  error?: string;
+  attr?: string;
+  details?: ApiTooLargeErrorApiDetails;
 }
 
 export type AssignItemsApiAction = typeof AssignItemsApiAction[keyof typeof AssignItemsApiAction];

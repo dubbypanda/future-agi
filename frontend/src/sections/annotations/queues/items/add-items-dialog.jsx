@@ -684,6 +684,14 @@ export default function AddItemsDialog({ open, onClose, queueId, queue }) {
         }));
       }
 
+      // The project these items belong to — the dialog is project-scoped, so the
+      // server can scope its source-resolution reads to one tenant (fast) instead of
+      // scanning the whole ClickHouse table. Mirrors the filter-mode payload.
+      const enumeratedProjectId =
+        selectionMode === "selectAll" && selectAllInfo
+          ? selectAllInfo.projectId
+          : selectedProjectId;
+
       // Batch enumerated payloads into chunks of 500
       const BATCH_SIZE = 500;
       const totalCount = itemsToAdd.length;
@@ -693,7 +701,7 @@ export default function AddItemsDialog({ open, onClose, queueId, queue }) {
           const batch = itemsToAdd.slice(i, i + BATCH_SIZE);
           const resp = await new Promise((resolve, reject) => {
             addItems(
-              { queueId, items: batch },
+              { queueId, items: batch, project_id: enumeratedProjectId },
               { onSuccess: resolve, onError: reject },
             );
           });
@@ -708,7 +716,7 @@ export default function AddItemsDialog({ open, onClose, queueId, queue }) {
         onClose();
       } else {
         addItems(
-          { queueId, items: itemsToAdd },
+          { queueId, items: itemsToAdd, project_id: enumeratedProjectId },
           {
             onSuccess: (resp) => {
               const { message, variant } = addResultToast(

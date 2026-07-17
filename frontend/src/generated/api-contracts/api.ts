@@ -194,6 +194,7 @@ import type {
   ApiKeySuccessResponseApi,
   ApiSelectionTooLargeErrorApi,
   ApiTextErrorResponseApi,
+  ApiTooLargeErrorApi,
   ApiTracesSpanAttributeDetailListParams,
   ApiTracesSpanAttributeKeysListParams,
   ApiTracesSpanAttributeValuesListParams,
@@ -22640,6 +22641,11 @@ export type modelHubAnnotationQueuesItemsAddItemsResponse404 = {
   status: 404
 }
 
+export type modelHubAnnotationQueuesItemsAddItemsResponse413 = {
+  data: ApiTooLargeErrorApi
+  status: 413
+}
+
 export type modelHubAnnotationQueuesItemsAddItemsResponse503 = {
   data: ApiTextErrorResponseApi
   status: 503
@@ -22647,13 +22653,13 @@ export type modelHubAnnotationQueuesItemsAddItemsResponse503 = {
 
 export type modelHubAnnotationQueuesItemsAddItemsResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 503>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 413 | 503>
 }
 
 export type modelHubAnnotationQueuesItemsAddItemsResponseSuccess = (modelHubAnnotationQueuesItemsAddItemsResponse200) & {
   headers: Headers;
 };
-export type modelHubAnnotationQueuesItemsAddItemsResponseError = (modelHubAnnotationQueuesItemsAddItemsResponse400 | modelHubAnnotationQueuesItemsAddItemsResponse403 | modelHubAnnotationQueuesItemsAddItemsResponse404 | modelHubAnnotationQueuesItemsAddItemsResponse503 | modelHubAnnotationQueuesItemsAddItemsResponseDefault) & {
+export type modelHubAnnotationQueuesItemsAddItemsResponseError = (modelHubAnnotationQueuesItemsAddItemsResponse400 | modelHubAnnotationQueuesItemsAddItemsResponse403 | modelHubAnnotationQueuesItemsAddItemsResponse404 | modelHubAnnotationQueuesItemsAddItemsResponse413 | modelHubAnnotationQueuesItemsAddItemsResponse503 | modelHubAnnotationQueuesItemsAddItemsResponseDefault) & {
   headers: Headers;
 };
 
