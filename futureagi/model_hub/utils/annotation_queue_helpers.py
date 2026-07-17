@@ -886,6 +886,33 @@ class CollectorSourceCache:
         return self._sessions.get(str(session_id)) if session_id else None
 
 
+def dataset_cells_by_row(items):
+    """Batch the dataset-row cell read for a render/export page: ``{row_id(str): [Cell]}``.
+
+    The Postgres companion to :class:`CollectorSourceCache`. ``resolve_source_content``
+    builds a dataset row's field map from its cells; run once per item that is an
+    unbatched ``Cell.objects.filter(row=…)`` — an N+1 across a list/export page. Build
+    this map once and pass it as ``cell_cache=`` so the page does a single ``row_id__in``
+    read. Every requested row_id is pre-seeded with ``[]``: a row with no cells is a
+    cache HIT (no fallback query); a row_id absent from the map was never batched, so
+    the caller falls back to its own per-row read (keys are ``str`` throughout to dodge
+    the UUID-vs-str lookup mismatch)."""
+    row_ids = [
+        str(item.dataset_row_id)
+        for item in items or []
+        if getattr(item, "source_type", None) == QueueItemSourceType.DATASET_ROW.value
+        and getattr(item, "dataset_row_id", None)
+    ]
+    if not row_ids:
+        return {}
+    from model_hub.models.develop_dataset import Cell
+
+    cells_by_row = {row_id: [] for row_id in row_ids}
+    for cell in Cell.objects.filter(row_id__in=row_ids).select_related("column"):
+        cells_by_row[str(cell.row_id)].append(cell)
+    return cells_by_row
+
+
 class _CHTraceSessionSource:
     """Duck-typed stand-in for a PG ``TraceSession`` resolved from CH. Carries only
     the attributes the annotation scope/store/render path reads off a session
@@ -1106,13 +1133,15 @@ def resolve_source_preview(item, *, ch_cache=None):
     return {"type": item.source_type, "error": "Could not resolve preview"}
 
 
-def resolve_source_content(item, *, ch_cache=None):
+def resolve_source_content(item, *, ch_cache=None, cell_cache=None):
     """Return full renderable content for a QueueItem's source (used in annotation view).
 
     Tracer sources (trace / observation_span / trace_session) are read CH-only.
     ``ch_cache`` (opt-in :class:`CollectorSourceCache`): when supplied, they read
-    from the page-batched map instead of a per-item CH point-read. Single-item
-    callers pass ``None`` and keep the per-item read."""
+    from the page-batched map instead of a per-item CH point-read. ``cell_cache``
+    (opt-in, from :func:`dataset_cells_by_row`): when supplied, a dataset row's cells
+    read from the page-batched map instead of a per-item ``Cell`` query. Single-item
+    callers pass ``None`` for both and keep the per-item reads."""
     try:
         if item.source_type == QueueItemSourceType.DATASET_ROW.value:
             row = item.dataset_row
@@ -1133,9 +1162,13 @@ def resolve_source_content(item, *, ch_cache=None):
             fields = {}
             field_types = {}
             try:
-                from model_hub.models.develop_dataset import Cell
+                row_key = str(row.id)
+                if cell_cache is not None and row_key in cell_cache:
+                    cells = cell_cache[row_key]
+                else:
+                    from model_hub.models.develop_dataset import Cell
 
-                cells = Cell.objects.filter(row=row).select_related("column")
+                    cells = Cell.objects.filter(row=row).select_related("column")
                 for cell in cells:
                     col_name = (
                         cell.column.name if cell.column else f"column_{cell.column_id}"
