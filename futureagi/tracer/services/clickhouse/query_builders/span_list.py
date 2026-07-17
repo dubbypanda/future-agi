@@ -443,7 +443,9 @@ class SpanListQueryBuilder(BaseQueryBuilder):
                 "AND created_at >= %(evals_created_after)s - INTERVAL 7 DAY"
             )
 
-        eval_table, eval_not_deleted = eval_logger_source()
+        eval_table, eval_not_deleted = eval_logger_source(
+            include_cdc_tombstone_guard=True
+        )
         # ReplacingMergeTree version column: v2 uses `_version`, the legacy CDC
         # mirror uses `_peerdb_version`. Used to keep the newest row per eval id
         # when de-duplicating without FINAL (see the FROM clause below).
