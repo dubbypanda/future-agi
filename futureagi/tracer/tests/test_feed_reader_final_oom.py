@@ -121,6 +121,13 @@ def test_totals_by_trace_ids_prunes_by_project():
     client = _RecordingClient()
     _reader_with(client).totals_by_trace_ids(["t1"], ["p1"])
     assert "FINAL" not in client.sql
+    # Enforce the exception, don't just comment it: this reader is NON-FINAL so
+    # the engine won't drop deleted rows for it — the is_deleted=0 predicate MUST
+    # stay and the skip-index setting MUST NOT be added. A "drop is_deleted
+    # everywhere" cleanup would otherwise leak deleted spans into the per-trace
+    # totals with every other test still green.
+    assert "is_deleted = 0" in client.sql
+    assert client.settings.get("use_skip_indexes_if_final") is None
     assert "project_id IN %(project_ids)s" in client.sql
     assert client.params.get("project_ids") == ("p1",)
     # unscoped call stays cross-project (backwards compatible)
