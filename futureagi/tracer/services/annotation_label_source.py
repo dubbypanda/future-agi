@@ -37,30 +37,73 @@ class AnnotationLabelScoresPG:
         ]
 
 
-class AnnotationLabelScoresCH:
-    """v2: label ids of scores in a project, via CH ``model_hub_score`` scoped by ``spans``."""
+# Scope model_hub_score (s) to tracer projects via spans. Param: project_ids (list[str]).
+_CH_PROJECT_SCOPE = """(
+        (isNotNull(s.trace_id) AND toString(s.trace_id) IN (
+            SELECT DISTINCT trace_id FROM spans
+            WHERE project_id IN %(project_ids)s AND is_deleted = 0
+        ))
+        OR (s.observation_span_id IN (
+            SELECT DISTINCT id FROM spans
+            WHERE project_id IN %(project_ids)s AND is_deleted = 0
+        ))
+    )"""
 
-    _QUERY = """
+
+class AnnotationLabelScoresCH:
+    """v2: label ids + filter-value reads over ``model_hub_score``, scoped by ``spans``."""
+
+    _QUERY = f"""
         SELECT DISTINCT toString(label_id) AS label_id
         FROM model_hub_score AS s FINAL
         WHERE s.deleted = false
           AND s._peerdb_is_deleted = 0
-          AND (
-            (isNotNull(s.trace_id) AND toString(s.trace_id) IN (
-                SELECT DISTINCT trace_id FROM spans
-                WHERE project_id = toUUID(%(project_id)s) AND is_deleted = 0
-            ))
-            OR (s.observation_span_id IN (
-                SELECT DISTINCT id FROM spans
-                WHERE project_id = toUUID(%(project_id)s) AND is_deleted = 0
-            ))
-          )
+          AND {_CH_PROJECT_SCOPE}
     """
 
     def label_ids_for_project(self, project_id) -> list[str]:
         from tracer.services.clickhouse.client import get_clickhouse_client
 
         rows, _types, _ms = get_clickhouse_client().execute_read(
-            self._QUERY, {"project_id": str(project_id)}, timeout_ms=30000
+            self._QUERY, {"project_ids": [str(project_id)]}, timeout_ms=30000
         )
         return [r[0] for r in rows if r and r[0]]
+
+    def annotator_ids_for_projects(self, project_ids: list[str]) -> list[str]:
+        if not project_ids:
+            return []
+        from tracer.services.clickhouse.client import get_clickhouse_client
+
+        query = f"""
+            SELECT DISTINCT toString(annotator_id) AS annotator_id
+            FROM model_hub_score AS s FINAL
+            WHERE s.deleted = false AND s._peerdb_is_deleted = 0
+              AND isNotNull(s.annotator_id)
+              AND {_CH_PROJECT_SCOPE}
+        """
+        rows, _t, _ms = get_clickhouse_client().execute_read(
+            query, {"project_ids": [str(p) for p in project_ids]}, timeout_ms=30000
+        )
+        return [r[0] for r in rows if r and r[0]]
+
+    def categorical_values_for_label(
+        self, label_id, project_ids: list[str]
+    ) -> list[str]:
+        if not project_ids:
+            return []
+        from tracer.services.clickhouse.client import get_clickhouse_client
+
+        query = f"""
+            SELECT value FROM model_hub_score AS s FINAL
+            WHERE s.deleted = false AND s._peerdb_is_deleted = 0
+              AND toString(s.label_id) = %(label_id)s
+              AND {_CH_PROJECT_SCOPE}
+            ORDER BY s.updated_at DESC
+            LIMIT 5000
+        """
+        rows, _t, _ms = get_clickhouse_client().execute_read(
+            query,
+            {"label_id": str(label_id), "project_ids": [str(p) for p in project_ids]},
+            timeout_ms=30000,
+        )
+        return [r[0] for r in rows if r and r[0] not in (None, "")]
