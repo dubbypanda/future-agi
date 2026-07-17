@@ -142,6 +142,27 @@ class VapiRecordingService:
             return None
 
     @classmethod
+    def get_api_key_for_agent_definition(cls, agent_definition_id: Any) -> Optional[str]:
+        """Resolve the Vapi api_key for an AgentDefinition by id; None on failure."""
+        if agent_definition_id is None:
+            return None
+        try:
+            uuid.UUID(str(agent_definition_id))
+        except (ValueError, AttributeError):
+            return None
+        try:
+            from simulate.models.agent_definition import AgentDefinition
+
+            agent_def = AgentDefinition.objects.get(id=agent_definition_id)
+            return cls._api_key_from_agent_definition(agent_def)
+        except Exception:
+            logger.exception(
+                "vapi_recording_service.get_api_key_agent_definition_lookup_failed",
+                agent_definition_id=str(agent_definition_id),
+            )
+            return None
+
+    @classmethod
     def _get_vapi_provider_for_project(cls, project_id: Any):
         from tracer.models.observability_provider import (
             ObservabilityProvider,

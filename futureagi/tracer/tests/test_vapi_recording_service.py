@@ -375,13 +375,13 @@ class TestMirrorS3UrlToConsumerFields:
 
     def test_does_not_clobber_existing_s3(self):
         with self._patch_db_mirrors():
-            attrs = {"recording_url": "https://existing.s3.amazonaws.com/prev.mp3"}
+            attrs = {"recording_url": "https://fi-customer-data.s3.amazonaws.com/prev.mp3"}
             out = VapiRecordingService.mirror_s3_url_to_consumer_fields(
                 attrs=attrs,
                 call_id="cid",
                 s3_url_by_url_type={"mono_combined": "https://new.s3.amazonaws.com/new.mp3"},
             )
-        assert out["recording_url"] == "https://existing.s3.amazonaws.com/prev.mp3"
+        assert out["recording_url"] == "https://fi-customer-data.s3.amazonaws.com/prev.mp3"
 
     def test_overwrites_raw_vapi_alias(self):
         with self._patch_db_mirrors():
@@ -460,19 +460,23 @@ class TestApiKeyFromAgentDefinition:
 
     def test_prefers_versioned_snapshot(self):
         agent = self._agent(snapshot={"api_key": "snap"}, plaintext="plain")
-        assert VapiRecordingService._api_key_from_agent_definition(agent) == "snap"
+        with patch("simulate.services.agent_definition.resolve_api_key_for_version", return_value="snap"):
+            assert VapiRecordingService._api_key_from_agent_definition(agent) == "snap"
 
     def test_falls_back_to_plaintext_when_snapshot_missing(self):
         agent = self._agent(snapshot={}, plaintext="plain")
-        assert VapiRecordingService._api_key_from_agent_definition(agent) == "plain"
+        with patch("simulate.services.agent_definition.resolve_api_key_for_version", return_value="plain"):
+            assert VapiRecordingService._api_key_from_agent_definition(agent) == "plain"
 
     def test_falls_back_when_no_latest_version(self):
         agent = self._agent(has_latest_version=False, plaintext="plain")
-        assert VapiRecordingService._api_key_from_agent_definition(agent) == "plain"
+        with patch("simulate.services.agent_definition.resolve_api_key_for_version", return_value="plain"):
+            assert VapiRecordingService._api_key_from_agent_definition(agent) == "plain"
 
     def test_returns_none_when_all_absent(self):
         agent = self._agent(snapshot={}, plaintext=None)
-        assert VapiRecordingService._api_key_from_agent_definition(agent) is None
+        with patch("simulate.services.agent_definition.resolve_api_key_for_version", return_value=None):
+            assert VapiRecordingService._api_key_from_agent_definition(agent) is None
 
 
 class TestGetApiKeyForProject:
@@ -486,6 +490,8 @@ class TestGetApiKeyForProject:
         provider = MagicMock(agent_definition=agent)
         with patch.object(
             VapiRecordingService, "_get_vapi_provider_for_project", return_value=provider
+        ), patch(
+            "simulate.services.agent_definition.resolve_api_key_for_version", return_value="abc"
         ):
             assert VapiRecordingService.get_api_key_for_project("proj-id") == "abc"
 

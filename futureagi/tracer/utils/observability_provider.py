@@ -19,6 +19,7 @@ from tracer.utils.eleven_labs import normalize_eleven_labs_data
 from tracer.utils.otel import ResourceLimitError, get_or_create_project
 from tracer.utils.retell import normalize_retell_data
 from tracer.utils.twilio_calls import normalize_twilio_data
+from tracer.utils.usage_emit import emit_span_ingestion_usage
 from tracer.utils.vapi import normalize_vapi_data
 
 logger = structlog.get_logger(__name__)
@@ -476,6 +477,43 @@ def process_and_store_logs(
         # Emit to the fi-collector: it writes CH `spans`/`traces` (the read store)
         # AND meters ingestion usage, so there is no app-side CH write or usage emit.
         _export_provider_call_to_collector(span, provider.provider, provider_log_id)
+
+        # Emit billing for inline rehosted bytes (Vapi recordings moved to S3).
+        # Idempotent across re-polls: a Vapi call is pulled repeatedly, and the
+        # raw log always carries the original (non-S3) URL, so rehost would re-run
+        # each poll. We ledger the billed url-types on ProviderLog.metadata and
+        # only bill url-types not already recorded.
+        rehost_uploads = normalized_data.get("rehost_uploads") or {}
+        if rehost_uploads:
+            organization_id = str(getattr(project, "organization_id", "") or "")
+            if organization_id:
+                try:
+                    from tracer.models.observability_provider import ProviderLog
+
+                    provider_log = ProviderLog.objects.get(id=provider_log_id)
+                    billed = set(
+                        (provider_log.metadata or {}).get("rehost_billed_url_types", [])
+                    )
+                    new_types = [t for t in rehost_uploads if t not in billed]
+                    if new_types:
+                        new_bytes = sum(rehost_uploads[t] for t in new_types)
+                        emit_span_ingestion_usage(
+                            organization_id=organization_id,
+                            num_traces=0,
+                            num_spans=0,
+                            payload_bytes=new_bytes,
+                            source="voice_recording_rehost",
+                        )
+                        billed.update(new_types)
+                        provider_log.metadata = {
+                            **(provider_log.metadata or {}),
+                            "rehost_billed_url_types": sorted(billed),
+                        }
+                        provider_log.save(update_fields=["metadata"])
+                except Exception:
+                    logger.exception(
+                        "process_and_store_logs: rehost billing ledger failed (non-fatal)"
+                    )
 
 
 def create_observability_provider(

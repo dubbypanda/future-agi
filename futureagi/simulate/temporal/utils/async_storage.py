@@ -9,6 +9,7 @@ Uses httpx for async HTTP operations (already available in the project).
 from typing import Optional
 
 import httpx
+import requests
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -271,3 +272,88 @@ async def convert_audio_url_to_s3_async_with_size(
         vapi_call_id=vapi_call_id,
         artifact_type=artifact_type,
     )
+
+
+def convert_audio_url_to_s3_sync(
+    call_id: str,
+    audio_url: Optional[str],
+    url_type: str = "audio",
+    *,
+    provider: Optional[str] = None,
+    api_key: Optional[str] = None,
+    vapi_call_id: Optional[str] = None,
+    artifact_type: Optional[str] = None,
+) -> tuple[str, int]:
+    """Sync mirror of ``_convert_audio_url_to_s3_async_with_size``.
+
+    Downloads audio via ``requests`` and uploads to S3/MinIO.  Best-effort:
+    on any exception the original URL is returned with 0 bytes.
+
+    Returns (s3_url_or_original_on_failure, bytes_uploaded_to_s3).
+    """
+    from tracer.utils.vapi_recording import VapiRecordingService
+
+    logger.info(
+        "convert_audio_url_to_s3_sync: ENTRY",
+        call_id=call_id,
+        url_type=url_type,
+        audio_url=audio_url,
+        provider=provider,
+        api_key_present=bool(api_key),
+        artifact_type=artifact_type,
+    )
+
+    auth_call_id = vapi_call_id or call_id
+    vapi_authenticated = VapiRecordingService.is_authenticated_download(
+        provider, api_key, auth_call_id, artifact_type
+    )
+
+    if not audio_url and not vapi_authenticated:
+        return audio_url, 0
+
+    # Already S3?
+    if audio_url and ("amazonaws.com" in str(audio_url) or "minio" in str(audio_url)):
+        return audio_url, 0
+
+    try:
+        if vapi_authenticated:
+            audio_bytes = VapiRecordingService.download_artifact_sync(
+                call_id=auth_call_id,
+                artifact_type=artifact_type,
+                api_key=api_key,
+            )
+        else:
+            # Unauthenticated sync download via requests with size guard
+            response = requests.get(
+                audio_url, stream=True, timeout=DOWNLOAD_TIMEOUT
+            )
+            response.raise_for_status()
+
+            chunks = []
+            total_size = 0
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    chunks.append(chunk)
+                    total_size += len(chunk)
+                    if total_size > MAX_AUDIO_FILE_SIZE:
+                        raise ValueError(
+                            f"Audio file exceeds maximum size of "
+                            f"{MAX_AUDIO_FILE_SIZE / (1024 * 1024):.1f}MB"
+                        )
+            audio_bytes = b"".join(chunks)
+
+        # Upload to S3
+        from tfc.utils.storage import upload_audio_to_s3
+
+        object_key = f"call-recordings/{call_id}/{url_type}.mp3"
+        s3_url = upload_audio_to_s3({"bytes": audio_bytes}, object_key=object_key)
+
+        logger.info(f"convert_audio_url_to_s3_sync: success", s3_url=s3_url)
+        return s3_url, len(audio_bytes)
+
+    except Exception as e:
+        logger.error(
+            f"convert_audio_url_to_s3_sync: error converting {url_type}: {e}",
+            exc_info=True,
+        )
+        return audio_url, 0
