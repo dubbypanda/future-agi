@@ -318,6 +318,20 @@ class AnalyticsQueryService:
         )
         return [row["config_id"] for row in result.data]
 
+    def get_span_trace_map(
+        self, trace_ids: list[str], timeout_ms: int = 10000
+    ) -> dict[str, str]:
+        """Map span id -> trace id for spans in the given traces (CH-native)."""
+        if not trace_ids:
+            return {}
+        result = self.execute_ch_query(
+            "SELECT toString(id) AS span_id, toString(trace_id) AS trace_id "
+            "FROM spans WHERE trace_id IN %(trace_ids)s AND is_deleted = 0",
+            {"trace_ids": trace_ids},
+            timeout_ms=timeout_ms,
+        )
+        return {r["span_id"]: r["trace_id"] for r in result.data}
+
     def get_children_eval_metrics_ch(
         self, span_ids: list[str], timeout_ms: int = 5000
     ) -> list[dict]:

@@ -570,7 +570,9 @@ def _simulation_context_for_voice_call(
     }
 
 
-def _build_annotation_map_from_scores(trace_ids, annotation_label_ids, label_types):
+def _build_annotation_map_from_scores(
+    trace_ids, annotation_label_ids, label_types, span_trace_map=None
+):
     """Fetch annotation values from PG Score table and build annotation_map.
 
     Always reads from PG to guarantee read-after-write consistency —
@@ -583,9 +585,8 @@ def _build_annotation_map_from_scores(trace_ids, annotation_label_ids, label_typ
     """
     if not trace_ids or not annotation_label_ids:
         return {}
-
     return _build_annotation_map_from_scores_pg(
-        trace_ids, annotation_label_ids, label_types
+        trace_ids, annotation_label_ids, label_types, span_trace_map or {}
     )
 
 
@@ -761,7 +762,9 @@ def _build_annotation_map_from_scores_ch(trace_ids, annotation_label_ids, label_
     return annotation_map
 
 
-def _build_annotation_map_from_scores_pg(trace_ids, annotation_label_ids, label_types):
+def _build_annotation_map_from_scores_pg(
+    trace_ids, annotation_label_ids, label_types, span_trace_map=None
+):
     """PG fallback implementation of annotation map builder.
 
     Per-queue scoring means a single (trace, label, annotator) can now
@@ -774,24 +777,21 @@ def _build_annotation_map_from_scores_pg(trace_ids, annotation_label_ids, label_
     """
     from django.db.models import Q
 
+    span_trace_map = span_trace_map or {}
+    span_ids = list(span_trace_map.keys())
     annotation_map = {}
-    # Query scores linked directly to trace OR via observation_span → trace
+    # Trace- or span-linked scores by column id (no dropped-table JOIN).
     scores = Score.objects.filter(
-        Q(trace_id__in=trace_ids) | Q(observation_span__trace_id__in=trace_ids),
+        Q(trace_id__in=trace_ids) | Q(observation_span_id__in=span_ids),
         label_id__in=annotation_label_ids,
         deleted=False,
-    ).select_related("annotator", "observation_span")
+    ).select_related("annotator")
 
     for s in scores:
-        # Resolve trace_id — either directly set or via observation_span FK
         tid = (
             str(s.trace_id)
             if s.trace_id
-            else (
-                str(s.observation_span.trace_id)
-                if s.observation_span and s.observation_span.trace_id
-                else None
-            )
+            else span_trace_map.get(str(s.observation_span_id))
         )
         if not tid or tid == "None":
             continue
@@ -3559,9 +3559,12 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                     list(eval_result.data[0].keys()) if eval_result.data else [],
                 )
 
-        # Phase 3: Annotations — fetch from PG Score (unified annotation system)
+        # Phase 3: Annotations — PG values, span->trace resolved via CH.
+        span_trace_map = (
+            analytics.get_span_trace_map(trace_ids) if trace_ids else {}
+        )
         annotation_map = _build_annotation_map_from_scores(
-            trace_ids, annotation_label_ids, label_types
+            trace_ids, annotation_label_ids, label_types, span_trace_map
         )
 
         # Phase 4: Aggregated span attributes for custom columns
