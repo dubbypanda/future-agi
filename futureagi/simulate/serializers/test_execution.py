@@ -835,7 +835,7 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
         """Get scenario columns data based on scenario type"""
         # Handle both model instances and dictionaries (from grouping)
         if hasattr(obj, "call_metadata"):
-            call_metadata = obj.call_metadata
+            call_metadata = obj.call_metadata or {}
         else:
             call_metadata = obj.get("call_metadata") if isinstance(obj, dict) else {}
 
