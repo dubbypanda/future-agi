@@ -164,6 +164,8 @@ from simulate.utils.test_execution import (
 )
 from simulate.utils.test_execution_utils import (
     TestExecutionUtils,
+    build_eval_column,
+    reconcile_eval_column_order,
     reconcile_scenario_column_order,
 )
 from simulate.views.scoping import run_test_workspace_filter
@@ -2103,15 +2105,7 @@ class TestExecutionDetailView(APIView):
                     default_columns = copy.deepcopy(DEFAULT_CHAT_SIM_COL)
 
                 for eval_config in eval_configs:
-                    default_columns.append(
-                        {
-                            "column_name": eval_config.name,
-                            "id": str(eval_config.id),
-                            "eval_config": eval_config.eval_template.config,
-                            "visible": True,
-                            "type": "evaluation",
-                        }
-                    )
+                    default_columns.append(build_eval_column(eval_config))
 
                 # Save the default column order
                 test_execution.execution_metadata["column_order"] = default_columns
@@ -2125,6 +2119,21 @@ class TestExecutionDetailView(APIView):
                 column_order=column_order,
             )
             if scenario_columns_changed:
+                test_execution.execution_metadata["column_order"] = column_order
+                test_execution.save(update_fields=["execution_metadata"])
+
+            evaluated_eval_ids = set()
+            for eo in CallExecution.objects.filter(
+                test_execution=test_execution
+            ).values_list("eval_outputs", flat=True):
+                if isinstance(eo, dict):
+                    evaluated_eval_ids.update(eo.keys())
+            column_order, eval_columns_changed = reconcile_eval_column_order(
+                column_order=column_order,
+                eval_configs=eval_configs,
+                evaluated_eval_ids=evaluated_eval_ids,
+            )
+            if eval_columns_changed:
                 test_execution.execution_metadata["column_order"] = column_order
                 test_execution.save(update_fields=["execution_metadata"])
 
