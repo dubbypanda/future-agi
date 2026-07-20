@@ -395,6 +395,61 @@ def test_errored_eval_output_still_surfaces_the_column(
 
 
 @pytest.mark.django_db
+def test_corrupted_eval_outputs_does_not_crash_the_view(
+    auth_client, simulation_tree, three_eval_configs
+):
+    """Legacy / bad-actor rows with a non-dict `eval_outputs` (string,
+    list, etc.) must not 500 the detail GET. The reconciler skips them."""
+    test_execution = simulation_tree["test_execution"]
+    call_execution = simulation_tree["call_execution"]
+    # Bypass model-level validation to persist a legacy-shape payload.
+    CallExecution.objects.filter(id=call_execution.id).update(
+        eval_outputs="not-a-dict-corrupted-legacy"
+    )
+
+    response = auth_client.get(f"/simulate/test-executions/{test_execution.id}/")
+
+    assert response.status_code == 200
+    eval_col_ids = {
+        str(c["id"])
+        for c in response.data["column_order"]
+        if c.get("type") == "evaluation"
+    }
+    # Only the two originals that were already in column_order survive;
+    # the late-add is not appended because the corrupted row contributes
+    # nothing to evaluated_eval_ids.
+    orig_a = three_eval_configs["orig_a"]
+    orig_b = three_eval_configs["orig_b"]
+    assert eval_col_ids == {str(orig_a.id), str(orig_b.id)}
+
+
+@pytest.mark.django_db
+def test_second_get_is_a_noop_no_repeated_writes(
+    auth_client, simulation_tree, three_eval_configs
+):
+    """Once column_order matches the live state, subsequent GETs must
+    not re-save. Guards against a subtle write-loop regression."""
+    test_execution = simulation_tree["test_execution"]
+    call_execution = simulation_tree["call_execution"]
+    late_add = three_eval_configs["late_add"]
+    call_execution.eval_outputs = {
+        str(late_add.id): {"status": "completed", "output": "Passed"},
+    }
+    call_execution.save(update_fields=["eval_outputs"])
+
+    # First GET reconciles; second GET must land the same column_order
+    # with no additional persistence.
+    auth_client.get(f"/simulate/test-executions/{test_execution.id}/")
+    test_execution.refresh_from_db()
+    updated_at_after_first = test_execution.updated_at
+
+    auth_client.get(f"/simulate/test-executions/{test_execution.id}/")
+    test_execution.refresh_from_db()
+
+    assert test_execution.updated_at == updated_at_after_first
+
+
+@pytest.mark.django_db
 def test_csv_export_excludes_deleted_evals(auth_client, simulation_tree, eval_configs):
     live, deleted = eval_configs["live"], eval_configs["deleted"]
     call_execution = simulation_tree["call_execution"]

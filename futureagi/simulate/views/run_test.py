@@ -2126,7 +2126,7 @@ class TestExecutionDetailView(APIView):
             for eo in CallExecution.objects.filter(
                 test_execution=test_execution
             ).values_list("eval_outputs", flat=True):
-                if eo:
+                if isinstance(eo, dict):
                     evaluated_eval_ids.update(eo.keys())
             column_order, eval_columns_changed = reconcile_eval_column_order(
                 column_order=column_order,
