@@ -291,3 +291,75 @@ class TestEvalReadSelectors:
         assert svc.get_trace_eval_scores_ch([], ["c1"]) == []
         assert svc.get_trace_eval_scores_ch(["t1"], []) == []
         assert captured == {}
+
+
+@pytest.mark.unit
+class TestWindowDaysCovering:
+    """``BaseQueryBuilder.window_days_covering`` sizes the eval-discovery
+    look-back to the *requested* time window rather than a fixed 30 days, so a
+    config with data anywhere in the viewed range keeps its column."""
+
+    @staticmethod
+    def _wd(filters):
+        from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
+
+        return BaseQueryBuilder.window_days_covering(filters)
+
+    def _greater_than(self, days_ago):
+        from datetime import datetime, timedelta
+
+        start = (datetime.utcnow() - timedelta(days=days_ago)).isoformat()
+        return [
+            {
+                "column_id": "start_time",
+                "filter_config": {
+                    "filter_op": "greater_than",
+                    "filter_value": start,
+                },
+            }
+        ]
+
+    def test_no_time_filter_defaults_to_about_30_days(self):
+        # parse_time_range defaults the start to now-30d, so discovery stays ~30d
+        # and the default (unfiltered) view is unchanged from the fixed bound.
+        assert 30 <= self._wd([]) <= 31
+
+    def test_explicit_start_extends_window_to_cover_it(self):
+        # A 6-month view must look back ~180 days — the whole point of the fix.
+        assert 180 <= self._wd(self._greater_than(180)) <= 181
+
+    def test_between_covers_to_range_start_not_range_length(self):
+        # [90d ago, 1d ago]: N must reach the *start* (~90d), not span the 89-day
+        # length — anchored at now(), a shorter N would miss the range entirely.
+        from datetime import datetime, timedelta
+
+        now = datetime.utcnow()
+        filters = [
+            {
+                "column_id": "created_at",
+                "filter_config": {
+                    "filter_op": "between",
+                    "filter_value": [
+                        (now - timedelta(days=90)).isoformat(),
+                        (now - timedelta(days=1)).isoformat(),
+                    ],
+                },
+            }
+        ]
+        assert 90 <= self._wd(filters) <= 91
+
+    def test_sub_day_window_floors_to_one(self):
+        # A last-2-hours view rounds up to a 1-day floor (never 0 / negative).
+        from datetime import datetime, timedelta
+
+        start = (datetime.utcnow() - timedelta(hours=2)).isoformat()
+        filters = [
+            {
+                "column_id": "start_time",
+                "filter_config": {
+                    "filter_op": "greater_than",
+                    "filter_value": start,
+                },
+            }
+        ]
+        assert self._wd(filters) == 1

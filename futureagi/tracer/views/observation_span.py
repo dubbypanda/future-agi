@@ -1517,19 +1517,30 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 ).select_related("eval_template")
             )
             candidate_ids = [str(c.id) for c in project_configs]
+            # Discover eval columns over the SAME window the user is viewing, not
+            # a fixed 30 days: cover [requested-start, now] so a config with data
+            # anywhere in the requested range keeps its column (no missing columns
+            # on a 6-month view, no spurious empty columns on a 24h view).
+            # candidate_config_ids keeps the scan bounded by the eval table's
+            # leading sort key at any depth. Default (unfiltered) view → ~30 days.
+            window_days = SpanListQueryBuilder.window_days_covering(filters)
             # Short-TTL cache: "which configs have data" changes on config
             # creation / first eval write, not per page load — the fast-path CH
             # read still costs ~0.4-0.9s per request at 10M eval rows (measured),
             # and this endpoint fires it on EVERY page. Key includes the
-            # candidate set so a newly-created config gets a fresh entry; worst
-            # case a brand-new config's column appears one TTL late.
+            # candidate set and window so a newly-created config or a different
+            # time range gets a fresh entry; worst case a brand-new config's
+            # column appears one TTL late.
             ids_with_data: set[str] = set()
             if candidate_ids:
                 cache_key = (
                     "span_list_eval_cfgs:"
                     + hashlib.sha256(
                         (
-                            str(project_id) + "|" + ",".join(sorted(candidate_ids))
+                            str(project_id)
+                            + "|"
+                            + ",".join(sorted(candidate_ids))
+                            + f"|w={window_days}"
                         ).encode()
                     ).hexdigest()
                 )
@@ -1542,6 +1553,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                             str(project_id),
                             timeout_ms=30000,
                             candidate_config_ids=candidate_ids,
+                            window_days=window_days,
                         )
                     )
                     django_cache.set(cache_key, list(ids_with_data), timeout=120)

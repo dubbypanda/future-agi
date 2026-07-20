@@ -1596,8 +1596,28 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             # CH-only path. Legacy PG fallback removed: EvalLogger lives in
             # CH now and the PG `tracer_evallogger` table is destined for
             # deletion. If CH errors, propagate so the operator sees it.
-            eval_config_ids = analytics.get_eval_config_ids_with_data_ch(
-                str(project_id)
+            #
+            # Resolve this project's configs from PG (project FK), then ask CH
+            # which have EVER produced eval data via the candidate-id fast path.
+            # window_days=None on purpose: the eval-name/metric picker must not
+            # depend on 30-day recency — a historically-run eval must stay
+            # listable. The custom_eval_config_id IN (…) scope hits the eval
+            # table's leading sort key, so unbounded-in-time stays memory-safe
+            # (no OOM) unlike the old trace-join discovery.
+            project_config_ids = [
+                str(cid)
+                for cid in CustomEvalConfig.objects.filter(
+                    project_id=project_id, deleted=False
+                ).values_list("id", flat=True)
+            ]
+            eval_config_ids = (
+                analytics.get_eval_config_ids_with_data_ch(
+                    str(project_id),
+                    candidate_config_ids=project_config_ids,
+                    window_days=None,
+                )
+                if project_config_ids
+                else []
             )
 
             # Config lookup always from PG (small config table)
@@ -3456,12 +3476,17 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 ).select_related("eval_template")
             )
             candidate_ids = [str(c.id) for c in project_configs]
+            # Discover eval columns over the requested window (cover
+            # [start, now]), not a fixed 30 days — so configs with data anywhere
+            # in the viewed range keep their columns. Bounded by candidate ids.
+            window_days = BuilderCls.window_days_covering(filters)
             ids_with_data = (
                 set(
                     analytics.get_eval_config_ids_with_data_ch(
                         str(project_id),
                         timeout_ms=30000,
                         candidate_config_ids=candidate_ids,
+                        window_days=window_days,
                     )
                 )
                 if candidate_ids
@@ -3564,9 +3589,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
 
         # Phase 3: Annotations — PG values, span->trace resolved via CH.
-        span_trace_map = (
-            analytics.get_span_trace_map(trace_ids) if trace_ids else {}
-        )
+        span_trace_map = analytics.get_span_trace_map(trace_ids) if trace_ids else {}
         annotation_map = _build_annotation_map_from_scores(
             trace_ids, annotation_label_ids, label_types, span_trace_map
         )
@@ -4125,12 +4148,17 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             ).select_related("eval_template")
         )
         candidate_ids = [str(c.id) for c in project_configs]
+        # Discover eval columns over the requested window (cover [start, now]),
+        # not a fixed 30 days — so configs with data anywhere in the viewed range
+        # keep their columns. Bounded by candidate ids.
+        window_days = BuilderCls.window_days_covering(filters)
         ids_with_data = (
             set(
                 analytics.get_eval_config_ids_with_data_ch(
                     str(project_id),
                     timeout_ms=30000,
                     candidate_config_ids=candidate_ids,
+                    window_days=window_days,
                 )
             )
             if candidate_ids
