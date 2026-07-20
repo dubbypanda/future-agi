@@ -1445,24 +1445,10 @@ def build_eval_column(eval_config):
     }
 
 
-def reconcile_eval_column_order(*, column_order, eval_configs):
-    """Reconcile stored eval columns with the current run_test eval_configs.
-
-    Drops columns for soft-deleted or removed evals, refreshes name and
-    ``eval_config`` payload on surviving ones so renames land immediately,
-    and appends any newly-added eval as a new column at the end. Preserves
-    the surviving evals' existing positions so user-reordered columns stay
-    put.
-
-    Args:
-        column_order: current persisted column order (list of dicts).
-        eval_configs: iterable of ``SimulateEvalConfig`` that are currently
-            active on the parent ``RunTest`` (i.e. ``deleted=False``).
-
-    Returns:
-        ``(column_order, changed)`` - the reconciled order and whether it
-        differs from the input. Caller persists when ``changed`` is True.
-    """
+def reconcile_eval_column_order(*, column_order, eval_configs, evaluated_eval_ids):
+    """Drop removed evals, refresh surviving names + configs, and append
+    a newly-active eval only when its id is in ``evaluated_eval_ids``
+    (i.e. attempted on at least one call of this execution)."""
     current_eval_by_id = {str(ec.id): ec for ec in eval_configs}
     changed = False
     reconciled = []
@@ -1487,7 +1473,9 @@ def reconcile_eval_column_order(*, column_order, eval_configs):
         if isinstance(c, dict) and c.get("type") == "evaluation"
     }
     for eval_config in eval_configs:
-        if str(eval_config.id) not in preserved:
-            reconciled.append(build_eval_column(eval_config))
-            changed = True
+        ec_id = str(eval_config.id)
+        if ec_id in preserved or ec_id not in evaluated_eval_ids:
+            continue
+        reconciled.append(build_eval_column(eval_config))
+        changed = True
     return reconciled, changed

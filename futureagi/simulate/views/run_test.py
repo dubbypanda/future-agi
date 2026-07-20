@@ -2122,11 +2122,16 @@ class TestExecutionDetailView(APIView):
                 test_execution.execution_metadata["column_order"] = column_order
                 test_execution.save(update_fields=["execution_metadata"])
 
-            # Reconcile stored eval columns with the current run_test eval_configs
-            # so add / soft-delete / rename land on pre-existing executions too.
+            evaluated_eval_ids = set()
+            for eo in CallExecution.objects.filter(
+                test_execution=test_execution
+            ).values_list("eval_outputs", flat=True):
+                if eo:
+                    evaluated_eval_ids.update(eo.keys())
             column_order, eval_columns_changed = reconcile_eval_column_order(
                 column_order=column_order,
                 eval_configs=eval_configs,
+                evaluated_eval_ids=evaluated_eval_ids,
             )
             if eval_columns_changed:
                 test_execution.execution_metadata["column_order"] = column_order

@@ -274,6 +274,126 @@ def test_column_order_drops_deleted_eval_columns(
     assert str(deleted.id) not in eval_col_ids
 
 
+@pytest.fixture
+def three_eval_configs(db, simulation_tree, organization):
+    """Two evals present at TE creation, one added later on the run_test."""
+    template = EvalTemplate.objects.create(
+        name="Reconcile Late-Add Template", config={}, organization=organization
+    )
+    run_test = simulation_tree["run_test"]
+    test_execution = simulation_tree["test_execution"]
+    orig_a = SimulateEvalConfig.objects.create(
+        name="Task", eval_template=template, run_test=run_test
+    )
+    orig_b = SimulateEvalConfig.objects.create(
+        name="Prompt", eval_template=template, run_test=run_test
+    )
+    test_execution.execution_metadata = {
+        "Provider": True,
+        "column_order": [
+            {
+                "type": "scenario_dataset_column",
+                "id": "scenario_col",
+                "column_name": "Scenario",
+            },
+            {"type": "evaluation", "id": str(orig_a.id), "column_name": "Task"},
+            {"type": "evaluation", "id": str(orig_b.id), "column_name": "Prompt"},
+        ],
+    }
+    test_execution.save(update_fields=["execution_metadata"])
+    late_add = SimulateEvalConfig.objects.create(
+        name="Toxicity", eval_template=template, run_test=run_test
+    )
+    return {"orig_a": orig_a, "orig_b": orig_b, "late_add": late_add}
+
+
+@pytest.mark.django_db
+def test_late_added_eval_column_appears_only_after_it_has_been_evaluated(
+    auth_client, simulation_tree, three_eval_configs
+):
+    """Adding a 3rd eval on the run_test alone must not add a phantom
+    column on TE#1; only after it has run against TE#1's calls does the
+    column land."""
+    test_execution = simulation_tree["test_execution"]
+    call_execution = simulation_tree["call_execution"]
+    orig_a = three_eval_configs["orig_a"]
+    orig_b = three_eval_configs["orig_b"]
+    late_add = three_eval_configs["late_add"]
+
+    response_before = auth_client.get(
+        f"/simulate/test-executions/{test_execution.id}/"
+    )
+    assert response_before.status_code == 200
+    eval_cols_before = [
+        c
+        for c in response_before.data["column_order"]
+        if c.get("type") == "evaluation"
+    ]
+    assert [str(c["id"]) for c in eval_cols_before] == [
+        str(orig_a.id),
+        str(orig_b.id),
+    ]
+
+    call_execution.eval_outputs = {
+        str(orig_a.id): {"status": "completed", "output": "Passed"},
+        str(orig_b.id): {"status": "completed", "output": "Passed"},
+        str(late_add.id): {"status": "completed", "output": "Passed"},
+    }
+    call_execution.save(update_fields=["eval_outputs"])
+
+    response_after = auth_client.get(
+        f"/simulate/test-executions/{test_execution.id}/"
+    )
+    assert response_after.status_code == 200
+    eval_cols_after = [
+        c
+        for c in response_after.data["column_order"]
+        if c.get("type") == "evaluation"
+    ]
+    assert [str(c["id"]) for c in eval_cols_after] == [
+        str(orig_a.id),
+        str(orig_b.id),
+        str(late_add.id),
+    ]
+
+    test_execution.refresh_from_db()
+    persisted = [
+        c
+        for c in test_execution.execution_metadata["column_order"]
+        if c.get("type") == "evaluation"
+    ]
+    assert [str(c["id"]) for c in persisted] == [
+        str(orig_a.id),
+        str(orig_b.id),
+        str(late_add.id),
+    ]
+
+
+@pytest.mark.django_db
+def test_errored_eval_output_still_surfaces_the_column(
+    auth_client, simulation_tree, three_eval_configs
+):
+    """An eval that ran but errored is still 'attempted' - the column
+    must surface so the user can see the failure."""
+    test_execution = simulation_tree["test_execution"]
+    call_execution = simulation_tree["call_execution"]
+    late_add = three_eval_configs["late_add"]
+    call_execution.eval_outputs = {
+        str(late_add.id): {"status": "error", "error": "boom"},
+    }
+    call_execution.save(update_fields=["eval_outputs"])
+
+    response = auth_client.get(f"/simulate/test-executions/{test_execution.id}/")
+
+    assert response.status_code == 200
+    eval_col_ids = {
+        str(c["id"])
+        for c in response.data["column_order"]
+        if c.get("type") == "evaluation"
+    }
+    assert str(late_add.id) in eval_col_ids
+
+
 @pytest.mark.django_db
 def test_csv_export_excludes_deleted_evals(auth_client, simulation_tree, eval_configs):
     live, deleted = eval_configs["live"], eval_configs["deleted"]
