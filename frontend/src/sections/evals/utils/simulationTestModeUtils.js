@@ -33,10 +33,11 @@ export const NEVER_PICKABLE_TOPLEVEL = [
   "customer_call_id",
 ];
 
+// simulation_call_type (modality) wins over call_type (direction).
 export const isTextCallDetail = (d) =>
   ["text", "chat", "prompt"].includes(
     String(
-      d?.simulation?.call_type || d?.call_type || d?.simulation_call_type || "",
+      d?.simulation?.call_type || d?.simulation_call_type || d?.call_type || "",
     ).toLowerCase(),
   );
 

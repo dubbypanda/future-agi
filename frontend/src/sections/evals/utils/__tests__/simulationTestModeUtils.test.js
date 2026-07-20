@@ -36,6 +36,19 @@ describe("isTextCallDetail", () => {
     // simulation_call_type, so "Inbound" (direction) shadowed "text" (modality)
     expect(isTextCallDetail({ simulation: { call_type: "Inbound" } })).toBe(false);
   });
+
+  it("prefers simulation_call_type over call_type when both are populated", () => {
+    // catch-fallback path carries both keys on the same row
+    expect(
+      isTextCallDetail({ call_type: "Inbound", simulation_call_type: "text" }),
+    ).toBe(true);
+    expect(
+      isTextCallDetail({ call_type: "outboundPhoneCall", simulation_call_type: "text" }),
+    ).toBe(true);
+    expect(
+      isTextCallDetail({ call_type: "Inbound", simulation_call_type: "voice" }),
+    ).toBe(false);
+  });
 });
 
 describe("isHiddenPickerPath", () => {

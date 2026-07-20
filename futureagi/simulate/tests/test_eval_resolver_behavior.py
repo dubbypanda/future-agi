@@ -1234,6 +1234,82 @@ class TestComputedSerializerFieldsInContext:
         assert m["c"] == "7"
 
     @patch("simulate.services.test_executor.run_eval_func")
+    def test_chat_sim_zero_valued_metrics_survive_fallback(
+        self, mock_run, run_test, transcript_data, eval_template,
+        test_execution, scenario, agent_version,
+    ):
+        """A legitimate 0 / 0.0 / 0-ms on the primary source must not be
+        clobbered by the cross-modality fallback. If someone rewrites
+        `is not None` -> `or` this test fails loudly."""
+        ce = CallExecution.objects.create(
+            test_execution=test_execution, scenario=scenario, agent_version=agent_version,
+            status=CallExecution.CallStatus.COMPLETED,
+            simulation_call_type=CallExecution.SimulationCallType.TEXT,
+            response_time_ms=0,
+            avg_agent_latency_ms=0,
+            talk_ratio=0.0,
+            overall_score=7,
+            conversation_metrics_data={
+                "avg_latency_ms": 320.0,
+                "agent_talk_percentage": 50.0,
+                "csat_score": 4.0,
+            },
+        )
+        mock_run.return_value = _SUCCESS_STUB
+        ec = _make_eval(
+            {
+                "rt_ms": "response_time_ms",
+                "aal_ms": "avg_agent_latency_ms",
+                "tr": "talk_ratio",
+            },
+            run_test, eval_template,
+        )
+
+        _run(ec, ce, transcript_data)
+
+        m = mock_run.call_args.kwargs["mappings"]
+        # Primary source is 0/0.0; must NOT fall through to 320/50.0/0.5.
+        assert m["rt_ms"] == "0"
+        assert m["aal_ms"] == "0"
+        assert m["tr"] == "0.0"
+
+    @patch("simulate.services.test_executor.run_eval_func")
+    def test_voice_sim_zero_valued_metrics_survive_fallback(
+        self, mock_run, run_test, transcript_data, eval_template,
+        test_execution, scenario, agent_version,
+    ):
+        """Chat-side keys with a legitimate 0 on the conv_metrics side must
+        not fall through to the voice-side model field."""
+        ce = CallExecution.objects.create(
+            test_execution=test_execution, scenario=scenario, agent_version=agent_version,
+            status=CallExecution.CallStatus.COMPLETED,
+            simulation_call_type=CallExecution.SimulationCallType.VOICE,
+            avg_agent_latency_ms=8652, talk_ratio=0.62, overall_score=7,
+            conversation_metrics_data={
+                "avg_latency_ms": 0.0,
+                "agent_talk_percentage": 0.0,
+                "csat_score": 0.0,
+            },
+        )
+        mock_run.return_value = _SUCCESS_STUB
+        ec = _make_eval(
+            {
+                "lat": "avg_latency_ms",
+                "atp": "agent_talk_percentage",
+                "c": "csat_score",
+            },
+            run_test, eval_template,
+        )
+
+        _run(ec, ce, transcript_data)
+
+        m = mock_run.call_args.kwargs["mappings"]
+        # Conv-metrics is 0.0; must NOT fall through to 8652/62.0/7.
+        assert m["lat"] == "0.0"
+        assert m["atp"] == "0.0"
+        assert m["c"] == "0.0"
+
+    @patch("simulate.services.test_executor.run_eval_func")
     def test_scenario_graph_node_resolves_via_computed_subject(
         self, mock_run, run_test, call_execution, transcript_data, eval_template, scenario, organization
     ):
