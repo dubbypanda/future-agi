@@ -648,11 +648,39 @@ const SimulationTestMode = React.forwardRef(
             ["text", "chat", "prompt"].includes(callType.toLowerCase());
 
           if (isTextCall) {
-            const rawTranscript =
-              typeof callData.transcript === "string"
-                ? callData.transcript
-                : "";
-            const { user, assistant } = splitChatTranscript(rawTranscript);
+            let rawTranscript, user, assistant;
+            if (typeof callData.transcript === "string") {
+              rawTranscript = callData.transcript;
+              ({ user, assistant } = splitChatTranscript(rawTranscript));
+            } else {
+              // Mirror getContentMessage: chat_messages → messages[0]; voice → content.
+              const turns = (
+                Array.isArray(callData.transcript) ? callData.transcript : []
+              )
+                .map((r) => {
+                  const role = r?.speaker_role || r?.role;
+                  const content =
+                    (Array.isArray(r?.messages) && r.messages[0]) ||
+                    (typeof r?.content === "string" ? r.content : "");
+                  return { role, content };
+                })
+                .filter(
+                  (r) =>
+                    r.content?.trim() &&
+                    (r.role === "user" || r.role === "assistant"),
+                );
+              rawTranscript = turns
+                .map((r) => `${r.role}: ${r.content}`)
+                .join("\n");
+              user = turns
+                .filter((r) => r.role === "user")
+                .map((r) => r.content)
+                .join("\n");
+              assistant = turns
+                .filter((r) => r.role === "assistant")
+                .map((r) => r.content)
+                .join("\n");
+            }
             flat.call.transcript = rawTranscript;
             flat.call.user_chat_transcript = user;
             flat.call.assistant_chat_transcript = assistant;
