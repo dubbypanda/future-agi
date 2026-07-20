@@ -50,6 +50,7 @@ def _rehost_recording_urls_sync(
     eval_attributes: dict,
     *,
     api_key: str | None = None,
+    project_id: str | None = None,
 ) -> tuple[int, dict[str, int]]:
     """Best-effort inline rehost of Vapi recording URLs to FA S3.
 
@@ -60,9 +61,10 @@ def _rehost_recording_urls_sync(
     to ``CallExecution`` / ``CallExecutionSnapshot`` consumer fields
     via ``VapiRecordingService.mirror_s3_url_to_consumer_fields``.
 
-    Returns ``(total_bytes_uploaded, bytes_by_url_type)`` where
-    ``bytes_by_url_type`` maps each uploaded url-type to its byte count
-    (used by the caller for idempotent billing across re-polls).
+    Returns ``(total_artifact_bytes, bytes_by_url_type)`` where
+    ``bytes_by_url_type`` maps each rehosted url-type to its byte count.
+    Existing S3 objects contribute their stored size so a failed billing emit
+    can be retried with the same idempotency key on a later poll.
     """
     from tracer.utils.vapi_recording import VapiRecordingService
 
@@ -98,6 +100,7 @@ def _rehost_recording_urls_sync(
             provider="vapi",
             api_key=api_key,
             artifact_type=artifact_type,
+            project_id=project_id,
         )
         # Replace in-place only if we got a different (S3) URL back
         if s3_url and s3_url != url:
@@ -130,13 +133,15 @@ def _rehost_recording_urls_sync(
     return total_bytes_uploaded, bytes_by_url_type
 
 
-def normalize_vapi_data(log: dict, *, api_key: str | None = None) -> dict:
+def normalize_vapi_data(
+    log: dict, *, api_key: str | None = None, project_id: str | None = None
+) -> dict:
     """Normalize a Vapi log entry; api_key routes call-logs through the auth endpoint."""
     logger.info(
         "normalize_vapi_data: ENTRY",
         log_type=type(log).__name__,
         is_dict=isinstance(log, dict),
-        log_repr=(repr(log)[:500] if not isinstance(log, dict) else f"dict_keys={list(log.keys())[:20]}"),
+        log_keys=list(log.keys())[:20] if isinstance(log, dict) else None,
         api_key_present=bool(api_key),
         api_key_len=len(api_key) if api_key else 0,
     )
@@ -144,7 +149,6 @@ def normalize_vapi_data(log: dict, *, api_key: str | None = None) -> dict:
         logger.error(
             "normalize_vapi_data: LOG IS NOT A DICT — skipping",
             log_type=type(log).__name__,
-            log_repr=repr(log)[:1000],
         )
         return {"id": None, "span_attributes": {}}
     status = _map_status(log.get("status", ""))
@@ -155,7 +159,7 @@ def normalize_vapi_data(log: dict, *, api_key: str | None = None) -> dict:
     # on failure leave the original URL (non-fatal).
     try:
         total_bytes, bytes_by_url_type = _rehost_recording_urls_sync(
-            log, eval_attributes, api_key=api_key
+            log, eval_attributes, api_key=api_key, project_id=project_id
         )
     except Exception:
         logger.exception("normalize_vapi_data: inline rehost failed (non-fatal)")
@@ -229,7 +233,6 @@ def _extract_eval_attributes(
         logger.error(
             "extract_eval_attributes: LOG IS NOT A DICT",
             log_type=type(log).__name__,
-            log_repr=repr(log)[:1000],
         )
         return {}
     eval_attributes = {
@@ -520,13 +523,12 @@ def _extract_call_logs(log: dict, eval_attributes: dict, *, api_key: str | None 
         "extract_call_logs: ENTRY",
         log_type=type(log).__name__,
         is_dict=isinstance(log, dict),
-        log_repr=(repr(log)[:500] if not isinstance(log, dict) else "dict"),
+        log_keys=list(log.keys())[:20] if isinstance(log, dict) else None,
     )
     if not isinstance(log, dict):
         logger.error(
             "extract_call_logs: LOG IS NOT A DICT — cannot extract call_id/artifact",
             log_type=type(log).__name__,
-            log_repr=repr(log)[:1000],
         )
         return
 
@@ -538,7 +540,7 @@ def _extract_call_logs(log: dict, eval_attributes: dict, *, api_key: str | None 
         call_id=call_id,
         artifact_type=type(artifact).__name__,
         artifact_is_dict=isinstance(artifact, dict),
-        legacy_url=legacy_url,
+        legacy_url_present=bool(legacy_url),
     )
     if not (call_id or legacy_url):
         logger.info("extract_call_logs: no call_id or legacy_url, returning")

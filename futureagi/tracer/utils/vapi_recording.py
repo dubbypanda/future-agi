@@ -16,6 +16,8 @@ import httpx
 import requests
 import structlog
 
+from simulate.temporal.utils.async_storage import MAX_AUDIO_FILE_SIZE
+
 logger = structlog.get_logger(__name__)
 
 
@@ -242,7 +244,9 @@ class VapiRecordingService:
             follow_redirects=True, timeout=timeout_seconds
         ) as client:
             try:
-                response = await client.get(url, headers=headers)
+                async with client.stream("GET", url, headers=headers) as response:
+                    cls._raise_for_artifact_response(response, call_id, artifact_type)
+                    return await cls._read_artifact_stream_async(response)
             except httpx.HTTPError as exc:
                 logger.warning(
                     "vapi_artifact_download_transport_error",
@@ -251,7 +255,6 @@ class VapiRecordingService:
                     error=str(exc),
                 )
                 raise
-            return cls._raise_or_return_body(response, call_id, artifact_type)
 
     @classmethod
     def download_artifact_sync(
@@ -271,7 +274,9 @@ class VapiRecordingService:
             follow_redirects=True, timeout=timeout_seconds
         ) as client:
             try:
-                response = client.get(url, headers=headers)
+                with client.stream("GET", url, headers=headers) as response:
+                    cls._raise_for_artifact_response(response, call_id, artifact_type)
+                    return cls._read_artifact_stream_sync(response)
             except httpx.HTTPError as exc:
                 logger.warning(
                     "vapi_artifact_download_transport_error",
@@ -280,7 +285,6 @@ class VapiRecordingService:
                     error=str(exc),
                 )
                 raise
-            return cls._raise_or_return_body(response, call_id, artifact_type)
 
     @staticmethod
     def _require_download_args(
@@ -294,7 +298,7 @@ class VapiRecordingService:
             raise ValueError("api_key is required")
 
     @staticmethod
-    def _raise_or_return_body(response, call_id: str, artifact_type: str) -> bytes:
+    def _raise_for_artifact_response(response, call_id: str, artifact_type: str) -> None:
         status = response.status_code
         if status in (401, 403):
             logger.warning(
@@ -315,7 +319,34 @@ class VapiRecordingService:
                 f"Vapi returned 429 for {artifact_type} on {call_id}"
             )
         response.raise_for_status()
-        return response.content
+
+    @staticmethod
+    async def _read_artifact_stream_async(response) -> bytes:
+        chunks = []
+        total_size = 0
+        async for chunk in response.aiter_bytes(chunk_size=8192):
+            total_size += len(chunk)
+            if total_size > MAX_AUDIO_FILE_SIZE:
+                raise ValueError(
+                    f"Vapi artifact exceeds maximum size of "
+                    f"{MAX_AUDIO_FILE_SIZE / (1024 * 1024):.1f}MB"
+                )
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    @staticmethod
+    def _read_artifact_stream_sync(response) -> bytes:
+        chunks = []
+        total_size = 0
+        for chunk in response.iter_bytes(chunk_size=8192):
+            total_size += len(chunk)
+            if total_size > MAX_AUDIO_FILE_SIZE:
+                raise ValueError(
+                    f"Vapi artifact exceeds maximum size of "
+                    f"{MAX_AUDIO_FILE_SIZE / (1024 * 1024):.1f}MB"
+                )
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     @classmethod
     def mirror_s3_url_to_consumer_fields(
@@ -354,8 +385,7 @@ class VapiRecordingService:
         except Exception:
             return
 
-        # service_provider_call_id is the globally unique Vapi call id, so this
-        # lookup is already unambiguous without an extra org/project scope.
+        # Provider call IDs are not DB-unique; update one matching execution.
         row = (
             CallExecution.objects.filter(service_provider_call_id=call_id)
             .only("id", "recording_url", "stereo_recording_url")
@@ -386,8 +416,7 @@ class VapiRecordingService:
         except Exception:
             return
 
-        # service_provider_call_id is the globally unique Vapi call id, so this
-        # lookup is already unambiguous without an extra org/project scope.
+        # Multiple historical snapshots may share a provider call ID; update all.
         rows = list(
             CallExecutionSnapshot.objects.filter(service_provider_call_id=call_id)
             .only("id", "recording_url", "stereo_recording_url")
@@ -419,7 +448,7 @@ class VapiRecordingService:
             "fetch_and_parse_call_logs: ENTRY",
             call_id=call_id,
             api_key_present=bool(api_key),
-            legacy_url=legacy_url,
+            legacy_url_present=bool(legacy_url),
             verify_ssl=verify_ssl,
         )
         content = cls._fetch_call_logs_content(
@@ -476,7 +505,6 @@ class VapiRecordingService:
             "fetch_call_logs_content: ENTRY",
             call_id=call_id,
             api_key_present=bool(api_key),
-            legacy_url=legacy_url,
             will_try_tier1=bool(call_id and api_key),
             will_try_tier2=bool(legacy_url),
         )
@@ -488,9 +516,7 @@ class VapiRecordingService:
                 headers = {"Authorization": f"Bearer {api_key}"}
                 logger.info(
                     "fetch_call_logs_content: TIER1 request",
-                    url=url,
                     call_id=call_id,
-                    api_key_len=len(api_key),
                 )
                 response = requests.get(
                     url,
@@ -504,7 +530,6 @@ class VapiRecordingService:
                     call_id=call_id,
                     status=response.status_code,
                     content_len=len(response.content),
-                    final_url=response.url,
                 )
                 if response.status_code in (401, 403):
                     logger.warning(
@@ -526,7 +551,7 @@ class VapiRecordingService:
             try:
                 logger.info(
                     "fetch_call_logs_content: TIER2 request",
-                    legacy_url=legacy_url,
+                    call_id=call_id,
                 )
                 response = requests.get(
                     legacy_url,
@@ -536,7 +561,7 @@ class VapiRecordingService:
                 )
                 logger.info(
                     "fetch_call_logs_content: TIER2 response",
-                    legacy_url=legacy_url,
+                    call_id=call_id,
                     status=response.status_code,
                     content_len=len(response.content),
                 )
@@ -546,7 +571,6 @@ class VapiRecordingService:
                 logger.warning(
                     "vapi_call_logs_tier2_failed",
                     call_id=call_id,
-                    legacy_url=legacy_url,
                     exc_info=True,
                 )
         return None
@@ -568,7 +592,7 @@ class VapiRecordingService:
                 except json.JSONDecodeError:
                     logger.warning(
                         "vapi_call_logs_line_json_decode_failed",
-                        line_repr=line[:300],
+                        line_length=len(line),
                     )
                     payload = {"raw_line": line}
                 entries.append(cls._normalise_call_log_entry(payload))

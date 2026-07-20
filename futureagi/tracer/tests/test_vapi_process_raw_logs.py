@@ -71,3 +71,31 @@ class TestProcessRawLogsOverlay:
         assert (
             result["stereo_recording_url"] == "https://storage.vapi.ai/stereo.mp3"
         )
+
+    def test_retell_overlay_prefers_durable_span_urls(self):
+        """ClickHouse span attributes override Retell's expiring provider URLs."""
+        raw_log = {
+            "call_id": "retell-call-1",
+            "recording_url": "https://retell.example/raw-mono.wav",
+            "recording_multi_channel_url": "https://retell.example/raw-stereo.wav",
+            "call_cost": {"product_costs": []},
+        }
+        span_attributes = {
+            "conversation.recording.mono.combined": (
+                "https://fi-customer-data.s3.amazonaws.com/rehosted/mono.wav"
+            ),
+            "conversation.recording.stereo": (
+                "https://fi-customer-data.s3.amazonaws.com/rehosted/stereo.wav"
+            ),
+        }
+
+        result = ObservabilityService.process_raw_logs(
+            raw_log, ProviderChoices.RETELL, span_attributes=span_attributes
+        )
+
+        assert result["recording_url"] == span_attributes[
+            "conversation.recording.mono.combined"
+        ]
+        assert result["stereo_recording_url"] == span_attributes[
+            "conversation.recording.stereo"
+        ]

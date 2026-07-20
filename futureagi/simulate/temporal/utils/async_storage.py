@@ -21,6 +21,96 @@ MAX_AUDIO_FILE_SIZE = 100 * 1024 * 1024
 DOWNLOAD_TIMEOUT = 200.0  # seconds
 
 
+_AUDIO_FORMAT_TO_EXTENSION = {
+    "mp3": "mp3",
+    "mpeg": "mp3",
+    "wav": "wav",
+    "ogg": "ogg",
+    "opus": "ogg",
+    "flac": "flac",
+    "aac": "aac",
+    "m4a": "m4a",
+    "mp4": "m4a",
+    "webm": "webm",
+    "wma": "wma",
+    "aiff": "aiff",
+    "au": "au",
+}
+
+# The extension is deliberately part of the object key: browser audio players
+# use it as a fallback when the storage backend does not preserve content-type.
+_REHOST_AUDIO_EXTENSIONS = tuple(dict.fromkeys(_AUDIO_FORMAT_TO_EXTENSION.values()))
+
+
+def _rehost_object_key_base(
+    call_id: str,
+    url_type: str,
+    project_id: Optional[str],
+    provider: Optional[str],
+) -> str:
+    """Return the deterministic extension-less key for a recording artifact."""
+    # Callers in the observability path always provide these values. Keeping a
+    # stable fallback makes this helper backwards-compatible for direct users,
+    # while still preventing an omitted value from masquerading as Vapi data.
+    project_segment = str(project_id) if project_id else "unknown-project"
+    provider_segment = str(provider).lower() if provider else "unknown-provider"
+    return (
+        f"call-recordings/{project_segment}/{provider_segment}/"
+        f"{call_id}/{url_type}"
+    )
+
+
+def _rehost_object_key(object_key_base: str, extension: str) -> str:
+    return f"{object_key_base}.{extension}"
+
+
+def _existing_rehosted_audio(
+    object_key_base: str,
+) -> Optional[tuple[str, int]]:
+    """Return a pre-existing durable recording URL and its stored byte size.
+
+    The source URL on a later poll does not reliably retain an extension, so
+    look up the small supported extension set instead of assuming MP3.
+    """
+    try:
+        from tfc.settings.settings import UPLOAD_BUCKET_NAME
+        from tfc.utils.storage_client import get_object_url, get_storage_client
+
+        storage_client = get_storage_client()
+    except Exception:
+        return None
+    for extension in _REHOST_AUDIO_EXTENSIONS:
+        object_key = _rehost_object_key(object_key_base, extension)
+        try:
+            stat = storage_client.stat_object(UPLOAD_BUCKET_NAME, object_key)
+            return get_object_url(UPLOAD_BUCKET_NAME, object_key), int(stat.size)
+        except Exception:
+            # A missing candidate is expected. Storage failures remain
+            # best-effort as well: download/upload below gets a chance to run.
+            continue
+    return None
+
+
+def _is_fagi_storage_url(url: Optional[str]) -> bool:
+    """Use the canonical own-storage validation rather than hostname guesses."""
+    from tracer.utils.vapi_recording import VapiRecordingService
+
+    return bool(url) and VapiRecordingService.is_fagi_s3_url(url)
+
+
+def _detected_audio_extension(audio_bytes: bytes) -> str:
+    """Detect a supported audio extension without relabelling media as MP3."""
+    from tfc.utils.storage import detect_audio_format
+
+    detected_format = detect_audio_format(audio_bytes)
+    # ffmpeg can return comma-separated format aliases (for example, mp4/m4a).
+    for candidate in (detected_format or "").lower().split(","):
+        extension = _AUDIO_FORMAT_TO_EXTENSION.get(candidate.strip())
+        if extension:
+            return extension
+    raise ValueError(f"Unsupported or undetected audio format: {detected_format!r}")
+
+
 async def download_audio_from_url_async(
     audio_url: Optional[str],
     max_retries: int = 5,
@@ -67,7 +157,7 @@ async def download_audio_from_url_async(
     async with httpx.AsyncClient(timeout=timeout) as client:
         for attempt in range(max_retries):
             try:
-                logger.debug(f"Downloading audio (attempt {attempt + 1}): {audio_url}")
+                logger.debug("recording_download_attempt", attempt=attempt + 1)
 
                 # Stream the response to handle large files
                 async with client.stream("GET", audio_url) as response:
@@ -87,15 +177,15 @@ async def download_audio_from_url_async(
                             )
 
                     audio_data = b"".join(chunks)
-                    logger.info(
-                        f"Downloaded audio: {len(audio_data)} bytes from {audio_url}"
-                    )
+                    logger.info("recording_download_complete", bytes=len(audio_data))
                     return audio_data
 
             except (httpx.HTTPError, httpx.StreamError) as e:
                 last_error = e
                 logger.warning(
-                    f"Download attempt {attempt + 1} failed for {audio_url}: {e}"
+                    "recording_download_failed",
+                    attempt=attempt + 1,
+                    error_type=type(e).__name__,
                 )
                 if attempt < max_retries - 1:
                     # Exponential backoff
@@ -116,12 +206,13 @@ async def _convert_audio_url_to_s3_async_with_size(
     api_key: Optional[str] = None,
     vapi_call_id: Optional[str] = None,
     artifact_type: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> tuple[str, int]:
     """Internal worker that does the download + upload and reports size.
 
-    Returns (s3_url_or_original_on_failure, bytes_uploaded_to_s3). The
-    bytes count is 0 when the source URL was already on S3 or the upload
-    did not succeed; callers can use that to decide whether to bill.
+    Returns (s3_url_or_original_on_failure, artifact_bytes). Existing
+    deterministic objects return their stored size so a failed billing emit
+    can be retried safely with the same idempotency key.
     """
     from tracer.utils.vapi_recording import VapiRecordingService
 
@@ -129,9 +220,6 @@ async def _convert_audio_url_to_s3_async_with_size(
         "_convert_audio_url_to_s3: ENTRY",
         call_id=call_id,
         url_type=url_type,
-        audio_url=audio_url,
-        audio_url_type=type(audio_url).__name__,
-        audio_url_is_str=isinstance(audio_url, str),
         provider=provider,
         api_key_present=bool(api_key),
         vapi_call_id=vapi_call_id,
@@ -152,18 +240,25 @@ async def _convert_audio_url_to_s3_async_with_size(
     )
 
     if not audio_url and not vapi_authenticated:
-        logger.info("_convert_audio_url_to_s3: no url and not authenticated -> return original", audio_url=audio_url)
+        logger.info("recording_rehost_skipped_missing_source", artifact_type=url_type)
         return audio_url, 0
 
-    # Check if already an S3 URL
-    if audio_url and ("amazonaws.com" in str(audio_url) or "minio" in str(audio_url)):
-        logger.info(f"{url_type} URL is already S3: {audio_url}")
+    # Only skip URLs verified as belonging to our configured storage. Provider
+    # signed URLs can legitimately be hosted on S3 too.
+    if _is_fagi_storage_url(audio_url):
+        logger.info("recording_rehost_skipped_own_storage", artifact_type=url_type)
         return audio_url, 0
+
+    object_key_base = _rehost_object_key_base(
+        call_id, url_type, project_id, provider
+    )
+    existing = _existing_rehosted_audio(object_key_base)
+    if existing:
+        return existing
 
     try:
         logger.info(
             "_convert_audio_url_to_s3: starting download",
-            audio_url=audio_url,
             vapi_authenticated=vapi_authenticated,
         )
         # Async download
@@ -177,6 +272,10 @@ async def _convert_audio_url_to_s3_async_with_size(
         logger.info(
             "_convert_audio_url_to_s3: download complete",
             bytes=len(audio_bytes),
+        )
+
+        object_key = _rehost_object_key(
+            object_key_base, _detected_audio_extension(audio_bytes)
         )
 
         # S3 upload (still sync - minio client doesn't have async support)
@@ -193,18 +292,24 @@ async def _convert_audio_url_to_s3_async_with_size(
             # Deterministic key per (call_id, url_type) so retries overwrite
             # the same object instead of creating orphans. Required for
             # idempotent rehost.
-            object_key = f"call-recordings/{call_id}/{url_type}.mp3"
             audio_data = {"bytes": audio_bytes}
             return upload_audio_to_s3(audio_data, object_key=object_key)
 
         # Run upload in thread pool (small operation compared to download)
         s3_url = await loop.run_in_executor(None, do_upload)
 
-        logger.info(f"Successfully converted {url_type} URL to S3: {s3_url}")
+        logger.info(
+            "recording_rehost_complete", artifact_type=url_type, bytes=len(audio_bytes)
+        )
         return s3_url, len(audio_bytes)
 
     except Exception as e:
-        logger.error(f"Error converting {url_type} URL to S3: {e}", exc_info=True)
+        logger.error(
+            "recording_rehost_failed",
+            artifact_type=url_type,
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
         # Return original URL on failure
         return audio_url, 0
 
@@ -218,6 +323,7 @@ async def convert_audio_url_to_s3_async(
     api_key: Optional[str] = None,
     vapi_call_id: Optional[str] = None,
     artifact_type: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> str:
     """
     Async version of convert_audio_url_to_s3.
@@ -243,6 +349,7 @@ async def convert_audio_url_to_s3_async(
         api_key=api_key,
         vapi_call_id=vapi_call_id,
         artifact_type=artifact_type,
+        project_id=project_id,
     )
     return s3_url
 
@@ -256,12 +363,12 @@ async def convert_audio_url_to_s3_async_with_size(
     api_key: Optional[str] = None,
     vapi_call_id: Optional[str] = None,
     artifact_type: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> tuple[str, int]:
     """Like `convert_audio_url_to_s3_async` but also reports uploaded bytes.
 
-    Returns (s3_url_or_original_on_failure, bytes_uploaded). The bytes
-    value is 0 when nothing was uploaded (already-on-S3 / failure), so
-    billing call sites can sum it directly without re-checking the URL.
+    Returns (s3_url_or_original_on_failure, artifact_bytes). Existing
+    deterministic objects return their stored size for safe billing retries.
     """
     return await _convert_audio_url_to_s3_async_with_size(
         call_id,
@@ -271,6 +378,7 @@ async def convert_audio_url_to_s3_async_with_size(
         api_key=api_key,
         vapi_call_id=vapi_call_id,
         artifact_type=artifact_type,
+        project_id=project_id,
     )
 
 
@@ -283,13 +391,15 @@ def convert_audio_url_to_s3_sync(
     api_key: Optional[str] = None,
     vapi_call_id: Optional[str] = None,
     artifact_type: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> tuple[str, int]:
     """Sync mirror of ``_convert_audio_url_to_s3_async_with_size``.
 
     Downloads audio via ``requests`` and uploads to S3/MinIO.  Best-effort:
     on any exception the original URL is returned with 0 bytes.
 
-    Returns (s3_url_or_original_on_failure, bytes_uploaded_to_s3).
+    Returns (s3_url_or_original_on_failure, artifact_bytes). Existing
+    deterministic objects return their stored size for safe billing retries.
     """
     from tracer.utils.vapi_recording import VapiRecordingService
 
@@ -297,7 +407,6 @@ def convert_audio_url_to_s3_sync(
         "convert_audio_url_to_s3_sync: ENTRY",
         call_id=call_id,
         url_type=url_type,
-        audio_url=audio_url,
         provider=provider,
         api_key_present=bool(api_key),
         artifact_type=artifact_type,
@@ -311,9 +420,15 @@ def convert_audio_url_to_s3_sync(
     if not audio_url and not vapi_authenticated:
         return audio_url, 0
 
-    # Already S3?
-    if audio_url and ("amazonaws.com" in str(audio_url) or "minio" in str(audio_url)):
+    if _is_fagi_storage_url(audio_url):
         return audio_url, 0
+
+    object_key_base = _rehost_object_key_base(
+        call_id, url_type, project_id, provider
+    )
+    existing = _existing_rehosted_audio(object_key_base)
+    if existing:
+        return existing
 
     try:
         if vapi_authenticated:
@@ -342,18 +457,25 @@ def convert_audio_url_to_s3_sync(
                         )
             audio_bytes = b"".join(chunks)
 
+        object_key = _rehost_object_key(
+            object_key_base, _detected_audio_extension(audio_bytes)
+        )
+
         # Upload to S3
         from tfc.utils.storage import upload_audio_to_s3
 
-        object_key = f"call-recordings/{call_id}/{url_type}.mp3"
         s3_url = upload_audio_to_s3({"bytes": audio_bytes}, object_key=object_key)
 
-        logger.info(f"convert_audio_url_to_s3_sync: success", s3_url=s3_url)
+        logger.info(
+            "recording_rehost_complete", artifact_type=url_type, bytes=len(audio_bytes)
+        )
         return s3_url, len(audio_bytes)
 
     except Exception as e:
         logger.error(
-            f"convert_audio_url_to_s3_sync: error converting {url_type}: {e}",
+            "recording_rehost_failed",
+            artifact_type=url_type,
+            error_type=type(e).__name__,
             exc_info=True,
         )
         return audio_url, 0

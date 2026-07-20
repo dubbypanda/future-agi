@@ -3,7 +3,9 @@
 import gzip
 import io
 import json
+import sys
 import uuid
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import httpx
@@ -107,6 +109,24 @@ class _FakeHttpResponse:
         if 400 <= self.status_code < 600:
             raise httpx.HTTPStatusError("http error", request=Mock(), response=Mock(status_code=self.status_code))
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    def iter_bytes(self, chunk_size=None):
+        yield self.content
+
+    async def aiter_bytes(self, chunk_size=None):
+        yield self.content
+
 
 class _FakeAsyncClient:
     def __init__(self, response, follow_redirects=True, timeout=None):
@@ -121,6 +141,9 @@ class _FakeAsyncClient:
     async def get(self, url, headers=None):
         return self._response
 
+    def stream(self, method, url, headers=None):
+        return self._response
+
 
 class _FakeSyncClient:
     def __init__(self, response, follow_redirects=True, timeout=None):
@@ -133,6 +156,9 @@ class _FakeSyncClient:
         return False
 
     def get(self, url, headers=None):
+        return self._response
+
+    def stream(self, method, url, headers=None):
         return self._response
 
 
@@ -184,6 +210,24 @@ class TestDownloadArtifactAsync:
         with pytest.raises(ValueError):
             await VapiRecordingService.download_artifact_async("cid", "mono-recording", "")
 
+    @pytest.mark.asyncio
+    async def test_stops_streaming_when_authenticated_artifact_exceeds_limit(
+        self, monkeypatch
+    ):
+        response = _FakeHttpResponse(200)
+
+        async def oversized_chunks(chunk_size=None):
+            yield b"1234"
+            yield b"5"
+
+        response.aiter_bytes = oversized_chunks
+        monkeypatch.setattr("tracer.utils.vapi_recording.MAX_AUDIO_FILE_SIZE", 4)
+        with patch("tracer.utils.vapi_recording.httpx.AsyncClient", return_value=_FakeAsyncClient(response)):
+            with pytest.raises(ValueError, match="maximum size"):
+                await VapiRecordingService.download_artifact_async(
+                    "cid", "mono-recording", "key"
+                )
+
 
 class TestDownloadArtifactSync:
     def test_returns_bytes_on_200(self):
@@ -197,6 +241,16 @@ class TestDownloadArtifactSync:
         response = _FakeHttpResponse(status)
         with patch("tracer.utils.vapi_recording.httpx.Client", return_value=_FakeSyncClient(response)):
             with pytest.raises(exc_type):
+                VapiRecordingService.download_artifact_sync("cid", "mono-recording", "key")
+
+    def test_stops_streaming_when_authenticated_artifact_exceeds_limit(
+        self, monkeypatch
+    ):
+        response = _FakeHttpResponse(200)
+        response.iter_bytes = lambda chunk_size=None: iter([b"1234", b"5"])
+        monkeypatch.setattr("tracer.utils.vapi_recording.MAX_AUDIO_FILE_SIZE", 4)
+        with patch("tracer.utils.vapi_recording.httpx.Client", return_value=_FakeSyncClient(response)):
+            with pytest.raises(ValueError, match="maximum size"):
                 VapiRecordingService.download_artifact_sync("cid", "mono-recording", "key")
 
 
@@ -348,6 +402,23 @@ class TestFetchAndParseCallLogs:
         )
         assert entries is None
 
+    def test_info_logs_do_not_include_signed_legacy_urls(self):
+        signed_url = "https://provider.example/logs?token=secret-token"
+        response = _FakeHttpResponse(200, content=self._gzip([]))
+        events = []
+
+        def capture(event, **kwargs):
+            events.append((event, kwargs))
+
+        with patch("tracer.utils.vapi_recording.logger.info", side_effect=capture), patch(
+            "tracer.utils.vapi_recording.requests.get", return_value=response
+        ):
+            VapiRecordingService.fetch_and_parse_call_logs(
+                call_id=None, api_key=None, legacy_url=signed_url
+            )
+
+        assert signed_url not in str(events)
+
 
 class TestMirrorS3UrlToConsumerFields:
     """DB-mirror side-effects are patched away; behaviour tested is the returned attrs dict."""
@@ -434,6 +505,32 @@ class TestMirrorS3UrlToConsumerFields:
             )
         ce.assert_not_called()
         snap.assert_not_called()
+
+    def test_updates_every_snapshot_with_the_same_provider_call_id(self):
+        first = Mock(recording_url=None, stereo_recording_url=None)
+        second = Mock(recording_url=None, stereo_recording_url=None)
+        queryset = Mock()
+        queryset.only.return_value = [first, second]
+        snapshot_model = SimpleNamespace(objects=Mock())
+        snapshot_model.objects.filter.return_value = queryset
+
+        with patch.dict(
+            sys.modules,
+            {"simulate.models.test_execution": SimpleNamespace(CallExecutionSnapshot=snapshot_model)},
+        ):
+            VapiRecordingService._mirror_to_call_execution_snapshot(
+                call_id="cid",
+                mono_s3="https://fi-customer-data.s3.amazonaws.com/mono.mp3",
+                stereo_s3=None,
+            )
+
+        snapshot_model.objects.filter.assert_called_once_with(
+            service_provider_call_id="cid"
+        )
+        assert first.recording_url.endswith("mono.mp3")
+        assert second.recording_url.endswith("mono.mp3")
+        first.save.assert_called_once_with(update_fields=["recording_url"])
+        second.save.assert_called_once_with(update_fields=["recording_url"])
 
 
 class TestNormaliseCallLogEntry:

@@ -137,10 +137,17 @@ def fetch_logs_for_provider(
                         if isinstance(logs, (list, tuple))
                         else "n/a"
                     ),
-                    first_elem_repr=(
-                        repr(logs[0])[:400]
+                    first_elem_type=(
+                        type(logs[0]).__name__
                         if isinstance(logs, (list, tuple)) and logs
-                        else "n/a"
+                        else None
+                    ),
+                    first_elem_keys=(
+                        list(logs[0].keys())[:15]
+                        if isinstance(logs, (list, tuple))
+                        and logs
+                        and isinstance(logs[0], dict)
+                        else None
                     ),
                 )
             except HTTPError as e:
@@ -256,6 +263,26 @@ def _create_observation_span(
 
 
 _PROVIDER_SPAN_NS = uuid.UUID("4d61d4e2-7b3c-4a1e-9f02-2c6a5b8e1d70")
+_REHOST_BILLING_NS = uuid.UUID("8de415d3-3146-47fa-b3d6-bf3c05421621")
+
+
+def _rehost_billing_event_id(
+    project_id: str | uuid.UUID,
+    provider: str,
+    call_id: str,
+    artifact_type: str,
+) -> str:
+    """Stable billing ID for one project-scoped provider recording artifact.
+
+    The namespace and Vapi input string intentionally match the prior Vapi-only
+    helper, so already-issued Vapi event IDs remain stable across this refactor.
+    """
+    return str(
+        uuid.uuid5(
+            _REHOST_BILLING_NS,
+            f"{project_id}:{provider}:{call_id}:{artifact_type}",
+        )
+    )
 
 
 def _provider_collector_span_id(
@@ -409,8 +436,12 @@ def process_and_store_logs(
             )
 
     normalization_functions = {
-        ProviderChoices.VAPI: lambda log: normalize_vapi_data(log, api_key=api_key),
-        ProviderChoices.RETELL: normalize_retell_data,
+        ProviderChoices.VAPI: lambda log: normalize_vapi_data(
+            log, api_key=api_key, project_id=str(project.id)
+        ),
+        ProviderChoices.RETELL: lambda log: normalize_retell_data(
+            log, project_id=str(project.id)
+        ),
         ProviderChoices.ELEVEN_LABS: normalize_eleven_labs_data,
         ProviderChoices.BLAND: normalize_bland_data,
         ProviderChoices.TWILIO: normalize_twilio_data,
@@ -433,7 +464,6 @@ def process_and_store_logs(
         logger.error(
             "process_and_store_logs: logs is NOT a list/tuple",
             logs_type=type(logs).__name__,
-            logs_repr=repr(logs)[:1000],
         )
         return
 
@@ -443,7 +473,7 @@ def process_and_store_logs(
             idx=log_idx,
             log_type=type(log).__name__,
             is_dict=isinstance(log, dict),
-            log_repr=(repr(log)[:300] if not isinstance(log, dict) else f"keys={list(log.keys())[:15]}"),
+            log_keys=list(log.keys())[:15] if isinstance(log, dict) else None,
         )
         provider_log_id = None
         try:
@@ -478,41 +508,26 @@ def process_and_store_logs(
         # AND meters ingestion usage, so there is no app-side CH write or usage emit.
         _export_provider_call_to_collector(span, provider.provider, provider_log_id)
 
-        # Emit billing for inline rehosted bytes (Vapi recordings moved to S3).
-        # Idempotent across re-polls: a Vapi call is pulled repeatedly, and the
-        # raw log always carries the original (non-S3) URL, so rehost would re-run
-        # each poll. We ledger the billed url-types on ProviderLog.metadata and
-        # only bill url-types not already recorded.
+        # Emit one idempotent ledger event per rehosted provider recording type.
+        # Provider polls repeat raw URLs, so UUID5 is the durable
+        # dedupe key; this deployment has no ProviderLog model to persist on.
         rehost_uploads = normalized_data.get("rehost_uploads") or {}
         if rehost_uploads:
             organization_id = str(getattr(project, "organization_id", "") or "")
             if organization_id:
-                try:
-                    from tracer.models.observability_provider import ProviderLog
-
-                    provider_log = ProviderLog.objects.get(id=provider_log_id)
-                    billed = set(
-                        (provider_log.metadata or {}).get("rehost_billed_url_types", [])
-                    )
-                    new_types = [t for t in rehost_uploads if t not in billed]
-                    if new_types:
-                        new_bytes = sum(rehost_uploads[t] for t in new_types)
-                        emit_span_ingestion_usage(
-                            organization_id=organization_id,
-                            num_traces=0,
-                            num_spans=0,
-                            payload_bytes=new_bytes,
-                            source="voice_recording_rehost",
-                        )
-                        billed.update(new_types)
-                        provider_log.metadata = {
-                            **(provider_log.metadata or {}),
-                            "rehost_billed_url_types": sorted(billed),
-                        }
-                        provider_log.save(update_fields=["metadata"])
-                except Exception:
-                    logger.exception(
-                        "process_and_store_logs: rehost billing ledger failed (non-fatal)"
+                for artifact_type, payload_bytes in rehost_uploads.items():
+                    emit_span_ingestion_usage(
+                        organization_id=organization_id,
+                        num_traces=0,
+                        num_spans=0,
+                        payload_bytes=payload_bytes,
+                        source="voice_recording_rehost",
+                        event_id=_rehost_billing_event_id(
+                            project.id,
+                            provider.provider,
+                            provider_log_id,
+                            artifact_type,
+                        ),
                     )
 
 

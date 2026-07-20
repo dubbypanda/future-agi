@@ -111,6 +111,38 @@ class TestInlineRehostReplace:
         for call_args in mock_convert.call_args_list:
             assert call_args.kwargs.get("api_key") == "super-secret-key"
 
+    def test_project_id_scopes_each_rehosted_object(self):
+        """The same Vapi call ID in two projects cannot share an S3 object."""
+        with patch(
+            "tracer.utils.vapi.convert_audio_url_to_s3_sync",
+            return_value=(S3_COMBINED, 1024),
+        ) as mock_convert:
+            normalize_vapi_data(VAPI_LOG, api_key="test-key", project_id="project-1")
+
+        for call_args in mock_convert.call_args_list:
+            assert call_args.kwargs["project_id"] == "project-1"
+
+    def test_info_logs_do_not_include_call_payload_values(self):
+        sensitive_log = {
+            **VAPI_LOG,
+            "customer": {"number": "+15551234567"},
+            "transcript": "private conversation",
+        }
+        events = []
+
+        def capture(event, **kwargs):
+            events.append((event, kwargs))
+
+        with patch("tracer.utils.vapi.logger.info", side_effect=capture), patch(
+            "tracer.utils.vapi._extract_eval_attributes", return_value={}
+        ), patch("tracer.utils.vapi._rehost_recording_urls_sync", return_value=(0, {})):
+            normalize_vapi_data(sensitive_log, api_key="api-secret")
+
+        rendered = str(events)
+        assert "+15551234567" not in rendered
+        assert "private conversation" not in rendered
+        assert "api-secret" not in rendered
+
 
 class TestInlineRehostSkipS3:
     """Already-S3 URLs are skipped — no rehost attempted."""
