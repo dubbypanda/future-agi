@@ -6,7 +6,7 @@ import {
   isHiddenPickerPath,
   isTextCallDetail,
   translateDeepScenarioColumn,
-} from "../SimulationTestMode";
+} from "../simulationTestModeUtils";
 
 describe("isTextCallDetail", () => {
   it("returns true for chat / prompt sims on simulation.call_type", () => {
