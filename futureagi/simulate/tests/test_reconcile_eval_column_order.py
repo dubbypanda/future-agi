@@ -148,6 +148,53 @@ def test_add_delete_rename_in_one_pass():
     assert [c["column_name"] for c in eval_cols] == ["toxicity_final", "quality"]
 
 
+def test_te_created_with_n_evals_shows_late_added_eval_after_reconcile():
+    """Regression guard for the reported repro on TH-6981.
+
+    Sequence that produced the bug in the wild:
+      1. A Test Execution (TE#1) was created when the parent RunTest had
+         2 eval configs. execution_metadata.column_order was snapshotted
+         with exactly those 2 evaluation entries.
+      2. A 3rd eval config was later added to the parent RunTest via the
+         top-right Evals tab on the runs-list page.
+      3. A newer Test Execution (TE#2) picked up all 3 evals as expected.
+      4. On TE#1 the user re-ran evals; the 3rd eval produced outputs on
+         TE#1's CallExecution rows, so the aggregate KPI (reads live via
+         SQL) showed 3 evals.
+      5. The row-level grid still rendered only 2 eval columns because
+         column_order was frozen at the first-view snapshot. Header
+         aggregate and per-call cells disagreed.
+
+    reconcile_eval_column_order closes the gap: on the next GET of TE#1,
+    the newly-added eval's column is appended to column_order (existing
+    two keep their position), so aggregate and grid agree again.
+    """
+    e_orig1 = _EC(id="e-task", name="customer_agent_task_c", template_config={})
+    e_orig2 = _EC(id="e-prompt", name="customer_agent_prompt", template_config={})
+    e_added_later = _EC(id="e-tox", name="toxicity", template_config={})
+
+    # State captured at TE#1 creation time: only the 2 originals present.
+    snapshotted = list(BASE_COLS) + [
+        build_eval_column(e_orig1),
+        build_eval_column(e_orig2),
+    ]
+
+    # Live active configs on the RunTest now include the late-added one.
+    live_configs = [e_orig1, e_orig2, e_added_later]
+
+    reconciled, changed = reconcile_eval_column_order(
+        column_order=snapshotted, eval_configs=live_configs
+    )
+
+    assert changed is True
+    eval_cols = _eval_cols(reconciled)
+    assert [c["id"] for c in eval_cols] == ["e-task", "e-prompt", "e-tox"]
+    # Late-add is appended, not inserted between surviving evals.
+    assert reconciled[-1]["id"] == "e-tox"
+    # Non-eval columns untouched.
+    assert reconciled[: len(BASE_COLS)] == BASE_COLS
+
+
 def test_skips_non_dict_entries_gracefully():
     e1 = _EC(id="e1", name="toxicity", template_config={})
     starting = ["legacy_string_entry", None] + list(BASE_COLS)
