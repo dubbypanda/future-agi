@@ -212,14 +212,35 @@ class FutureAGIChatService(ChatServiceBlueprint):
 
         for msg in input.messages:
             content = (msg.content or "").strip()
+            role = msg.role.value if msg.role else "user"
+
+            if role == "tool":
+                messages.append({
+                    "role": "tool",
+                    "content": content,
+                    "tool_call_id": msg.tool_call_id
+                })
+                continue
+
+            if msg.tool_calls:
+                # A message carrying tool_calls is an assistant turn by
+                # definition; coerce the role so the sequence is valid even if
+                # the SDK remapped assistant->user upstream.
+                messages.append({
+                    "role": "assistant",
+                    "content": content or None,
+                    "tool_calls": [tc.model_dump() for tc in msg.tool_calls],
+                })
+                continue
+
             if not content:
                 logger.warning(
                     "empty_message_skipped",
                     session_id=input.session_id,
-                    role=msg.role.value,
+                    role=role,
                 )
                 continue
-            messages.append({"role": msg.role.value, "content": content})
+            messages.append({"role": role, "content": content})
 
         # Check turn limit
         turn_count = sum(1 for m in messages if m.get("role") == "user")
