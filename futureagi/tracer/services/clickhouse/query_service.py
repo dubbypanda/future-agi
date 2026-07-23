@@ -139,7 +139,6 @@ class AnalyticsQueryService:
             params["recent_days"] = int(recent_days)
             recent_filter = "AND start_time >= now() - toIntervalDay(%(recent_days)s)"
 
-        inner_order = "ORDER BY start_time DESC" if recent_days is not None else ""
         outer_select = "SELECT key, argMax(type, cnt) AS type"
         if include_counts:
             outer_select += ", sum(cnt) AS count"
@@ -150,33 +149,30 @@ class AnalyticsQueryService:
         query = f"""
             {outer_select} FROM (
                 SELECT key, 'string' AS type, count() AS cnt FROM (
-                    SELECT attrs_string FROM spans
+                    SELECT attrs_string.keys AS ks FROM spans
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
-                    {inner_order}
                     LIMIT 10000
-                ) ARRAY JOIN mapKeys(attrs_string) AS key
+                ) ARRAY JOIN ks AS key
                 GROUP BY key
                 UNION ALL
                 SELECT key, 'number' AS type, count() AS cnt FROM (
-                    SELECT attrs_number FROM spans
+                    SELECT attrs_number.keys AS ks FROM spans
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
-                    {inner_order}
                     LIMIT 10000
-                ) ARRAY JOIN mapKeys(attrs_number) AS key
+                ) ARRAY JOIN ks AS key
                 GROUP BY key
                 UNION ALL
                 SELECT key, 'boolean' AS type, count() AS cnt FROM (
-                    SELECT attrs_bool FROM spans
+                    SELECT attrs_bool.keys AS ks FROM spans
                     WHERE project_id IN %(project_ids)s
                       AND is_deleted = 0
                       {recent_filter}
-                    {inner_order}
                     LIMIT 10000
-                ) ARRAY JOIN mapKeys(attrs_bool) AS key
+                ) ARRAY JOIN ks AS key
                 GROUP BY key
             )
             GROUP BY key
