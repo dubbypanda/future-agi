@@ -1357,18 +1357,20 @@ def resolve_source_preview(item, *, ch_cache=None):
 
 
 def _queue_item_project_source(item) -> str | None:
-    """The item's project ``source`` (e.g. ``"simulator"`` for voice projects) or
-    ``None``. Guarded: ``resolve_source_content`` wraps every branch in one
-    try/except, so a dangling/absent project (``QueueItem.project`` is a soft FK,
-    ``db_constraint=False``) must degrade to ``None`` — never raise and collapse the
-    whole item to the error sentinel. Callers batch-load ``project`` via
-    ``select_related`` so this stays query-free on the export/list loops."""
+    """Returns the item's project ``source``, or ``None`` for an unset/dangling soft
+    FK (never raises)."""
     if not item.project_id:
         return None
     try:
-        return getattr(item.project, "source", None)
+        project = item.project  # None when select_related joined a dangling FK
     except ObjectDoesNotExist:
+        logger.debug(
+            "queue_item_project_source_dangling_fk",
+            item_id=str(item.id),
+            project_id=str(item.project_id),
+        )
         return None
+    return project.source if project else None
 
 
 def resolve_source_content(item, *, ch_cache=None, cell_cache=None):
@@ -1454,9 +1456,7 @@ def resolve_source_content(item, *, ch_cache=None, cell_cache=None):
             data["type"] = "trace"
             data["trace_id"] = str(item.trace_id)
             data.pop("span_id", None)
-            # Voice calls render in the voice UI when their project is a voice
-            # (simulator-source) project; the CH-native cutover dropped this key and
-            # regressed voice trace items to the raw trace-tree view.
+            # The FE picks the voice call UI off project_source == "simulator".
             data["project_source"] = _queue_item_project_source(item)
             return data
 
