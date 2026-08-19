@@ -51,7 +51,7 @@ import { getDefaultTaskValues, useGetTaskData } from "../common";
 import TaskConfirmDialog from "./TaskConfirmBox";
 import TaskLogsView from "../TaskLogsView";
 import { EvalPickerDrawer, serializeEvalConfig } from "../../EvalPicker";
-import { useTaskEvalAttributeInventory } from "../useTaskEvalAttributeInventory";
+import { useTaskEvalAttributeInventory } from "../use_task_eval_attribute_inventory";
 
 // ── Configured Eval Card ──
 

@@ -10,7 +10,7 @@ import { useExactEvalAttributeFields } from "src/sections/evals/components/useEx
 import {
   canonicalTaskEvalFields,
   useTaskEvalAttributeInventory,
-} from "./useTaskEvalAttributeInventory";
+} from "./use_task_eval_attribute_inventory";
 
 vi.mock(
   "src/sections/evals/components/useExactEvalAttributeFields",

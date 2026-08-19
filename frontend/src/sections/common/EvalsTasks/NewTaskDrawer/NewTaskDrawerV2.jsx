@@ -39,7 +39,7 @@ import { FormSearchSelectFieldControl } from "src/components/FromSearchSelectFie
 import { useNavigate } from "react-router";
 import FilterErrorBoundary from "src/components/ComplexFilter/FilterErrorBoundary";
 import { EvalPickerDrawer, serializeEvalConfig } from "../../EvalPicker";
-import { useTaskEvalAttributeInventory } from "../useTaskEvalAttributeInventory";
+import { useTaskEvalAttributeInventory } from "../use_task_eval_attribute_inventory";
 
 // ── Configured Eval Card ──
 
