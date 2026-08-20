@@ -7,6 +7,7 @@ from functools import wraps
 from itertools import islice
 
 import structlog
+from django.conf import settings
 from django.db import DatabaseError, connection, models, transaction
 from django.db.models import (
     Count,
@@ -99,26 +100,38 @@ class _RegexpReplace(Func):
     output_field = models.TextField()
 
 
-_USAGE_DETAIL_TEXT_MAX_CHARS = 8 * 1024
-_USAGE_JSON_PREVIEW_MAX_CHARS = 2 * 1024
-_USAGE_MAPPING_PATH_LIMIT = 16
-_USAGE_MAPPING_ENTRY_LIMIT = 16
-_USAGE_MAPPING_JSON_MAX_CHARS = 8 * 1024
-_USAGE_OMITTED_FIELDS_LIMIT = 24
-_USAGE_AGGREGATION_JSON_MAX_CHARS = 64 * 1024
-_USAGE_AGGREGATION_JSON_MAX_UNITS = 512 * 1024
-_EVAL_TASK_ERROR_TEXT_MAX_CHARS = 8 * 1024
-_EVAL_TASK_WARNING_KEY_LIMIT = 32
-_EVAL_TASK_WARNING_KEY_MAX_CHARS = 128
-_EVAL_TASK_WARNING_MESSAGE_MAX_CHARS = 1024
-_EVAL_TASK_LIST_COMPATIBILITY_SCAN_LIMIT = 1000
-_EVAL_TASK_LIST_COMPATIBILITY_RELATION_LIMIT = 5_000
-_EVAL_TASK_LIST_WALL_MS = 8_500
-_EVAL_TASK_ROOT_MAX_PAGE_SIZE = 100
-_EVAL_TASK_LIST_MAX_OFFSET = 50_000
-_EVAL_TASK_LIST_MAX_RESPONSE_UNITS = 2 * 1024 * 1024
-_EVAL_TASK_LIST_COMPATIBILITY_FILTER_UNITS = 512 * 1024
-_EVAL_TASK_ROOT_JSON_PREFLIGHT_UNITS = 1024 * 1024
+_USAGE_DETAIL_TEXT_MAX_CHARS = settings.EVAL_TASK_USAGE_DETAIL_TEXT_MAX_CHARS
+_USAGE_JSON_PREVIEW_MAX_CHARS = settings.EVAL_TASK_USAGE_JSON_PREVIEW_MAX_CHARS
+_USAGE_MAPPING_PATH_LIMIT = settings.EVAL_TASK_USAGE_MAPPING_PATH_LIMIT
+_USAGE_MAPPING_ENTRY_LIMIT = settings.EVAL_TASK_USAGE_MAPPING_ENTRY_LIMIT
+_USAGE_MAPPING_JSON_MAX_CHARS = settings.EVAL_TASK_USAGE_MAPPING_JSON_MAX_CHARS
+_USAGE_OMITTED_FIELDS_LIMIT = settings.EVAL_TASK_USAGE_OMITTED_FIELDS_LIMIT
+_USAGE_AGGREGATION_JSON_MAX_CHARS = settings.EVAL_TASK_USAGE_AGGREGATION_JSON_MAX_CHARS
+_USAGE_AGGREGATION_JSON_MAX_UNITS = settings.EVAL_TASK_USAGE_AGGREGATION_JSON_MAX_UNITS
+_EVAL_TASK_ERROR_TEXT_MAX_CHARS = settings.EVAL_TASK_ERROR_TEXT_MAX_CHARS
+_EVAL_TASK_WARNING_KEY_LIMIT = settings.EVAL_TASK_WARNING_KEY_LIMIT
+_EVAL_TASK_WARNING_KEY_MAX_CHARS = settings.EVAL_TASK_WARNING_KEY_MAX_CHARS
+_EVAL_TASK_WARNING_MESSAGE_MAX_CHARS = settings.EVAL_TASK_WARNING_MESSAGE_MAX_CHARS
+_EVAL_TASK_LIST_COMPATIBILITY_SCAN_LIMIT = (
+    settings.EVAL_TASK_LIST_COMPATIBILITY_SCAN_LIMIT
+)
+_EVAL_TASK_LIST_COMPATIBILITY_RELATION_LIMIT = (
+    settings.EVAL_TASK_LIST_COMPATIBILITY_RELATION_LIMIT
+)
+_EVAL_TASK_LIST_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+_EVAL_TASK_ROOT_MAX_PAGE_SIZE = settings.INTERACTIVE_READ_DEFAULT_MAX_PAGE_SIZE
+_EVAL_TASK_LIST_MAX_OFFSET = settings.EVAL_TASK_LIST_MAX_OFFSET
+_EVAL_TASK_LIST_DEFAULT_PAGE_SIZE = settings.EVAL_TASK_LIST_DEFAULT_PAGE_SIZE
+_EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE = (
+    settings.EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE
+)
+_EVAL_TASK_LIST_MAX_RESPONSE_UNITS = (
+    settings.INTERACTIVE_READ_DEFAULT_MAX_RESPONSE_UNITS
+)
+_EVAL_TASK_LIST_COMPATIBILITY_FILTER_UNITS = (
+    settings.EVAL_TASK_LIST_COMPATIBILITY_FILTER_UNITS
+)
+_EVAL_TASK_ROOT_JSON_PREFLIGHT_UNITS = settings.EVAL_TASK_ROOT_JSON_PREFLIGHT_UNITS
 
 
 class _EvalTaskPageNumberPagination(ExtendedPageNumberPagination):
@@ -150,7 +163,7 @@ class _EvalTaskPageNumberPagination(ExtendedPageNumberPagination):
 class _BoundedEvalTaskListQuerySerializer(EvalTaskListQuerySerializer):
     page_size = serializers.IntegerField(
         required=False,
-        default=30,
+        default=_EVAL_TASK_LIST_DEFAULT_PAGE_SIZE,
         min_value=1,
         max_value=_EVAL_TASK_ROOT_MAX_PAGE_SIZE,
     )
@@ -161,7 +174,7 @@ class _BoundedEvalTaskListWithProjectNameQuerySerializer(
 ):
     page_size = serializers.IntegerField(
         required=False,
-        default=10,
+        default=_EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE,
         min_value=1,
         max_value=_EVAL_TASK_ROOT_MAX_PAGE_SIZE,
     )
@@ -427,8 +440,8 @@ _USAGE_BUCKET_DELTAS = {
     "365d": timedelta(days=1),
 }
 _USAGE_BUCKET_ORIGIN = datetime(2000, 1, 1, tzinfo=UTC)
-_USAGE_MAX_CHART_POINTS = 367
-_USAGE_AGGREGATION_ROW_LIMIT = 5_000
+_USAGE_MAX_CHART_POINTS = settings.EVAL_TASK_USAGE_MAX_CHART_POINTS
+_USAGE_AGGREGATION_ROW_LIMIT = settings.EVAL_TASK_USAGE_AGGREGATION_ROW_LIMIT
 
 
 def _usage_bucket_delta(period, start_date, end_date, *, custom=False):
@@ -1816,7 +1829,7 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             _has_active_eval=True
         )
         page_number = query_data.get("page_number", 0)
-        page_size = query_data.get("page_size", 30)
+        page_size = query_data.get("page_size", _EVAL_TASK_LIST_DEFAULT_PAGE_SIZE)
         start = _validate_eval_task_page_depth(page_number, page_size)
         total_rows = queryset.count()
         end = start + int(page_size)
@@ -1958,7 +1971,8 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
         try:
             query_data = request.validated_query_data
             _validate_eval_task_page_depth(
-                query_data.get("page_number", 0), query_data.get("page_size", 30)
+                query_data.get("page_number", 0),
+                query_data.get("page_size", _EVAL_TASK_LIST_DEFAULT_PAGE_SIZE),
             )
 
             queryset = self.get_queryset()
@@ -1998,7 +2012,9 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
 
                 total_rows = len(result)
                 page_number = query_data.get("page_number", 0)
-                page_size = query_data.get("page_size", 30)
+                page_size = query_data.get(
+                    "page_size", _EVAL_TASK_LIST_DEFAULT_PAGE_SIZE
+                )
                 start = int(page_number) * int(page_size)
                 result = result[start : start + int(page_size)]
 
@@ -2042,9 +2058,9 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
     # Maximum number of distinct error groups returned per task. Most tasks
     # produce 1-5 distinct error types; this cap is a safety net for tasks
     # with many varied custom-eval failures and keeps the payload bounded.
-    _ERROR_GROUPS_LIMIT = 50
-    _WARNING_GROUPS_LIMIT = 20
-    _WARNING_LOG_SCAN_LIMIT = 1000
+    _ERROR_GROUPS_LIMIT = settings.EVAL_TASK_ERROR_GROUPS_LIMIT
+    _WARNING_GROUPS_LIMIT = settings.EVAL_TASK_WARNING_GROUPS_LIMIT
+    _WARNING_LOG_SCAN_LIMIT = settings.EVAL_TASK_WARNING_LOG_SCAN_LIMIT
 
     @validated_request(
         responses={
@@ -2882,7 +2898,10 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
         try:
             query_data = request.validated_query_data
             _validate_eval_task_page_depth(
-                query_data.get("page_number", 0), query_data.get("page_size", 10)
+                query_data.get("page_number", 0),
+                query_data.get(
+                    "page_size", _EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE
+                ),
             )
 
             queryset = self.get_queryset()
@@ -2920,7 +2939,9 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
 
                 total_rows = len(result)
                 page_number = query_data.get("page_number", 0)
-                page_size = query_data.get("page_size", 10)
+                page_size = query_data.get(
+                    "page_size", _EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE
+                )
                 start = int(page_number) * int(page_size)
                 result = result[start : start + int(page_size)]
 

@@ -14,6 +14,7 @@ except ImportError:
     _json_loads = json.loads
 
 import structlog
+from django.conf import settings
 from django.db import OperationalError, connection, models, transaction
 from django.db.models import (
     Count,
@@ -164,23 +165,23 @@ session_logger = structlog.get_logger(__name__)
 # All interactive session-list reads share one 9.5-second wall deadline.
 # Individual phases receive only the request's remaining time, so concurrent
 # finite enrichments cannot extend the endpoint beyond that ceiling.
-SESSION_LIST_WALL_DEADLINE_MS = 9_500
-SESSION_LIST_QUERY_TIMEOUT_MS = 9_500
-SESSION_LIST_ENRICHMENT_TIMEOUT_MS = 9_500
-SESSION_FILTER_VALUE_WALL_DEADLINE_MS = 9_500
-SESSION_LIST_FILTER_MAX_CANDIDATES = 200
-SESSION_LIST_FILTER_MAX_SEED_ATTEMPTS = 24
-SESSION_LIST_FILTER_MAX_QUERIES = 48
+SESSION_LIST_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_LIST_QUERY_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_LIST_ENRICHMENT_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_FILTER_VALUE_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_LIST_FILTER_MAX_CANDIDATES = settings.SESSION_LIST_FILTER_MAX_CANDIDATES
+SESSION_LIST_FILTER_MAX_SEED_ATTEMPTS = settings.SESSION_LIST_FILTER_MAX_SEED_ATTEMPTS
+SESSION_LIST_FILTER_MAX_QUERIES = settings.SESSION_LIST_FILTER_MAX_QUERIES
 SESSION_LIST_READ_SETTINGS = {
-    "max_threads": 2,
-    "max_block_size": 8192,
+    "max_threads": settings.SESSION_LIST_READ_MAX_THREADS,
+    "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
     "read_overflow_mode": "throw",
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
+    "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
+    "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
     "timeout_overflow_mode": "throw",
 }
-SESSION_LIST_RESULT_BYTES = 32 * 1024 * 1024
-SESSION_LIST_ATTRIBUTE_RESULT_ROWS = 50_000
+SESSION_LIST_RESULT_BYTES = settings.SESSION_LIST_MAX_RESULT_BYTES
+SESSION_LIST_ATTRIBUTE_RESULT_ROWS = settings.SESSION_LIST_ATTRIBUTE_MAX_RESULT_ROWS
 SESSION_GRAPH_RETRYABLE_ERROR_CODES = {
     "deadline_exceeded",
     "read_budget_exceeded",

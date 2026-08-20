@@ -1,11 +1,16 @@
 import axios, { endpoints } from "src/utils/axios";
 import { awaitAggregationRequestWithDeadline } from "src/utils/queryReadState";
+import {
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
+  OBSERVE_PROJECT_PAGE_SIZE as CONFIGURED_OBSERVE_PROJECT_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 // list_projects deliberately caps a single page at 100 rows. Consumers that
 // need a complete picker/catalog must follow its numbered pagination instead
 // of asking the server for an oversized page (which is rejected with HTTP 400).
-export const OBSERVE_PROJECT_PAGE_SIZE = 100;
-export const OBSERVE_PROJECT_REQUEST_TIMEOUT_MS = 9_000;
+export const OBSERVE_PROJECT_PAGE_SIZE = CONFIGURED_OBSERVE_PROJECT_PAGE_SIZE;
+export const OBSERVE_PROJECT_REQUEST_TIMEOUT_MS =
+  INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const projectPageError = () => {
   const error = new Error(
@@ -56,7 +61,7 @@ export async function readObserveProjectPage({
   timeoutMs = OBSERVE_PROJECT_REQUEST_TIMEOUT_MS,
 } = {}) {
   const requestedPage = params.page_number ?? 0;
-  const requestedPageSize = params.page_size ?? 20;
+  const requestedPageSize = params.page_size ?? OBSERVE_PROJECT_PAGE_SIZE;
   const response = await awaitAggregationRequestWithDeadline(
     (requestSignal) =>
       axios.get(endpoints.project.projectObserveList, {

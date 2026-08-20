@@ -1,32 +1,42 @@
 """Revision-bound continuation cursors for exact dataset-table reads.
 
-Each page still runs in its own repeatable-read transaction, while a database
-trigger-maintained revision row provides the cross-request fence.  That keeps
-continuation validation O(1): any Dataset/Row/Column/Cell mutation increments
-the revision in the same transaction, and a changed revision fails closed.
+Each page still runs in its own repeatable-read transaction. A read-only,
+fixed-cardinality lifecycle fingerprint provides the cross-request fence:
+Dataset/Row/Column/Cell mutations advance either a lifecycle clock, row count,
+or transaction id and invalidate the continuation. No table or trigger is
+installed on the source database.
 """
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass
+from hashlib import sha256
 
 from django.conf import settings
 from django.core import signing
 from django.db import connection
 from rest_framework.utils.encoders import JSONEncoder
 
-CURSOR_VERSION = 2
-CURSOR_SALT = "model_hub.dataset-table-snapshot.v2"
-DEFAULT_CURSOR_MAX_AGE_SECONDS = 30 * 60
-DATASET_TABLE_STATEMENT_TIMEOUT_MS = 8_500
-DATASET_TABLE_SERVER_WALL_SECONDS = 8.5
-DATASET_TABLE_EXACT_MAX_COLUMNS = 128
-DATASET_TABLE_EXACT_MAX_CELLS = 12_800
-DATASET_TABLE_EXACT_MAX_CELL_VALUE_BYTES = 256 * 1024
-DATASET_TABLE_EXACT_MAX_CELL_VARIABLE_BYTES = 6 * 1024 * 1024
-DATASET_TABLE_EXACT_MAX_SCHEMA_BYTES = 1024 * 1024
-DATASET_TABLE_EXACT_MAX_SERIALIZED_BYTES = 8 * 1024 * 1024
+from model_hub.services.dataset_read_limits import DATASET_READ_LIMITS
+
+CURSOR_VERSION = 3
+CURSOR_SALT = "model_hub.dataset-table-snapshot.v3"
+DATASET_TABLE_SERVER_WALL_SECONDS = DATASET_READ_LIMITS.server_wall_seconds
+DATASET_TABLE_STATEMENT_TIMEOUT_MS = int(DATASET_TABLE_SERVER_WALL_SECONDS * 1_000)
+DATASET_TABLE_EXACT_MAX_COLUMNS = DATASET_READ_LIMITS.exact_max_columns
+DATASET_TABLE_EXACT_MAX_CELLS = DATASET_READ_LIMITS.exact_max_cells
+DATASET_TABLE_EXACT_MAX_CELL_VALUE_BYTES = (
+    DATASET_READ_LIMITS.exact_max_cell_value_bytes
+)
+DATASET_TABLE_EXACT_MAX_CELL_VARIABLE_BYTES = (
+    DATASET_READ_LIMITS.exact_max_cell_variable_bytes
+)
+DATASET_TABLE_EXACT_MAX_SCHEMA_BYTES = DATASET_READ_LIMITS.exact_max_schema_bytes
+DATASET_TABLE_EXACT_MAX_SERIALIZED_BYTES = (
+    DATASET_READ_LIMITS.exact_max_serialized_bytes
+)
 
 
 class DatasetTableCursorError(ValueError):
@@ -93,7 +103,7 @@ class DatasetTableReadDeadline:
 
 @dataclass(frozen=True)
 class DatasetTableRevision:
-    revision: int
+    revision: str
     active_rows: int
 
 
@@ -108,16 +118,7 @@ class DatasetTableCursor:
 
 
 def _cursor_max_age_seconds() -> int:
-    return max(
-        1,
-        int(
-            getattr(
-                settings,
-                "DATASET_TABLE_CURSOR_MAX_AGE_SECONDS",
-                DEFAULT_CURSOR_MAX_AGE_SECONDS,
-            )
-        ),
-    )
+    return DATASET_READ_LIMITS.cursor_max_age_seconds
 
 
 def assert_dataset_table_shape_within_limits(
@@ -231,7 +232,7 @@ def assert_dataset_table_response_within_limits(response_data: dict) -> None:
     )
     if len(encoded.encode("utf-8")) > DATASET_TABLE_EXACT_MAX_SERIALIZED_BYTES:
         raise DatasetTableExactLimitExceeded(
-            "The exact dataset page exceeds the 8 MiB response limit."
+            "The exact dataset page exceeds the configured response limit."
         )
 
 
@@ -264,34 +265,132 @@ def _read_revision_state(
     *,
     deadline: DatasetTableReadDeadline | None = None,
 ) -> DatasetTableRevision:
-    """Read the trigger-maintained revision and exact active-row count."""
+    """Read one fixed-cardinality lifecycle fingerprint for this dataset."""
 
     if deadline is not None:
         deadline.set_statement_timeout()
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT revision, active_rows, is_ready
-            FROM model_hub_dataset_table_revision
-            WHERE dataset_id = %s
+            WITH xid_clock AS MATERIALIZED (
+              SELECT txid_current()::bigint AS current_txid
+            ), requested AS (
+              SELECT %s::uuid AS dataset_id
+            ), dataset_state AS (
+              SELECT
+                dataset.updated_at::text AS updated_at,
+                dataset.deleted,
+                COALESCE(dataset.deleted_at, dataset.updated_at)::text AS deleted_at,
+                xid_clock.current_txid - age(dataset.xmin) AS transaction_id
+              FROM model_hub_dataset AS dataset
+              JOIN requested ON requested.dataset_id = dataset.id
+              CROSS JOIN xid_clock
+            ), row_state AS (
+              SELECT
+                COUNT(*)::bigint AS total_count,
+                COUNT(*) FILTER (WHERE NOT dataset_row.deleted)::bigint
+                  AS active_count,
+                COALESCE(
+                  MAX(GREATEST(
+                    dataset_row.updated_at,
+                    COALESCE(dataset_row.deleted_at, dataset_row.updated_at)
+                  ))::text,
+                  ''
+                ) AS lifecycle_clock,
+                COALESCE(
+                  MAX(xid_clock.current_txid - age(dataset_row.xmin)),
+                  0
+                )::bigint
+                  AS transaction_id
+              FROM model_hub_row AS dataset_row
+              JOIN requested ON requested.dataset_id = dataset_row.dataset_id
+              CROSS JOIN xid_clock
+            ), column_state AS (
+              SELECT
+                COUNT(*)::bigint AS total_count,
+                COUNT(*) FILTER (WHERE NOT dataset_column.deleted)::bigint
+                  AS active_count,
+                COALESCE(
+                  MAX(GREATEST(
+                    dataset_column.updated_at,
+                    COALESCE(dataset_column.deleted_at, dataset_column.updated_at)
+                  ))::text,
+                  ''
+                ) AS lifecycle_clock,
+                COALESCE(
+                  MAX(xid_clock.current_txid - age(dataset_column.xmin)),
+                  0
+                )::bigint
+                  AS transaction_id
+              FROM model_hub_column AS dataset_column
+              JOIN requested ON requested.dataset_id = dataset_column.dataset_id
+              CROSS JOIN xid_clock
+            ), cell_state AS (
+              SELECT
+                COUNT(*)::bigint AS total_count,
+                COUNT(*) FILTER (WHERE NOT dataset_cell.deleted)::bigint
+                  AS active_count,
+                COALESCE(
+                  MAX(GREATEST(
+                    dataset_cell.updated_at,
+                    COALESCE(dataset_cell.deleted_at, dataset_cell.updated_at)
+                  ))::text,
+                  ''
+                ) AS lifecycle_clock,
+                COALESCE(
+                  MAX(xid_clock.current_txid - age(dataset_cell.xmin)),
+                  0
+                )::bigint
+                  AS transaction_id
+              FROM model_hub_cell AS dataset_cell
+              JOIN requested ON requested.dataset_id = dataset_cell.dataset_id
+              CROSS JOIN xid_clock
+            )
+            SELECT
+              dataset_state.updated_at,
+              dataset_state.deleted,
+              dataset_state.deleted_at,
+              dataset_state.transaction_id,
+              row_state.total_count,
+              row_state.active_count,
+              row_state.lifecycle_clock,
+              row_state.transaction_id,
+              column_state.total_count,
+              column_state.active_count,
+              column_state.lifecycle_clock,
+              column_state.transaction_id,
+              cell_state.total_count,
+              cell_state.active_count,
+              cell_state.lifecycle_clock,
+              cell_state.transaction_id
+            FROM dataset_state
+            CROSS JOIN row_state
+            CROSS JOIN column_state
+            CROSS JOIN cell_state
             """,
             [str(dataset_id)],
         )
         state = cursor.fetchone()
     if not state:
         raise DatasetTableSnapshotUnavailable(
-            "The dataset revision ledger is unavailable."
+            "The dataset revision fingerprint is unavailable."
         )
-    revision, active_rows, is_ready = state
-    if is_ready is not True:
+    active_rows = int(state[5])
+    if active_rows < 0:
         raise DatasetTableSnapshotUnavailable(
-            "The dataset revision ledger is not ready."
+            "The dataset revision fingerprint is invalid."
         )
-    if int(revision) < 1 or int(active_rows) < 0:
-        raise DatasetTableSnapshotUnavailable("The dataset revision ledger is invalid.")
+    revision = sha256(
+        json.dumps(
+            state,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
     return DatasetTableRevision(
-        revision=int(revision),
-        active_rows=int(active_rows),
+        revision=revision,
+        active_rows=active_rows,
     )
 
 
@@ -302,8 +401,9 @@ def capture_dataset_table_revision(
     deadline: DatasetTableReadDeadline | None = None,
 ) -> DatasetTableRevision:
     # ``snapshot`` proves the caller established REPEATABLE READ before any
-    # application query. Cross-request identity comes from the ledger instead
-    # of carrying a potentially large PostgreSQL xip list in the cursor.
+    # application query. Cross-request identity comes from the bounded
+    # lifecycle fingerprint instead of carrying a potentially large PostgreSQL
+    # xip list in the cursor.
     if not snapshot:
         raise DatasetTableSnapshotUnavailable(
             "The dataset snapshot could not be established."
@@ -400,15 +500,18 @@ def decode_dataset_table_cursor(
             "The dataset continuation does not match this request.",
         )
 
-    integer_fields = ("revision", "active_rows", "seen_rows")
+    integer_fields = ("active_rows", "seen_rows")
     if (
         not isinstance(payload.get("last_id"), str)
         or not payload["last_id"]
+        or not isinstance(payload.get("revision"), str)
+        or len(payload["revision"]) != 64
+        or any(character not in "0123456789abcdef" for character in payload["revision"])
         or not isinstance(payload.get("last_order"), int)
         or any(
             not isinstance(payload.get(field), int)
             or isinstance(payload[field], bool)
-            or payload[field] < (1 if field == "revision" else 0)
+            or payload[field] < 0
             for field in integer_fields
         )
     ):

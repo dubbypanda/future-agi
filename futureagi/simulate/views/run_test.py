@@ -194,8 +194,10 @@ from tracer.services.clickhouse.span_attribute_lookups import (
 logger = structlog.get_logger(__name__)
 _gm = GeneralMethods()
 
-_RUN_TEST_LIST_WALL_MS = 9_500
-_RUN_TEST_READ_MAX_RESPONSE_UNITS = 2 * 1024 * 1024
+_RUN_TEST_LIST_WALL_MS = app_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+_RUN_TEST_READ_MAX_RESPONSE_UNITS = (
+    app_settings.INTERACTIVE_READ_DEFAULT_MAX_RESPONSE_UNITS
+)
 
 
 class RunTestReadLimitExceeded(RuntimeError):

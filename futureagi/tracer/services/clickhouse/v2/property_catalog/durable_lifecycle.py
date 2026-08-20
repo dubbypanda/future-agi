@@ -45,6 +45,7 @@ from .models import SourceAdapter
 from .publisher import SharedCatalogDeadline, require_dev_catalog_database
 from .qualification import CheckpointStatus
 from .reconciler import CheckpointWrite, ReconcileMode
+from .runtime_limits import RUNTIME_LIMITS
 
 _SOURCE_STREAM_TABLE = "property_catalog_source_streams"
 _ACTIVATION_TABLE = "property_catalog_activations"
@@ -121,10 +122,10 @@ _ACTIVATION_COLUMNS = (
 _ACTIVATION_LOGICAL_COLUMNS = tuple(
     value for value in _ACTIVATION_COLUMNS if value != "_version"
 )
-MAX_ACTIVE_REVISIONS_SINCE_ANCHOR = 2_048
-MAX_LINEAGE_ANCHOR_AGE_SECONDS = 26 * 60 * 60
-FULL_REPAIR_INTERVAL_SECONDS = 24 * 60 * 60
-_MAX_NONTERMINAL_RESERVATION_ROWS = 64
+MAX_ACTIVE_REVISIONS_SINCE_ANCHOR = RUNTIME_LIMITS.max_lineage_revisions
+MAX_LINEAGE_ANCHOR_AGE_SECONDS = RUNTIME_LIMITS.lineage_anchor_max_age_seconds
+FULL_REPAIR_INTERVAL_SECONDS = RUNTIME_LIMITS.full_repair_interval_seconds
+_MAX_NONTERMINAL_RESERVATION_ROWS = RUNTIME_LIMITS.max_nonterminal_reservations
 
 
 class DurableLifecycleError(RuntimeError):
@@ -1340,9 +1341,7 @@ class ClickHouseLifecycleStateReader:
             raise DurableLifecycleError("active reservation projection changed")
         decoded_plan = _decode_plan_scope(reservation.lease.build_plan)
         if CatalogLifecycleMode(decoded_plan.mode.value) is not active.lifecycle_mode:
-            raise DurableLifecycleError(
-                "active reservation changed its lifecycle mode"
-            )
+            raise DurableLifecycleError("active reservation changed its lifecycle mode")
         manifest_streams = _manifest_streams(active.source_manifest_json)
         planned = {
             (value.source_adapter, value.role): (

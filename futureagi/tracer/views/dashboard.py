@@ -51,7 +51,6 @@ from tracer.serializers.dashboard import (
 from tracer.services.annotation_label_source import (
     AnnotationLabelScoresProjectPG,
     AnnotationScoreReadUnavailable,
-    AnnotationScoreVocabularyChanged,
 )
 from tracer.services.clickhouse.attribute_cursor_state import (
     AttributeCursorStateError,
@@ -159,6 +158,7 @@ from tracer.services.clickhouse.v2.query_builders.dashboard import (
     DashboardQueryBuilderV2,
 )
 from tracer.services.clickhouse.v2.query_service import V2AnalyticsQueryService
+from tracer.services.configured_value_options import configured_value_options
 from tracer.services.dashboard_metrics_catalog import (
     METRICS_CATALOG_TIMEOUT_MS,
     MetricsCatalogUnavailable,
@@ -419,17 +419,19 @@ def _materialize_dashboard_query_scope(
 # concurrency instead so a read either completes or fails closed without
 # monopolising the shared cluster.
 _DASHBOARD_TRACE_READ_SETTINGS = {
-    "max_threads": 4,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
+    "max_threads": settings.DASHBOARD_TRACE_READ_MAX_THREADS,
+    "max_bytes_to_read": settings.DASHBOARD_TRACE_READ_MAX_BYTES,
+    "max_memory_usage": settings.DASHBOARD_TRACE_READ_MAX_MEMORY_BYTES,
     "read_overflow_mode": "throw",
-    "max_result_rows": 250_000,
-    "max_result_bytes": 64 * 1024 * 1024,
+    "max_result_rows": settings.DASHBOARD_TRACE_READ_MAX_RESULT_ROWS,
+    "max_result_bytes": settings.DASHBOARD_TRACE_READ_MAX_RESULT_BYTES,
     "result_overflow_mode": "throw",
     "timeout_overflow_mode": "throw",
 }
-_DASHBOARD_TRACE_MAX_CONCURRENT_METRICS = 2
-_DASHBOARD_EXACT_QUERY_TIMEOUT_MS = 9_500
+_DASHBOARD_TRACE_MAX_CONCURRENT_METRICS = (
+    settings.DASHBOARD_TRACE_MAX_CONCURRENT_METRICS
+)
+_DASHBOARD_EXACT_QUERY_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 
 # Property/value pickers have a stricter five-second interaction contract than
 # the general analytics surface. Begin the request-owned wall before project
@@ -437,14 +439,15 @@ _DASHBOARD_EXACT_QUERY_TIMEOUT_MS = 9_500
 # transport. Exhaustion returns an advancing cursor over the same unconsumed
 # interval, so the smaller wall changes page density, never exactness or
 # retained-history reachability.
-_FILTER_VALUES_INTERACTIVE_TIMEOUT_MS = 4_000
+_FILTER_VALUES_INTERACTIVE_TIMEOUT_MS = settings.DASHBOARD_FILTER_VALUE_WALL_MS
 _FILTER_VALUE_BATCH_CURSOR_RESOURCE = "dashboard_filter_value_project_batches"
 _FILTER_VALUE_BATCH_CURSOR_MARKER = "project_batches_v1"
-_ANNOTATION_FILTER_VALUE_CURSOR_RESOURCE = "dashboard_annotation_filter_values_v1"
 _FILTER_VALUE_RETAINED_START = datetime(1970, 1, 1, tzinfo=UTC)
-_FINITE_NATIVE_FILTER_VALUE_MAX = 5_000
-_LEGACY_NATIVE_FILTER_VALUE_MAX = 500
-_FINITE_NATIVE_FILTER_VALUE_MAX_RESULT_BYTES = 8 * 1024 * 1024
+_FINITE_NATIVE_FILTER_VALUE_MAX = settings.DASHBOARD_FILTER_VALUE_FINITE_MAX
+_LEGACY_NATIVE_FILTER_VALUE_MAX = settings.DASHBOARD_FILTER_VALUE_LEGACY_MAX
+_FINITE_NATIVE_FILTER_VALUE_MAX_RESULT_BYTES = (
+    settings.DASHBOARD_FILTER_VALUE_MAX_RESULT_BYTES
+)
 
 
 def _run_filter_value_pg_read(deadline, read):
@@ -452,7 +455,7 @@ def _run_filter_value_pg_read(deadline, read):
 
     The process-wide middleware allows PostgreSQL statements to run for thirty
     seconds, which is longer than the entire property-picker interaction SLA.
-    Each authoritative ORM phase therefore consumes the same four-second wall
+    Each authoritative ORM phase therefore consumes the same configured wall
     as ClickHouse. The transaction is explicitly read-only and never retries;
     expiry fails closed at the public boundary instead of publishing an empty
     vocabulary.
@@ -462,6 +465,7 @@ def _run_filter_value_pg_read(deadline, read):
     if connection.vendor != "postgresql":
         return read()
     already_in_atomic_block = connection.in_atomic_block
+    previous_statement_timeout = None
     try:
         # A SELECT-only production qualifier and a normal request can both
         # already own the outer transaction.  Opening another atomic block in
@@ -480,11 +484,29 @@ def _run_filter_value_pg_read(deadline, read):
                 # this helper owns the outer transaction.
                 if not already_in_atomic_block:
                     cursor.execute("SET TRANSACTION READ ONLY")
+                else:
+                    # ``set_config(..., true)`` lasts until the surrounding
+                    # transaction ends. Django's TestCase and a few composed
+                    # request paths already own that transaction, so preserve
+                    # their timeout instead of leaking this picker's short SLA
+                    # into later SQL on the same connection.
+                    cursor.execute("SELECT current_setting('statement_timeout')")
+                    previous_statement_timeout = str(cursor.fetchone()[0])
                 cursor.execute(
                     "SELECT set_config('statement_timeout', %s, true)",
                     [str(timeout_ms)],
                 )
-            return read()
+            try:
+                return read()
+            finally:
+                if previous_statement_timeout is not None and not getattr(
+                    connection, "needs_rollback", False
+                ):
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            "SELECT set_config('statement_timeout', %s, true)",
+                            [previous_statement_timeout],
+                        )
     except DatabaseError as exc:
         raise ReadDeadlineExceeded(
             "Filter-value PostgreSQL read exceeded its request deadline"
@@ -1061,114 +1083,8 @@ def _filter_value_options_for_search(values, search):
     ]
 
 
-def _configured_filter_value_identity(value):
-    """Return a stable, type-aware identity for an arbitrary JSON value."""
-
-    return (
-        type(value).__name__,
-        json.dumps(
-            value,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-            allow_nan=False,
-        ),
-    )
-
-
-def _append_configured_filter_value_option(options, seen, choice):
-    """Append one configured option without coercing its JSON value."""
-
-    raw_value = choice
-    raw_label = choice
-    if isinstance(choice, dict):
-        raw_value = choice.get("value")
-        if raw_value is None or raw_value == "":
-            raw_value = choice.get("label")
-        if raw_value is None or raw_value == "":
-            raw_value = choice.get("name")
-
-        raw_label = choice.get("label")
-        if raw_label is None or raw_label == "":
-            raw_label = choice.get("name")
-        if raw_label is None or raw_label == "":
-            raw_label = raw_value
-
-    if raw_value is None or raw_value == "":
-        return
-    identity = _configured_filter_value_identity(raw_value)
-    if identity in seen:
-        return
-    seen.add(identity)
-    options.append({"value": raw_value, "label": str(raw_label)})
-
-
-def _annotation_categorical_filter_value_options(configured_options, stored_values):
-    """Build one deterministic union of configured and exhaustive Score values."""
-
-    options = []
-    configured_seen_values = set()
-    for option in configured_options or ():
-        _append_configured_filter_value_option(
-            options,
-            configured_seen_values,
-            option,
-        )
-
-    # Historic Score payloads have used scalar, list, and wrapper-object shapes.
-    # Preserve the established string-valued filter contract while sorting the
-    # stored-only suffix so an unchanged exhaustive read has a stable cursor
-    # content identity even though PostgreSQL intentionally performs no sort.
-    stored_only_values = set()
-    configured_strings = {str(option["value"]) for option in options}
-    for payload_value in stored_values or ():
-        try:
-            payload = json.loads(payload_value)
-        except (TypeError, ValueError):
-            payload = payload_value
-        raw_values = []
-        if isinstance(payload, dict):
-            selected = payload.get("selected")
-            if isinstance(selected, list):
-                raw_values.extend(selected)
-            elif selected not in (None, ""):
-                raw_values.append(selected)
-            for key in ("value", "label", "text"):
-                value = payload.get(key)
-                if value not in (None, ""):
-                    raw_values.append(value)
-        elif isinstance(payload, list):
-            raw_values.extend(payload)
-        elif payload not in (None, ""):
-            raw_values.append(payload)
-
-        for raw_value in raw_values:
-            if raw_value in (None, ""):
-                continue
-            value = str(raw_value)
-            if value and value not in configured_strings:
-                stored_only_values.add(value)
-
-    options.extend(
-        {"value": value, "label": value}
-        for value in sorted(
-            stored_only_values, key=lambda value: (value.casefold(), value)
-        )
-    )
-    return options
-
-
-def _annotation_filter_value_option_digest(option) -> str:
-    """Return a type-aware digest used to deduplicate project-batch values."""
-
-    identity = _configured_filter_value_identity(option["value"])
-    return _filter_value_digest(
-        json.dumps(identity, separators=(",", ":"), ensure_ascii=False)
-    )
-
-
-def _annotation_filter_value_content_digest(values) -> str:
-    """Bind a legacy ordinal continuation to its complete exact vocabulary."""
+def _filter_value_content_digest(values) -> str:
+    """Bind an ordinal continuation to its complete exact vocabulary."""
 
     return _filter_value_digest(
         json.dumps(
@@ -1179,390 +1095,6 @@ def _annotation_filter_value_content_digest(values) -> str:
             allow_nan=False,
         )
     )
-
-
-def _annotation_projection_after_order(raw_order) -> tuple[str, str] | None:
-    """Decode the nullable digest-backed annotation vocabulary keyset."""
-
-    if raw_order == ("", ""):
-        return None
-    if (
-        not isinstance(raw_order, tuple)
-        or len(raw_order) != 2
-        or any(not isinstance(value, str) for value in raw_order)
-        or len(raw_order[1]) != 64
-        or any(character not in "0123456789abcdef" for character in raw_order[1])
-    ):
-        raise ListCursorError("invalid_cursor", "The continuation cursor is invalid.")
-    return raw_order
-
-
-def _read_projected_annotation_value_page(
-    deadline,
-    *,
-    reader,
-    label_id,
-    project_ids,
-    page_size,
-    search,
-    after,
-    expected_revision,
-    configured_values,
-):
-    configured_strings = tuple(str(option["value"]) for option in configured_values)
-    try:
-        return _run_filter_value_pg_read(
-            deadline,
-            lambda: reader.categorical_value_page_for_label(
-                label_id,
-                project_ids,
-                page_size=page_size,
-                search=search,
-                after=after,
-                expected_revision=expected_revision,
-                excluded_values=configured_strings,
-            ),
-        )
-    except AnnotationScoreVocabularyChanged as exc:
-        raise ListCursorError(
-            "cursor_mismatch",
-            "The annotation values changed. Start a fresh search.",
-        ) from exc
-
-
-def _projected_annotation_filter_value_page(
-    request,
-    *,
-    project_ids,
-    query,
-    configured_values,
-    label_id,
-    search,
-    page_size,
-    cursor_token,
-    deadline,
-) -> dict:
-    """Merge configured choices with an indexed stored-value keyset page."""
-
-    filtered_configured = _filter_value_options_for_search(configured_values, search)
-    cursor_scope = cursor_scope_for_request(request, project_ids=project_ids)
-    cursor_query = {
-        **query,
-        "search": search,
-        "configured_values": configured_values,
-    }
-    if cursor_token:
-        cursor_state = decode_list_cursor(
-            cursor_token,
-            resource=_ANNOTATION_FILTER_VALUE_CURSOR_RESOURCE,
-            scope=cursor_scope,
-            query=cursor_query,
-            page_size=page_size,
-        )
-        if (
-            len(cursor_state.order) != 5
-            or not isinstance(cursor_state.order[0], str)
-            or cursor_state.order[1] not in {"configured", "stored"}
-            or not isinstance(cursor_state.order[2], int)
-            or cursor_state.order[2] < 0
-            or cursor_state.order[2] > len(filtered_configured)
-            or not isinstance(cursor_state.order[3], str)
-            or not isinstance(cursor_state.order[4], str)
-        ):
-            raise ListCursorError(
-                "invalid_cursor", "The continuation cursor is invalid."
-            )
-        expected_revision = cursor_state.order[0]
-        phase = cursor_state.order[1]
-        configured_offset = cursor_state.order[2]
-        after = _annotation_projection_after_order(tuple(cursor_state.order[3:5]))
-        window_start = cursor_state.window_start
-        window_end = cursor_state.window_end
-        seen_rows = cursor_state.seen_rows
-    else:
-        expected_revision = None
-        phase = "configured"
-        configured_offset = 0
-        after = None
-        window_start = _FILTER_VALUE_RETAINED_START
-        window_end = datetime.now(UTC)
-        seen_rows = 0
-
-    values = []
-    if phase == "configured":
-        values.extend(
-            filtered_configured[configured_offset : configured_offset + int(page_size)]
-        )
-        configured_offset += len(values)
-    else:
-        configured_offset = len(filtered_configured)
-
-    remaining = int(page_size) - len(values)
-    stored_page = _read_projected_annotation_value_page(
-        deadline,
-        reader=AnnotationLabelScoresProjectPG(),
-        label_id=label_id,
-        project_ids=project_ids,
-        # A one-row probe binds the revision and determines whether read-more
-        # is required when configured choices fill this response exactly.
-        page_size=max(remaining, 1),
-        search=search,
-        after=after,
-        expected_revision=expected_revision,
-        configured_values=configured_values,
-    )
-
-    configured_has_more = configured_offset < len(filtered_configured)
-    consumed_stored = 0
-    if not configured_has_more and remaining > 0:
-        for row in stored_page.rows[:remaining]:
-            values.append({"value": row.value, "label": row.value})
-            after = row.order
-            consumed_stored += 1
-
-    unconsumed_stored = consumed_stored < len(stored_page.rows)
-    stored_has_more = stored_page.has_more or unconsumed_stored
-    has_more = configured_has_more or stored_has_more
-    next_cursor = None
-    if has_more:
-        next_phase = "configured" if configured_has_more else "stored"
-        after_order = after or ("", "")
-        next_cursor = encode_list_cursor(
-            resource=_ANNOTATION_FILTER_VALUE_CURSOR_RESOURCE,
-            scope=cursor_scope,
-            query=cursor_query,
-            page_size=page_size,
-            window_start=window_start,
-            window_end=window_end,
-            order=(
-                stored_page.revision,
-                next_phase,
-                configured_offset,
-                *after_order,
-            ),
-            seen_rows=seen_rows + len(values),
-        )
-    return {
-        "values": values,
-        "query_complete": True,
-        "query_status": "complete",
-        "query_window_start": window_start,
-        "query_window_end": window_end,
-        "has_more": has_more,
-        "browse_status": "continuation" if has_more else "exhausted",
-        "next_cursor": next_cursor,
-    }
-
-
-def _batched_legacy_exact_annotation_filter_value_page(
-    cursor: _BatchedFilterValueCursor,
-    *,
-    page_size: int,
-    lane: str,
-    window_start: datetime,
-    window_end: datetime,
-    values: list[dict],
-    search: str,
-) -> dict:
-    """Preserve the bounded exact pre-projection reader during rollout.
-
-    The route flag remains off while migration 0123 and its backfill run.  Each
-    authorized project batch is exhaustively read (or fails closed at the
-    legacy cap), content-bound, and deduplicated across batches.  No sampled
-    success is published.
-    """
-
-    filtered_values = _filter_value_options_for_search(values, search)
-    content_digest = _annotation_filter_value_content_digest(values)
-    physical_order = cursor.physical_order
-    if cursor.new_project_batch:
-        offset = 0
-    elif (
-        len(physical_order) != 2
-        or physical_order[0] != content_digest
-        or not isinstance(physical_order[1], int)
-        or physical_order[1] < 0
-        or physical_order[1] > len(filtered_values)
-    ):
-        raise ListCursorError(
-            "cursor_mismatch",
-            "The continuation cursor no longer matches the annotation values.",
-        )
-    else:
-        offset = physical_order[1]
-
-    seen_state, state_binding = _load_batched_filter_value_seen_state(
-        cursor,
-        page_size=page_size,
-        window_start=window_start,
-        window_end=window_end,
-    )
-    page_values = []
-    appended_digests = []
-    next_offset = offset
-    while next_offset < len(filtered_values) and len(page_values) < page_size:
-        option = filtered_values[next_offset]
-        next_offset += 1
-        digest = _annotation_filter_value_option_digest(option)
-        if seen_state.contains(digest):
-            continue
-        page_values.append(option)
-        appended_digests.append(digest)
-
-    physical_has_more = next_offset < len(filtered_values)
-    has_more, browse_status, next_cursor = _encode_batched_filter_value_cursor(
-        cursor,
-        page_size=page_size,
-        window_start=window_start,
-        window_end=window_end,
-        seen_state=seen_state,
-        state_binding=state_binding,
-        appended_digests=appended_digests,
-        lane=lane,
-        physical_order=(content_digest, next_offset),
-        physical_has_more=physical_has_more,
-    )
-    return {
-        "values": page_values,
-        "query_complete": True,
-        "query_status": "complete",
-        "query_window_start": window_start,
-        "query_window_end": window_end,
-        "has_more": has_more,
-        "browse_status": browse_status,
-        "next_cursor": next_cursor,
-    }
-
-
-def _batched_projected_annotation_filter_value_page(
-    cursor: _BatchedFilterValueCursor,
-    *,
-    label_id,
-    configured_values,
-    page_size: int,
-    lane: str,
-    window_start: datetime,
-    window_end: datetime,
-    search: str,
-    deadline,
-) -> dict:
-    """Read one exact indexed vocabulary page for a bounded project batch."""
-
-    filtered_configured = _filter_value_options_for_search(configured_values, search)
-    physical_order = cursor.physical_order
-    if cursor.new_project_batch:
-        # ``physical_order`` deliberately survives a project-batch transition.
-        # Keep the label-wide revision even though the configured ordinal and
-        # vocabulary keyset restart for the new physical project batch. This
-        # rejects a Score mutation in any earlier/later batch instead of
-        # stitching together values from two database states.
-        if physical_order:
-            if (
-                len(physical_order) != 4
-                or not isinstance(physical_order[0], str)
-                or not isinstance(physical_order[1], int)
-                or physical_order[1] < 0
-                or physical_order[1] > len(filtered_configured)
-                or not isinstance(physical_order[2], str)
-                or not isinstance(physical_order[3], str)
-            ):
-                raise ListCursorError(
-                    "invalid_cursor", "The continuation cursor is invalid."
-                )
-            expected_revision = physical_order[0]
-        else:
-            expected_revision = None
-        configured_offset = 0
-        after = None
-    elif (
-        len(physical_order) != 4
-        or not isinstance(physical_order[0], str)
-        or not isinstance(physical_order[1], int)
-        or physical_order[1] < 0
-        or physical_order[1] > len(filtered_configured)
-        or not isinstance(physical_order[2], str)
-        or not isinstance(physical_order[3], str)
-    ):
-        raise ListCursorError("invalid_cursor", "The continuation cursor is invalid.")
-    else:
-        expected_revision = physical_order[0]
-        configured_offset = physical_order[1]
-        after = _annotation_projection_after_order(tuple(physical_order[2:4]))
-
-    seen_state, state_binding = _load_batched_filter_value_seen_state(
-        cursor,
-        page_size=page_size,
-        window_start=window_start,
-        window_end=window_end,
-    )
-    page_values = []
-    appended_digests = []
-
-    while configured_offset < len(filtered_configured) and len(page_values) < page_size:
-        option = filtered_configured[configured_offset]
-        configured_offset += 1
-        digest = _annotation_filter_value_option_digest(option)
-        if seen_state.contains(digest):
-            continue
-        page_values.append(option)
-        appended_digests.append(digest)
-
-    configured_has_more = configured_offset < len(filtered_configured)
-    remaining = page_size - len(page_values)
-    stored_page = _read_projected_annotation_value_page(
-        deadline,
-        reader=AnnotationLabelScoresProjectPG(),
-        label_id=label_id,
-        project_ids=list(cursor.scope.project_ids),
-        page_size=max(remaining, 1),
-        search=search,
-        after=after,
-        expected_revision=expected_revision,
-        configured_values=configured_values,
-    )
-
-    scanned_rows = 0
-    if not configured_has_more and remaining > 0:
-        for row in stored_page.rows:
-            if len(page_values) >= page_size:
-                break
-            scanned_rows += 1
-            after = row.order
-            option = {"value": row.value, "label": row.value}
-            digest = _annotation_filter_value_option_digest(option)
-            if seen_state.contains(digest):
-                continue
-            page_values.append(option)
-            appended_digests.append(digest)
-
-    unconsumed_stored = scanned_rows < len(stored_page.rows)
-    physical_has_more = configured_has_more or stored_page.has_more or unconsumed_stored
-    has_more, browse_status, next_cursor = _encode_batched_filter_value_cursor(
-        cursor,
-        page_size=page_size,
-        window_start=window_start,
-        window_end=window_end,
-        seen_state=seen_state,
-        state_binding=state_binding,
-        appended_digests=appended_digests,
-        lane=lane,
-        physical_order=(
-            stored_page.revision,
-            configured_offset,
-            *(after or ("", "")),
-        ),
-        physical_has_more=physical_has_more,
-    )
-    return {
-        "values": page_values,
-        "query_complete": True,
-        "query_status": "complete",
-        "query_window_start": window_start,
-        "query_window_end": window_end,
-        "has_more": has_more,
-        "browse_status": browse_status,
-        "next_cursor": next_cursor,
-    }
 
 
 def _finite_filter_value_cursor_page(
@@ -1659,16 +1191,16 @@ def _finite_filter_value_cursor_page(
 # the interactive analytics surface. The rollup route issues at most two
 # statements (span states plus the independently keyed trace-count states),
 # and both consume one request-owned deadline.
-_DASHBOARD_INTERACTIVE_TIMEOUT_MS = 9_500
-_DASHBOARD_ROLLUP_MAX_QUERIES = 2
-_DASHBOARD_ROLLUP_MAX_POINTS = 10_000
+_DASHBOARD_INTERACTIVE_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+_DASHBOARD_ROLLUP_MAX_QUERIES = settings.DASHBOARD_ROLLUP_MAX_QUERIES
+_DASHBOARD_ROLLUP_MAX_POINTS = settings.DASHBOARD_ROLLUP_MAX_POINTS
 _DASHBOARD_ROLLUP_READ_SETTINGS = {
-    "max_threads": 4,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
+    "max_threads": settings.DASHBOARD_TRACE_READ_MAX_THREADS,
+    "max_bytes_to_read": settings.DASHBOARD_TRACE_READ_MAX_BYTES,
+    "max_memory_usage": settings.DASHBOARD_TRACE_READ_MAX_MEMORY_BYTES,
     "read_overflow_mode": "throw",
     "max_result_rows": _DASHBOARD_ROLLUP_MAX_POINTS + 1,
-    "max_result_bytes": 32 * 1024 * 1024,
+    "max_result_bytes": settings.DASHBOARD_ROLLUP_MAX_RESULT_BYTES,
     "result_overflow_mode": "throw",
     "timeout_overflow_mode": "throw",
 }
@@ -2673,7 +2205,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         source,
         fetch_rows,
         *,
-        max_workers=4,
+        max_workers=None,
         prepared_queries=None,
     ):
         """Build + execute each metric in parallel; return [(metric_info, rows)].
@@ -2689,6 +2221,13 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         )
         if not work_items:
             return []
+        worker_limit = (
+            _DASHBOARD_TRACE_MAX_CONCURRENT_METRICS
+            if max_workers is None
+            else int(max_workers)
+        )
+        if worker_limit < 1:
+            raise ValueError("max_workers must be positive")
 
         def _exec_one(work_item):
             metric, prepared_sql, prepared_params = work_item
@@ -2738,7 +2277,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         if len(work_items) == 1:
             return [_exec_one(work_items[0])]
 
-        with ThreadPoolExecutor(max_workers=min(len(work_items), max_workers)) as pool:
+        with ThreadPoolExecutor(max_workers=min(len(work_items), worker_limit)) as pool:
             futures = [pool.submit(_exec_one, item) for item in work_items]
         return [f.result() for f in futures]
 
@@ -2793,7 +2332,11 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
             builder,
             "simulation",
             lambda sql, params: (
-                analytics.execute_ch_query(sql, params, timeout_ms=10000).data
+                analytics.execute_ch_query(
+                    sql,
+                    params,
+                    timeout_ms=_DASHBOARD_EXACT_QUERY_TIMEOUT_MS,
+                ).data
             ),
         )
 
@@ -3205,7 +2748,10 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
             # definition list merely to slice it in Python.
             if bounded_shape_requested:
                 page = query_params.get("page", 1)
-                page_size = query_params.get("page_size", 50)
+                page_size = query_params.get(
+                    "page_size",
+                    settings.DASHBOARD_METRICS_CATALOG_DEFAULT_PAGE_SIZE,
+                )
                 metrics, total, has_more = build_metrics_catalog_page(
                     workspace,
                     page=page,
@@ -4959,7 +4505,11 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                         # 20 unrelated ids. Cursor callers above own displayed-
                         # label search.
                         search=search,
-                        limit=20 if search else 500,
+                        limit=(
+                            settings.DASHBOARD_FILTER_VALUE_SEARCH_PAGE_SIZE
+                            if search
+                            else _LEGACY_NATIVE_FILTER_VALUE_MAX
+                        ),
                         lookback_days=int(
                             getattr(
                                 settings,
@@ -5204,14 +4754,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                         {"value": "Failed", "label": "Failed"},
                     ]
                 elif output_type in {"CHOICE", "CHOICES"}:
-                    values = []
-                    seen_values = set()
-                    for choice in eval_template.choices or []:
-                        _append_configured_filter_value_option(
-                            values,
-                            seen_values,
-                            choice,
-                        )
+                    values = list(configured_value_options(eval_template.choices))
                 else:
                     # Score evals use numeric entry rather than a misleading
                     # categorical vocabulary.
@@ -5244,12 +4787,8 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 values = _filter_value_options_for_search(values, search)
 
             elif metric_type == "annotation_metric":
-                # Annotation filter values are derived from the label
-                # definition (settings) and, for categorical annotations, from
-                # stored scores. Older imported/backfilled labels can have
-                # real choices in Score.value without settings.options; relying
-                # only on settings makes the value dropdown empty even though
-                # the annotation metric itself is available.
+                # Annotation filter values are finite label configuration, not
+                # a historical Score vocabulary scan.
                 from django.core.exceptions import ValidationError
                 from django.db.models import Q
 
@@ -5345,13 +4884,10 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 label_settings = label.settings or {}
                 batched_annotation_cursor = None
                 batched_annotation_lane = "annotation_categorical_values"
-                annotation_window_start = _FILTER_VALUE_RETAINED_START
-                annotation_window_end = datetime.now(UTC)
 
                 if label_type == "categorical":
-                    configured_values = _annotation_categorical_filter_value_options(
-                        label_settings.get("options", []),
-                        (),
+                    values = list(
+                        configured_value_options(label_settings.get("options", []))
                     )
                     if page_size is not None and project_scope.batched:
                         batched_annotation_cursor = _batched_filter_value_cursor(
@@ -5366,83 +4902,11 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                                 "metric_type": metric_type,
                                 "source": source,
                                 "search": search,
-                                "configured_values": configured_values,
+                                "configured_values": values,
                             },
                         )
                         project_scope = batched_annotation_cursor.scope
                         project_ids = list(project_scope.project_ids)
-                        cursor_state = batched_annotation_cursor.cursor_state
-                        annotation_window_start = (
-                            cursor_state.window_start
-                            if cursor_state is not None
-                            else annotation_window_start
-                        )
-                        annotation_window_end = (
-                            cursor_state.window_end
-                            if cursor_state is not None
-                            else annotation_window_end
-                        )
-                        # Unlike static/configured lanes, the annotation lane
-                        # must retain its label-wide revision while walking an
-                        # empty authorized chunk. The projected reader accepts
-                        # an empty project array and returns the readiness and
-                        # revision state without reading vocabulary rows.
-
-                    if page_size is not None and getattr(
-                        settings,
-                        "ANNOTATION_SCORE_VALUE_PROJECTION_READ_ENABLED",
-                        False,
-                    ):
-                        if batched_annotation_cursor is not None:
-                            return self._gm.success_response(
-                                _batched_projected_annotation_filter_value_page(
-                                    batched_annotation_cursor,
-                                    label_id=label.id,
-                                    configured_values=configured_values,
-                                    page_size=int(page_size),
-                                    lane=batched_annotation_lane,
-                                    window_start=annotation_window_start,
-                                    window_end=annotation_window_end,
-                                    search=search,
-                                    deadline=filter_value_deadline,
-                                )
-                            )
-                        return self._gm.success_response(
-                            _projected_annotation_filter_value_page(
-                                request,
-                                project_ids=finite_cursor_project_ids,
-                                query=finite_query,
-                                configured_values=configured_values,
-                                label_id=label.id,
-                                search=search,
-                                page_size=int(page_size),
-                                cursor_token=cursor_token,
-                                deadline=filter_value_deadline,
-                            )
-                        )
-
-                    # Compatibility callers without ``page_size`` retain the
-                    # bounded exhaustive fallback. Active first-party pickers
-                    # all use the indexed cursor above; an oversized legacy
-                    # read fails closed and is never published as sampled.
-                    if page_size is None and project_scope.has_later_projects:
-                        raise ListCursorError(
-                            "pagination_required",
-                            "page_size is required for an exact annotation value read "
-                            "across this project scope.",
-                        )
-                    stored_values = _run_filter_value_pg_read(
-                        filter_value_deadline,
-                        lambda: (
-                            AnnotationLabelScoresProjectPG().categorical_values_for_label(
-                                label.id, project_ids
-                            )
-                        ),
-                    )
-                    values = _annotation_categorical_filter_value_options(
-                        label_settings.get("options", []),
-                        stored_values,
-                    )
                 elif label_type == "star":
                     no_of_stars = label_settings.get("no_of_stars", 5)
                     values = [
@@ -5463,13 +4927,22 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                         label_type == "categorical"
                         and batched_annotation_cursor is not None
                     ):
+                        cursor_state = batched_annotation_cursor.cursor_state
                         return self._gm.success_response(
-                            _batched_legacy_exact_annotation_filter_value_page(
+                            _batched_configured_filter_value_page(
                                 batched_annotation_cursor,
                                 page_size=int(page_size),
                                 lane=batched_annotation_lane,
-                                window_start=annotation_window_start,
-                                window_end=annotation_window_end,
+                                window_start=(
+                                    cursor_state.window_start
+                                    if cursor_state is not None
+                                    else _FILTER_VALUE_RETAINED_START
+                                ),
+                                window_end=(
+                                    cursor_state.window_end
+                                    if cursor_state is not None
+                                    else datetime.now(UTC)
+                                ),
                                 values=values,
                                 search=search,
                             )
@@ -5487,12 +4960,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     )
                 values = _filter_value_options_for_search(values, search)
                 if label_type == "categorical":
-                    return self._gm.success_response(
-                        _legacy_filter_value_scope_metadata(
-                            {"values": values},
-                            project_scope,
-                        )
-                    )
+                    return self._gm.success_response({"values": values})
 
             elif metric_type == "custom_attribute":
                 # metric_name is an exact key request. It must not depend on
@@ -6309,14 +5777,18 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
 
                     compatibility_window_end = datetime.now(UTC)
                     compatibility_window_start = compatibility_window_end - timedelta(
-                        days=365
+                        days=settings.DASHBOARD_FILTER_VALUE_COMPAT_LOOKBACK_DAYS
                     )
                     catalog_attempt = try_catalog_value_page(
                         project_ids=project_ids,
                         attribute_key=metric_name,
                         window_start=compatibility_window_start,
                         window_end=compatibility_window_end,
-                        page_size=20 if search else 50,
+                        page_size=(
+                            settings.DASHBOARD_FILTER_VALUE_SEARCH_PAGE_SIZE
+                            if search
+                            else settings.PROPERTY_CATALOG_MAX_PAGE_SIZE
+                        ),
                         attribute_types=((attribute_type,) if attribute_type else None),
                         search=search,
                         after=None,
@@ -6576,7 +6048,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 page_size=int(page_size),
                 cursor_token=query_params.get("cursor"),
                 content_identity={
-                    "digest": _annotation_filter_value_content_digest(values),
+                    "digest": _filter_value_content_digest(values),
                     "count": len(values),
                 },
             )

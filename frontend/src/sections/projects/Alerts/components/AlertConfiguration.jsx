@@ -32,7 +32,7 @@ import {
   MONITOR_GRAPH_ERROR_MESSAGE,
   monitorGraphDisplayState,
   monitorGraphRequestConfig,
-} from "../../monitorGraphRead";
+} from "../../monitor_graph_read";
 const AlertSettingsForm = lazy(() => import("./AlertSettingsForm"));
 
 export default function AlertConfiguration({ dateFilter, setDateFilter }) {

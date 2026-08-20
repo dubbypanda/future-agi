@@ -25,6 +25,7 @@ from .models import (
     make_binding_id,
     make_state_sha256,
 )
+from .runtime_limits import RUNTIME_LIMITS
 
 
 class DefinitionConflictError(ValueError):
@@ -293,21 +294,30 @@ def _visibility_order(row: PropertyBindingRow) -> tuple[int, str]:
 class PostgresReadBudget:
     """Hard limits a relational source adapter must apply to every page."""
 
-    statement_timeout_ms: int = 8_000
-    wall_timeout_seconds: float = 8.5
-    max_rows_per_page: int = 1_000
-    max_total_rows: int = 100_000
+    statement_timeout_ms: int = RUNTIME_LIMITS.postgres_statement_timeout_ms
+    wall_timeout_seconds: float = RUNTIME_LIMITS.source_adapter_wall_seconds
+    max_rows_per_page: int = RUNTIME_LIMITS.postgres_page_rows
+    max_total_rows: int = RUNTIME_LIMITS.postgres_max_total_rows
     initial_backfill: bool = False
 
     def __post_init__(self) -> None:
         if (
             type(self.statement_timeout_ms) is not int
-            or not 1 <= self.statement_timeout_ms <= 8_000
+            or not 1
+            <= self.statement_timeout_ms
+            <= RUNTIME_LIMITS.postgres_statement_timeout_ms
         ):
-            raise ValueError("statement_timeout_ms must be between 1 and 8000")
+            raise ValueError(
+                "statement_timeout_ms must be between 1 and "
+                f"{RUNTIME_LIMITS.postgres_statement_timeout_ms}"
+            )
         if type(self.initial_backfill) is not bool:
             raise ValueError("initial_backfill must be a bool")
-        maximum_wall_seconds = 540.0 if self.initial_backfill else 8.5
+        maximum_wall_seconds = (
+            RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
+            if self.initial_backfill
+            else RUNTIME_LIMITS.source_adapter_wall_seconds
+        )
         if (
             type(self.wall_timeout_seconds) not in {int, float}
             or isinstance(self.wall_timeout_seconds, bool)
@@ -321,14 +331,20 @@ class PostgresReadBudget:
             raise ValueError("statement timeout must be below the adapter wall")
         if (
             type(self.max_rows_per_page) is not int
-            or not 1 <= self.max_rows_per_page <= 1_000
+            or not 1 <= self.max_rows_per_page <= RUNTIME_LIMITS.postgres_page_rows
         ):
-            raise ValueError("max_rows_per_page must be between 1 and 1000")
+            raise ValueError(
+                "max_rows_per_page must be between 1 and "
+                f"{RUNTIME_LIMITS.postgres_page_rows}"
+            )
         if (
             type(self.max_total_rows) is not int
-            or not 1 <= self.max_total_rows <= 1_000_000
+            or not 1 <= self.max_total_rows <= RUNTIME_LIMITS.postgres_max_total_rows
         ):
-            raise ValueError("max_total_rows must be between 1 and 1000000")
+            raise ValueError(
+                "max_total_rows must be between 1 and "
+                f"{RUNTIME_LIMITS.postgres_max_total_rows}"
+            )
 
 
 @dataclass(frozen=True, slots=True)

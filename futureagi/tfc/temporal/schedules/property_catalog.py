@@ -30,14 +30,20 @@ from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileM
 
 PROPERTY_CATALOG_RECONCILE_ACTIVITY = "reconcile_unified_property_catalog_dev"
 PROPERTY_CATALOG_RECONCILE_SCHEDULE_ID = "unified-property-catalog-dev"
-PROPERTY_CATALOG_RECONCILE_INTERVAL_SECONDS = 120
-PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES = 1
-PROPERTY_CATALOG_RECONCILE_MAX_WALL_MS = DEV_STANDARD_MAX_WALL_MS
-PROPERTY_CATALOG_RECONCILE_DEFAULT_EXTENDED_WALL_MS = 1_200_000
-PROPERTY_CATALOG_RECONCILE_MAX_EXTENDED_WALL_MS = (
-    DEV_SCHEDULED_RECONCILE_MAX_WALL_MS
+PROPERTY_CATALOG_RECONCILE_INTERVAL_SECONDS = (
+    settings.PROPERTY_CATALOG_RECONCILE_INTERVAL_SECONDS
 )
-PROPERTY_CATALOG_RECONCILE_ACTIVITY_TIME_LIMIT_SECONDS = 1_800
+PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES = (
+    settings.PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES
+)
+PROPERTY_CATALOG_RECONCILE_MAX_WALL_MS = DEV_STANDARD_MAX_WALL_MS
+PROPERTY_CATALOG_RECONCILE_DEFAULT_EXTENDED_WALL_MS = (
+    settings.PROPERTY_CATALOG_RECONCILE_DEFAULT_EXTENDED_WALL_MS
+)
+PROPERTY_CATALOG_RECONCILE_MAX_EXTENDED_WALL_MS = DEV_SCHEDULED_RECONCILE_MAX_WALL_MS
+PROPERTY_CATALOG_RECONCILE_ACTIVITY_TIME_LIMIT_SECONDS = (
+    settings.PROPERTY_CATALOG_RECONCILE_ACTIVITY_TIME_LIMIT_SECONDS
+)
 
 
 class PropertyCatalogScheduleError(RuntimeError):
@@ -88,7 +94,8 @@ def property_catalog_schedule_configuration(
         or not 1 <= max_wall_ms <= PROPERTY_CATALOG_RECONCILE_MAX_WALL_MS
     ):
         raise PropertyCatalogScheduleError(
-            "property catalog schedule wall must be in [1, 100000] ms"
+            "property catalog schedule wall must be in "
+            f"[1, {PROPERTY_CATALOG_RECONCILE_MAX_WALL_MS}] ms"
         )
     extended_wall_ms = getattr(
         settings_object,
@@ -103,7 +110,8 @@ def property_catalog_schedule_configuration(
     ):
         raise PropertyCatalogScheduleError(
             "property catalog scheduled reconcile wall must be in "
-            "[100001, 1740000] ms"
+            f"[{PROPERTY_CATALOG_RECONCILE_MAX_WALL_MS + 1}, "
+            f"{PROPERTY_CATALOG_RECONCILE_MAX_EXTENDED_WALL_MS}] ms"
         )
 
     organization_id = str(
@@ -120,8 +128,14 @@ def property_catalog_schedule_configuration(
         )
     workspaces = tuple(str(value) for value in raw_workspaces)
     if len(workspaces) != PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES:
+        workspace_label = (
+            "workspace ID"
+            if PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES == 1
+            else "workspace IDs"
+        )
         raise PropertyCatalogScheduleError(
-            "property catalog sidecar workspace allowlist must contain exactly one ID"
+            "property catalog sidecar workspace allowlist must contain exactly "
+            f"{PROPERTY_CATALOG_RECONCILE_MAX_WORKSPACES} {workspace_label}"
         )
     if len(set(workspaces)) != len(workspaces):
         raise PropertyCatalogScheduleError(

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { awaitAggregationRequestWithDeadline } from "src/utils/queryReadState";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 
-export const TASK_USAGE_REQUEST_TIMEOUT_MS = 9_000;
+export const TASK_USAGE_REQUEST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const taskUsageResponseError = () => {
   const error = new Error("Task usage returned an invalid response");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serializeTaskFilterRowForApi } from "src/sections/common/EvalsTasks/taskFilterSerialization";
+import { serializeTaskFilterRowForApi } from "src/sections/common/EvalsTasks/task_filter_serialization";
 
 import { toAddEvalsFormRows } from "../buildAddEvalsDraft";
 

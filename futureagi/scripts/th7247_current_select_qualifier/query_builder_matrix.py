@@ -226,7 +226,7 @@ class PageResult:
     record: dict[str, Any]
     rows: list[dict[str, Any]]
     bounded_page: Any = None
-    cursor_state: "CursorState | None" = None
+    cursor_state: CursorState | None = None
 
 
 @dataclass(frozen=True)
@@ -483,14 +483,10 @@ def next_cursor_state(
         start_time=start_time,
         order_token=order_token,
         scan_slice_start=(
-            bounded_page.continuation_slice_start
-            if carries_scan_checkpoint
-            else None
+            bounded_page.continuation_slice_start if carries_scan_checkpoint else None
         ),
         scan_slice_end=(
-            bounded_page.continuation_slice_end
-            if carries_scan_checkpoint
-            else None
+            bounded_page.continuation_slice_end if carries_scan_checkpoint else None
         ),
         scan_before_start_time=(
             bounded_page.continuation_before_start_time
@@ -498,9 +494,7 @@ def next_cursor_state(
             else None
         ),
         scan_before_id=(
-            bounded_page.continuation_before_id
-            if carries_scan_checkpoint
-            else None
+            bounded_page.continuation_before_id if carries_scan_checkpoint else None
         ),
     )
 

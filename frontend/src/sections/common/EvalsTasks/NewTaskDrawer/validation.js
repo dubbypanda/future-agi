@@ -1,6 +1,6 @@
 import { getNumberValidation } from "src/utils/validation";
 import { z } from "zod";
-import { serializeTaskFilterRowsForApi } from "src/sections/common/EvalsTasks/taskFilterSerialization";
+import { serializeTaskFilterRowsForApi } from "src/sections/common/EvalsTasks/task_filter_serialization";
 
 const TASK_FILTER_PROPERTY_TO_API = {
   span_kind: "observation_type",

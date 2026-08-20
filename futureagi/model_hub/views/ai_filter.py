@@ -25,6 +25,7 @@ import json
 from contextlib import ExitStack, contextmanager
 
 import structlog
+from django.conf import settings
 from django.db import connection, transaction
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -48,11 +49,11 @@ ERROR_RESPONSES = {
     500: ApiTextErrorResponseSerializer,
 }
 
-SMART_FILTER_REQUEST_WALL_MS = 9_000
-SMART_FILTER_VALUE_READ_WALL_MS = 4_000
-SMART_FILTER_VALUE_LIMIT = 100
-SMART_FILTER_SEARCH_MAX_BYTES = 256
-SMART_FILTER_PROJECT_SCOPE_LIMIT = 1_000
+SMART_FILTER_REQUEST_WALL_MS = settings.SMART_FILTER_REQUEST_WALL_MS
+SMART_FILTER_VALUE_READ_WALL_MS = settings.SMART_FILTER_VALUE_READ_WALL_MS
+SMART_FILTER_VALUE_LIMIT = settings.SMART_FILTER_VALUE_LIMIT
+SMART_FILTER_SEARCH_MAX_BYTES = settings.SMART_FILTER_SEARCH_MAX_BYTES
+SMART_FILTER_PROJECT_SCOPE_LIMIT = settings.SMART_FILTER_PROJECT_SCOPE_LIMIT
 
 
 class SmartFilterGroundingError(Exception):
@@ -554,7 +555,7 @@ def _query_token_phrases(query):
     return phrases
 
 
-def _smart_search_values(values, query, limit=20):
+def _smart_search_values(values, query, limit=None):
     """Rank a list of distinct values by how well each matches a query.
 
     Used for high-cardinality string fields where dumping every value
@@ -569,6 +570,9 @@ def _smart_search_values(values, query, limit=20):
 
     Returns at most `limit` values in descending relevance.
     """
+    limit = settings.SMART_FILTER_GROUNDED_VALUE_LIMIT if limit is None else int(limit)
+    if limit < 1:
+        raise ValueError("limit must be positive")
     if not query:
         return values[:limit]
     q = str(query).strip().lower()
@@ -1414,7 +1418,7 @@ def _run_smart_agent(query, schema, fetch_values, *, deadline=None):
                         vals = fetch_values(fid, search_query=search_query)
                 else:
                     raise _grounding_too_broad()
-                ranked = _smart_search_values(vals, search_query, limit=20)
+                ranked = _smart_search_values(vals, search_query)
                 grounded_values_by_field[fid] = tuple(vals)
                 tool_result = {
                     "field_id": fid,

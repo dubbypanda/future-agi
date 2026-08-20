@@ -158,12 +158,16 @@ def test_filter_value_pg_read_inside_outer_transaction_only_sets_local(monkeypat
         def execute(self, statement, params=None):
             statements.append((statement, params))
 
+        def fetchone(self):
+            return ("30s",)
+
     monkeypatch.setattr(
         dashboard_view,
         "connection",
         SimpleNamespace(
             vendor="postgresql",
             in_atomic_block=True,
+            needs_rollback=False,
             cursor=Cursor,
         ),
     )
@@ -182,7 +186,51 @@ def test_filter_value_pg_read_inside_outer_transaction_only_sets_local(monkeypat
         lambda: ["project"],
     ) == ["project"]
     assert statements == [
-        ("SELECT set_config('statement_timeout', %s, true)", ["3250"])
+        ("SELECT current_setting('statement_timeout')", None),
+        ("SELECT set_config('statement_timeout', %s, true)", ["3250"]),
+        ("SELECT set_config('statement_timeout', %s, true)", ["30s"]),
+    ]
+
+
+def test_filter_value_pg_read_does_not_restore_a_broken_outer_transaction(
+    monkeypatch,
+):
+    statements = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, statement, params=None):
+            statements.append((statement, params))
+
+        def fetchone(self):
+            return ("30s",)
+
+    fake_connection = SimpleNamespace(
+        vendor="postgresql",
+        in_atomic_block=True,
+        needs_rollback=False,
+        cursor=Cursor,
+    )
+    monkeypatch.setattr(dashboard_view, "connection", fake_connection)
+
+    def fail_read():
+        fake_connection.needs_rollback = True
+        raise dashboard_view.DatabaseError("statement timeout")
+
+    with pytest.raises(ReadDeadlineExceeded):
+        dashboard_view._run_filter_value_pg_read(
+            SimpleNamespace(remaining_ms=lambda _cap: 3_250),
+            fail_read,
+        )
+
+    assert statements == [
+        ("SELECT current_setting('statement_timeout')", None),
+        ("SELECT set_config('statement_timeout', %s, true)", ["3250"]),
     ]
 
 

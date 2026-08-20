@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Any
 
 import structlog
+from django.conf import settings
 from django.db import DatabaseError, connection, transaction
 from rest_framework import status
 
@@ -16,7 +17,7 @@ from tracer.services.clickhouse.read_budget import (
     ReadDeadlineExceeded,
 )
 
-DASHBOARD_ACTION_WALL_DEADLINE_MS = 9_500
+DASHBOARD_ACTION_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 logger = structlog.get_logger(__name__)
 
 

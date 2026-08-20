@@ -10,6 +10,7 @@ from time import monotonic
 from typing import Any, Protocol
 
 from tracer.services.clickhouse.v2.property_catalog.codec import (
+    MAX_DEFINITION_JSON_BYTES,
     canonical_json,
     canonical_json_sha256,
     casefold_text,
@@ -22,15 +23,16 @@ from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_query,
     normalize_property_catalog_scope,
 )
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.utils.property_registry import parse_property_registry_id
 
-PROPERTY_CATALOG_MAX_PROJECTS = 64
-PROPERTY_CATALOG_MAX_PAGE_SIZE = 50
-PROPERTY_CATALOG_MAX_SEARCH_BYTES = 512
-PROPERTY_CATALOG_MAX_DEFINITION_JSON_BYTES = 32 * 1024
-PROPERTY_CATALOG_QUERY_WALL_MS = 2_000
+PROPERTY_CATALOG_MAX_PROJECTS = RUNTIME_LIMITS.max_projects
+PROPERTY_CATALOG_MAX_PAGE_SIZE = RUNTIME_LIMITS.max_page_size
+PROPERTY_CATALOG_MAX_SEARCH_BYTES = RUNTIME_LIMITS.max_search_bytes
+PROPERTY_CATALOG_MAX_DEFINITION_JSON_BYTES = MAX_DEFINITION_JSON_BYTES
+PROPERTY_CATALOG_QUERY_WALL_MS = RUNTIME_LIMITS.query_wall_ms
 PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION = 1
-PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS = 2_048
+PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS = RUNTIME_LIMITS.max_lineage_revisions
 PROPERTY_CATALOG_LIFECYCLE_MODES = frozenset(
     {"initial_backfill", "incremental", "full_repair"}
 )
@@ -50,15 +52,7 @@ _API_DETAIL_KEYS = frozenset(
     }
 )
 
-_READ_SETTINGS = {
-    "max_threads": 2,
-    "max_bytes_to_read": 512 * 1024 * 1024,
-    "read_overflow_mode": "throw",
-    "max_memory_usage": 512 * 1024 * 1024,
-    "max_result_bytes": 8 * 1024 * 1024,
-    "result_overflow_mode": "throw",
-    "timeout_overflow_mode": "throw",
-}
+_READ_SETTINGS = RUNTIME_LIMITS.clickhouse_read_settings
 
 
 class _Result(Protocol):
@@ -514,7 +508,9 @@ _PROPERTY_SUMMARY_CTE = """
 """
 
 
-_CONFLICT_SQL_SUFFIX = _PROPERTY_SUMMARY_CTE + """
+_CONFLICT_SQL_SUFFIX = (
+    _PROPERTY_SUMMARY_CTE
+    + """
 SELECT
     (
         SELECT count()
@@ -565,9 +561,12 @@ SELECT
         AS catalog_count_custom_column
 FROM property_summary
 """
+)
 
 
-_PAGE_SQL_SUFFIX = _PROPERTY_SUMMARY_CTE + """
+_PAGE_SQL_SUFFIX = (
+    _PROPERTY_SUMMARY_CTE
+    + """
 , catalog_rows_with_sentinel AS
 (
     SELECT
@@ -744,6 +743,7 @@ ORDER BY
     property_id ASC
 LIMIT %(catalog_result_limit)s
 """
+)
 
 
 _PAYLOAD_SQL = """
@@ -906,7 +906,9 @@ class PropertyCatalogReader:
             type(page_size) is not int
             or not 1 <= page_size <= PROPERTY_CATALOG_MAX_PAGE_SIZE
         ):
-            raise ValueError("page_size must be between 1 and 50")
+            raise ValueError(
+                f"page_size must be between 1 and {PROPERTY_CATALOG_MAX_PAGE_SIZE}"
+            )
 
         cursor: PropertyCatalogCursor | None = None
         if cursor_token:
@@ -998,9 +1000,7 @@ class PropertyCatalogReader:
         ):
             raise PropertyCatalogUnavailable("category_count_mismatch")
 
-        rows = [
-            row for row in combined_rows if row.get("catalog_metadata_only") == 0
-        ]
+        rows = [row for row in combined_rows if row.get("catalog_metadata_only") == 0]
         has_more = len(rows) > page_size
         published_rows = rows[:page_size]
         published_rows = self._hydrate_definition_payloads(
@@ -1086,9 +1086,7 @@ class PropertyCatalogReader:
                 "catalog_workspace_id": scope["workspace_id"],
                 "catalog_epoch": activation.catalog_epoch,
                 "catalog_projection_version": activation.projection_version,
-                "catalog_payload_property_ids": tuple(
-                    key[0] for key in ordered_keys
-                ),
+                "catalog_payload_property_ids": tuple(key[0] for key in ordered_keys),
                 "catalog_payload_keys": tuple(ordered_keys),
             },
             max_result_rows=len(ordered_keys),
@@ -1115,17 +1113,11 @@ class PropertyCatalogReader:
                 or key in payload_by_key
                 or _strict_uint(payload.get("payload_variants"), "payload_variants")
                 != 1
-                or _strict_uint(payload.get("payload_deleted"), "payload_deleted")
-                != 0
+                or _strict_uint(payload.get("payload_deleted"), "payload_deleted") != 0
             ):
                 raise PropertyCatalogUnavailable("definition_payload_conflict")
-            expected_digest = str(
-                expected_by_key[key].get("definition_sha256") or ""
-            )
-            if (
-                str(payload.get("payload_definition_sha256") or "")
-                != expected_digest
-            ):
+            expected_digest = str(expected_by_key[key].get("definition_sha256") or "")
+            if str(payload.get("payload_definition_sha256") or "") != expected_digest:
                 raise PropertyCatalogUnavailable("definition_payload_digest_mismatch")
             payload_by_key[key] = payload
 
@@ -1134,9 +1126,7 @@ class PropertyCatalogReader:
         return [
             {
                 **expected_by_key[key],
-                "definition_json": payload_by_key[key].get(
-                    "payload_definition_json"
-                ),
+                "definition_json": payload_by_key[key].get("payload_definition_json"),
                 "definition_sha256": payload_by_key[key].get(
                     "payload_definition_sha256"
                 ),

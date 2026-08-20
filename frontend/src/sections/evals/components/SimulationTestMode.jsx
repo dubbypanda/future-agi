@@ -52,7 +52,7 @@ import {
   SIMULATION_PREVIEW_PAGE_SIZE,
   mergeSimulationPreviewPage,
   simulationPreviewRequestError,
-} from "../utils/simulationPreviewPagination";
+} from "../utils/simulation_preview_pagination";
 
 // Hover-tooltip content for the Columns / Value table. Stringifies
 // primitives and JSON-encodes objects, then caps length so a 50k-char
@@ -332,9 +332,8 @@ const SimulationTestMode = React.forwardRef(
 
     // 1. Fetch run tests (simulations) — infinite-scroll pagination.
     // Page 1 loads on mount; subsequent pages fetch via onScroll on the
-    // Autocomplete listbox. We use a large-ish page_size (50) to reduce
-    // round-trips while keeping the initial payload small.
-    const RUN_TESTS_PAGE_SIZE = 50;
+    // Autocomplete listbox shares the deployment-tuned simulation page size.
+    const RUN_TESTS_PAGE_SIZE = SIMULATION_PREVIEW_PAGE_SIZE;
     const fetchRunTestsPage = useCallback(async (pageNum) => {
       const isFirst = pageNum === 1;
       const previousRequest = runTestsRequestRef.current;
@@ -361,7 +360,7 @@ const SimulationTestMode = React.forwardRef(
             summary: true,
           },
           signal: controller.signal,
-          timeout: 9000,
+          timeout: SIMULATION_PREVIEW_HTTP_TIMEOUT_MS,
         });
         if (runTestsRequestRef.current.version !== version) return;
         if (

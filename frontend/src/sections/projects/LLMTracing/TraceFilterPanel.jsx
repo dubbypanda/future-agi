@@ -71,6 +71,16 @@ import {
   normalizeVoiceCallStatus,
   VOICE_CALL_FILTER_FIELDS,
 } from "./voiceCallFilterFields";
+import {
+  FILTER_AUTO_APPLY_DEBOUNCE_MS,
+  FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+  PROPERTY_CATALOG_LEGACY_CACHE_TIME_MS,
+  PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
+  PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
+  PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 function useSingleFlightPageRequest({ identity, enabled, request }) {
   const activeRequestRef = useRef(null);
@@ -1190,7 +1200,10 @@ export function useLegacyTraceFilterProperties(
     queryKey: ["trace-filter-properties-v2", projectId],
     enabled: enabled && Boolean(projectId),
     queryFn: async ({ pageParam = 1, signal }) => {
-      const params = { page: pageParam, page_size: 200 };
+      const params = {
+        page: pageParam,
+        page_size: PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
+      };
       if (projectId) params.project_ids = projectId;
       // Observe filter dropdown wants per-CustomEvalConfig eval entries (so
       // the dropdown matches the per-config columns in the trace/span list
@@ -1208,8 +1221,8 @@ export function useLegacyTraceFilterProperties(
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage?.has_more === true ? Number(lastPage.page || 1) + 1 : undefined,
-    staleTime: 5 * 60_000,
-    gcTime: 15 * 60_000,
+    staleTime: PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_LEGACY_CACHE_TIME_MS,
     meta: { errorHandled: true },
   });
   const metrics = (query.data?.pages || []).flatMap(
@@ -1242,7 +1255,7 @@ export function useTraceFilterProperties(
     source: sourceScope || "",
     search,
     perEvalConfig: true,
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: enabled && hasCatalogScope,
     // The retained page-number endpoint requires one project. Workspace
     // mode therefore stays on the authorized unified catalog.
@@ -1467,7 +1480,10 @@ function PropertyPicker({
   );
   const hasCategorySidebar = categories && categories.length > 0;
   const trimmedSearch = search.trim();
-  const debouncedCatalogSearch = useDebounce(trimmedSearch, 300);
+  const debouncedCatalogSearch = useDebounce(
+    trimmedSearch,
+    PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+  );
   const catalogSearchSettled = debouncedCatalogSearch === trimmedSearch;
   const selectedCatalogCategory =
     {
@@ -1488,7 +1504,7 @@ function PropertyPicker({
     source,
     search: debouncedCatalogSearch,
     perEvalConfig: true,
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: unifiedCatalogScopeActive,
   });
   const searchedCatalogProperties = useMemo(
@@ -2308,7 +2324,7 @@ function ValuePicker({
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
+  const debouncedSearch = useDebounce(search, FILTER_VALUE_SEARCH_DEBOUNCE_MS);
   // A touchpad/wheel gesture can keep the options list pinned at the bottom
   // while a fast continuation response appends the next page. Without a
   // per-open gate, the remaining inertial scroll events drain every cursor
@@ -2399,7 +2415,7 @@ function ValuePicker({
     // detect rapid clear/re-entry gestures that happen inside the debounce
     // interval and recover one cached failed continuation.
     searchGesture: usesBackendSearch ? search.trim() : "",
-    pageSize: 10,
+    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
     attributeType:
       propertyCategory === "attribute"
         ? property?.attributeTypesExact === true &&
@@ -3733,7 +3749,10 @@ const TraceFilterPanel = ({
   const [pinnedQueryAttributeProperties, setPinnedQueryAttributeProperties] =
     useState([]);
   const trimmedQueryFieldSearch = queryFieldSearch.trim();
-  const debouncedQueryCatalogSearch = useDebounce(trimmedQueryFieldSearch, 300);
+  const debouncedQueryCatalogSearch = useDebounce(
+    trimmedQueryFieldSearch,
+    PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+  );
   const queryCatalogSearchSettled =
     debouncedQueryCatalogSearch === trimmedQueryFieldSearch;
   const queryPropertyCatalog = usePropertyCatalog({
@@ -3741,7 +3760,7 @@ const TraceFilterPanel = ({
     source: unifiedCatalogSource,
     search: debouncedQueryCatalogSearch,
     perEvalConfig: true,
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: Boolean(
       unifiedPropertyCatalogActive &&
         open &&
@@ -3971,7 +3990,10 @@ const TraceFilterPanel = ({
     field: null,
     value: "",
   });
-  const debouncedQueryValueSearch = useDebounce(queryValueSearch, 500);
+  const debouncedQueryValueSearch = useDebounce(
+    queryValueSearch,
+    FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+  );
   const queryFieldProp = queryPropertyById[queryField];
   const queryMetricType = (() => {
     const cat = queryFieldProp?.category || "system";
@@ -4053,7 +4075,7 @@ const TraceFilterPanel = ({
     // System, eval, and annotation values must use the same signed-cursor
     // contract as custom attributes. A missing page_size enters the legacy
     // non-pageable branch and can exceed the property picker's five-second SLA.
-    pageSize: 10,
+    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
     attributeType:
       queryMetricType === "custom_attribute"
         ? queryFieldProp?.attributeTypesExact === true &&
@@ -4258,7 +4280,10 @@ const TraceFilterPanel = ({
   useEffect(() => {
     if (!open) return undefined;
     if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
-    autoApplyTimerRef.current = setTimeout(() => applyIfChanged(rows), 350);
+    autoApplyTimerRef.current = setTimeout(
+      () => applyIfChanged(rows),
+      FILTER_AUTO_APPLY_DEBOUNCE_MS,
+    );
     return () => {
       if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
     };

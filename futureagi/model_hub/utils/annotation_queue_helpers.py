@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import structlog
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError
 from django.db.models import DateTimeField, F, FloatField, Q
@@ -1696,8 +1697,8 @@ def resolve_source_content(item, *, ch_cache=None, cell_cache=None):
     return {"type": item.source_type, "error": "Could not resolve content"}
 
 
-_DEADLINE_CHECK_INTERVAL = 128
-_DEADLINE_BULK_BATCH_SIZE = 500
+_DEADLINE_CHECK_INTERVAL = settings.ANNOTATION_QUEUE_DEADLINE_CHECK_INTERVAL
+_DEADLINE_BULK_BATCH_SIZE = settings.ANNOTATION_QUEUE_DEADLINE_BULK_BATCH_SIZE
 
 
 def _assignment_deadline_checkpoint(deadline_check, *, index=None):

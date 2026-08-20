@@ -45,6 +45,7 @@ from datetime import datetime
 from uuid import UUID
 
 import structlog
+from django.conf import settings
 from django.db.models import Q
 
 from model_hub.models.develop_annotations import AnnotationsLabels
@@ -55,6 +56,7 @@ from simulate.utils.persona_filtering import (
     apply_persona_filter,
     is_persona_filter_column,
 )
+from tfc.settings.runtime_setting_specs import bounded_bulk_worst_case_query_count
 from tracer.models.project import Project, ProjectSourceChoices
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.read_budget import ReadDeadline
@@ -108,19 +110,19 @@ _USER_SCOPED_COLUMN_IDS = {"my_annotations", "annotator"}
 # identities, so each seed then needs exactly one candidate-scoped classifier.
 # Sixty-four seed/classifier pairs can therefore prove a 12,800-row prefix
 # without ever falling back to a broad list query.
-_MAX_BOUNDED_BULK_CAP = 10_000
-_BULK_BOUNDED_DEADLINE_MS = 15_000
-_BULK_BOUNDED_MAX_SEED_ATTEMPTS = 64
-_BULK_BOUNDED_MAX_QUERY_COUNT = 128
-_BULK_BOUNDED_MAX_CANDIDATES = 200
-_BULK_BOUNDED_CLASSIFY_BATCH_SIZE = 200
+_MAX_BOUNDED_BULK_CAP = settings.BULK_SELECTION_MAX_CAP
+_BULK_BOUNDED_DEADLINE_MS = settings.BULK_SELECTION_DEADLINE_MS
+_BULK_BOUNDED_MAX_SEED_ATTEMPTS = settings.BULK_SELECTION_MAX_SEED_ATTEMPTS
+_BULK_BOUNDED_MAX_QUERY_COUNT = settings.BULK_SELECTION_MAX_QUERY_COUNT
+_BULK_BOUNDED_MAX_CANDIDATES = settings.BULK_SELECTION_MAX_CANDIDATES
+_BULK_BOUNDED_CLASSIFY_BATCH_SIZE = settings.BULK_SELECTION_CLASSIFY_BATCH_SIZE
 # ``read_bounded_filter_page`` proves one row beyond ``page_size``.  A raw page
 # of 12,799 therefore consumes the complete 12,800-row proof budget.  The
 # independent exclusion ceiling protects the service from an unbounded request
 # payload; the raw-page check below derives the tighter limit for a given cap
 # (2,798 exclusions at the public 10,000-item cap).
-_MAX_BOUNDED_BULK_RAW_PAGE_SIZE = 12_799
-_MAX_BOUNDED_BULK_EXCLUDE_COUNT = 12_797
+_MAX_BOUNDED_BULK_RAW_PAGE_SIZE = settings.BULK_SELECTION_MAX_RAW_PAGE_SIZE
+_MAX_BOUNDED_BULK_EXCLUDE_COUNT = settings.BULK_SELECTION_MAX_EXCLUDE_COUNT
 
 
 class BulkSelectionReadIncomplete(RuntimeError):
@@ -140,20 +142,11 @@ def _optional_deadline_kwargs(deadline: ReadDeadline | None) -> dict:
 def _bounded_bulk_worst_case_query_count(raw_page_size: int) -> int:
     """Count per-seed classifier queries needed to prove a raw page prefix."""
 
-    prefix_needed = raw_page_size + 1
-    full_seed_pages, final_seed_rows = divmod(
-        prefix_needed, _BULK_BOUNDED_MAX_CANDIDATES
+    return bounded_bulk_worst_case_query_count(
+        raw_page_size=raw_page_size,
+        max_candidates=_BULK_BOUNDED_MAX_CANDIDATES,
+        classify_batch_size=_BULK_BOUNDED_CLASSIFY_BATCH_SIZE,
     )
-    classifiers_per_full_seed = (
-        _BULK_BOUNDED_MAX_CANDIDATES + _BULK_BOUNDED_CLASSIFY_BATCH_SIZE - 1
-    ) // _BULK_BOUNDED_CLASSIFY_BATCH_SIZE
-    query_count = full_seed_pages * (1 + classifiers_per_full_seed)
-    if final_seed_rows:
-        final_classifiers = (
-            final_seed_rows + _BULK_BOUNDED_CLASSIFY_BATCH_SIZE - 1
-        ) // _BULK_BOUNDED_CLASSIFY_BATCH_SIZE
-        query_count += 1 + final_classifiers
-    return query_count
 
 
 def _bounded_bulk_classify_batch_size(
@@ -207,11 +200,13 @@ def _read_bounded_bulk_page(
     key_field,
     cap,
     exclude_count=0,
-    classify_batch_size=200,
+    classify_batch_size=None,
     deadline: ReadDeadline | None = None,
 ):
     """Resolve enough raw IDs to prove a cap+1 non-excluded prefix."""
 
+    if classify_batch_size is None:
+        classify_batch_size = _BULK_BOUNDED_CLASSIFY_BATCH_SIZE
     if not _supports_bounded_bulk_prefix(cap=cap, exclude_count=exclude_count):
         raise BulkSelectionReadIncomplete("selection_prefix_too_large")
 

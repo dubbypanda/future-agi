@@ -19,11 +19,16 @@ from .activation import StreamDrainProof
 from .codec import canonical_uuid, framed_sha256, require_sha256
 from .coordinator import ProducerRevisionAssignment
 from .models import SourceAdapter
+from .proof_limits import (
+    MAX_DELIVERIES_PER_REVISION,
+    MAX_PROOF_BYTES,
+    MAX_PROOFS,
+)
 from .qualification import CatalogCheckpoint, CheckpointStatus
 
-_MAX_PROOF_BYTES = 1 << 20
-_MAX_PROOFS = 256
-_MAX_DELIVERIES = 100_000
+_MAX_PROOF_BYTES = MAX_PROOF_BYTES
+_MAX_PROOFS = MAX_PROOFS
+_MAX_DELIVERIES = MAX_DELIVERIES_PER_REVISION
 _ZERO_SHA256 = "0" * 64
 _EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 _PROOF_FIELDS = (

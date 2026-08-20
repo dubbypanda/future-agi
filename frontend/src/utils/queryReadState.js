@@ -1,3 +1,13 @@
+import {
+  AGGREGATION_POLL_BACKOFF_FACTOR,
+  AGGREGATION_POLL_INITIAL_DELAY_MS,
+  AGGREGATION_POLL_MAX_ATTEMPTS as CONFIGURED_AGGREGATION_POLL_MAX_ATTEMPTS,
+  AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES as CONFIGURED_AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES,
+  AGGREGATION_POLL_MAX_DELAY_MS,
+  AGGREGATION_REQUEST_TIMEOUT_MS as CONFIGURED_AGGREGATION_REQUEST_TIMEOUT_MS,
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
+} from "src/config/runtime_limits";
+
 export const QUERY_READ_RETRY_MESSAGE =
   "Some results could not be loaded. Please try again.";
 
@@ -278,16 +288,18 @@ export function getAggregationRefreshState(payload) {
   };
 }
 
-const AGGREGATION_POLL_DELAYS_MS = [1000, 2000, 4000, 8000];
-export const AGGREGATION_POLL_MAX_ATTEMPTS = 12;
-// One visible exact-read action must settle before the ten-second UX boundary.
-// A user-triggered Refresh/Retry resets the controller and begins a separate
+export const AGGREGATION_POLL_MAX_ATTEMPTS =
+  CONFIGURED_AGGREGATION_POLL_MAX_ATTEMPTS;
+// One visible exact-read action uses the configured UX boundary. A
+// user-triggered Refresh/Retry resets the controller and begins a separate
 // action; background work may continue server-side without holding this UI.
-export const AGGREGATION_POLL_TIMEOUT_MS = 9_000;
-export const AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES = 3;
-// Give the API's 9.5-second server wall a small transport grace while remaining
-// below the ten-second visible-action boundary.
-export const AGGREGATION_REQUEST_TIMEOUT_MS = 9_800;
+export const AGGREGATION_POLL_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
+export const AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES =
+  CONFIGURED_AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES;
+// The transport ceiling is independently configurable so deployments can
+// leave measured response headroom above their server-side analytics wall.
+export const AGGREGATION_REQUEST_TIMEOUT_MS =
+  CONFIGURED_AGGREGATION_REQUEST_TIMEOUT_MS;
 
 const aggregationRequestError = (code) => {
   const error = new Error("Exact aggregation request did not complete");
@@ -389,13 +401,17 @@ export function awaitAggregationRequestWithDeadline(
   });
 }
 
-/** Exponential polling cadence capped at eight seconds. */
+/** Environment-backed exponential polling cadence with a bounded cap. */
 export function getAggregationPollDelay(attempt = 0) {
-  const index = Math.min(
+  const boundedAttempt = Math.min(
     Math.max(Number.isInteger(attempt) ? attempt : 0, 0),
-    AGGREGATION_POLL_DELAYS_MS.length - 1,
+    AGGREGATION_POLL_MAX_ATTEMPTS - 1,
   );
-  return AGGREGATION_POLL_DELAYS_MS[index];
+  return Math.min(
+    AGGREGATION_POLL_INITIAL_DELAY_MS *
+      AGGREGATION_POLL_BACKOFF_FACTOR ** boundedAttempt,
+    AGGREGATION_POLL_MAX_DELAY_MS,
+  );
 }
 
 /**

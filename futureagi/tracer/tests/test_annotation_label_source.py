@@ -531,17 +531,12 @@ class TestProjectPGDiscovery:
 
         source = AnnotationLabelScoresProjectPG()
         assert source.annotator_ids_for_projects([str(project.id)]) == [str(user.id)]
-        assert source.categorical_values_for_label(label.id, [str(project.id)]) == [
-            {"selected": ["included"]}
-        ]
+        assert source.label_has_scores_for_projects(label.id, [str(project.id)]) is True
 
-    def test_filter_values_fail_closed_when_exact_row_cap_is_exceeded(
+    def test_score_volume_does_not_become_an_annotation_value_vocabulary(
         self, organization, workspace, project, trace, user
     ):
-        from tracer.services.annotation_label_source import (
-            AnnotationLabelScoresProjectPG,
-            AnnotationScoreReadUnavailable,
-        )
+        from tracer.services.configured_value_options import configured_value_options
 
         label = _make_label(organization, workspace, project)
         for value in ("first", "second"):
@@ -556,11 +551,7 @@ class TestProjectPGDiscovery:
             score.value = {"selected": [value]}
             score.save(update_fields=["value"])
 
-        source = AnnotationLabelScoresProjectPG()
-        source.FILTER_VALUE_LIMIT = 1
-
-        with pytest.raises(AnnotationScoreReadUnavailable):
-            source.categorical_values_for_label(label.id, [str(project.id)])
+        assert configured_value_options(label.settings.get("options")) == ()
 
     def test_candidate_rows_require_exact_project_and_trace_span_pair(
         self, organization, workspace, project, user

@@ -5,6 +5,7 @@ from datetime import datetime as dt_datetime
 from datetime import timedelta
 
 import structlog
+from django.conf import settings
 from django.db import DatabaseError, connection, transaction
 from django.db.models import (
     Avg,
@@ -41,9 +42,11 @@ from tracer.utils.eval_tasks import parsing_monitor_filters
 
 logger = structlog.get_logger(__name__)
 
-MONITOR_GRAPH_WALL_MS = 8_500
-MONITOR_GRAPH_CH_TIMEOUT_CAP_MS = 6_000
-MONITOR_GRAPH_METADATA_PG_TIMEOUT_CAP_MS = 1_000
+MONITOR_GRAPH_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+MONITOR_GRAPH_CH_TIMEOUT_CAP_MS = settings.MONITOR_GRAPH_CH_TIMEOUT_CAP_MS
+MONITOR_GRAPH_METADATA_PG_TIMEOUT_CAP_MS = (
+    settings.MONITOR_GRAPH_METADATA_PG_TIMEOUT_CAP_MS
+)
 
 
 class MonitorGraphUnavailable(RuntimeError):

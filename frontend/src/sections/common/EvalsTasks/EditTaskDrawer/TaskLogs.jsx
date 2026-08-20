@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { ShowComponent } from "src/components/show";
 import { format } from "date-fns";
-import { readEvalTaskLogs } from "../taskLogRead";
+import { readEvalTaskLogs } from "../task_log_read";
 
 const KeyValueOrChip = ({ label, value }) => {
   const chipStyle = {

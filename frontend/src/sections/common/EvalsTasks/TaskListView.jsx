@@ -22,7 +22,7 @@ import { useAuthContext } from "src/auth/hooks";
 import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import DeleteConfirmation from "./DeleteConfirmation";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readEvalTaskListPage } from "./taskListRead";
+import { readEvalTaskListPage } from "./task_list_read";
 
 const POLL_INTERVAL_MS = 5000;
 

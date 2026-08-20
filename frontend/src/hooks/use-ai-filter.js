@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import axios, { endpoints } from "src/utils/axios";
+import { ANALYTICS_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 
-export const SMART_AI_FILTER_TIMEOUT_MS = 9500;
+export const SMART_AI_FILTER_TIMEOUT_MS = ANALYTICS_REQUEST_TIMEOUT_MS;
 
 const aiFilterTimeoutError = () => {
   const error = new Error("AI filter request timed out. Please retry.");

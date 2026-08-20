@@ -1,7 +1,12 @@
 import { awaitAggregationRequestWithDeadline } from "src/utils/queryReadState";
+import {
+  AUTOMATION_RULE_LIST_PAGE_SIZE as CONFIGURED_AUTOMATION_RULE_LIST_PAGE_SIZE,
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
+} from "src/config/runtime_limits";
 
-export const AUTOMATION_RULE_LIST_PAGE_SIZE = 25;
-export const AUTOMATION_RULE_LIST_TIMEOUT_MS = 9_000;
+export const AUTOMATION_RULE_LIST_PAGE_SIZE =
+  CONFIGURED_AUTOMATION_RULE_LIST_PAGE_SIZE;
+export const AUTOMATION_RULE_LIST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const invalidAutomationRulePage = () => {
   const error = new Error("Automation rules returned an invalid page");

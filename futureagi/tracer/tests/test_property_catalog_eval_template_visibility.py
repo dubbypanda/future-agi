@@ -30,7 +30,7 @@ from tracer.services.clickhouse.v2.property_catalog.reconciler import (
 from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     SourceKeysetCursor,
     SourceSnapshot,
-    _group_eval_template_relationships,
+    _group_project_relationships,
     _load_eval_template_page,
     _make_source_record,
 )
@@ -82,20 +82,10 @@ def _sha(value: str) -> str:
 
 def test_relationship_grouping_keeps_deleted_rows_out_of_active_visibility() -> None:
     deleted_at = NOW - timedelta(minutes=1)
-    projects, versions = _group_eval_template_relationships(
-        (
-            (
-                CONFIG,
-                TEMPLATE,
-                PROJECT,
-                deleted_at,
-                True,
-                deleted_at,
-                NOW - timedelta(days=1),
-                False,
-                None,
-            ),
-        )
+    projects, versions = _group_project_relationships(
+        ((TEMPLATE, PROJECT, 0, deleted_at),),
+        project_states={PROJECT: (NOW - timedelta(days=1), False, None)},
+        relation_name="eval_configs",
     )
 
     assert projects.get(TEMPLATE, ()) == ()
@@ -104,11 +94,9 @@ def test_relationship_grouping_keeps_deleted_rows_out_of_active_visibility() -> 
             (
                 ":".join(
                     (
-                        "config",
-                        CONFIG,
+                        "eval_configs",
                         PROJECT,
-                        deleted_at.isoformat(timespec="microseconds"),
-                        "true",
+                        "0",
                         deleted_at.isoformat(timespec="microseconds"),
                     )
                 ),
@@ -130,20 +118,10 @@ def test_relationship_grouping_keeps_deleted_projects_out_of_active_visibility()
     None
 ):
     deleted_at = NOW - timedelta(minutes=1)
-    projects, versions = _group_eval_template_relationships(
-        (
-            (
-                CONFIG,
-                TEMPLATE,
-                PROJECT,
-                NOW - timedelta(days=1),
-                False,
-                None,
-                deleted_at,
-                True,
-                deleted_at,
-            ),
-        )
+    projects, versions = _group_project_relationships(
+        ((TEMPLATE, PROJECT, 1, NOW - timedelta(days=1)),),
+        project_states={PROJECT: (deleted_at, True, deleted_at)},
+        relation_name="eval_configs",
     )
 
     assert projects.get(TEMPLATE, ()) == ()
@@ -176,8 +154,8 @@ def test_global_template_watermark_uses_all_relationship_deletion_timestamps(
     relationship_subquery = queryset.query.annotations["_relationship_updated_at"]
     assert isinstance(relationship_subquery, Subquery)
     relationship_watermark = relationship_subquery.query.annotations[
-        "_relationship_updated_at"
-    ]
+        "_latest_relationship_updated_at"
+    ].get_source_expressions()[0]
     assert isinstance(relationship_watermark, Greatest)
     relationship_columns = {
         (expression.target.model._meta.label_lower, expression.target.name)
@@ -190,10 +168,7 @@ def test_global_template_watermark_uses_all_relationship_deletion_timestamps(
         ("tracer.project", "updated_at"),
         ("tracer.project", "deleted_at"),
     }
-    assert relationship_subquery.query.order_by == (
-        "-_relationship_updated_at",
-        "-id",
-    )
+    assert relationship_subquery.query.order_by == ()
 
     catalog_watermark = queryset.query.annotations["_catalog_updated_at"]
     assert isinstance(catalog_watermark, Greatest)

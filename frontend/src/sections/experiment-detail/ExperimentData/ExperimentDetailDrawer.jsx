@@ -6,7 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { useParams } from "react-router";
 import { enqueueSnackbar } from "notistack";
-import { readLegacyExperimentRow } from "./legacyExperimentRowRead";
+import { readLegacyExperimentRow } from "./legacy_experiment_row_read";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
 
 // const ExperimentDetailSection = ({ col, individualCols, row, columnConfigs, index, refreshGrid }) => {

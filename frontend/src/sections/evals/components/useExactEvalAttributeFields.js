@@ -4,6 +4,12 @@ import { useDebounce } from "src/hooks/use-debounce";
 import axios, { endpoints } from "src/utils/axios";
 import { getQueryReadState } from "src/utils/queryReadState";
 import {
+  ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+  PROPERTY_CATALOG_CACHE_TIME_MS,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
+import {
   attributeInventoryKey,
   useCursorAttributeInventory,
 } from "src/sections/projects/LLMTracing/useCursorAttributeInventory";
@@ -70,7 +76,10 @@ export function useLegacyExactEvalAttributeFields({
   const queryClient = useQueryClient();
   const normalizedRowType = normalizeExactAttributeRowType(rowType);
   const rawSearch = String(search || "").trim();
-  const debouncedSearch = useDebounce(rawSearch, 350);
+  const debouncedSearch = useDebounce(
+    rawSearch,
+    ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  );
   let exactSearch = debouncedSearch;
   if (normalizedRowType === "traces" && exactSearch.startsWith("spans.0.")) {
     exactSearch = exactSearch.slice("spans.0.".length);
@@ -143,7 +152,7 @@ export function useLegacyExactEvalAttributeFields({
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 10,
+        pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
         publishedData: queryClient.getQueryData(retainedQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -153,7 +162,7 @@ export function useLegacyExactEvalAttributeFields({
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 discovery_mode: "eval_mapping",
                 ...(cursor ? { cursor } : {}),
               },
@@ -164,8 +173,8 @@ export function useLegacyExactEvalAttributeFields({
     getNextPageParam: getNextAttributeKeyPageParam,
     enabled: enabled && Boolean(projectId) && Boolean(normalizedRowType),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -181,7 +190,7 @@ export function useLegacyExactEvalAttributeFields({
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 10,
+        pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
         publishedData: queryClient.getQueryData(exactQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -191,7 +200,7 @@ export function useLegacyExactEvalAttributeFields({
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 discovery_mode: "eval_mapping",
                 q: exactSearch,
                 ...(cursor ? { cursor } : {}),
@@ -207,8 +216,8 @@ export function useLegacyExactEvalAttributeFields({
       Boolean(normalizedRowType) &&
       Boolean(exactSearch),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -309,7 +318,7 @@ export function useLegacyExactEvalAttributeFields({
     try {
       const page = await readAttributeKeyPage({
         pageParam: null,
-        pageSize: 10,
+        pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
         publishedData: undefined,
         requestPage: (cursor, signal) =>
           axios
@@ -318,7 +327,7 @@ export function useLegacyExactEvalAttributeFields({
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 discovery_mode: "eval_mapping",
                 ...(exact ? { q: exactSearch } : {}),
                 ...(cursor ? { cursor } : {}),
@@ -441,7 +450,7 @@ export function useExactEvalAttributeFields({
     discoveryMode: "eval_mapping",
     search,
     enabled: enabled && Boolean(normalizedRowType),
-    pageSize: 10,
+    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
   });
   const data = mergeTracingFieldNames(
     [],

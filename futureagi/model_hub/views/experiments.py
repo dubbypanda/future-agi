@@ -83,6 +83,7 @@ from model_hub.serializers.experiments import (
     ExperimentUpdateV2Serializer,
 )
 from model_hub.services.bounded_dataset_read import (
+    DATASET_ROW_ADJACENCY_MAX_ROWS,
     BoundedDatasetPageDepthExceeded,
     BoundedDatasetReadDeadline,
     BoundedDatasetReadDeadlineExceeded,
@@ -92,6 +93,7 @@ from model_hub.services.bounded_dataset_read import (
 )
 from model_hub.services.dataset_snapshot import create_dataset_snapshot
 from model_hub.services.dataset_table_snapshot import (
+    DATASET_TABLE_EXACT_MAX_COLUMNS,
     DatasetTableExactLimitExceeded,
     assert_dataset_table_cells_within_limits,
     assert_dataset_table_response_within_limits,
@@ -709,8 +711,9 @@ class DatasetExperimentsView(APIView):
         # An empty mapping is still a completed bulk prefetch: it proves that
         # none of the selected rows has a live base cell.  Treating ``{}`` as
         # a cache miss turns that legitimate empty result into one point query
-        # per projected experiment cell (up to 100 rows x 128 columns) and the
-        # fallback queries do not receive a freshly-shrunk request deadline.
+        # per projected experiment cell across the configured bounded page and
+        # projection; the fallback queries do not receive a freshly-shrunk
+        # request deadline.
         # ``None`` alone means this helper was called outside the bounded bulk
         # path and must retain the legacy point-read compatibility behavior.
         if prefetched_base_cells is not None:
@@ -954,11 +957,12 @@ class DatasetExperimentsView(APIView):
             attached_metrics = list(
                 experiment.user_eval_template_ids.select_related("template").order_by(
                     "id"
-                )[:129]
+                )[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
             )
-            if len(attached_metrics) > 128:
+            if len(attached_metrics) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                 raise BoundedDatasetReadLimitExceeded(
-                    "The experiment contains more than 128 evaluation metrics."
+                    "The experiment contains more than "
+                    f"{DATASET_TABLE_EXACT_MAX_COLUMNS} evaluation metrics."
                 )
             deleted_eval_metric_ids = [
                 metric.id for metric in attached_metrics if metric.template.deleted
@@ -1003,7 +1007,7 @@ class DatasetExperimentsView(APIView):
                 paginated_rows = rows_qs.filter(id=row_id)
                 total_rows = 1
                 total_pages = 1
-                # Compute next 50 rows for single-row view
+                # Compute a bounded continuation window for single-row view.
                 deadline.before_query()
                 target_row = paginated_rows.first()
                 if target_row:
@@ -1014,7 +1018,7 @@ class DatasetExperimentsView(APIView):
                             | Q(order=target_row.order, id__gt=target_row.id)
                         )
                         .order_by("order", "id")
-                        .values_list("id", flat=True)[:50]
+                        .values_list("id", flat=True)[:DATASET_ROW_ADJACENCY_MAX_ROWS]
                     )
             else:
                 deadline.before_query()
@@ -1046,11 +1050,12 @@ class DatasetExperimentsView(APIView):
                     deleted=False,
                 )
                 .exclude(source_id__in=deleted_eval_metric_ids)
-                .order_by("id")[:129]
+                .order_by("id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
             )
-            if len(all_columns) > 128:
+            if len(all_columns) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                 raise BoundedDatasetReadLimitExceeded(
-                    "The experiment contains more than 128 evaluation columns."
+                    "The experiment contains more than "
+                    f"{DATASET_TABLE_EXACT_MAX_COLUMNS} evaluation columns."
                 )
             q_filter = Q(source__in=ALLOWED_DATASET_COLUMN_SOURCES)
             if target_column:
@@ -1071,11 +1076,12 @@ class DatasetExperimentsView(APIView):
                     dataset=query_dataset,
                 )
                 .exclude(source_id__in=deleted_eval_metric_ids)
-                .order_by("created_at", "id")[:129]
+                .order_by("created_at", "id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
             )
-            if len(dataset_other_columns) > 128:
+            if len(dataset_other_columns) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                 raise BoundedDatasetReadLimitExceeded(
-                    "The experiment projection contains more than 128 columns."
+                    "The experiment projection contains more than "
+                    f"{DATASET_TABLE_EXACT_MAX_COLUMNS} columns."
                 )
 
             # Keep global averages out of this interactive row/config path.
@@ -1092,19 +1098,20 @@ class DatasetExperimentsView(APIView):
                 else experiment.experiments_datasets.filter(deleted=False)
             )
             deadline.before_query()
-            edt_list = list(edt_qs[:129])
-            if len(edt_list) > 128:
+            edt_list = list(edt_qs[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1])
+            if len(edt_list) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                 raise BoundedDatasetReadLimitExceeded(
-                    "The experiment contains more than 128 dataset projections."
+                    "The experiment contains more than "
+                    f"{DATASET_TABLE_EXACT_MAX_COLUMNS} dataset projections."
                 )
             for _i, exp_dataset in enumerate(edt_list):
                 deadline.before_query()
                 raw_exp_cols = list(
                     Column.all_objects.filter(experiments_dataset_column=exp_dataset)
                     .select_related("dataset")
-                    .order_by("created_at", "id")[:129]
+                    .order_by("created_at", "id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
                 )
-                if len(raw_exp_cols) > 128 or any(
+                if len(raw_exp_cols) > DATASET_TABLE_EXACT_MAX_COLUMNS or any(
                     column.dataset_id != query_dataset.id for column in raw_exp_cols
                 ):
                     raise BoundedDatasetReadLimitExceeded(

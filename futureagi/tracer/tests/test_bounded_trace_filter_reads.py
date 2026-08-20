@@ -9,8 +9,10 @@ from unittest import mock
 
 import pytest
 from clickhouse_driver.util.escape import escape_params
+from django.conf import settings
 from django.test import override_settings
 
+import tracer.selectors.trace_filter_reads as trace_filter_reads
 from tracer.selectors.trace_filter_reads import (
     MAX_NUMBERED_PAGE_WORK_ROWS,
     BoundedFilterPage,
@@ -48,6 +50,34 @@ from tracer.services.clickhouse.v2.query_builders.voice_call_list import (
 PROJECT_ID = "00000000-0000-4000-8000-000000000001"
 START = datetime(2025, 1, 1)
 END = START + timedelta(days=365)
+
+
+def test_bounded_selector_operational_limits_are_settings_backed():
+    assert (
+        trace_filter_reads._QUERY_TIMEOUT_MS
+        == settings.FILTER_SELECTOR_QUERY_TIMEOUT_MS
+    )
+    assert (
+        trace_filter_reads._MAX_OPT_IN_QUERY_TIMEOUT_MS
+        == settings.FILTER_SELECTOR_MAX_OPT_IN_QUERY_TIMEOUT_MS
+    )
+    assert (
+        trace_filter_reads._MAX_BUILDER_RECOMMENDED_QUERY_TIMEOUT_MS
+        == settings.FILTER_SELECTOR_MAX_BUILDER_QUERY_TIMEOUT_MS
+    )
+    assert (
+        MAX_NUMBERED_PAGE_WORK_ROWS
+        == settings.FILTER_SELECTOR_MAX_NUMBERED_PAGE_WORK_ROWS
+    )
+    assert trace_filter_reads._READ_SETTINGS == {
+        "max_threads": settings.FILTER_SELECTOR_MAX_THREADS,
+        "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+        "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
+        "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
+        "read_overflow_mode": "throw",
+        "max_result_rows": 512,
+        "result_overflow_mode": "throw",
+    }
 
 
 def _render_driver_sql(sql: str, params: dict[str, Any]) -> str:
@@ -14860,7 +14890,10 @@ def test_identity_hydration_reserves_query_and_wall_budget() -> None:
         "match_identity",
         "hydrate",
     ]
-    assert executor.timeouts[0] == ("seed", 1_500)
+    assert executor.timeouts[0] == (
+        "seed",
+        min(settings.FILTER_SELECTOR_QUERY_TIMEOUT_MS, 2_200),
+    )
     assert 1_199 <= executor.timeouts[1][1] <= 1_200
     assert executor.timeouts[2] == ("hydrate", 300)
     assert page.elapsed_ms == pytest.approx(2_149)

@@ -23,7 +23,7 @@ from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     PropertySourceError,
     SourceReadBudget,
     _BoundedSourceAdapter,
-    _group_annotation_score_relationships,
+    _group_project_relationships,
     _load_annotation_label_page,
     _load_dataset_column_page,
     _load_eval_config_page,
@@ -42,7 +42,6 @@ AGENT = "77777777-7777-4777-8777-777777777777"
 DATASET = "88888888-8888-4888-8888-888888888888"
 COLUMN = "99999999-9999-4999-8999-999999999999"
 LABEL = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-SCORE = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 NOW = datetime(2026, 8, 14, 12, tzinfo=UTC)
 OLD = NOW - timedelta(days=1)
 
@@ -165,7 +164,9 @@ def test_annotation_relationship_watermark_includes_score_and_project_deletions(
     label_query = captured["queryset"]
     relationship = label_query.query.annotations["_score_relationship_updated_at"]
     assert isinstance(relationship, Subquery)
-    score_watermark = relationship.query.annotations["_relationship_updated_at"]
+    score_watermark = relationship.query.annotations[
+        "_latest_relationship_updated_at"
+    ].get_source_expressions()[0]
     assert _columns(score_watermark) == {
         ("model_hub.score", "updated_at"),
         ("model_hub.score", "deleted_at"),
@@ -179,17 +180,32 @@ def test_annotation_relationship_watermark_includes_score_and_project_deletions(
 
 
 def test_bulk_deleted_score_or_project_is_not_an_active_label_visibility() -> None:
-    deleted_score_projects, score_versions = _group_annotation_score_relationships(
-        ((SCORE, LABEL, PROJECT, OLD, True, NOW, OLD, False, None),)
+    deleted_score_projects, score_versions = _group_project_relationships(
+        ((LABEL, PROJECT, 0, NOW),),
+        project_states={PROJECT: (OLD, False, None)},
+        relation_name="scores",
     )
-    deleted_project_projects, project_versions = _group_annotation_score_relationships(
-        ((SCORE, LABEL, PROJECT, OLD, False, None, OLD, True, NOW),)
+    deleted_project_projects, project_versions = _group_project_relationships(
+        ((LABEL, PROJECT, 1, OLD),),
+        project_states={PROJECT: (OLD, True, NOW)},
+        relation_name="scores",
     )
 
     assert deleted_score_projects.get(LABEL, ()) == ()
     assert deleted_project_projects.get(LABEL, ()) == ()
-    assert any(":true:" in version for version in score_versions[LABEL])
+    assert any(":0:" in version for version in score_versions[LABEL])
     assert any(":true:" in version for version in project_versions[LABEL])
+
+
+def test_relationship_grouping_is_independent_of_raw_relationship_cardinality() -> None:
+    projects, versions = _group_project_relationships(
+        ((LABEL, PROJECT, 250_000, NOW),),
+        project_states={PROJECT: (OLD, False, None)},
+        relation_name="scores",
+    )
+
+    assert projects[LABEL] == (PROJECT,)
+    assert any(":250000:" in version for version in versions[LABEL])
 
 
 @pytest.mark.parametrize(

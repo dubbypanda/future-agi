@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -17,6 +18,8 @@ from simulate.models import (
 )
 from simulate.models import TestExecution as ExecutionModel
 from simulate.serializers.preview_pagination import (
+    SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE,
+    SIMULATION_PREVIEW_MAX_PAGE_SIZE,
     SimulationPreviewCursorQuerySerializer,
     SimulationPreviewErrorSerializer,
     SimulationPreviewPageSerializer,
@@ -132,8 +135,6 @@ def test_call_preview_cursor_is_bound_to_the_selected_run_test(settings):
 
 
 def test_revision_rejects_equal_count_membership_or_bulk_version_change():
-    from django.utils import timezone
-
     revision = PreviewRevision(
         snapshot="100:200:150",
         physical_total=3,
@@ -151,13 +152,10 @@ def test_revision_rejects_equal_count_membership_or_bulk_version_change():
                 kind="run_test_executions",
                 parent_id="00000000-0000-0000-0000-000000000001",
                 revision=revision,
-                snapshot_at=timezone.now(),
             )
 
 
 def test_revision_reconstructs_epoch_aware_xmin_before_visibility_check():
-    from django.utils import timezone
-
     with patch("simulate.services.preview_pagination.connection.cursor") as cursor:
         cursor_context = cursor.return_value.__enter__.return_value
         cursor_context.fetchone.return_value = (True, 3, 3, True)
@@ -165,7 +163,6 @@ def test_revision_reconstructs_epoch_aware_xmin_before_visibility_check():
             kind="run_test_executions",
             parent_id="00000000-0000-0000-0000-000000000001",
             original_snapshot="4294967300:4294967310:",
-            snapshot_at=timezone.now(),
         )
         sql = cursor_context.execute.call_args.args[0]
     assert "txid_current()::bigint AS current_txid" in sql
@@ -174,8 +171,17 @@ def test_revision_reconstructs_epoch_aware_xmin_before_visibility_check():
     assert "xmin::text" not in sql
 
 
-def test_preview_query_caps_every_user_action_to_fifty_rows():
-    serializer = SimulationPreviewCursorQuerySerializer(data={"page_size": 51})
+def test_preview_query_uses_configured_default_and_caps_each_user_action():
+    default_serializer = SimulationPreviewCursorQuerySerializer(data={})
+    assert default_serializer.is_valid(), default_serializer.errors
+    assert (
+        default_serializer.validated_data["page_size"]
+        == SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE
+    )
+
+    serializer = SimulationPreviewCursorQuerySerializer(
+        data={"page_size": SIMULATION_PREVIEW_MAX_PAGE_SIZE + 1}
+    )
     assert not serializer.is_valid()
     assert "page_size" in serializer.errors
 
@@ -414,6 +420,37 @@ def test_execution_continuation_rejects_equal_count_membership_swap(
     )
     assert continuation.status_code == status.HTTP_409_CONFLICT
     assert continuation.json()["code"] == "simulation_preview_snapshot_changed"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.skipif(
+    connection.vendor != "postgresql", reason="requires PostgreSQL MVCC"
+)
+def test_initial_preview_does_not_drop_future_skewed_application_timestamps(
+    auth_client, preview_run_test
+):
+    executions = [
+        ExecutionModel.objects.create(
+            run_test=preview_run_test,
+            status=ExecutionModel.ExecutionStatus.COMPLETED,
+        )
+        for _ in range(2)
+    ]
+    from django.utils import timezone
+
+    ExecutionModel.all_objects.filter(
+        id__in=[execution.id for execution in executions]
+    ).update(created_at=timezone.now() + timedelta(minutes=5))
+
+    response = auth_client.get(
+        f"/simulate/run-tests/{preview_run_test.id}/preview-executions/",
+        {"page_size": 1},
+    )
+
+    assert response.status_code == status.HTTP_200_OK, response.content
+    assert response.json()["snapshot_total"] == len(executions)
+    assert len(response.json()["results"]) == 1
+    assert response.json()["next_cursor"]
 
 
 @pytest.mark.django_db(transaction=True)

@@ -67,6 +67,11 @@ import {
   awaitAggregationRequestWithDeadline,
 } from "src/utils/queryReadState";
 import { parseTraceGraphResponse } from "src/api/project/observe-contracts";
+import {
+  PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
 
 // ---------------------------------------------------------------------------
 // Map dashboard category → graph API type
@@ -137,7 +142,7 @@ function useLegacyGraphMetrics(projectId, transportSource, enabled = true) {
         params: {
           exclude_custom_attributes: true,
           page: pageParam,
-          page_size: 200,
+          page_size: PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
           project_ids: projectId,
           per_eval_config: true,
         },
@@ -155,7 +160,7 @@ function useLegacyGraphMetrics(projectId, transportSource, enabled = true) {
     },
     initialPageParam: 1,
     enabled: enabled && Boolean(projectId),
-    staleTime: 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
     meta: { errorHandled: true },
   });
 
@@ -226,7 +231,7 @@ function useGraphMetrics(projectId, transportSource, enabled = true) {
     projectIds: projectId ? [projectId] : [],
     source: transportSource,
     perEvalConfig: true,
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: enabled && Boolean(projectId),
     allowLegacyNotReadyFallback: true,
     fallbackScopeKey,

@@ -176,7 +176,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 }
 
 func validateTopic(topic string) error {
-	if topic == "" || len(topic) > 249 || topic == "." || topic == ".." {
+	if topic == "" || len(topic) > MaxKafkaTopicBytes || topic == "." || topic == ".." {
 		return errors.New("propertycatalog: Kafka topic is empty, reserved, or too long")
 	}
 	for _, r := range topic {

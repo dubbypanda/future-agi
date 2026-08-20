@@ -23,10 +23,13 @@ from tracer.services.clickhouse.v2.attribute_catalog_connection import (
     _bounded_query_settings,
     _validate_catalog_query,
 )
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 
-PROPERTY_CATALOG_READ_MAX_WALL_MS = 2_000
-PROPERTY_CATALOG_READ_POOL_SIZE = 4
-PROPERTY_CATALOG_READ_TRANSPORT_TIMEOUT_SECONDS = 2.0
+PROPERTY_CATALOG_READ_MAX_WALL_MS = RUNTIME_LIMITS.query_wall_ms
+PROPERTY_CATALOG_READ_POOL_SIZE = RUNTIME_LIMITS.read_pool_size
+PROPERTY_CATALOG_READ_TRANSPORT_TIMEOUT_SECONDS = (
+    RUNTIME_LIMITS.read_transport_timeout_seconds
+)
 
 PROPERTY_CATALOG_TABLES = frozenset(
     {

@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol
 
+from django.conf import settings
+
 from .codec import canonical_uuid
 from .postgres_executor import (
     PostgresRevisionReconciler,
@@ -32,9 +34,13 @@ DEV_ROLLOUT_ACK = "TH7247_UNIFIED_PROPERTY_CATALOG_DEV"
 DEV_DATABASE_PREFIX = "th7247_catalog_dev_"
 DEV_ENVIRONMENT = "development"
 DEV_CLOUD_DEPLOYMENT = "DEV"
-DEV_STANDARD_MAX_WALL_MS = 100_000
-DEV_INITIAL_BACKFILL_MAX_WALL_MS = 1_740_000
-DEV_SCHEDULED_RECONCILE_MAX_WALL_MS = 1_740_000
+DEV_STANDARD_MAX_WALL_MS = settings.PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS
+DEV_INITIAL_BACKFILL_MAX_WALL_MS = (
+    settings.PROPERTY_CATALOG_DEV_INITIAL_BACKFILL_MAX_WALL_MS
+)
+DEV_SCHEDULED_RECONCILE_MAX_WALL_MS = (
+    settings.PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_MAX_WALL_MS
+)
 _DEV_IDENTITY_RE = re.compile(r"^dev:[a-z0-9][a-z0-9._:/-]{2,127}$")
 _SOURCE_DATABASE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -139,7 +145,9 @@ class DevRolloutRequest:
                 <= DEV_INITIAL_BACKFILL_MAX_WALL_MS
             ):
                 raise DevRolloutError(
-                    "explicit initial backfill wall must be in [100001, 1740000] ms"
+                    "explicit initial backfill wall must be in "
+                    f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+                    f"{DEV_INITIAL_BACKFILL_MAX_WALL_MS}] ms"
                 )
             if not self.execute or self.status:
                 raise DevRolloutError(
@@ -154,7 +162,8 @@ class DevRolloutRequest:
             ):
                 raise DevRolloutError(
                     "explicit scheduled reconcile wall must be in "
-                    "[100001, 1740000] ms"
+                    f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+                    f"{DEV_SCHEDULED_RECONCILE_MAX_WALL_MS}] ms"
                 )
             if not self.execute or self.status:
                 raise DevRolloutError(

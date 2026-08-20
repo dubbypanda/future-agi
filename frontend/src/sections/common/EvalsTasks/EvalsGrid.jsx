@@ -18,7 +18,8 @@ import { preventHeaderSelection } from "src/utils/utils";
 import logger from "src/utils/logger";
 import { APP_CONSTANTS } from "src/utils/constants";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readEvalTaskListPage } from "./taskListRead";
+import { readEvalTaskListPage } from "./task_list_read";
+import { INTERACTIVE_TABLE_PAGE_SIZE } from "src/config/runtime_limits";
 
 const EVALS_GRID_THEME_PARAMS = {
   headerColumnBorder: {
@@ -162,7 +163,7 @@ const EvalsGrid = forwardRef(
                   ? debouncedSearchQuery
                   : null,
                 page_number: p,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 ...(observeId && { project_id: observeId }),
                 sort_params: JSON.stringify(
                   gridRef.current?.api
@@ -475,8 +476,8 @@ const EvalsGrid = forwardRef(
             theme={agTheme}
             onColumnHeaderClicked={onColumnHeaderClicked}
             serverSideDatasource={dataSource}
-            paginationPageSize={10}
-            cacheBlockSize={10}
+            paginationPageSize={INTERACTIVE_TABLE_PAGE_SIZE}
+            cacheBlockSize={INTERACTIVE_TABLE_PAGE_SIZE}
             defaultColDef={defaultColDef}
             suppressRowClickSelection={true}
             rowStyle={{ cursor: "pointer" }}

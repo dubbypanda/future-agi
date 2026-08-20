@@ -59,14 +59,6 @@ MODEL_HUB_SCHEDULES: list[ScheduleConfig] = [
         description="Evaluate due annotation automation rules",
     ),
     ScheduleConfig(
-        schedule_id="reconcile-annotation-score-values",
-        activity_name="reconcile_annotation_score_values",
-        interval_seconds=60,
-        catchup_window_seconds=300,
-        queue="default",
-        description="Repair annotation value projection and tenant readiness",
-    ),
-    ScheduleConfig(
         schedule_id="annotation-realtime-digest",
         activity_name="send_annotation_realtime_digest_task",
         # 15-min cron. Per-user throttle of 1/hour is enforced in the

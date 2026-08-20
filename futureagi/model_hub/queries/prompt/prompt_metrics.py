@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 
 import structlog
+from django.conf import settings
 from django.db import connection
 from django.db.models import (
     BigIntegerField,
@@ -33,7 +34,7 @@ from tracer.utils.filters import ColType, FilterEngine
 logger = structlog.get_logger(__name__)
 
 
-PROMPT_SPAN_PAGE_DB_PAYLOAD_BYTES = 1_500_000
+PROMPT_SPAN_PAGE_DB_PAYLOAD_BYTES = settings.PROMPT_METRICS_SPAN_PAGE_DB_PAYLOAD_BYTES
 
 
 class PromptMetricsQueryLimitExceeded(RuntimeError):

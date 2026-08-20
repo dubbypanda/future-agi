@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
+from django.conf import settings
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import models
 from django.db.models import (
@@ -190,38 +191,38 @@ ERROR_RESPONSES = {
 # Every candidate and enrichment statement receives only the request's
 # remaining time; concurrent finite page hydration therefore cannot extend the
 # endpoint beyond that wall deadline.
-TRACE_LIST_WALL_DEADLINE_MS = 9_500
-TRACE_LIST_CANDIDATE_DEADLINE_MS = 9_500
-TRACE_LIST_ENRICHMENT_TIMEOUT_MS = 9_500
+TRACE_LIST_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+TRACE_LIST_CANDIDATE_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+TRACE_LIST_ENRICHMENT_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 # Page-local content/attribute hydration is exact but can still make ClickHouse
 # read a wide part when a caller requests the serializer's 500-row maximum.
 # High-volume qualification showed 100 identities remain below the locked
 # 512 MiB per-query read ceiling while a single 500-identity replay can cross it
 # on a continuation page. Split only the finite public page; every chunk is
 # still required and the response fails closed if any chunk is unavailable.
-TRACE_LIST_ENRICHMENT_CHUNK_SIZE = 100
+TRACE_LIST_ENRICHMENT_CHUNK_SIZE = settings.TRACE_LIST_ENRICHMENT_CHUNK_SIZE
 # Enrichments are page-local and individually bounded, but fanning every
 # optional field out at once can exceed ClickHouse's admission limit on a busy
 # tenant. Two workers retain overlap without turning one list request into a
 # five-query concurrency spike.
-TRACE_LIST_ENRICHMENT_MAX_WORKERS = 2
+TRACE_LIST_ENRICHMENT_MAX_WORKERS = settings.TRACE_LIST_ENRICHMENT_MAX_WORKERS
 # The annotation relation is exact, but PostgreSQL score discovery must not
 # materialize an unbounded project history into one request. 50k scored span
 # identities is intentionally above the former 5,001-row regression while
 # still placing a hard ceiling on Python memory and the subsequent CH IN set.
 # Pages above this bound fail closed (503); they are never silently truncated.
-TRACE_LIST_ANNOTATION_SCORE_SPAN_LIMIT = 50_000
+TRACE_LIST_ANNOTATION_SCORE_SPAN_LIMIT = settings.TRACE_LIST_ANNOTATION_SCORE_SPAN_LIMIT
 TRACE_LIST_READ_SETTINGS = {
     "max_threads": 1,
-    "max_block_size": 8192,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_result_rows": 5_001,
+    "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+    "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
+    "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
+    "max_result_rows": settings.OBSERVABILITY_LIST_MAX_RESULT_ROWS,
     "read_overflow_mode": "throw",
     "result_overflow_mode": "throw",
     "timeout_overflow_mode": "throw",
 }
-_VOICE_CONTENT_MAX_QUERY_ATTEMPTS = 64
+_VOICE_CONTENT_MAX_QUERY_ATTEMPTS = settings.VOICE_CONTENT_MAX_QUERY_ATTEMPTS
 VOICE_CALL_EXPORT_FIELDNAMES = (
     "ID",
     "Call ID",
@@ -240,10 +241,10 @@ VOICE_CALL_EXPORT_FIELDNAMES = (
     "Ended Reason",
     "Transcript",
 )
-TRACE_NAVIGATION_CANDIDATE_LIMIT = 4_095
-TRACE_NAVIGATION_SCAN_PAGE_SIZE = 200
-TRACE_NAVIGATION_MAX_QUERIES = 128
-TRACE_NAVIGATION_WALL_DEADLINE_MS = 9_500
+TRACE_NAVIGATION_CANDIDATE_LIMIT = settings.OBSERVABILITY_NAVIGATION_CANDIDATE_LIMIT
+TRACE_NAVIGATION_SCAN_PAGE_SIZE = settings.OBSERVABILITY_NAVIGATION_SCAN_PAGE_SIZE
+TRACE_NAVIGATION_MAX_QUERIES = settings.OBSERVABILITY_NAVIGATION_MAX_QUERIES
+TRACE_NAVIGATION_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 _CLICKHOUSE_ERROR_CODE_RE = re.compile(r"\bcode:\s*(\d+)\b", re.IGNORECASE)
 _OPTIONAL_USER_ENRICHMENT_ERROR_CODES = frozenset({497})
 
@@ -5905,7 +5906,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
 
             content_query_attempts = 0
-            content_batch_size = 200
+            content_batch_size = settings.VOICE_CONTENT_MAX_BATCH_SIZE
 
             def hydrate_content_batch(
                 batch_identities: list[tuple[str, str, str, Any]],
@@ -5924,7 +5925,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 )
                 content_query_attempts += 1
                 try:
-                    content_timeout_ms = read_deadline.remaining_ms(1_500)
+                    content_timeout_ms = read_deadline.remaining_ms(
+                        settings.VOICE_CONTENT_MIN_REMAINING_MS
+                    )
                     attrs_result = analytics.execute_ch_query(
                         attrs_query,
                         attrs_params,

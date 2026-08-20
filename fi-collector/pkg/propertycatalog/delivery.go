@@ -14,8 +14,15 @@ const (
 	TransportKafka     = "kafka"
 	TransportReconcile = "reconcile"
 
-	defaultDeliveryTimeout = 5 * time.Second
-	maxDeliveryTimeout     = 10 * time.Second
+	// DefaultDeliveryHandlerTimeout is the bounded wall used when callers do
+	// not provide one for the complete data-plus-ledger transaction.
+	DefaultDeliveryHandlerTimeout = 5 * time.Second
+	// DefaultDeliveryTransportTimeout is shared by the Kafka producer and
+	// ClickHouse transport. Deployments may lower it but never exceed the
+	// reviewed end-to-end ceiling.
+	DefaultDeliveryTransportTimeout = 10 * time.Second
+	// MaxDeliveryTimeout is the hard safety ceiling for every delivery stage.
+	MaxDeliveryTimeout = 10 * time.Second
 )
 
 // DeliverySink exposes only the two allowlisted data tables and the dedicated
@@ -77,10 +84,10 @@ func NewDeliveryHandler(
 		return nil, errors.New("propertycatalog: delivery handler requires a sink and authoritative lease guard")
 	}
 	if timeout == 0 {
-		timeout = defaultDeliveryTimeout
+		timeout = DefaultDeliveryHandlerTimeout
 	}
-	if timeout < 0 || timeout > maxDeliveryTimeout {
-		return nil, fmt.Errorf("propertycatalog: delivery timeout must be in (0,%s]", maxDeliveryTimeout)
+	if timeout < 0 || timeout > MaxDeliveryTimeout {
+		return nil, fmt.Errorf("propertycatalog: delivery timeout must be in (0,%s]", MaxDeliveryTimeout)
 	}
 	return &DeliveryHandler{sink: sink, guard: guard, timeout: timeout, now: time.Now}, nil
 }
@@ -89,7 +96,7 @@ func NewDeliveryHandler(
 // Data chunks are written in envelope order and the ledger is always last.
 func (h *DeliveryHandler) Deliver(ctx context.Context, delivery Delivery) error {
 	if h == nil || h.sink == nil || h.guard == nil || h.now == nil ||
-		h.timeout <= 0 || h.timeout > maxDeliveryTimeout {
+		h.timeout <= 0 || h.timeout > MaxDeliveryTimeout {
 		return errors.New("propertycatalog: nil or invalid delivery handler")
 	}
 	if ctx == nil {

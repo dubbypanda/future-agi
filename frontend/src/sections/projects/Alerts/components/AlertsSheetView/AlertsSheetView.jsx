@@ -42,7 +42,7 @@ import {
   MONITOR_GRAPH_ERROR_MESSAGE,
   monitorGraphDisplayState,
   monitorGraphRequestConfig,
-} from "../../../monitorGraphRead";
+} from "../../../monitor_graph_read";
 const Issues = lazy(() => import("./Issues"));
 const AlertDetails = lazy(() => import("./AlertDetails"));
 

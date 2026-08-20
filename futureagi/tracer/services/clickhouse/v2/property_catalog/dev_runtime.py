@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from django.conf import settings
+
 from tracer.services.clickhouse.server_readonly import ensure_read_statement
 from tracer.services.clickhouse.v2 import catalog_dev_schema
 
@@ -105,6 +107,7 @@ from .runtime_contract import (
     parse_producer_drain_proof,
     select_producer_drain_proof,
 )
+from .runtime_limits import RUNTIME_LIMITS
 from .source_adapters import (
     PROPERTY_SOURCE_DB_ALIAS,
     DefinitionSourceAdapter,
@@ -139,7 +142,9 @@ _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _COLUMN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _QUALIFIED_TABLE_RE = re.compile(r"^`([^`]+)`\.`([^`]+)`$")
 _QUALIFIED_SOURCE_RE = re.compile(r"`([^`]+)`\.`([^`]+)`")
-_STANDARD_NATIVE_READ_TIMEOUT_CEILING_MS = 9_500
+_STANDARD_NATIVE_READ_TIMEOUT_CEILING_MS = (
+    settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+)
 _CREATE_TABLE_RE = re.compile(
     r"^CREATE TABLE IF NOT EXISTS ([A-Za-z_][A-Za-z0-9_]*)\s*\(",
     re.IGNORECASE,
@@ -150,8 +155,14 @@ CHECKED_IN_DEV_RUNTIME_FACTORY_PATH = (
     "configured_property_catalog_dev_runtime"
 )
 _DRAIN_PROOF_FILENAME = "producer-drain-proof-v2.json"
-_MAX_DRAIN_PROOF_BYTES = 1 << 20
-_MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS = 60_000
+_MAX_DRAIN_PROOF_BYTES = RUNTIME_LIMITS.drain_proof_max_bytes
+_DRAIN_POLL_INTERVAL_SECONDS = RUNTIME_LIMITS.drain_poll_interval_ms / 1_000
+_DRAIN_POLL_CAP_MS = RUNTIME_LIMITS.drain_poll_cap_ms
+_VISIBILITY_RETRY_CAP_MS = RUNTIME_LIMITS.visibility_retry_cap_ms
+_MAX_PROJECTS = RUNTIME_LIMITS.max_projects
+_MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS = (
+    settings.PROPERTY_CATALOG_INITIAL_BACKFILL_LEASE_HEADROOM_MS
+)
 _CLICKHOUSE_PROVENANCE_SQL = """
 SELECT
     hostName(),
@@ -260,7 +271,7 @@ class SharedVolumeHotDrainProofSource:
 
     path: str
     deadline: SharedCatalogDeadline
-    poll_interval_seconds: float = 0.05
+    poll_interval_seconds: float = _DRAIN_POLL_INTERVAL_SECONDS
     sleeper: Callable[[float], None] = time.sleep
 
     def __post_init__(self) -> None:
@@ -289,7 +300,7 @@ class SharedVolumeHotDrainProofSource:
         if phase not in {"prepared", "ready"}:
             raise ValueError("hot drain phase must be prepared or ready")
         while True:
-            self.deadline.remaining_ms(cap_ms=1_000)
+            self.deadline.remaining_ms(cap_ms=_DRAIN_POLL_CAP_MS)
             raw = self._read_once()
             if raw is not None:
                 proofs = parse_producer_drain_proof(raw)
@@ -336,7 +347,7 @@ class SharedVolumeHotDrainProofSource:
                         raise PropertyCatalogHotDrainHandshakeUnavailable(
                             "Go drain proof skipped or regressed its expected phase"
                         )
-            remaining = self.deadline.remaining_ms(cap_ms=1_000)
+            remaining = self.deadline.remaining_ms(cap_ms=_DRAIN_POLL_CAP_MS)
             self.sleeper(min(self.poll_interval_seconds, remaining / 1_000))
 
     def _read_once(self) -> bytes | None:
@@ -723,9 +734,14 @@ class ProjectTenantAuthorization:
                 for project_id in self.project_ids
             )
         )
-        if not projects or len(projects) > 256 or len(set(projects)) != len(projects):
+        if (
+            not projects
+            or len(projects) > _MAX_PROJECTS
+            or len(set(projects)) != len(projects)
+        ):
             raise PropertyCatalogDevRuntimeError(
-                "project tenant authorization requires 1..256 unique project IDs"
+                "project tenant authorization requires 1.."
+                f"{_MAX_PROJECTS} unique project IDs"
             )
         object.__setattr__(self, "project_ids", projects)
         if (
@@ -842,11 +858,12 @@ class DevRuntimeConfig:
         )
         if (
             not projects
-            or len(projects) > 256
+            or len(projects) > _MAX_PROJECTS
             or len(projects) != len(self.project_ids)
         ):
             raise PropertyCatalogDevRuntimeError(
-                "project allowlist must contain 1..256 unique canonical UUIDs"
+                "project allowlist must contain 1.."
+                f"{_MAX_PROJECTS} unique canonical UUIDs"
             )
         object.__setattr__(self, "project_ids", projects)
         object.__setattr__(
@@ -925,8 +942,7 @@ class DevRuntimeConfig:
             and self.explicit_scheduled_reconcile_wall
         ):
             raise PropertyCatalogDevRuntimeError(
-                "initial backfill and scheduled reconcile walls are mutually "
-                "exclusive"
+                "initial backfill and scheduled reconcile walls are mutually exclusive"
             )
         if type(self.rollout_wall_ms) is not int:
             raise PropertyCatalogDevRuntimeError("rollout wall must be an integer")
@@ -940,19 +956,22 @@ class DevRuntimeConfig:
                 )
             ):
                 raise PropertyCatalogDevRuntimeError(
-                    "explicit extended rollout wall must be in [100001, 1740000] ms"
+                    "explicit extended rollout wall must be in "
+                    f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+                    f"{min(DEV_INITIAL_BACKFILL_MAX_WALL_MS, DEV_SCHEDULED_RECONCILE_MAX_WALL_MS)}] ms"
                 )
             lease_headroom_ms = (
                 MAX_REVISION_LEASE_SECONDS * 1_000 - self.rollout_wall_ms
             )
             if lease_headroom_ms < _MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS:
                 raise PropertyCatalogDevRuntimeError(
-                    "explicit extended rollout wall must leave at least 60000 ms "
-                    "of revision lease headroom"
+                    "explicit extended rollout wall must leave at least "
+                    f"{_MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS} ms of revision "
+                    "lease headroom"
                 )
         elif not 1 <= self.rollout_wall_ms <= DEV_STANDARD_MAX_WALL_MS:
             raise PropertyCatalogDevRuntimeError(
-                "rollout wall must be in [1, 100000] ms"
+                f"rollout wall must be in [1, {DEV_STANDARD_MAX_WALL_MS}] ms"
             )
 
     @classmethod
@@ -1062,7 +1081,8 @@ class DevRuntimeConfig:
         )
         if configured_wall_ms > DEV_STANDARD_MAX_WALL_MS:
             raise PropertyCatalogDevRuntimeError(
-                "PROPERTY_CATALOG_DEV_MAX_WALL_MS must remain in [1, 100000] ms; "
+                "PROPERTY_CATALOG_DEV_MAX_WALL_MS must remain in "
+                f"[1, {DEV_STANDARD_MAX_WALL_MS}] ms; "
                 "only --initial-backfill-wall-ms may extend an explicit backfill"
             )
         return cls(
@@ -1158,9 +1178,7 @@ class DevRuntimeConfig:
                 )
             ),
             explicit_initial_backfill_wall=explicit_initial_wall_ms is not None,
-            explicit_scheduled_reconcile_wall=(
-                explicit_scheduled_wall_ms is not None
-            ),
+            explicit_scheduled_reconcile_wall=(explicit_scheduled_wall_ms is not None),
         )
 
 
@@ -1207,7 +1225,7 @@ def _clickhouse_dev_identity(
         rows, _columns, _elapsed = driver.execute_read(
             _CLICKHOUSE_PROVENANCE_SQL,
             {},
-            timeout_ms=8_500,
+            timeout_ms=RUNTIME_LIMITS.canonical_span_query_timeout_ms,
             settings={},
         )
     else:
@@ -1296,9 +1314,13 @@ def _postgres_project_tenant_bindings(
             canonical_uuid(project_id, field="project_id") for project_id in project_ids
         )
     )
-    if not projects or len(projects) > 256 or len(set(projects)) != len(projects):
+    if (
+        not projects
+        or len(projects) > _MAX_PROJECTS
+        or len(set(projects)) != len(projects)
+    ):
         raise PropertyCatalogDevRuntimeError(
-            "project ownership probe requires 1..256 unique project IDs"
+            f"project ownership probe requires 1..{_MAX_PROJECTS} unique project IDs"
         )
     if not isinstance(expected_postgres_identity, PostgresDevIdentity):
         raise TypeError("expected_postgres_identity must be PostgresDevIdentity")
@@ -1358,9 +1380,13 @@ def _postgres_project_tenant_bindings_in_current_snapshot(
             canonical_uuid(project_id, field="project_id") for project_id in project_ids
         )
     )
-    if not projects or len(projects) > 256 or len(set(projects)) != len(projects):
+    if (
+        not projects
+        or len(projects) > _MAX_PROJECTS
+        or len(set(projects)) != len(projects)
+    ):
         raise PropertyCatalogDevRuntimeError(
-            "project ownership probe requires 1..256 unique project IDs"
+            f"project ownership probe requires 1..{_MAX_PROJECTS} unique project IDs"
         )
     if not isinstance(expected_postgres_identity, PostgresDevIdentity):
         raise TypeError("expected_postgres_identity must be PostgresDevIdentity")
@@ -1444,9 +1470,14 @@ def _authorize_project_tenant_bindings(
             for project_id in config.project_ids
         )
     )
-    if not expected or len(expected) > 256 or len(set(expected)) != len(expected):
+    if (
+        not expected
+        or len(expected) > _MAX_PROJECTS
+        or len(set(expected)) != len(expected)
+    ):
         raise PropertyCatalogDevRuntimeError(
-            "project tenant authorization requires 1..256 unique project IDs"
+            "project tenant authorization requires 1.."
+            f"{_MAX_PROJECTS} unique project IDs"
         )
     if any(
         not isinstance(binding, PostgresProjectTenantBinding) for binding in bindings
@@ -1865,7 +1896,7 @@ class NativeSchemaClient:
         rows, _, _ = driver.execute_read(
             sql,
             {},
-            timeout_ms=8_500,
+            timeout_ms=RUNTIME_LIMITS.canonical_span_query_timeout_ms,
             settings={"readonly": 2},
         )
         return rows
@@ -2199,7 +2230,7 @@ class CheckedInPropertyCatalogDevRuntime:
                 "organization_id": request.organization_id,
                 "workspace_id": request.workspace_id,
             },
-            timeout_ms=8_500,
+            timeout_ms=RUNTIME_LIMITS.canonical_span_query_timeout_ms,
         )
         if len(rows) != 1:
             raise PropertyCatalogDevRuntimeError(
@@ -2900,17 +2931,26 @@ class CheckedInPropertyCatalogDevRuntime:
             raise PropertyCatalogDevRuntimeError(
                 "insufficient shared wall for a source snapshot"
             )
-        postgres_wall_cap_ms = (
-            540_000 if self.config.explicit_initial_backfill_wall else 8_500
+        source_wall_seconds = (
+            RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
+            if self.config.explicit_initial_backfill_wall
+            else RUNTIME_LIMITS.source_adapter_wall_seconds
         )
+        postgres_wall_cap_ms = int(source_wall_seconds * 1_000)
         postgres_remaining = min(postgres_wall_cap_ms, remaining)
         return SourceReadBudget(
             postgres=PostgresReadBudget(
-                statement_timeout_ms=min(8_000, postgres_remaining - 1),
+                statement_timeout_ms=min(
+                    RUNTIME_LIMITS.postgres_statement_timeout_ms,
+                    postgres_remaining - 1,
+                ),
                 wall_timeout_seconds=postgres_remaining / 1_000,
                 initial_backfill=self.config.explicit_initial_backfill_wall,
             ),
-            adapter_wall_timeout_seconds=min(540.0, remaining / 1_000),
+            adapter_wall_timeout_seconds=min(
+                source_wall_seconds,
+                remaining / 1_000,
+            ),
             shared_deadline=self.deadline,
         )
 
@@ -3113,12 +3153,14 @@ class CheckedInPropertyCatalogDevRuntime:
             ) as exc:
                 last = exc
                 try:
-                    remaining = self.deadline.remaining_ms(cap_ms=250)
+                    remaining = self.deadline.remaining_ms(
+                        cap_ms=_VISIBILITY_RETRY_CAP_MS
+                    )
                 except Exception as deadline_exc:
                     raise PropertyCatalogHotDrainHandshakeUnavailable(
                         f"{stage} was not physically visible before the shared deadline"
                     ) from (last or deadline_exc)
-                time.sleep(min(0.05, remaining / 1_000))
+                time.sleep(min(_DRAIN_POLL_INTERVAL_SECONDS, remaining / 1_000))
 
     def _activation_inventory(
         self, execution: _RevisionExecution

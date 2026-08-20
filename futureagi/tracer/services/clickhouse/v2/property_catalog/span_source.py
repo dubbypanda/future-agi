@@ -65,6 +65,7 @@ from .qualification import (
     StreamRequirement,
 )
 from .reconciler import CheckpointWrite
+from .runtime_limits import RUNTIME_LIMITS
 from .source_adapters import (
     PropertySourceError,
     SourceKeysetCursor,
@@ -77,32 +78,38 @@ _FORBIDDEN_SQL_RE = re.compile(
     r"\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE|RENAME|OPTIMIZE|SYSTEM|KILL)\b",
     re.IGNORECASE,
 )
-_MAX_WINDOWS = 366 * 24
-_MAX_PROJECTS = 256
-# The canonical payload query inherits the older CH25 backfill's hard
-# 128-MiB result, 768-MiB server-memory, single-thread, and one-million-row
-# read ceilings. The standard 256-identity page remains the scheduled default.
-# An explicitly acknowledged initial backfill may use 1,024 identities; the
-# same 128-MiB result and 768-MiB server-memory ceilings still fail closed
-# before a pathological page can become an unbounded Python object graph.
-MAX_CANONICAL_SPAN_PAGE_ROWS = 1_024
-DEV_CANONICAL_SPAN_PAGE_ROWS = 256
-DEV_INITIAL_BACKFILL_CANONICAL_SPAN_PAGE_ROWS = 1_024
-CANONICAL_SPAN_QUERY_TIMEOUT_MS = 8_500
-DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS = 30_000
+_MAX_WINDOWS = RUNTIME_LIMITS.canonical_span_max_windows
+_MAX_PROJECTS = RUNTIME_LIMITS.max_projects
+# The canonical payload query is bounded by the reviewed runtime settings.
+# Standard and explicitly acknowledged initial-backfill page sizes may differ,
+# but both retain finite row, byte, memory, thread, and deadline ceilings.
+MAX_CANONICAL_SPAN_PAGE_ROWS = RUNTIME_LIMITS.canonical_span_page_rows
+DEFAULT_CANONICAL_SPAN_PAGE_ROWS = RUNTIME_LIMITS.canonical_span_default_page_rows
+DEV_CANONICAL_SPAN_PAGE_ROWS = RUNTIME_LIMITS.dev_canonical_span_page_rows
+DEV_INITIAL_BACKFILL_CANONICAL_SPAN_PAGE_ROWS = (
+    RUNTIME_LIMITS.initial_backfill_canonical_span_page_rows
+)
+CANONICAL_SPAN_QUERY_TIMEOUT_MS = RUNTIME_LIMITS.canonical_span_query_timeout_ms
+DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS = (
+    RUNTIME_LIMITS.initial_backfill_canonical_span_query_timeout_ms
+)
+_MAX_CANONICAL_SPAN_QUERY_TIMEOUT_MS = max(
+    CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+    DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+)
 
 # Keep cursor addresses in the original hourly coordinate space, but scan up
 # to one week at a time.  That removes the occupied-hour query floor without
 # making an old v1 cursor ambiguous: v1 resumes finish their current one-hour
 # unit, then switch to the v2 weekly window.  Every SELECT still retains the
 # server-enforced row/byte/memory/time limits above.
-CANONICAL_SPAN_SCAN_WINDOW_HOURS = 7 * 24
+CANONICAL_SPAN_SCAN_WINDOW_HOURS = RUNTIME_LIMITS.canonical_span_scan_window_hours
 _MAX_OCCUPIED_HOURS = _MAX_WINDOWS + 1
-_MAX_GROUPS = 100_000
-_MAX_GROUP_BYTES = 64 * 1024 * 1024
+_MAX_GROUPS = RUNTIME_LIMITS.canonical_span_max_groups
+_MAX_GROUP_BYTES = RUNTIME_LIMITS.canonical_span_max_group_bytes
 _MAX_AUDIT_RESUME_STATE_LENGTH = 512
-AUTHORITATIVE_VALUE_BATCH_MAX_ROWS = 2_000
-AUTHORITATIVE_VALUE_BATCH_MAX_BYTES = 400 * 1024
+AUTHORITATIVE_VALUE_BATCH_MAX_ROWS = RUNTIME_LIMITS.authoritative_value_batch_max_rows
+AUTHORITATIVE_VALUE_BATCH_MAX_BYTES = RUNTIME_LIMITS.authoritative_value_batch_max_bytes
 _EMPTY_SHA256 = canonical_json_sha256("")
 SPAN_AUDIT_CUTOFF_LABEL = "clickhouse_audit_generation"
 
@@ -218,7 +225,7 @@ class FrozenSpanSource:
             )
         )
         if not projects or len(projects) > _MAX_PROJECTS:
-            raise ValueError("frozen span source requires 1..256 projects")
+            raise ValueError(f"frozen span source requires 1..{_MAX_PROJECTS} projects")
         object.__setattr__(self, "project_ids", projects)
         _require_utc(self.since, "since")
         _require_utc(self.until, "until")
@@ -485,7 +492,7 @@ class CanonicalSpanSourceReader:
         deadline: SharedCatalogDeadline,
         timeout_ms: int = CANONICAL_SPAN_QUERY_TIMEOUT_MS,
         explicit_initial_backfill: bool = False,
-        page_rows: int = 8,
+        page_rows: int = DEFAULT_CANONICAL_SPAN_PAGE_ROWS,
         max_source_attribute_entries: int = DEFAULT_SOURCE_ATTRIBUTE_ENTRIES,
         max_source_attribute_bytes: int = DEFAULT_SOURCE_ATTRIBUTE_BYTES,
     ) -> None:
@@ -504,7 +511,10 @@ class CanonicalSpanSourceReader:
             type(page_rows) is not int
             or not 1 <= page_rows <= MAX_CANONICAL_SPAN_PAGE_ROWS
         ):
-            raise ValueError("canonical-span page_rows must be in [1, 1024]")
+            raise ValueError(
+                "canonical-span page_rows must be in "
+                f"[1, {MAX_CANONICAL_SPAN_PAGE_ROWS}]"
+            )
         if type(explicit_initial_backfill) is not bool:
             raise ValueError("explicit_initial_backfill must be a bool")
         timeout_cap_ms = (
@@ -885,12 +895,14 @@ class CanonicalSpanAttributeGroupPageLoader:
         max_group_bytes: int = _MAX_GROUP_BYTES,
     ) -> None:
         if type(max_groups) is not int or not 1 <= max_groups <= _MAX_GROUPS:
-            raise ValueError("span group ceiling is outside [1, 100000]")
+            raise ValueError(f"span group ceiling is outside [1, {_MAX_GROUPS}]")
         if (
             type(max_group_bytes) is not int
             or not 1 <= max_group_bytes <= _MAX_GROUP_BYTES
         ):
-            raise ValueError("span group byte ceiling is outside [1, 64 MiB]")
+            raise ValueError(
+                f"span group byte ceiling is outside [1, {_MAX_GROUP_BYTES}]"
+            )
         self._reader = reader
         self._frozen = frozen
         self._max_groups = max_groups
@@ -1023,15 +1035,23 @@ class RevisionPinnedSpanAttributeGroupPageLoader:
             or _SOURCE_DATABASE_RE.fullmatch(database) is None
         ):
             raise ValueError("revision-pinned catalog database is invalid")
-        if type(timeout_ms) is not int or not 1 <= timeout_ms <= 30_000:
-            raise ValueError("span group query timeout is outside [1, 30000]")
+        if (
+            type(timeout_ms) is not int
+            or not 1 <= timeout_ms <= _MAX_CANONICAL_SPAN_QUERY_TIMEOUT_MS
+        ):
+            raise ValueError(
+                "span group query timeout is outside [1, "
+                f"{_MAX_CANONICAL_SPAN_QUERY_TIMEOUT_MS}]"
+            )
         if type(max_groups) is not int or not 1 <= max_groups <= _MAX_GROUPS:
-            raise ValueError("span group ceiling is outside [1, 100000]")
+            raise ValueError(f"span group ceiling is outside [1, {_MAX_GROUPS}]")
         if (
             type(max_group_bytes) is not int
             or not 1 <= max_group_bytes <= _MAX_GROUP_BYTES
         ):
-            raise ValueError("span group byte ceiling is outside [1, 64 MiB]")
+            raise ValueError(
+                f"span group byte ceiling is outside [1, {_MAX_GROUP_BYTES}]"
+            )
         self._client = client
         self._catalog_database = database
         self._context = context
@@ -1102,7 +1122,7 @@ WHERE source_kind = 'custom_attribute'
 GROUP BY attribute_key
 ORDER BY attribute_key ASC
 LIMIT %(catalog_group_limit)s
-SETTINGS max_threads = 1,
+SETTINGS max_threads = {RUNTIME_LIMITS.canonical_span_max_threads},
          max_result_rows = {result_limit},
          max_result_bytes = {self._max_group_bytes},
          result_overflow_mode = 'throw'

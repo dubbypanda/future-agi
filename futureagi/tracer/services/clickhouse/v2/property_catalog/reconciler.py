@@ -25,6 +25,10 @@ from .models import (
 )
 from .projection import PostgresSnapshotContext, project_definition
 from .qualification import CatalogCheckpoint, CheckpointStatus
+from .runtime_limits import (
+    MAX_RECONCILE_INCREMENTAL_OVERLAP_SECONDS,
+    RUNTIME_LIMITS,
+)
 from .source_adapters import (
     DefinitionSourceAdapter,
     SourceKeysetCursor,
@@ -39,10 +43,13 @@ from .wire import (
 
 EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 ZERO_SHA256 = "0" * 64
-DEFAULT_INCREMENTAL_OVERLAP_SECONDS = 120
-DEFAULT_MAX_ENVELOPE_ROWS = 500
-DEFAULT_MAX_ENVELOPE_BYTES = 1024 * 1024
-MAX_ENVELOPE_BYTES = 2 * 1024 * 1024
+DEFAULT_INCREMENTAL_OVERLAP_SECONDS = (
+    RUNTIME_LIMITS.reconcile_incremental_overlap_seconds
+)
+DEFAULT_MAX_ENVELOPE_ROWS = RUNTIME_LIMITS.reconcile_default_envelope_rows
+MAX_ENVELOPE_ROWS = RUNTIME_LIMITS.reconcile_max_envelope_rows
+DEFAULT_MAX_ENVELOPE_BYTES = RUNTIME_LIMITS.reconcile_default_max_envelope_bytes
+MAX_ENVELOPE_BYTES = RUNTIME_LIMITS.reconcile_max_envelope_bytes
 _MAX_UINT64 = (1 << 64) - 1
 
 
@@ -61,10 +68,14 @@ class EnvelopeBudget:
     max_payload_bytes: int = DEFAULT_MAX_ENVELOPE_BYTES
 
     def __post_init__(self) -> None:
-        if not 1 <= self.max_definition_rows <= 1_000:
-            raise ValueError("max_definition_rows must be between 1 and 1000")
+        if not 1 <= self.max_definition_rows <= MAX_ENVELOPE_ROWS:
+            raise ValueError(
+                f"max_definition_rows must be between 1 and {MAX_ENVELOPE_ROWS}"
+            )
         if not 1 <= self.max_payload_bytes <= MAX_ENVELOPE_BYTES:
-            raise ValueError("max_payload_bytes must be at most 2 MiB")
+            raise ValueError(
+                f"max_payload_bytes must be at most {MAX_ENVELOPE_BYTES} bytes"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,9 +160,14 @@ class ReconcileRequest:
             raise ValueError("source_version must be a positive UInt64")
         object.__setattr__(self, "source_version", source_version)
         if type(self.incremental_overlap_seconds) is not int or not (
-            0 <= self.incremental_overlap_seconds <= 600
+            0
+            <= self.incremental_overlap_seconds
+            <= MAX_RECONCILE_INCREMENTAL_OVERLAP_SECONDS
         ):
-            raise ValueError("incremental_overlap_seconds must be between 0 and 600")
+            raise ValueError(
+                "incremental_overlap_seconds must be between 0 and "
+                f"{MAX_RECONCILE_INCREMENTAL_OVERLAP_SECONDS}"
+            )
         if self.mode is ReconcileMode.FULL_REPAIR and self.lower_watermark:
             raise ValueError("full repair must begin at the source origin")
         if self.resume is not None and self.lower_watermark:

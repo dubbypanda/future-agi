@@ -8,6 +8,19 @@ import { useEffect, useRef, useState } from "react";
 import axios, { endpoints } from "src/utils/axios";
 import { getFilterValueReadState } from "src/utils/queryReadState";
 import { accumulateUniqueListContinuations } from "src/sections/projects/LLMTracing/listCursorPagination";
+import {
+  ANALYTICS_REQUEST_TIMEOUT_MS,
+  CURSOR_MAX_EMPTY_CONTINUATIONS,
+  FILTER_VALUE_MIN_VISIBLE_RESULTS,
+  FILTER_VALUE_PAGE_SIZE,
+  FILTER_VALUE_CACHE_TIME_MS,
+  FILTER_VALUE_REQUEST_TIMEOUT_MS as CONFIGURED_FILTER_VALUE_REQUEST_TIMEOUT_MS,
+  FILTER_VALUE_STALE_TIME_MS,
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
+  PROPERTY_CATALOG_CACHE_TIME_MS,
+  PROPERTY_CATALOG_PAGE_SIZE,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
 
 const DASHBOARD_KEYS = {
   all: ["dashboards"],
@@ -187,10 +200,10 @@ const FILTER_VALUE_FOLLOWED_CURSORS_KEY = "__filterValueFollowedCursors";
 const FILTER_VALUE_CURSOR_STOPPED_KEY = "__filterValueCursorStopped";
 const DASHBOARD_QUERY_REFRESH_PARAMS = Object.freeze({ refresh: true });
 
-// The server owns one 8.5-second definition-read wall. Keep the browser below
-// the product's ten-second action SLA as well, including a stalled proxy or a
-// response that never reaches the application server.
-export const PROPERTY_CATALOG_REQUEST_TIMEOUT_MS = 9_000;
+// Keep the browser deadline independently configurable so it also bounds a
+// stalled proxy or a response that never reaches the application server.
+export const PROPERTY_CATALOG_REQUEST_TIMEOUT_MS =
+  INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const hasOwn = (value, key) =>
   Object.prototype.hasOwnProperty.call(value || {}, key);
@@ -237,18 +250,19 @@ const validateFilterValueCursor = (page, consumedCursors = new Set()) => {
   return stopFilterValueCursor(normalized, "malformed_cursor");
 };
 
-// The server owns a four-second request wall. Each physical request stays
-// below five seconds as well, including a stalled proxy. Most picker gestures
-// perform one physical request; sparse system pages use the separately bounded
-// page-fill wall below. A signed cursor always keeps the vocabulary resumable.
-export const FILTER_VALUE_REQUEST_TIMEOUT_MS = 4_800;
+// Each physical request has its own configurable browser deadline, including a
+// stalled proxy. Sparse system pages use the separately bounded page-fill wall
+// below. A signed cursor always keeps the vocabulary resumable.
+export const FILTER_VALUE_REQUEST_TIMEOUT_MS =
+  CONFIGURED_FILTER_VALUE_REQUEST_TIMEOUT_MS;
 // Sparse system dimensions (for example Model) are walked in exact physical
 // time-slice checkpoints. Follow checkpoint-only pages until the first useful
 // result, publish it immediately, and leave every later signed checkpoint for
 // the picker's explicit Load more action. This keeps a slow later slice from
-// hiding values that the API already returned inside the ten-second SLA.
-const SYSTEM_FILTER_VALUE_PAGE_FILL_DEADLINE_MS = 9_500;
-const SYSTEM_FILTER_VALUE_PAGE_FILL_MAX_CONTINUATIONS = 12;
+// hiding values that the API already returned inside the configured action wall.
+const SYSTEM_FILTER_VALUE_PAGE_FILL_DEADLINE_MS = ANALYTICS_REQUEST_TIMEOUT_MS;
+const SYSTEM_FILTER_VALUE_PAGE_FILL_MAX_CONTINUATIONS =
+  CURSOR_MAX_EMPTY_CONTINUATIONS;
 
 const getFilterValueIdentity = (option) => {
   const value =
@@ -388,7 +402,7 @@ export function useLegacyDashboardMetricsPaginated({
   category = "",
   source = "",
   search = "",
-  pageSize = 50,
+  pageSize = PROPERTY_CATALOG_PAGE_SIZE,
   excludeCustomAttributes = false,
   enabled = true,
 } = {}) {
@@ -452,7 +466,7 @@ export function usePropertyCatalog({
   agentDefinitionId = "",
   perEvalConfig = false,
   role = "",
-  pageSize = 50,
+  pageSize = PROPERTY_CATALOG_PAGE_SIZE,
   enabled = true,
   allowLegacyNotReadyFallback = false,
   fallbackScopeKey = "",
@@ -522,8 +536,8 @@ export function usePropertyCatalog({
     },
     enabled: enabled && !legacyFallbackRequired,
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     meta: { errorHandled: true },
   });
@@ -784,7 +798,7 @@ export function useDashboardFilterValues({
   enabled = true,
   search = "",
   searchGesture = search,
-  pageSize,
+  pageSize = FILTER_VALUE_PAGE_SIZE,
   attributeType,
 }) {
   const queryClient = useQueryClient();
@@ -873,10 +887,10 @@ export function useDashboardFilterValues({
       knownIdentities: knownValueIdentities,
       targetRowCount:
         metricType === "system_metric"
-          ? 1
+          ? FILTER_VALUE_MIN_VISIBLE_RESULTS
           : isFreshChainRead
-            ? 1
-            : pageSize || 10,
+            ? FILTER_VALUE_MIN_VISIBLE_RESULTS
+            : pageSize || FILTER_VALUE_PAGE_SIZE,
       // A private marker records a protocol stop for the picker. Project it
       // as terminal only for this bounded follower so no malformed/repeated
       // cursor is requested and the published response remains retryable.
@@ -942,8 +956,8 @@ export function useDashboardFilterValues({
     },
     enabled: enabled && Boolean(metricName),
     retry: false,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: FILTER_VALUE_STALE_TIME_MS,
+    gcTime: FILTER_VALUE_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -1139,7 +1153,7 @@ export function useDatasetColumnValues({
     metricType: "custom_column",
     datasetId,
     source: "dataset_column",
-    pageSize: 50,
+    pageSize: FILTER_VALUE_PAGE_SIZE,
     enabled: enabled && Boolean(datasetId) && Boolean(columnId),
   });
   const raw = query.isError ? undefined : query.data;

@@ -9,7 +9,7 @@ import { endOfToday, sub } from "date-fns";
 import { useLocation, useParams } from "react-router";
 import { getRandomId } from "src/utils/utils";
 import PropTypes from "prop-types";
-import { readEvalMetrics } from "../utils/evalMetricsRead";
+import { readEvalMetrics } from "../utils/eval_metrics_read";
 
 const MetricsTabGraph = ({ setDateFilter }) => {
   const theme = useTheme();

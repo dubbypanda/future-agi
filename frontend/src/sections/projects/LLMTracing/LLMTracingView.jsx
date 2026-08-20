@@ -32,6 +32,7 @@ import {
   buildApiFilterFromPanelRow,
   hydrateStoredFilterList,
 } from "src/api/contracts/filter-contract";
+import { INTERACTIVE_TABLE_PAGE_SIZE } from "src/config/runtime_limits";
 
 /**
  * Converts graph selections to filter format compatible with the backend API.
@@ -188,7 +189,7 @@ import SelectAllBanner from "./SelectAllBanner";
 import { getSelectionCountState } from "./listTotalMetadata";
 import { spanSourceIdsFromPhysicalRowIds } from "./spanPhysicalIdentity";
 import { normalizeVoiceCallSavedFilters } from "./voiceCallFilterFields";
-import { serializeTraceFiltersForPersistence } from "./filterPersistence";
+import { serializeTraceFiltersForPersistence } from "./filter_persistence";
 import useProjectFilterField from "../UsersView/useProjectFilterField";
 import FilterChips from "./FilterChips";
 import { useDashboardFilterValues } from "src/hooks/useDashboards";
@@ -1418,7 +1419,8 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     search: customAttributeSearch,
     preservedKeys: preservedCustomAttributeKeys,
     enabled:
-      openCustomColumn && Boolean(observeId || (isUserMode && currentWorkspaceId)),
+      openCustomColumn &&
+      Boolean(observeId || (isUserMode && currentWorkspaceId)),
   });
 
   const handleAgentNodeClick = useCallback(
@@ -1637,7 +1639,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     // Keep this in sync with the TraceFilterPanel ValuePicker source so
     // applying a freshly-picked annotator can reuse the same cached options.
     source: "traces",
-    pageSize: 10,
+    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
     enabled: hasAnnotatorFilter,
   });
   const annotatorFilterLabelMap = useMemo(() => {

@@ -42,7 +42,7 @@ import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import { useAuthContext } from "src/auth/hooks";
 import { APP_CONSTANTS } from "src/utils/constants";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readEvalLogGridPage } from "../../utils/evalLogGridRead";
+import { readEvalLogGridPage } from "../../utils/eval_log_grid_read";
 
 const FeedbackOverlay = () => (
   <NoResultsUI

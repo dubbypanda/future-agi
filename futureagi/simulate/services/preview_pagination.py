@@ -16,12 +16,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.core import signing
 from django.db import connection
 from django.db.models import Q, QuerySet
 from django.utils.dateparse import parse_datetime
 
-PREVIEW_CURSOR_MAX_AGE_SECONDS = 60 * 60
+PREVIEW_CURSOR_MAX_AGE_SECONDS = settings.SIMULATION_PREVIEW_CURSOR_MAX_AGE_SECONDS
 PREVIEW_CURSOR_VERSION = 2
 PREVIEW_CURSOR_SALT = "simulate.preview-pagination.v2"
 
@@ -175,7 +176,6 @@ def _read_revision_state(
     kind: str,
     parent_id: str,
     original_snapshot: str,
-    snapshot_at: datetime,
 ) -> tuple[Any, ...]:
     """Read current row-version visibility and counts in one SQL statement."""
 
@@ -213,7 +213,6 @@ def _read_revision_state(
             COUNT(*)::bigint AS physical_count,
             COUNT(*) FILTER (
               WHERE NOT child_item.deleted
-                AND child_item.created_at <= %s
             )::bigint AS active_count,
             COALESCE(BOOL_AND(txid_visible_in_snapshot(
               xid_clock.current_txid - age(child_item.xmin),
@@ -230,7 +229,6 @@ def _read_revision_state(
             [
                 original_snapshot,
                 parent_id,
-                snapshot_at,
                 original_snapshot,
                 parent_id,
             ],
@@ -244,13 +242,12 @@ def _read_revision_state(
 
 
 def capture_preview_revision(
-    *, kind: str, parent_id: str, snapshot: str, snapshot_at: datetime
+    *, kind: str, parent_id: str, snapshot: str
 ) -> PreviewRevision:
     parent_visible, physical_total, active_total, all_visible = _read_revision_state(
         kind=kind,
         parent_id=parent_id,
         original_snapshot=snapshot,
-        snapshot_at=snapshot_at,
     )
     if not parent_visible or not all_visible:
         raise PreviewSnapshotUnavailable(
@@ -268,13 +265,11 @@ def assert_preview_revision(
     kind: str,
     parent_id: str,
     revision: PreviewRevision,
-    snapshot_at: datetime,
 ) -> None:
     parent_visible, physical_total, active_total, all_visible = _read_revision_state(
         kind=kind,
         parent_id=parent_id,
         original_snapshot=revision.snapshot,
-        snapshot_at=snapshot_at,
     )
     if not (
         parent_visible
@@ -321,8 +316,6 @@ def paginate_preview_snapshot(
     else:
         state = None
 
-    snapshot_queryset = queryset.filter(created_at__lte=snapshot_at)
-
     if before_query:
         before_query()
     if state is None:
@@ -330,7 +323,6 @@ def paginate_preview_snapshot(
             kind=kind,
             parent_id=parent_id,
             snapshot=snapshot,
-            snapshot_at=snapshot_at,
         )
         state = PreviewCursorState(
             kind=kind,
@@ -345,10 +337,13 @@ def paginate_preview_snapshot(
             kind=kind,
             parent_id=parent_id,
             revision=state.revision,
-            snapshot_at=state.snapshot_at,
         )
 
-    page_queryset = snapshot_queryset
+    # Membership is frozen by the signed PostgreSQL MVCC revision above. A
+    # wall-clock ``created_at <= transaction timestamp`` fence is both
+    # redundant and unsafe: application/database clock skew can otherwise
+    # hide already-committed rows from an "exact" first page.
+    page_queryset = queryset
     if state.after_created_at is not None and state.after_id is not None:
         page_queryset = page_queryset.filter(
             Q(created_at__lt=state.after_created_at)

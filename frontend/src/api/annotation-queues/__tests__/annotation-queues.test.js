@@ -41,6 +41,7 @@ import {
   useToggleDiscussionReaction,
   useUpdateDiscussionComment,
 } from "../annotation-queues";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 
 vi.mock("src/utils/axios", () => ({
   default: {
@@ -187,7 +188,7 @@ describe("Annotation Queues API", () => {
       );
     });
 
-    it("sends an AbortSignal and a nine-second transport ceiling", async () => {
+    it("sends an AbortSignal and the configured transport ceiling", async () => {
       axios.post.mockResolvedValueOnce({ data: { result: { added: 1 } } });
 
       await postAddQueueItems({
@@ -213,7 +214,7 @@ describe("Annotation Queues API", () => {
           timeout: ADD_QUEUE_ITEMS_TIMEOUT_MS,
         },
       );
-      expect(ADD_QUEUE_ITEMS_TIMEOUT_MS).toBeLessThanOrEqual(9_000);
+      expect(ADD_QUEUE_ITEMS_TIMEOUT_MS).toBe(INTERACTIVE_REQUEST_TIMEOUT_MS);
     });
 
     it("actively aborts a request at the transport ceiling", async () => {

@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import axios, { endpoints } from "src/utils/axios";
 import { useCursorAttributeInventory } from "src/sections/projects/LLMTracing/useCursorAttributeInventory";
 import {
+  PROPERTY_CATALOG_CACHE_TIME_MS,
+  PROPERTY_CATALOG_PAGE_SIZE,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
+import {
   ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
   compactAttributeKeyRetryPage,
   getNextAttributeKeyPageParam,
@@ -24,7 +29,7 @@ export const useLegacyRunInsightAttributeKeys = (projectId) => {
         timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
         params: {
           project_id: projectId,
-          page_size: 50,
+          page_size: PROPERTY_CATALOG_PAGE_SIZE,
           ...(cursor ? { cursor } : {}),
         },
       })
@@ -34,7 +39,7 @@ export const useLegacyRunInsightAttributeKeys = (projectId) => {
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 50,
+        pageSize: PROPERTY_CATALOG_PAGE_SIZE,
         publishedData: queryClient.getQueryData(queryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -44,8 +49,8 @@ export const useLegacyRunInsightAttributeKeys = (projectId) => {
     getNextPageParam: getNextAttributeKeyPageParam,
     enabled: Boolean(projectId),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -75,7 +80,7 @@ export const useLegacyRunInsightAttributeKeys = (projectId) => {
       const previousData = queryClient.getQueryData(queryKey);
       const freshPage = await readAttributeKeyPage({
         pageParam: null,
-        pageSize: 50,
+        pageSize: PROPERTY_CATALOG_PAGE_SIZE,
         publishedData: undefined,
         signal: controller.signal,
         requestPage: (cursor, signal = controller.signal) =>
@@ -134,7 +139,7 @@ export const useRunInsightAttributeKeys = (projectId) => {
     rowType: "spans",
     discoveryMode: "filter",
     enabled: Boolean(projectId),
-    pageSize: 50,
+    pageSize: PROPERTY_CATALOG_PAGE_SIZE,
   });
 
   return {

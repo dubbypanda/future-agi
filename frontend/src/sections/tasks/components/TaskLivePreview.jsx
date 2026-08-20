@@ -60,7 +60,7 @@ import {
 import {
   serializeTaskFilterRowsForApi,
   taskFilterColumnId,
-} from "src/sections/common/EvalsTasks/taskFilterSerialization";
+} from "src/sections/common/EvalsTasks/task_filter_serialization";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
 import {
   parseAxiosResult,

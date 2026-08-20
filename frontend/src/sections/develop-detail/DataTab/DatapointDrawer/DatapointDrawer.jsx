@@ -36,7 +36,7 @@ import {
   readDatasetCellRow,
   readDatasetRowAdjacency,
   runDatasetPointReadAction,
-} from "../datasetPointRead";
+} from "../dataset_point_read";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
 
 const SkeletonLoader = () => (

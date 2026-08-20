@@ -15,7 +15,6 @@ import (
 
 const (
 	defaultFranzProducerClientID = "fi-collector-property-catalog-v1-dev"
-	defaultFranzDeliveryTimeout  = 10 * time.Second
 	kafkaRecordOverheadAllowance = 64 << 10
 )
 
@@ -38,11 +37,11 @@ type FranzConsumerConfig struct {
 // acknowledgements are all-ISR and synchronous, franz idempotence remains
 // mandatory, and buffering is bounded to one envelope.
 func NewFranzProducer(cfg FranzProducerConfig) (*Producer, error) {
-	if len(cfg.Brokers) == 0 || len(cfg.Brokers) > 16 {
+	if len(cfg.Brokers) == 0 || len(cfg.Brokers) > MaxKafkaBrokers {
 		return nil, errors.New("propertycatalog: Franz producer requires 1..16 brokers")
 	}
 	for _, broker := range cfg.Brokers {
-		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > 255 {
+		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > MaxKafkaIdentityBytes {
 			return nil, errors.New("propertycatalog: Franz broker is empty, padded, or too long")
 		}
 	}
@@ -52,14 +51,17 @@ func NewFranzProducer(cfg FranzProducerConfig) (*Producer, error) {
 	if cfg.ClientID == "" {
 		cfg.ClientID = defaultFranzProducerClientID
 	}
-	if strings.TrimSpace(cfg.ClientID) != cfg.ClientID || len(cfg.ClientID) > 255 {
+	if strings.TrimSpace(cfg.ClientID) != cfg.ClientID || len(cfg.ClientID) > MaxKafkaIdentityBytes {
 		return nil, errors.New("propertycatalog: Franz client ID is padded or too long")
 	}
 	if cfg.DeliveryTimeout == 0 {
-		cfg.DeliveryTimeout = defaultFranzDeliveryTimeout
+		cfg.DeliveryTimeout = DefaultDeliveryTransportTimeout
 	}
-	if cfg.DeliveryTimeout < 0 || cfg.DeliveryTimeout > defaultFranzDeliveryTimeout {
-		return nil, errors.New("propertycatalog: Franz delivery timeout must be in (0,10s]")
+	if cfg.DeliveryTimeout < 0 || cfg.DeliveryTimeout > MaxDeliveryTimeout {
+		return nil, fmt.Errorf(
+			"propertycatalog: Franz delivery timeout must be in (0,%s]",
+			MaxDeliveryTimeout,
+		)
 	}
 	client, err := kgo.NewClient(franzProducerOptions(cfg)...)
 	if err != nil {
@@ -119,11 +121,11 @@ func NewFranzConsumer(
 	if producerLike.ClientID == "" {
 		producerLike.ClientID = "fi-property-catalog-consumer-v1-dev"
 	}
-	if len(producerLike.Brokers) == 0 || len(producerLike.Brokers) > 16 {
+	if len(producerLike.Brokers) == 0 || len(producerLike.Brokers) > MaxKafkaBrokers {
 		return nil, errors.New("propertycatalog: Franz consumer requires 1..16 brokers")
 	}
 	for _, broker := range producerLike.Brokers {
-		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > 255 {
+		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > MaxKafkaIdentityBytes {
 			return nil, errors.New("propertycatalog: Franz broker is empty, padded, or too long")
 		}
 	}
@@ -264,7 +266,7 @@ func (s *franzManualSource) Close() {
 }
 
 func safeKafkaIdentity(value string) bool {
-	if value == "" || len(value) > 255 || strings.TrimSpace(value) != value {
+	if value == "" || len(value) > MaxKafkaIdentityBytes || strings.TrimSpace(value) != value {
 		return false
 	}
 	for _, char := range value {

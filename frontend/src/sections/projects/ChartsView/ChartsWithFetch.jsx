@@ -14,8 +14,9 @@ import {
   getExactAggregationReadState,
   QUERY_FAILED_RETRY_MESSAGE,
 } from "src/utils/queryReadState";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 
-const EVAL_CHART_REQUEST_TIMEOUT_MS = 9_000;
+const EVAL_CHART_REQUEST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 export default function ChartWithFetch({ evaluation, observeId, inView }) {
   const autoRefresh = getStorage("autoRefresh") ?? false;

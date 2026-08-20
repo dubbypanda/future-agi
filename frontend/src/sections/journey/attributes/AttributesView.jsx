@@ -26,6 +26,12 @@ import {
   isAttributeKeyCursorChainStopped,
   readAttributeKeyPage,
 } from "src/sections/projects/LLMTracing/attributeKeyCursorPagination";
+import {
+  ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  PROPERTY_CATALOG_CACHE_TIME_MS,
+  PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
 
 /** Rollout-only retained span-key view selected by the typed not-ready 503. */
 export const LegacyAttributesView = () => {
@@ -33,7 +39,10 @@ export const LegacyAttributesView = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedKey, setSelectedKey] = useState(null);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search.trim(), 350);
+  const debouncedSearch = useDebounce(
+    search.trim(),
+    ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  );
   const queryClient = useQueryClient();
   const retainedQueryKey = ["span-attribute-keys", projectId, "retained"];
   const exactQueryKey = [
@@ -102,7 +111,7 @@ export const LegacyAttributesView = () => {
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 25,
+        pageSize: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
         publishedData: queryClient.getQueryData(retainedQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -112,7 +121,7 @@ export const LegacyAttributesView = () => {
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 25,
+                page_size: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
                 ...(cursor ? { cursor } : {}),
               },
             })
@@ -122,8 +131,8 @@ export const LegacyAttributesView = () => {
     getNextPageParam: getNextAttributeKeyPageParam,
     enabled: Boolean(projectId),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -145,7 +154,7 @@ export const LegacyAttributesView = () => {
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 25,
+        pageSize: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
         publishedData: queryClient.getQueryData(exactQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -155,7 +164,7 @@ export const LegacyAttributesView = () => {
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 25,
+                page_size: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
                 q: debouncedSearch,
                 ...(cursor ? { cursor } : {}),
               },
@@ -166,8 +175,8 @@ export const LegacyAttributesView = () => {
     getNextPageParam: getNextAttributeKeyPageParam,
     enabled: Boolean(projectId) && Boolean(debouncedSearch),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -229,7 +238,7 @@ export const LegacyAttributesView = () => {
     try {
       const page = await readAttributeKeyPage({
         pageParam: null,
-        pageSize: 25,
+        pageSize: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
         publishedData: undefined,
         requestPage: (cursor, signal) =>
           axios
@@ -238,7 +247,7 @@ export const LegacyAttributesView = () => {
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 25,
+                page_size: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
                 ...(exact ? { q: debouncedSearch } : {}),
                 ...(cursor ? { cursor } : {}),
               },
@@ -553,13 +562,16 @@ const AttributesView = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedKey, setSelectedKey] = useState(null);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search.trim(), 350);
+  const debouncedSearch = useDebounce(
+    search.trim(),
+    ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  );
   const catalog = usePropertyCatalog({
     category: "custom_attribute",
     source: "traces",
     search: debouncedSearch,
     projectIds: projectId ? [projectId] : [],
-    pageSize: 25,
+    pageSize: PROPERTY_CATALOG_COMPACT_PAGE_SIZE,
     enabled: Boolean(projectId),
     allowLegacyNotReadyFallback: true,
     fallbackScopeKey: `journey-attribute-property-catalog:${projectId || ""}`,

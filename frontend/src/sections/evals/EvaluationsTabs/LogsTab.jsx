@@ -39,7 +39,8 @@ import FormattedValueReason from "./FormattedReason";
 import logger from "src/utils/logger";
 import { APP_CONSTANTS } from "src/utils/constants";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readEvalLogGridPage } from "../utils/evalLogGridRead";
+import { readEvalLogGridPage } from "../utils/eval_log_grid_read";
+import { INTERACTIVE_TABLE_PAGE_SIZE } from "src/config/runtime_limits";
 
 const EvaluateArrayCellRenderer = ({ value }) => {
   return (
@@ -896,12 +897,12 @@ const LogsTab = ({ evalFilterOpen, setEvalFilterOpen }) => {
               params: {
                 eval_template_id: evalId,
                 current_page_index: p,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 filters: JSON.stringify(validatedFilters),
                 sort: JSON.stringify([]),
               },
             }),
-          { currentPageIndex: p, pageSize: 10 },
+          { currentPageIndex: p, pageSize: INTERACTIVE_TABLE_PAGE_SIZE },
         );
 
         setColumnDataNew(page.columns, false, true);
@@ -1108,7 +1109,7 @@ const LogsTab = ({ evalFilterOpen, setEvalFilterOpen }) => {
             columnDefs={columnDefs}
             // defaultColDef={defaultColDef}
             pagination={false}
-            cacheBlockSize={10}
+            cacheBlockSize={INTERACTIVE_TABLE_PAGE_SIZE}
             maxBlocksInCache={10}
             statusBar={statusBar}
             suppressRowClickSelection={true}

@@ -2352,7 +2352,11 @@ class TestMetricsEndpoint:
                 "tracer.services.dashboard_metrics_catalog.cache.set",
                 side_effect=RuntimeError("redis down"),
             ),
+            patch(
+                "tracer.services.dashboard_metrics_catalog.V2AnalyticsQueryService"
+            ) as analytics_cls,
         ):
+            analytics_cls.return_value.get_span_attribute_keys_ch_for_projects.return_value = []
             response = auth_client.get(
                 f"/tracer/dashboard/metrics/?project_ids={observe_project.id}"
             )
@@ -2361,7 +2365,11 @@ class TestMetricsEndpoint:
         assert "latency" in metric_names
 
     @pytest.mark.django_db
-    def test_metrics_returns_system_metrics(self, auth_client, observe_project):
+    @patch("tracer.services.dashboard_metrics_catalog.V2AnalyticsQueryService")
+    def test_metrics_returns_system_metrics(
+        self, mock_analytics_cls, auth_client, observe_project
+    ):
+        mock_analytics_cls.return_value.get_span_attribute_keys_ch_for_projects.return_value = []
         response = auth_client.get(
             f"/tracer/dashboard/metrics/?project_ids={observe_project.id}"
         )
@@ -2879,8 +2887,10 @@ class TestMetricsEndpoint:
         assert str(label.id) in annotation_ids
 
     @pytest.mark.django_db
+    @patch("tracer.services.dashboard_metrics_catalog.V2AnalyticsQueryService")
     def test_metrics_excludes_annotation_label_from_other_project(
         self,
+        mock_analytics_cls,
         auth_client,
         organization,
         workspace,
@@ -2889,6 +2899,7 @@ class TestMetricsEndpoint:
         _annotation_label_factory,
     ):
         """A label used only in a different project must not leak into this one."""
+        mock_analytics_cls.return_value.get_span_attribute_keys_ch_for_projects.return_value = []
         from model_hub.models.ai_model import AIModel
         from model_hub.models.score import Score
         from tracer.models.observation_span import ObservationSpan
@@ -7201,10 +7212,18 @@ class TestDashboardQueryExecution:
         assert "AND deleted = 0" in sql
 
     @pytest.mark.django_db
+    @patch(
+        "tracer.services.clickhouse.v2.trace_session_dict_reader.resolve_session_fields"
+    )
     @patch("tracer.views.dashboard.V2AnalyticsQueryService")
     @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
     def test_filter_values_session_uses_remap_survivor_values(
-        self, _mock_enabled, mock_analytics_cls, auth_client, observe_project
+        self,
+        _mock_enabled,
+        mock_analytics_cls,
+        mock_resolve_session_fields,
+        auth_client,
+        observe_project,
     ):
         survivor_id = str(uuid.uuid4())
         mock_service = MagicMock()
@@ -7212,6 +7231,12 @@ class TestDashboardQueryExecution:
         mock_result.data = [{"val": survivor_id}]
         mock_service.execute_ch_query.return_value = mock_result
         mock_analytics_cls.return_value = mock_service
+        mock_resolve_session_fields.return_value = {
+            survivor_id: {
+                "external_session_id": None,
+                "display_name": None,
+            }
+        }
 
         response = auth_client.get(
             "/tracer/dashboard/filter_values/",
@@ -7419,15 +7444,12 @@ class TestDashboardQueryExecution:
         ]
 
     @pytest.mark.django_db
-    def test_filter_values_annotation_categorical_uses_stored_score_values(
-        self, auth_client, project, user, organization, workspace
+    def test_filter_values_annotation_categorical_uses_only_configured_values(
+        self, auth_client, project, organization, workspace
     ):
-        import json
-
         from model_hub.models.choices import AnnotationTypeChoices
         from model_hub.models.develop_annotations import AnnotationsLabels
         from tracer.services.annotation_label_source import (
-            AnnotationLabelScoresCH,
             AnnotationLabelScoresProjectPG,
         )
 
@@ -7446,17 +7468,11 @@ class TestDashboardQueryExecution:
             },
         )
 
-        with (
-            patch.object(
-                AnnotationLabelScoresProjectPG,
-                "categorical_values_for_label",
-                return_value=[json.dumps({"selected": ["matrix"]})],
-            ),
-            patch.object(
-                AnnotationLabelScoresCH,
-                "categorical_values_for_label",
-                side_effect=AssertionError("legacy ClickHouse score source used"),
-            ),
+        with patch.object(
+            AnnotationLabelScoresProjectPG,
+            "categorical_values_for_label",
+            side_effect=AssertionError("configured values must not scan Score history"),
+            create=True,
         ):
             response = auth_client.get(
                 "/tracer/dashboard/filter_values/",
@@ -7473,7 +7489,6 @@ class TestDashboardQueryExecution:
         assert values == [
             {"value": "accuracy", "label": "accuracy"},
             {"value": "coverage", "label": "coverage"},
-            {"value": "matrix", "label": "matrix"},
         ]
 
     @pytest.mark.django_db
@@ -7511,7 +7526,7 @@ class TestAnnotationLabelScoresCH:
     def _make_ch_client(self, captured: dict):
         mock_client = MagicMock()
         mock_client.execute_read.side_effect = lambda q, p, **kw: (
-            captured.update({"query": q, "params": p}) or ([], [], 0)
+            captured.update({"query": q, "params": p, "kwargs": kw}) or ([], [], 0)
         )
         return mock_client
 
@@ -7544,36 +7559,9 @@ class TestAnnotationLabelScoresCH:
         assert "tracer_observation_span" not in sql
         assert "tracer_trace" not in sql
         assert "tracer_trace_session" not in sql
-
-    def test_categorical_values_empty_returns_empty_without_ch(self):
-        from tracer.services.annotation_label_source import AnnotationLabelScoresCH
-
-        with patch(
-            "tracer.services.clickhouse.client.get_clickhouse_client"
-        ) as mock_get:
-            result = AnnotationLabelScoresCH().categorical_values_for_label("lbl-1", [])
-        mock_get.assert_not_called()
-        assert result == []
-
-    def test_categorical_values_query_uses_ch_not_dropped_tables(self):
-        from tracer.services.annotation_label_source import AnnotationLabelScoresCH
-
-        captured: dict = {}
-        mock_client = self._make_ch_client(captured)
-
-        with patch(
-            "tracer.services.clickhouse.client.get_clickhouse_client",
-            return_value=mock_client,
-        ):
-            AnnotationLabelScoresCH().categorical_values_for_label("lbl-1", ["proj-1"])
-
-        sql = captured["query"]
-        assert "FROM model_hub_score" in sql
-        assert "FROM spans" in sql
-        assert "project_id IN %(project_ids)s" in sql
-        assert "tracer_observation_span" not in sql
-        assert "tracer_trace" not in sql
-        assert "tracer_trace_session" not in sql
+        assert captured["kwargs"]["timeout_ms"] == (
+            settings.CLICKHOUSE_REVIEWED_READ_TIMEOUT_CEILING_MS
+        )
 
 
 class TestDashboardTraceTimeoutSelection:

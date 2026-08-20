@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 
 from accounts.serializers.user import UserSerializer
@@ -78,6 +79,14 @@ _DATASET_FILTER_DIMENSIONS = frozenset(DATASET_FILTER_COLUMNS)
 _DATASET_BREAKDOWN_DIMENSIONS = frozenset(DATASET_BREAKDOWN_COLUMNS)
 _SIMULATION_FILTER_DIMENSIONS = frozenset(SIMULATION_FILTER_COLUMNS)
 _SIMULATION_BREAKDOWN_DIMENSIONS = frozenset(SIMULATION_BREAKDOWN_COLUMNS)
+_DASHBOARD_CATALOG_MAX_PAGE_SIZE = settings.DASHBOARD_METRICS_CATALOG_MAX_PAGE_SIZE
+_DASHBOARD_CATALOG_SEARCH_MAX_CHARS = (
+    settings.DASHBOARD_METRICS_CATALOG_SEARCH_MAX_CHARS
+)
+_PROPERTY_CATALOG_MAX_PROJECTS = settings.PROPERTY_CATALOG_MAX_PROJECTS
+_PROPERTY_CATALOG_MAX_PAGE_SIZE = settings.PROPERTY_CATALOG_MAX_PAGE_SIZE
+_PROPERTY_CATALOG_MAX_SEARCH_BYTES = settings.PROPERTY_CATALOG_MAX_SEARCH_BYTES
+_PROPERTY_CATALOG_CURSOR_MAX_BYTES = settings.PROPERTY_CATALOG_CURSOR_MAX_BYTES
 
 
 class DashboardTimeRangeSerializer(StrictInputSerializer):
@@ -697,13 +706,17 @@ class DashboardMetricsCatalogResultSerializer(serializers.Serializer):
     )
     category_counts_exact = serializers.BooleanField(required=False)
     page = serializers.IntegerField(min_value=1, required=False)
-    page_size = serializers.IntegerField(min_value=1, max_value=200, required=False)
+    page_size = serializers.IntegerField(
+        min_value=1,
+        max_value=_DASHBOARD_CATALOG_MAX_PAGE_SIZE,
+        required=False,
+    )
     has_more = serializers.BooleanField(required=False)
     next_cursor = serializers.CharField(
         required=False,
         allow_null=True,
         allow_blank=False,
-        max_length=16_384,
+        max_length=_PROPERTY_CATALOG_CURSOR_MAX_BYTES,
     )
     catalog_epoch = serializers.IntegerField(
         min_value=1, max_value=65_535, required=False
@@ -771,7 +784,7 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
         required=False,
         allow_blank=True,
         default="",
-        max_length=256,
+        max_length=_DASHBOARD_CATALOG_SEARCH_MAX_CHARS,
         trim_whitespace=True,
     )
     category = serializers.ChoiceField(
@@ -793,12 +806,16 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
         default="",
     )
     page = serializers.IntegerField(required=False, min_value=1)
-    page_size = serializers.IntegerField(required=False, min_value=1, max_value=200)
+    page_size = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=_DASHBOARD_CATALOG_MAX_PAGE_SIZE,
+    )
     cursor_mode = serializers.BooleanField(required=False, default=False)
     cursor = serializers.CharField(
         required=False,
         allow_blank=False,
-        max_length=16_384,
+        max_length=_PROPERTY_CATALOG_CURSOR_MAX_BYTES,
     )
 
     class Meta:
@@ -818,15 +835,18 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
             if project_id not in seen:
                 seen.add(project_id)
                 validated.append(project_id)
-        if len(validated) > 64:
+        if len(validated) > _PROPERTY_CATALOG_MAX_PROJECTS:
             raise serializers.ValidationError(
-                "At most 64 project_ids may be searched at once"
+                "At most "
+                f"{_PROPERTY_CATALOG_MAX_PROJECTS} project_ids may be searched at once"
             )
         return validated
 
     def validate_search(self, value):
-        if len(value.encode("utf-8")) > 512:
-            raise serializers.ValidationError("Search exceeds 512 UTF-8 bytes")
+        if len(value.encode("utf-8")) > _PROPERTY_CATALOG_MAX_SEARCH_BYTES:
+            raise serializers.ValidationError(
+                f"Search exceeds {_PROPERTY_CATALOG_MAX_SEARCH_BYTES} UTF-8 bytes"
+            )
         return value
 
     def validate(self, attrs):
@@ -840,9 +860,14 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
             raise serializers.ValidationError(
                 {"page_size": "page_size is required in cursor mode"}
             )
-        if cursor_mode and attrs.get("page_size", 0) > 50:
+        if cursor_mode and attrs.get("page_size", 0) > _PROPERTY_CATALOG_MAX_PAGE_SIZE:
             raise serializers.ValidationError(
-                {"page_size": "page_size must be at most 50 in cursor mode"}
+                {
+                    "page_size": (
+                        "page_size must be at most "
+                        f"{_PROPERTY_CATALOG_MAX_PAGE_SIZE} in cursor mode"
+                    )
+                }
             )
         if cursor_mode and "page" in attrs:
             raise serializers.ValidationError(

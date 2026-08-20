@@ -1,4 +1,8 @@
+from django.conf import settings
 from rest_framework import serializers
+
+SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE = settings.SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE
+SIMULATION_PREVIEW_MAX_PAGE_SIZE = settings.SIMULATION_PREVIEW_MAX_PAGE_SIZE
 
 
 class SimulationPreviewCursorQuerySerializer(serializers.Serializer):
@@ -9,9 +13,9 @@ class SimulationPreviewCursorQuerySerializer(serializers.Serializer):
     )
     page_size = serializers.IntegerField(
         required=False,
-        default=50,
+        default=SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE,
         min_value=1,
-        max_value=50,
+        max_value=SIMULATION_PREVIEW_MAX_PAGE_SIZE,
     )
 
 

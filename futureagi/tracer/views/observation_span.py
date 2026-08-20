@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 import structlog
+from django.conf import settings
 from django.core.cache import cache as django_cache
 from django.db import close_old_connections
 from django.db.models import (
@@ -187,15 +188,15 @@ from tracer.utils.sql_queries import SQL_query_handler
 logger = structlog.get_logger(__name__)
 
 
-SPAN_LIST_WALL_DEADLINE_MS = 9_500
-SPAN_LIST_CANDIDATE_DEADLINE_MS = 9_500
-SPAN_LIST_ENRICHMENT_TIMEOUT_MS = 9_500
+SPAN_LIST_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SPAN_LIST_CANDIDATE_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SPAN_LIST_ENRICHMENT_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 SPAN_LIST_READ_SETTINGS = {
     "max_threads": 1,
-    "max_block_size": 8192,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_result_rows": 5_001,
+    "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+    "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
+    "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
+    "max_result_rows": settings.OBSERVABILITY_LIST_MAX_RESULT_ROWS,
     "read_overflow_mode": "throw",
     "result_overflow_mode": "throw",
     "timeout_overflow_mode": "throw",
@@ -222,15 +223,15 @@ def _span_filtered_page_depth_exceeded(
     return has_non_time_filter and bounded_numbered_page_depth_exceeded(
         page_number=page_number,
         page_size=page_size,
-        classify_batch_size=200,
-        seed_batch_size=200,
+        classify_batch_size=settings.OBSERVABILITY_NAVIGATION_SCAN_PAGE_SIZE,
+        seed_batch_size=settings.OBSERVABILITY_NAVIGATION_SCAN_PAGE_SIZE,
     )
 
 
-SPAN_NAVIGATION_CANDIDATE_LIMIT = 4_095
-SPAN_NAVIGATION_SCAN_PAGE_SIZE = 200
-SPAN_NAVIGATION_MAX_QUERIES = 128
-SPAN_NAVIGATION_WALL_DEADLINE_MS = 9_500
+SPAN_NAVIGATION_CANDIDATE_LIMIT = settings.OBSERVABILITY_NAVIGATION_CANDIDATE_LIMIT
+SPAN_NAVIGATION_SCAN_PAGE_SIZE = settings.OBSERVABILITY_NAVIGATION_SCAN_PAGE_SIZE
+SPAN_NAVIGATION_MAX_QUERIES = settings.OBSERVABILITY_NAVIGATION_MAX_QUERIES
+SPAN_NAVIGATION_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 
 
 class SpanNavigationReadUnavailable(RuntimeError):

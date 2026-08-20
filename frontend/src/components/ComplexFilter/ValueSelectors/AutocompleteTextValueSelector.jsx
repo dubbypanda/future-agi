@@ -10,6 +10,12 @@ import {
   LIST_FILTER_OPS,
 } from "src/api/contracts/filter-contract.generated";
 import { accumulateUniqueListContinuations } from "src/sections/projects/LLMTracing/listCursorPagination";
+import {
+  FILTER_VALUE_MIN_VISIBLE_RESULTS,
+  FILTER_VALUE_REQUEST_TIMEOUT_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+} from "src/config/runtime_limits";
 
 const LOAD_MORE_OPTION = Object.freeze({ __loadMore: true });
 const RETRY_OPTION = Object.freeze({ __retry: true });
@@ -23,10 +29,9 @@ const CURSOR_STOPPED_KEY = "filter_value_cursor_stopped";
 // The shared Axios client intentionally has no global timeout. Attribute
 // browsing is interactive, though, and an interrupted proxy/backend response
 // must not leave the picker in an endless "Loading more" state. This is just
-// above the server-side four-second picker wall so ordinary server timeouts can
-// retain their structured response while transport stalls still fail below the
-// five-second interaction contract.
-const ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS = 4_800;
+// independently configurable so ordinary server timeouts can retain their
+// structured response while transport stalls still release the UI.
+const ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS = FILTER_VALUE_REQUEST_TIMEOUT_MS;
 
 const normalizeBrowseMetadata = (result = {}) =>
   TERMINAL_BROWSE_STATUSES.has(result?.browse_status)
@@ -140,7 +145,10 @@ const AutocompleteTextValueSelector = ({
   // free-text edit: committing it again on blur would turn 42/false back into
   // the strings "42"/"false" and silently change ClickHouse storage family.
   const freeTextDirtyRef = useRef(false);
-  const debouncedInput = useDebounce(inputValue, 300);
+  const debouncedInput = useDebounce(
+    inputValue,
+    PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+  );
   const queryClient = useQueryClient();
   const { observeId, id } = useParams();
   const projectId = projectIdProp || observeId || id;
@@ -206,7 +214,7 @@ const AutocompleteTextValueSelector = ({
             metric_type: "custom_attribute",
             source: "traces",
             search: debouncedInput,
-            page_size: 10,
+            page_size: INTERACTIVE_TABLE_PAGE_SIZE,
             ...(attributeType ? { attribute_type: attributeType } : {}),
             ...(cursor ? { cursor } : {}),
           },
@@ -244,7 +252,9 @@ const AutocompleteTextValueSelector = ({
         rowsFromResponse: (page) => page?.data?.result?.values || [],
         identityFromRow: optionIdentity,
         knownIdentities: knownValueIdentities,
-        targetRowCount: isFreshChainRead ? 1 : 10,
+        targetRowCount: isFreshChainRead
+          ? FILTER_VALUE_MIN_VISIBLE_RESULTS
+          : INTERACTIVE_TABLE_PAGE_SIZE,
         metadataFromResponse: (response) => {
           const checked = checkedResult(response);
           return isBrowseCursorStopped(checked)
@@ -339,7 +349,7 @@ const AutocompleteTextValueSelector = ({
           metric_type: "custom_attribute",
           source: "traces",
           search: debouncedInput,
-          page_size: 10,
+          page_size: INTERACTIVE_TABLE_PAGE_SIZE,
           ...(attributeType ? { attribute_type: attributeType } : {}),
         },
       });

@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from tracer.services.configured_value_options import configured_value_options
 from tracer.utils.property_registry import canonical_system_attribute_name
 
 from .codec import (
@@ -40,11 +41,14 @@ from .models import (
     canonicalize_definition,
 )
 from .projection import PostgresReadBudget, PostgresSnapshotContext
+from .runtime_limits import RUNTIME_LIMITS
 
-DEFAULT_MAX_PAGE_BYTES = 2 * 1024 * 1024
-DEFAULT_MAX_TOTAL_BYTES = 32 * 1024 * 1024
-MAX_TOTAL_BYTES = 64 * 1024 * 1024
-MAX_SOURCE_ADAPTER_WALL_SECONDS = 540.0
+DEFAULT_MAX_PAGE_BYTES = RUNTIME_LIMITS.source_max_page_bytes
+DEFAULT_MAX_TOTAL_BYTES = RUNTIME_LIMITS.source_max_total_bytes
+MAX_TOTAL_BYTES = RUNTIME_LIMITS.source_max_total_bytes
+MAX_SOURCE_ADAPTER_WALL_SECONDS = (
+    RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
+)
 PROPERTY_SOURCE_DB_ALIAS = "default"
 _EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
@@ -615,14 +619,16 @@ class SourceReadBudget:
     postgres: PostgresReadBudget = PostgresReadBudget()
     max_page_bytes: int = DEFAULT_MAX_PAGE_BYTES
     max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES
-    adapter_wall_timeout_seconds: float = 8.5
+    adapter_wall_timeout_seconds: float = RUNTIME_LIMITS.source_adapter_wall_seconds
     shared_deadline: Any | None = None
 
     def __post_init__(self) -> None:
-        if not 1 <= self.max_page_bytes <= DEFAULT_MAX_TOTAL_BYTES:
-            raise ValueError("max_page_bytes is outside the fixed 32 MiB ceiling")
+        if not 1 <= self.max_page_bytes <= MAX_TOTAL_BYTES:
+            raise ValueError(f"max_page_bytes must be between 1 and {MAX_TOTAL_BYTES}")
         if not self.max_page_bytes <= self.max_total_bytes <= MAX_TOTAL_BYTES:
-            raise ValueError("max_total_bytes is outside the fixed 64 MiB ceiling")
+            raise ValueError(
+                f"max_total_bytes must be between max_page_bytes and {MAX_TOTAL_BYTES}"
+            )
         if (
             type(self.adapter_wall_timeout_seconds) not in {int, float}
             or isinstance(self.adapter_wall_timeout_seconds, bool)
@@ -630,7 +636,10 @@ class SourceReadBudget:
             < self.adapter_wall_timeout_seconds
             <= MAX_SOURCE_ADAPTER_WALL_SECONDS
         ):
-            raise ValueError("adapter_wall_timeout_seconds must be in (0, 540]")
+            raise ValueError(
+                "adapter_wall_timeout_seconds must be in (0, "
+                f"{MAX_SOURCE_ADAPTER_WALL_SECONDS}]"
+            )
         if self.shared_deadline is not None and not callable(
             getattr(self.shared_deadline, "remaining_ms", None)
         ):
@@ -1162,7 +1171,7 @@ def _load_eval_template_page(
     cursor: SourceKeysetCursor | None,
     limit: int,
 ) -> Sequence[SourceDefinitionRecord]:
-    from django.db.models import Exists, OuterRef, Q, Subquery
+    from django.db.models import Exists, Max, OuterRef, Q, Subquery
     from django.db.models.functions import Greatest
 
     from model_hub.models.evals_metric import EvalTemplate
@@ -1199,10 +1208,15 @@ def _load_eval_template_page(
         )
         .filter(_relationship_updated_at__lte=context.snapshot_cutoff)
     )
-    latest_relationship_update = relationships.order_by(
-        "-_relationship_updated_at",
-        "-id",
-    ).values("_relationship_updated_at")[:1]
+    # Aggregate in PostgreSQL instead of sorting/materializing raw relationship
+    # rows. The result cardinality is one timestamp per template regardless of
+    # how many configs exist in the project history.
+    latest_relationship_update = (
+        relationships.order_by()
+        .values("eval_template_id")
+        .annotate(_latest_relationship_updated_at=Max("_relationship_updated_at"))
+        .values("_latest_relationship_updated_at")[:1]
+    )
     queryset = (
         EvalTemplate.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
         .annotate(
@@ -1459,7 +1473,7 @@ def _load_annotation_label_page(
     cursor: SourceKeysetCursor | None,
     limit: int,
 ) -> Sequence[SourceDefinitionRecord]:
-    from django.db.models import OuterRef, Q, Subquery
+    from django.db.models import Max, OuterRef, Q, Subquery
     from django.db.models.functions import Greatest
 
     from model_hub.models.develop_annotations import AnnotationsLabels
@@ -1512,10 +1526,15 @@ def _load_annotation_label_page(
         )
         .filter(_relationship_updated_at__lte=context.snapshot_cutoff)
     )
-    latest_score_update = related_score.order_by(
-        "-_relationship_updated_at",
-        "-id",
-    ).values("_relationship_updated_at")[:1]
+    # One aggregate row replaces the previous raw-score sort. This remains
+    # index-scoped by label and the bounded project set while avoiding work
+    # proportional to the number of Score rows returned to Python.
+    latest_score_update = (
+        related_score.order_by()
+        .values("label_id")
+        .annotate(_latest_relationship_updated_at=Max("_relationship_updated_at"))
+        .values("_latest_relationship_updated_at")[:1]
+    )
     queryset = (
         AnnotationsLabels.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
         .annotate(
@@ -1687,133 +1706,80 @@ def _keyset_values(
     return list(queryset.order_by(order_field, "id").values(*fields)[:limit])
 
 
-def _annotation_score_projects(
-    *,
+def _scoped_project_relationship_states(
     context: PostgresSnapshotContext,
-    label_ids: tuple[str, ...],
-) -> tuple[
-    dict[str, tuple[str, ...]],
-    dict[str, tuple[str, ...]],
-]:
-    if not label_ids:
-        return {}, {}
-    from django.db.models import OuterRef, Subquery
+) -> dict[str, tuple[datetime, bool, datetime | None]]:
+    """Load the finite authorized project lifecycle once per source page."""
+
     from django.db.models.functions import Greatest
 
-    from model_hub.models.score import Score
     from tracer.models.project import Project
-    from tracer.services.annotation_label_source import AnnotationLabelScoresProjectPG
 
-    scoped_projects = (
+    rows = (
         Project.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
+        .annotate(
+            _catalog_updated_at=Greatest(*_lifecycle_timestamp_fields("")),
+        )
         .filter(
             organization_id=context.organization_id,
             workspace_id=context.workspace_id,
             id__in=context.project_ids,
+            _catalog_updated_at__lte=context.snapshot_cutoff,
         )
         .order_by()
-        .values("id")
+        .values_list("id", "updated_at", "deleted", "deleted_at")
     )
-    project_state = (
-        Project.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
-        .filter(
-            id=OuterRef("tracer_project_id"),
-            organization_id=context.organization_id,
-            workspace_id=context.workspace_id,
-            id__in=context.project_ids,
-        )
-        .order_by()
-    )
-    pairs = list(
-        Score.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
-        .filter(
-            AnnotationLabelScoresProjectPG._trace_span_scope(),
-            organization_id=context.organization_id,
-            workspace_id=context.workspace_id,
-            label_id__in=label_ids,
-            tracer_project_id__isnull=False,
-            tracer_project_id__in=Subquery(scoped_projects),
-        )
-        .annotate(
-            _project_updated_at=Subquery(project_state.values("updated_at")[:1]),
-            _project_deleted=Subquery(project_state.values("deleted")[:1]),
-            _project_deleted_at=Subquery(project_state.values("deleted_at")[:1]),
-        )
-        .annotate(
-            _relationship_updated_at=Greatest(
-                *_lifecycle_timestamp_fields(""),
-                "_project_updated_at",
-                "_project_deleted_at",
-            )
-        )
-        .filter(_relationship_updated_at__lte=context.snapshot_cutoff)
-        .order_by(
-            "label_id",
-            "tracer_project_id",
-            "_relationship_updated_at",
-            "id",
-        )
-        .values_list(
-            "id",
-            "label_id",
-            "tracer_project_id",
-            "updated_at",
-            "deleted",
-            "deleted_at",
-            "_project_updated_at",
-            "_project_deleted",
-            "_project_deleted_at",
-        )[:100_001]
-    )
-    if len(pairs) > 100_000:
-        raise PropertySourceError(
-            "annotation project relationships exceeded the fixed page cap"
-        )
-    return _group_annotation_score_relationships(pairs)
+    return {
+        str(project_id): (updated_at, bool(deleted), deleted_at)
+        for project_id, updated_at, deleted, deleted_at in rows
+    }
 
 
-def _group_annotation_score_relationships(
+def _group_project_relationships(
     rows: Sequence[tuple[Any, ...]],
+    *,
+    project_states: Mapping[str, tuple[datetime, bool, datetime | None]],
+    relation_name: str,
 ) -> tuple[
     dict[str, tuple[str, ...]],
     dict[str, tuple[str, ...]],
 ]:
-    """Separate live score visibility from deletion-aware relationship state."""
+    """Resolve visibility from bounded entity/project aggregates.
 
-    grouped: dict[str, set[str]] = {}
+    ``rows`` contains one row per entity/project pair, never one row per Score
+    or eval config. Active cardinality is all the visibility contract needs;
+    the latest relationship and project clocks advance incremental source
+    watermarks when that cardinality changes.
+    """
+
+    projects: dict[str, set[str]] = {}
     versions: dict[str, set[str]] = {}
-    for (
-        score_id,
-        label_id,
-        project_id,
-        updated_at,
-        deleted,
-        deleted_at,
-        project_updated_at,
-        project_deleted,
-        project_deleted_at,
-    ) in rows:
-        key = str(label_id)
-        if not deleted and not project_deleted:
-            grouped.setdefault(key, set()).add(str(project_id))
-        versions.setdefault(key, set()).update(
+    for entity_id, project_id, active_count, relationship_updated_at in rows:
+        entity_key = str(entity_id)
+        project_key = str(project_id)
+        project_state = project_states.get(project_key)
+        if project_state is None:
+            continue
+        project_updated_at, project_deleted, project_deleted_at = project_state
+        active_count = int(active_count or 0)
+        if active_count > 0 and not project_deleted:
+            projects.setdefault(entity_key, set()).add(project_key)
+        versions.setdefault(entity_key, set()).update(
             (
                 ":".join(
                     (
-                        "score",
-                        str(score_id),
-                        str(project_id),
-                        _timestamp_text(updated_at),
-                        str(bool(deleted)).lower(),
-                        _timestamp_text(deleted_at) if deleted_at else "",
+                        relation_name,
+                        project_key,
+                        str(active_count),
+                        _timestamp_text(relationship_updated_at),
                     )
                 ),
                 ":".join(
                     (
                         "project",
-                        str(project_id),
+                        project_key,
                         _timestamp_text(project_updated_at),
-                        str(bool(project_deleted)).lower(),
+                        str(project_deleted).lower(),
                         (
                             _timestamp_text(project_deleted_at)
                             if project_deleted_at
@@ -1824,8 +1790,60 @@ def _group_annotation_score_relationships(
             )
         )
     return (
-        {key: tuple(sorted(values)) for key, values in grouped.items()},
+        {key: tuple(sorted(values)) for key, values in projects.items()},
         {key: tuple(sorted(values)) for key, values in versions.items()},
+    )
+
+
+def _annotation_score_projects(
+    *,
+    context: PostgresSnapshotContext,
+    label_ids: tuple[str, ...],
+) -> tuple[
+    dict[str, tuple[str, ...]],
+    dict[str, tuple[str, ...]],
+]:
+    if not label_ids:
+        return {}, {}
+    from django.db.models import Count, Max, Q
+    from django.db.models.functions import Greatest
+
+    from model_hub.models.score import Score
+    from tracer.services.annotation_label_source import AnnotationLabelScoresProjectPG
+
+    project_states = _scoped_project_relationship_states(context)
+    if not project_states:
+        return {}, {}
+    relationship_clock = Greatest(*_lifecycle_timestamp_fields(""))
+    pairs = list(
+        Score.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
+        .filter(
+            AnnotationLabelScoresProjectPG._trace_span_scope(),
+            organization_id=context.organization_id,
+            workspace_id=context.workspace_id,
+            label_id__in=label_ids,
+            tracer_project_id__isnull=False,
+            tracer_project_id__in=tuple(project_states),
+        )
+        .annotate(_relationship_updated_at=relationship_clock)
+        .filter(_relationship_updated_at__lte=context.snapshot_cutoff)
+        .order_by()
+        .values("label_id", "tracer_project_id")
+        .annotate(
+            _active_count=Count("id", filter=Q(deleted=False)),
+            _latest_relationship_updated_at=Max("_relationship_updated_at"),
+        )
+        .values_list(
+            "label_id",
+            "tracer_project_id",
+            "_active_count",
+            "_latest_relationship_updated_at",
+        )
+    )
+    return _group_project_relationships(
+        pairs,
+        project_states=project_states,
+        relation_name="scores",
     )
 
 
@@ -1839,117 +1857,41 @@ def _eval_template_projects(
 ]:
     if not template_ids:
         return {}, {}
-    from django.db.models import Subquery
+    from django.db.models import Count, Max, Q
     from django.db.models.functions import Greatest
 
     from tracer.models.custom_eval_config import CustomEvalConfig
-    from tracer.models.project import Project
 
-    scoped_projects = (
-        Project.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
-        .filter(
-            organization_id=context.organization_id,
-            workspace_id=context.workspace_id,
-            id__in=context.project_ids,
-        )
-        .order_by()
-        .values("id")
-    )
+    project_states = _scoped_project_relationship_states(context)
+    if not project_states:
+        return {}, {}
+    relationship_clock = Greatest(*_lifecycle_timestamp_fields(""))
 
     rows = list(
         CustomEvalConfig.all_objects.using(PROPERTY_SOURCE_DB_ALIAS)
         .filter(
             eval_template_id__in=template_ids,
-            project_id__in=Subquery(scoped_projects),
+            project_id__in=tuple(project_states),
         )
-        .annotate(
-            _relationship_updated_at=Greatest(
-                "updated_at",
-                "deleted_at",
-                "project__updated_at",
-                "project__deleted_at",
-            )
-        )
+        .annotate(_relationship_updated_at=relationship_clock)
         .filter(_relationship_updated_at__lte=context.snapshot_cutoff)
-        .order_by(
-            "eval_template_id",
-            "project_id",
-            "_relationship_updated_at",
-            "id",
+        .order_by()
+        .values("eval_template_id", "project_id")
+        .annotate(
+            _active_count=Count("id", filter=Q(deleted=False)),
+            _latest_relationship_updated_at=Max("_relationship_updated_at"),
         )
         .values_list(
-            "id",
             "eval_template_id",
             "project_id",
-            "updated_at",
-            "deleted",
-            "deleted_at",
-            "project__updated_at",
-            "project__deleted",
-            "project__deleted_at",
-        )[:100_001]
+            "_active_count",
+            "_latest_relationship_updated_at",
+        )
     )
-    if len(rows) > 100_000:
-        raise PropertySourceError(
-            "eval-template project relationships exceeded the fixed page cap"
-        )
-    return _group_eval_template_relationships(rows)
-
-
-def _group_eval_template_relationships(
-    rows: Sequence[tuple[Any, ...]],
-) -> tuple[
-    dict[str, tuple[str, ...]],
-    dict[str, tuple[str, ...]],
-]:
-    """Separate live visibility from deletion-aware relationship versions."""
-
-    projects: dict[str, set[str]] = {}
-    versions: dict[str, set[str]] = {}
-    for (
-        config_id,
-        template_id,
-        project_id,
-        updated_at,
-        deleted,
-        deleted_at,
-        project_updated_at,
-        project_deleted,
-        project_deleted_at,
-    ) in rows:
-        key = str(template_id)
-        if not deleted and not project_deleted:
-            projects.setdefault(key, set()).add(str(project_id))
-        versions.setdefault(key, set()).update(
-            (
-                ":".join(
-                    (
-                        "config",
-                        str(config_id),
-                        str(project_id),
-                        _timestamp_text(updated_at),
-                        str(bool(deleted)).lower(),
-                        _timestamp_text(deleted_at) if deleted_at else "",
-                    )
-                ),
-                ":".join(
-                    (
-                        "project",
-                        str(project_id),
-                        _timestamp_text(project_updated_at),
-                        str(bool(project_deleted)).lower(),
-                        (
-                            _timestamp_text(project_deleted_at)
-                            if project_deleted_at
-                            else ""
-                        ),
-                    )
-                ),
-            )
-        )
-    return (
-        {key: tuple(sorted(values)) for key, values in projects.items()},
-        {key: tuple(sorted(values)) for key, values in versions.items()},
+    return _group_project_relationships(
+        rows,
+        project_states=project_states,
+        relation_name="eval_configs",
     )
 
 
@@ -2016,28 +1958,10 @@ def _annotation_definition(row: Mapping[str, Any]) -> PropertyDefinition:
     settings = row.get("settings") if isinstance(row.get("settings"), Mapping) else {}
     details: dict[str, Any] = {"data_type": label_type}
     options = settings.get("options") if isinstance(settings, Mapping) else None
-    if isinstance(options, list):
-        choices: list[str] = []
-        choice_options: list[dict[str, Any]] = []
-        for option in options:
-            if not isinstance(option, Mapping):
-                continue
-            raw_value = option.get("value") if "value" in option else None
-            raw_label = option.get("label") or option.get("name")
-            if raw_value is None or raw_value == "":
-                raw_value = raw_label
-            if raw_value is None or raw_value == "":
-                continue
-            label = str(
-                raw_label if raw_label is not None and raw_label != "" else raw_value
-            )
-            if raw_label is not None and raw_label != "":
-                choices.append(label)
-            choice_options.append({"label": label, "value": raw_value})
-        if choices:
-            details["choices"] = tuple(choices)
-        if choice_options:
-            details["choice_options"] = tuple(choice_options)
+    choice_options = configured_value_options(options)
+    if choice_options:
+        details["choices"] = tuple(option["label"] for option in choice_options)
+        details["choice_options"] = choice_options
     elif label_type == "thumbs_up_down":
         details["choices"] = ("Thumbs Up", "Thumbs Down")
     return PropertyDefinition(

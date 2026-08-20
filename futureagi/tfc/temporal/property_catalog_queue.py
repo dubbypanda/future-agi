@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 
-
 DEFAULT_PROPERTY_CATALOG_TASK_QUEUE = "property_catalog_dev_sidecar"
 _WORKSPACE_QUEUE_RE = re.compile(r"^property_catalog_dev_sidecar_[0-9a-f]{32}$")
 _UUID_RE = re.compile(
@@ -33,18 +32,14 @@ def configured_property_catalog_task_queue(
     renderer-provided UUID-derived queue.
     """
 
-    raw = (
-        os.getenv("PROPERTY_CATALOG_DEV_TASK_QUEUE", "")
-        if value is None
-        else value
-    )
+    raw = os.getenv("PROPERTY_CATALOG_DEV_TASK_QUEUE", "") if value is None else value
     if not isinstance(raw, str):
         raise TypeError("property catalog task queue must be a string")
     queue = raw.strip()
     if reconcile_enabled is None:
-        raw_enabled = os.getenv(
-            "PROPERTY_CATALOG_DEV_RECONCILE_ENABLED", "false"
-        ).strip().lower()
+        raw_enabled = (
+            os.getenv("PROPERTY_CATALOG_DEV_RECONCILE_ENABLED", "false").strip().lower()
+        )
         if raw_enabled not in {"true", "false"}:
             raise ValueError(
                 "PROPERTY_CATALOG_DEV_RECONCILE_ENABLED must be exactly true or false"
@@ -55,9 +50,9 @@ def configured_property_catalog_task_queue(
     if workspace_allowlist is None:
         workspace_allowlist = tuple(
             item.strip()
-            for item in os.getenv(
-                "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST", ""
-            ).split(",")
+            for item in os.getenv("PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST", "").split(
+                ","
+            )
             if item.strip()
         )
     if not isinstance(workspace_allowlist, tuple) or any(

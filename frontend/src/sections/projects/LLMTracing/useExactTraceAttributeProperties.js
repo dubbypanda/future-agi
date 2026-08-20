@@ -8,6 +8,13 @@ import {
 import axios, { endpoints } from "src/utils/axios";
 import { getQueryReadState } from "src/utils/queryReadState";
 import {
+  ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+  PROPERTY_CATALOG_CACHE_TIME_MS,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+  PROPERTY_CATALOG_STALE_TIME_MS,
+} from "src/config/runtime_limits";
+import {
   ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
   compactAttributeKeyRetryPage,
   getAttributeKeyCursorStopSignature,
@@ -49,7 +56,10 @@ export function useLegacyExactTraceAttributeProperties({
 }) {
   const queryClient = useQueryClient();
   const normalizedSearch = String(search || "").trim();
-  const debouncedSearch = useDebounce(normalizedSearch, 350);
+  const debouncedSearch = useDebounce(
+    normalizedSearch,
+    ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  );
   const supportedSource = source === "traces" || source === "spans";
   const retainedQueryKey = ["trace-attribute-retained", projectId, source];
   const exactQueryKey = [
@@ -101,7 +111,7 @@ export function useLegacyExactTraceAttributeProperties({
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 10,
+        pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
         publishedData: queryClient.getQueryData(retainedQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -111,7 +121,7 @@ export function useLegacyExactTraceAttributeProperties({
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 ...(cursor ? { cursor } : {}),
               },
             })
@@ -121,8 +131,8 @@ export function useLegacyExactTraceAttributeProperties({
     getNextPageParam: getNextAttributeKeyPageParam,
     enabled: enabled && supportedSource && Boolean(projectId),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -139,7 +149,7 @@ export function useLegacyExactTraceAttributeProperties({
     queryFn: ({ signal, pageParam }) =>
       readAttributeKeyPage({
         pageParam,
-        pageSize: 10,
+        pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
         publishedData: queryClient.getQueryData(exactQueryKey),
         signal,
         requestPage: (cursor, requestSignal = signal) =>
@@ -149,7 +159,7 @@ export function useLegacyExactTraceAttributeProperties({
               timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
               params: {
                 project_id: projectId,
-                page_size: 10,
+                page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                 q: debouncedSearch,
                 ...(cursor ? { cursor } : {}),
               },
@@ -164,8 +174,8 @@ export function useLegacyExactTraceAttributeProperties({
       Boolean(projectId) &&
       Boolean(debouncedSearch),
     retry: false,
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -339,7 +349,7 @@ export function useLegacyExactTraceAttributeProperties({
     setFreshChainRecoveryLane(lane);
     const request = readAttributeKeyPage({
       pageParam: null,
-      pageSize: 10,
+      pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
       publishedData: undefined,
       requestPage: (cursor, signal) =>
         axios
@@ -348,7 +358,7 @@ export function useLegacyExactTraceAttributeProperties({
             timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
             params: {
               project_id: projectId,
-              page_size: 10,
+              page_size: INTERACTIVE_TABLE_PAGE_SIZE,
               ...(exact ? { q: debouncedSearch } : {}),
               ...(cursor ? { cursor } : {}),
             },
@@ -601,7 +611,10 @@ export function useExactTraceAttributeProperties({
   enabled = true,
 }) {
   const normalizedSearch = String(search || "").trim();
-  const debouncedSearch = useDebounce(normalizedSearch, 350);
+  const debouncedSearch = useDebounce(
+    normalizedSearch,
+    ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
+  );
   const supportedSource = source === "traces" || source === "spans";
   const scopeReady = supportedSource && Boolean(projectId);
   const fallbackScopeKey = JSON.stringify([
@@ -616,7 +629,7 @@ export function useExactTraceAttributeProperties({
     source: "traces",
     search: debouncedSearch,
     projectIds: projectId ? [projectId] : [],
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: enabled && scopeReady,
     allowLegacyNotReadyFallback: true,
     fallbackScopeKey,

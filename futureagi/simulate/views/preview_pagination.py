@@ -6,6 +6,7 @@ import time
 from contextlib import contextmanager
 
 import structlog
+from django.conf import settings
 from django.db import DatabaseError, connection, transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -32,7 +33,7 @@ from tfc.utils.api_contracts import validated_request
 
 logger = structlog.get_logger(__name__)
 
-PREVIEW_SERVER_WALL_SECONDS = 8.5
+PREVIEW_SERVER_WALL_SECONDS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS / 1_000
 SIMULATION_PREVIEW_RESPONSES = {
     200: SimulationPreviewPageSerializer,
     400: SimulationPreviewErrorSerializer,

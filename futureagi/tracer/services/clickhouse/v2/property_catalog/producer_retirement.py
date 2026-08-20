@@ -16,6 +16,7 @@ from .activation import CatalogLifecycleMode, ManifestStreamRole, RevisionBuildP
 from .codec import canonical_uuid, framed_sha256, require_sha256
 from .durable_lifecycle import PriorActiveEvidence
 from .models import SourceAdapter
+from .runtime_limits import RUNTIME_LIMITS
 
 PRODUCER_RETIREMENT_FORMAT = "futureagi.property-catalog-producer-state-retirements"
 PRODUCER_RETIREMENT_VERSION = 1
@@ -24,7 +25,7 @@ PRODUCER_RETIREMENT_SHA_DOMAIN = (
     "futureagi.property-catalog.producer-state-retirement.v1"
 )
 MAX_PRODUCER_RETIREMENTS = 256
-MAX_PRODUCER_RETIREMENT_BYTES = 8 << 20
+MAX_PRODUCER_RETIREMENT_BYTES = RUNTIME_LIMITS.producer_retirement_max_bytes
 _TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _ZERO_SHA256 = "0" * 64
 _RECORD_FIELDS = (

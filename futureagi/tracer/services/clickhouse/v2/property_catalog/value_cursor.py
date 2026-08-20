@@ -21,11 +21,13 @@ from django.core import signing
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_scope,
 )
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 
 PROPERTY_CATALOG_VALUE_CURSOR_VERSION = 1
 PROPERTY_CATALOG_VALUE_CURSOR_SALT = "tracer.property-catalog-value-cursor.v1"
-PROPERTY_CATALOG_VALUE_CURSOR_MAX_AGE_SECONDS = 24 * 60 * 60
-PROPERTY_CATALOG_VALUE_CURSOR_MAX_BYTES = 16 * 1024
+PROPERTY_CATALOG_VALUE_CURSOR_MAX_AGE_SECONDS = RUNTIME_LIMITS.cursor_max_age_seconds
+PROPERTY_CATALOG_VALUE_CURSOR_MAX_BYTES = RUNTIME_LIMITS.cursor_max_bytes
+PROPERTY_CATALOG_VALUE_CURSOR_MAX_PAGE_SIZE = RUNTIME_LIMITS.max_page_size
 
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 
@@ -146,7 +148,7 @@ def encode_property_catalog_value_cursor(
 ) -> str:
     if (
         type(page_size) is not int
-        or not 1 <= page_size <= 50
+        or not 1 <= page_size <= PROPERTY_CATALOG_VALUE_CURSOR_MAX_PAGE_SIZE
         or type(catalog_epoch) is not int
         or not 1 <= catalog_epoch <= 65_535
         or type(catalog_revision) is not int

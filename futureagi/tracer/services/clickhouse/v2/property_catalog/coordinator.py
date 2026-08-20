@@ -32,12 +32,18 @@ from .codec import (
 )
 from .models import SourceAdapter
 from .mutation_lock import CatalogMutationSerializer
+from .proof_limits import (
+    MAX_DELIVERIES_PER_REVISION,
+    MAX_DELIVERY_REPLAYS,
+    MAX_LOGICAL_STATE_VARIANTS,
+)
 from .publisher import (
     PROPERTY_CATALOG_TABLES,
     CatalogWriteLease,
     SharedCatalogDeadline,
     require_dev_catalog_database,
 )
+from .runtime_limits import RUNTIME_LIMITS
 
 _SOURCE_STREAM_TABLE = "property_catalog_source_streams"
 _DELIVERY_TABLE = "property_catalog_deliveries"
@@ -45,11 +51,12 @@ _ACTIVATION_TABLE = "property_catalog_activations"
 _CHECKPOINT_TABLE = "property_catalog_checkpoints"
 _ZERO_SHA256 = "0" * 64
 _MAX_RESERVATION_CANDIDATES = 4
-_MAX_STATE_VARIANTS = 32
-_MAX_DELIVERIES = 100_000
-_MAX_DELIVERY_REPLAYS = 8
-REVISION_LEASE_SECONDS = 600
-MAX_REVISION_LEASE_SECONDS = 1_800
+_MAX_STATE_VARIANTS = MAX_LOGICAL_STATE_VARIANTS
+_MAX_DELIVERIES = MAX_DELIVERIES_PER_REVISION
+_MAX_DELIVERY_REPLAYS = MAX_DELIVERY_REPLAYS
+REVISION_LEASE_SECONDS = RUNTIME_LIMITS.revision_lease_seconds
+MAX_REVISION_LEASE_SECONDS = RUNTIME_LIMITS.max_revision_lease_seconds
+COORDINATOR_TIMEOUT_MS = RUNTIME_LIMITS.state_store_timeout_ms
 _SOURCE_STREAM_COLUMNS = (
     "organization_id",
     "workspace_id",
@@ -316,7 +323,7 @@ class ClickHouseRevisionCoordinator:
         hot_producer_stream_id: str,
         deadline: SharedCatalogDeadline,
         lease_seconds: int = REVISION_LEASE_SECONDS,
-        timeout_ms: int = 8_500,
+        timeout_ms: int = COORDINATOR_TIMEOUT_MS,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         require_dev_catalog_database(database)
@@ -330,7 +337,9 @@ class ClickHouseRevisionCoordinator:
             type(lease_seconds) is not int
             or not 1 <= lease_seconds <= MAX_REVISION_LEASE_SECONDS
         ):
-            raise ValueError("revision lease_seconds must be in [1, 1800]")
+            raise ValueError(
+                f"revision lease_seconds must be in [1, {MAX_REVISION_LEASE_SECONDS}]"
+            )
         self._client = client
         self._database = database
         self._serializer = serializer
@@ -340,7 +349,7 @@ class ClickHouseRevisionCoordinator:
         )
         self._deadline = deadline
         self._lease_seconds = lease_seconds
-        self._timeout_ms = min(max(timeout_ms, 1), 8_500)
+        self._timeout_ms = min(max(timeout_ms, 1), COORDINATOR_TIMEOUT_MS)
         self._now = now
 
     def allocate(

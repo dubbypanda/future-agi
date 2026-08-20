@@ -18,6 +18,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 
 import structlog
+from django.conf import settings
 from django.core.cache import cache, caches
 from django.core.cache.backends.locmem import LocMemCache
 from django.db import DatabaseError, connection, transaction
@@ -31,7 +32,13 @@ from tracer.services.clickhouse.v2.query_service import V2AnalyticsQueryService
 logger = structlog.get_logger(__name__)
 
 
-METRICS_CATALOG_TIMEOUT_MS = 8_500
+METRICS_CATALOG_TIMEOUT_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+METRICS_CATALOG_EVAL_USAGE_QUERY_TIMEOUT_MS = (
+    settings.DASHBOARD_METRICS_EVAL_USAGE_QUERY_TIMEOUT_MS
+)
+METRICS_CATALOG_EVAL_USAGE_LOOKBACK_DAYS = (
+    settings.DASHBOARD_METRICS_EVAL_USAGE_LOOKBACK_DAYS
+)
 
 
 class MetricsCatalogUnavailable(RuntimeError):
@@ -1036,7 +1043,7 @@ def build_metrics_catalog(
             project_ids,
             recent_days=None,
             timeout_ms=deadline.remaining_ms(METRICS_CATALOG_TIMEOUT_MS),
-            outer_limit=2000,
+            outer_limit=settings.DASHBOARD_METRICS_ATTRIBUTE_KEY_LIMIT,
         )
         attrs = []
         for row in rows:
@@ -1050,7 +1057,9 @@ def build_metrics_catalog(
     attribute_future = None
     if want_custom_attributes and project_ids:
         try:
-            attribute_executor = ThreadPoolExecutor(max_workers=1)
+            attribute_executor = ThreadPoolExecutor(
+                max_workers=settings.DASHBOARD_METRICS_ATTRIBUTE_WORKERS
+            )
             attribute_future = attribute_executor.submit(_discover_span_attributes)
         except Exception as exc:
             if attribute_executor is not None:
@@ -1082,12 +1091,12 @@ def build_metrics_catalog(
                     if candidate_config_ids:
                         try:
                             analytics = V2AnalyticsQueryService()
-                            used_template_ids = (
-                                analytics.get_eval_config_ids_for_candidates_ch(
-                                    [str(value) for value in candidate_config_ids],
-                                    timeout_ms=deadline.remaining_ms(5_000),
-                                    window_days=90,
-                                )
+                            used_template_ids = analytics.get_eval_config_ids_for_candidates_ch(
+                                [str(value) for value in candidate_config_ids],
+                                timeout_ms=deadline.remaining_ms(
+                                    METRICS_CATALOG_EVAL_USAGE_QUERY_TIMEOUT_MS
+                                ),
+                                window_days=METRICS_CATALOG_EVAL_USAGE_LOOKBACK_DAYS,
                             )
                             deadline.remaining_ms(floor_ms=1)
                         except Exception as exc:

@@ -17,6 +17,18 @@ from pathlib import Path
 
 # Structured logging configuration
 from tfc.logging import configure_structlog, get_logging_config, init_sentry
+from tfc.settings.runtime_setting_specs import (
+    RUNTIME_NUMERIC_SETTING_SPECS as _runtime_numeric_setting_specs,
+)
+from tfc.settings.runtime_setting_specs import (
+    NumericSettingSpec as _NumericSettingSpec,
+)
+from tfc.settings.runtime_setting_specs import (
+    load_numeric_settings as _load_numeric_settings,
+)
+from tfc.settings.runtime_setting_specs import (
+    validate_runtime_numeric_settings as _validate_runtime_numeric_settings,
+)
 
 configure_structlog()
 
@@ -52,20 +64,72 @@ EVAL_USAGE_CLICKHOUSE_ENABLED = os.getenv(
     "true",
 ).lower() in ("true", "1", "t", "yes", "y")
 
-# Expand/contract gate for the trigger-maintained categorical annotation
-# vocabulary.  Keep the route on the existing bounded exact Score reader while
-# migrations/backfill run; operators enable the projection only after its
-# readiness gate proves version 1 with zero pending/unscoped/oversize rows.
-ANNOTATION_SCORE_VALUE_PROJECTION_READ_ENABLED = os.getenv(
-    "ANNOTATION_SCORE_VALUE_PROJECTION_READ_ENABLED",
-    "false",
-).strip().lower() in {"true", "1", "yes"}
-
-
 def _split_env(name: str, default: str = "") -> list[str]:
     """Parse a comma-separated env var into a list."""
     raw = os.getenv(name, default)
     return [x.strip() for x in raw.split(",") if x.strip()]
+
+
+def _bounded_env_int(
+    name: str,
+    default: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    """Parse one setting whose default or bound depends on another setting."""
+
+    spec = _NumericSettingSpec(int, default, minimum, maximum)
+    return int(spec.parse(name, os.getenv(name)))
+
+
+# Numeric runtime knobs are declared once in runtime_setting_specs.py. Parse
+# and cross-validate them before database/cache configuration consumes them.
+_runtime_numeric_settings = _load_numeric_settings(
+    _runtime_numeric_setting_specs,
+    source=os.environ,
+)
+del _runtime_numeric_setting_specs
+_validate_runtime_numeric_settings(_runtime_numeric_settings)
+globals().update(_runtime_numeric_settings)
+
+SIMULATOR_PHONE_NUMBERS = tuple(
+    _split_env(
+        "SIMULATOR_PHONE_NUMBERS",
+        ",".join(
+            (
+                "+18568806998",
+                "+17755715840",
+                "+13463424590",
+                "+12175683677",
+                "+12175696753",
+                "+12175683493",
+                "+12175681887",
+                "+12176018447",
+                "+12176018280",
+                "+12175696862",
+                "+19168660414",
+                "+19163473349",
+                "+18563161617",
+                "+13463619738",
+                "+19847339395",
+            )
+        ),
+    )
+)
+
+# These three values are consumed in this module before application code
+# imports the remaining dynamically published Django settings. Explicit aliases
+# keep static analysis honest without duplicating their parsing or defaults.
+PG_CONNECT_TIMEOUT_SECONDS = int(
+    _runtime_numeric_settings["PG_CONNECT_TIMEOUT_SECONDS"]
+)
+REDIS_CACHE_SOCKET_CONNECT_TIMEOUT_SECONDS = float(
+    _runtime_numeric_settings["REDIS_CACHE_SOCKET_CONNECT_TIMEOUT_SECONDS"]
+)
+REDIS_CACHE_SOCKET_TIMEOUT_SECONDS = float(
+    _runtime_numeric_settings["REDIS_CACHE_SOCKET_TIMEOUT_SECONDS"]
+)
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -281,17 +345,10 @@ def _pg_config(host, port=None, *, name=None, disable_cursors=True, options=None
     intentional behaviour change because an empty PORT / NAME would have
     failed anyway at connection time.
     """
-    try:
-        connect_timeout = int(os.getenv("PG_CONNECT_TIMEOUT_SECONDS", "1"))
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            "PG_CONNECT_TIMEOUT_SECONDS must be an integer from 1 through 5"
-        ) from exc
-    if not 1 <= connect_timeout <= 5:
-        raise ValueError(
-            "PG_CONNECT_TIMEOUT_SECONDS must be an integer from 1 through 5"
-        )
-    connection_options = {"connect_timeout": connect_timeout, **(options or {})}
+    connection_options = {
+        "connect_timeout": PG_CONNECT_TIMEOUT_SECONDS,
+        **(options or {}),
+    }
     cfg = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": name or os.getenv("PG_DB", "tfc"),
@@ -829,31 +886,6 @@ CHANNEL_LAYERS = {
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
-def _bounded_redis_cache_socket_timeout(name: str, default: str) -> float:
-    """Keep a failed cache hop inside the interactive request wall.
-
-    Exact graph reads perform several fenced cache operations before they can
-    return a snapshot or truthful pending state.  A Redis client with the
-    library's unbounded socket defaults can therefore outlive the API's
-    nine-second action budget before any ClickHouse work begins.
-    """
-
-    try:
-        value = float(os.getenv(name, default))
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{name} must be a finite number of seconds") from exc
-    if not 0.05 <= value <= 2.0:
-        raise ValueError(f"{name} must be between 0.05 and 2.0 seconds")
-    return value
-
-
-REDIS_CACHE_SOCKET_CONNECT_TIMEOUT_SECONDS = _bounded_redis_cache_socket_timeout(
-    "REDIS_CACHE_SOCKET_CONNECT_TIMEOUT_SECONDS", "1.0"
-)
-REDIS_CACHE_SOCKET_TIMEOUT_SECONDS = _bounded_redis_cache_socket_timeout(
-    "REDIS_CACHE_SOCKET_TIMEOUT_SECONDS", "1.0"
-)
-
 if os.getenv("DJANGO_CACHE_BACKEND") == "locmem":
     CACHES = {
         "default": {
@@ -1125,6 +1157,7 @@ _property_catalog_ch_port_raw = os.getenv("PROPERTY_CATALOG_CH_PORT", "").strip(
 PROPERTY_CATALOG_CH_DATABASE = os.getenv("PROPERTY_CATALOG_CH_DATABASE", "").strip()
 PROPERTY_CATALOG_CH_USER = os.getenv("PROPERTY_CATALOG_CH_USER", "").strip()
 PROPERTY_CATALOG_CH_PASSWORD = os.getenv("PROPERTY_CATALOG_CH_PASSWORD", "")
+
 # Periodic unified reconciliation is a separate, write-capable DEV control
 # plane. It is disabled unless the exact boolean is enabled and its activity
 # revalidates the runtime deployment, isolated target, acknowledgement, and
@@ -1240,12 +1273,6 @@ PROPERTY_CATALOG_DEV_MUTATION_LOCK_DIRECTORY = os.getenv(
 PROPERTY_CATALOG_DEV_SIDECAR_ACK = os.getenv(
     "PROPERTY_CATALOG_DEV_SIDECAR_ACK", ""
 ).strip()
-_property_catalog_dev_max_wall_raw = os.getenv(
-    "PROPERTY_CATALOG_DEV_MAX_WALL_MS", ""
-).strip()
-_property_catalog_dev_scheduled_reconcile_wall_raw = os.getenv(
-    "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS", ""
-).strip()
 PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = tuple(
     sorted(
         {
@@ -1293,22 +1320,27 @@ try:
     )
 except ValueError:
     PROPERTY_CATALOG_DEV_PROJECTION_VERSION = 0
-try:
-    PROPERTY_CATALOG_DEV_MAX_WALL_MS = (
-        int(_property_catalog_dev_max_wall_raw)
-        if _property_catalog_dev_max_wall_raw
-        else 100_000
-    )
-except ValueError:
-    PROPERTY_CATALOG_DEV_MAX_WALL_MS = 0
-try:
-    PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS = (
-        int(_property_catalog_dev_scheduled_reconcile_wall_raw)
-        if _property_catalog_dev_scheduled_reconcile_wall_raw
-        else 1_200_000
-    )
-except ValueError:
-    PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS = 0
+PROPERTY_CATALOG_DEV_MAX_WALL_MS = _bounded_env_int(
+    "PROPERTY_CATALOG_DEV_MAX_WALL_MS",
+    int(_runtime_numeric_settings["PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS"]),
+    minimum=100,
+    maximum=int(
+        _runtime_numeric_settings["PROPERTY_CATALOG_DEV_INITIAL_BACKFILL_MAX_WALL_MS"]
+    ),
+)
+PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS = _bounded_env_int(
+    "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS",
+    int(
+        _runtime_numeric_settings["PROPERTY_CATALOG_RECONCILE_DEFAULT_EXTENDED_WALL_MS"]
+    ),
+    minimum=100,
+    maximum=int(
+        _runtime_numeric_settings[
+            "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_MAX_WALL_MS"
+        ]
+    ),
+)
+del _runtime_numeric_settings
 if PROPERTY_CATALOG_READ_MODE not in {"off", "shadow", "read"}:
     raise ValueError("PROPERTY_CATALOG_READ_MODE must be off, shadow, or read")
 if PROPERTY_CATALOG_READ_MODE != "off":

@@ -1,9 +1,11 @@
 package propertycatalog
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func validRuntimeConfig(t *testing.T, workspaces ...string) RuntimeConfig {
@@ -30,8 +32,12 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModeIsDevKafkaOnly(t *testing.T)
 	if mode, err := cfg.SelectedMode(); err != nil || mode != RuntimeKafka {
 		t.Fatalf("mode=%q err=%v", mode, err)
 	}
-	if cfg.WithDefaults().QueueDepth != 64 || cfg.WithDefaults().MaxChunkRows != 2_000 {
-		t.Fatalf("defaults=%+v", cfg.WithDefaults())
+	defaults := cfg.WithDefaults()
+	if defaults.QueueDepth != defaultQueueDepth ||
+		defaults.ShutdownTimeout != defaultShutdownTimeout ||
+		defaults.MaxChunkRows != defaultMaxChunkRows ||
+		defaults.Kafka.DeliveryTimeout != DefaultDeliveryTransportTimeout {
+		t.Fatalf("defaults=%+v", defaults)
 	}
 
 	for name, mutate := range map[string]func(*RuntimeConfig){
@@ -39,6 +45,15 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModeIsDevKafkaOnly(t *testing.T)
 		"missing acknowledgement": func(c *RuntimeConfig) { c.DevelopmentAcknowledgement = "" },
 		"missing fence":           func(c *RuntimeConfig) { c.RevisionFenceFile = "" },
 		"direct-like destination": func(c *RuntimeConfig) { c.Kafka.Brokers = nil },
+		"delivery timeout above ceiling": func(c *RuntimeConfig) {
+			c.Kafka.DeliveryTimeout = MaxDeliveryTimeout + time.Second
+		},
+		"shutdown timeout above ceiling": func(c *RuntimeConfig) {
+			c.ShutdownTimeout = maxShutdownTimeout + time.Second
+		},
+		"spool bytes above ceiling": func(c *RuntimeConfig) {
+			c.MaxSpoolBytes = maxRuntimeSpoolBytes + 1
+		},
 		"unsorted allowlist": func(c *RuntimeConfig) {
 			c.WorkspaceAllowlist = []string{"33333333-3333-4333-8333-333333333333", testWorkspace}
 		},
@@ -58,5 +73,15 @@ func TestRuntimeConfigRejectsUnknownModeWithoutNormalizingToEnabled(t *testing.T
 	cfg.Mode = "prod"
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "invalid runtime mode") {
 		t.Fatalf("error=%v", err)
+	}
+}
+
+func TestRuntimeConfigReportsReviewedWorkspaceAllowlistLimit(t *testing.T) {
+	workspaces := make([]string, maxWorkspaceAllowlist+1)
+	cfg := validRuntimeConfig(t, workspaces...)
+	want := fmt.Sprintf("1..%d allowlisted workspaces", maxWorkspaceAllowlist)
+
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("error=%v, want substring %q", err, want)
 	}
 }

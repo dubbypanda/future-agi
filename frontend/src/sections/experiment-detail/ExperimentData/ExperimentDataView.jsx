@@ -51,7 +51,8 @@ import {
   createExperimentRowsActionBudget,
   readExperimentColumnConfig,
   readExperimentRowsPage,
-} from "./experimentRowsRead";
+} from "./experiment_rows_read";
+import { INTERACTIVE_TABLE_PAGE_SIZE } from "src/config/runtime_limits";
 // Constants
 // const RefreshStatus = ["Running", "NotStarted", "ExperimentEvaluation"]; // Status values that trigger refresh
 
@@ -518,13 +519,16 @@ function ExperimentDataView() {
                 timeout,
                 params: {
                   current_page_index: p,
-                  page_size: 10,
+                  page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                   get_diff: diffMode,
                 },
               },
             ),
           undefined,
-          { pageSize: 10, timeoutMs: actionBudget.remainingMs() },
+          {
+            pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
+            timeoutMs: actionBudget.remainingMs(),
+          },
         );
 
         const rows = result.table;
@@ -1055,13 +1059,13 @@ function ExperimentDataView() {
             suppressRowClickSelection={true}
             paginationPageSizeSelector={false}
             suppressServerSideFullWidthLoadingRow={true}
-            serverSideInitialRowCount={10}
+            serverSideInitialRowCount={INTERACTIVE_TABLE_PAGE_SIZE}
             rowModelType="serverSide"
             isApplyServerSideTransaction={() => true}
             serverSideDatasource={dataSource}
             maxBlocksInCache={10}
             pagination={false}
-            cacheBlockSize={10}
+            cacheBlockSize={INTERACTIVE_TABLE_PAGE_SIZE}
             statusBar={statusBar}
             pinnedBottomRowData={pinnedBottomRowData}
             gridOptions={gridOptions}

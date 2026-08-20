@@ -27,6 +27,7 @@ from typing import Any, Protocol
 from .activation import ManifestStreamRole, RevisionBuildPlan
 from .codec import canonical_uuid, require_sha256
 from .models import PropertyCatalogEnvelope, SourceAdapter
+from .runtime_limits import RUNTIME_LIMITS
 from .wire import encode_envelope
 
 PROPERTY_CATALOG_TABLES = frozenset(
@@ -182,16 +183,21 @@ class CatalogWriteLease:
 class SharedCatalogDeadline:
     """One shrinking wall shared by source reads and all catalog operations."""
 
-    wall_ms: int = 8_500
+    wall_ms: int = RUNTIME_LIMITS.publisher_wall_ms
     clock: Callable[[], float] = monotonic
     _deadline: float = 0.0
 
     def __post_init__(self) -> None:
-        if type(self.wall_ms) is not int or not 1 <= self.wall_ms <= 7_200_000:
-            raise ValueError("catalog wall_ms must be in [1, 7200000]")
+        if (
+            type(self.wall_ms) is not int
+            or not 1 <= self.wall_ms <= RUNTIME_LIMITS.deadline_max_wall_ms
+        ):
+            raise ValueError(
+                f"catalog wall_ms must be in [1, {RUNTIME_LIMITS.deadline_max_wall_ms}]"
+            )
         self._deadline = self.clock() + self.wall_ms / 1_000
 
-    def remaining_ms(self, *, cap_ms: int = 8_500) -> int:
+    def remaining_ms(self, *, cap_ms: int = RUNTIME_LIMITS.publisher_wall_ms) -> int:
         if type(cap_ms) is not int or cap_ms < 1:
             raise ValueError("catalog deadline cap_ms must be positive")
         remaining = int((self._deadline - self.clock()) * 1_000)
@@ -210,12 +216,14 @@ class ClickHouseEnvelopePublisher:
     deadline: SharedCatalogDeadline | None = None
     clock: Any = monotonic
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
-    wall_ms: int = 8_500
+    wall_ms: int = RUNTIME_LIMITS.publisher_wall_ms
 
     def __post_init__(self) -> None:
         require_dev_catalog_database(self.database)
-        if not 1 <= self.wall_ms <= 8_500:
-            raise PropertyCatalogPublishError("publisher wall must be in (0, 8500] ms")
+        if not 1 <= self.wall_ms <= RUNTIME_LIMITS.publisher_wall_ms:
+            raise PropertyCatalogPublishError(
+                f"publisher wall must be in (0, {RUNTIME_LIMITS.publisher_wall_ms}] ms"
+            )
         self._validate_target()
         if self.now() >= self.lease.expires_at:
             raise PropertyCatalogPublishError("catalog write lease is expired")

@@ -10,7 +10,7 @@ import { formatDate } from "src/utils/report-utils";
 import { canonicalEntries } from "src/utils/utils";
 import { NULL_OPERATORS } from "src/components/ComplexFilter/common";
 import { hydrateStoredFilterList } from "src/api/contracts/filter-contract";
-import { readEvalTaskDetail } from "./taskDetailRead";
+import { readEvalTaskDetail } from "./task_detail_read";
 
 // Operator categories shared by the task filter wire builders (validation.js,
 // TaskLivePreview) and TaskFilterBar.

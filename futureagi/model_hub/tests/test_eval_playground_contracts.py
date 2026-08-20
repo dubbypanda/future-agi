@@ -3,12 +3,8 @@ import json
 import pytest
 from rest_framework import status
 
-pytest.importorskip("ee.usage.models.usage", reason="requires ee/")
-pytestmark = pytest.mark.requires_ee
-
 from accounts.models import Organization, User
 from accounts.models.workspace import Workspace
-from ee.usage.models.usage import APICallLog, APICallStatusChoices
 from model_hub.models.choices import OwnerChoices, SourceChoices
 from model_hub.models.error_localizer_model import (
     ErrorLocalizerSource,
@@ -18,6 +14,11 @@ from model_hub.models.error_localizer_model import (
 from model_hub.models.evals_metric import EvalSettings, EvalTemplate, Feedback
 from model_hub.serializers.contracts import EvalApiLogTableQuerySerializer
 from model_hub.views.separate_evals import create_column_config_playground
+
+usage_models = pytest.importorskip("ee.usage.models.usage", reason="requires ee/")
+APICallLog = usage_models.APICallLog
+APICallStatusChoices = usage_models.APICallStatusChoices
+pytestmark = pytest.mark.requires_ee
 
 
 def _create_workspace(organization, user, name):
@@ -62,9 +63,7 @@ def _create_other_org_template(user, name="other-playground-code"):
 
 
 @pytest.mark.django_db
-def test_eval_playground_rejects_template_from_another_organization(
-    auth_client, user
-):
+def test_eval_playground_rejects_template_from_another_organization(auth_client, user):
     template = _create_other_org_template(user)
 
     response = auth_client.post(
@@ -509,7 +508,7 @@ def test_get_eval_config_rejects_deleted_user_template(auth_client, user, worksp
 def test_eval_template_name_picker_matches_visible_workspace_scoped_eval_list(
     auth_client, user, workspace
 ):
-    active = _create_code_eval_template(
+    _create_code_eval_template(
         user.organization, workspace, name="active-eval-name-picker"
     )
     deleted = _create_code_eval_template(

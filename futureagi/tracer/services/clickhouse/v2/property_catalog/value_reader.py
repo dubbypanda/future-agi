@@ -24,6 +24,8 @@ from tracer.services.clickhouse.v2.attribute_catalog_codec import (
     encode_catalog_scalar,
 )
 from tracer.services.clickhouse.v2.property_catalog.codec import (
+    MAX_DEFINITION_JSON_BYTES,
+    MAX_IDENTITY_COMPONENT_BYTES,
     canonical_json,
     canonical_json_sha256,
 )
@@ -37,6 +39,7 @@ from tracer.services.clickhouse.v2.property_catalog.reader import (
     PropertyCatalogActivation,
     PropertyCatalogUnavailable,
 )
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.property_catalog.value_cursor import (
     PropertyCatalogValueCursor,
     decode_property_catalog_value_cursor,
@@ -52,12 +55,12 @@ from tracer.utils.property_registry import (
 )
 
 PROPERTY_CATALOG_VALUE_ADAPTER = "span_attribute_value"
-PROPERTY_CATALOG_VALUE_MAX_PROJECTS = 64
-PROPERTY_CATALOG_VALUE_MAX_PAGE_SIZE = 50
-PROPERTY_CATALOG_VALUE_MAX_SEARCH_BYTES = 512
-PROPERTY_CATALOG_VALUE_MAX_KEY_BYTES = 4_096
-PROPERTY_CATALOG_VALUE_MAX_JSON_BYTES = 32 * 1024
-PROPERTY_CATALOG_VALUE_QUERY_WALL_MS = 2_000
+PROPERTY_CATALOG_VALUE_MAX_PROJECTS = RUNTIME_LIMITS.max_projects
+PROPERTY_CATALOG_VALUE_MAX_PAGE_SIZE = RUNTIME_LIMITS.max_page_size
+PROPERTY_CATALOG_VALUE_MAX_SEARCH_BYTES = RUNTIME_LIMITS.max_search_bytes
+PROPERTY_CATALOG_VALUE_MAX_KEY_BYTES = MAX_IDENTITY_COMPONENT_BYTES
+PROPERTY_CATALOG_VALUE_MAX_JSON_BYTES = MAX_DEFINITION_JSON_BYTES
+PROPERTY_CATALOG_VALUE_QUERY_WALL_MS = RUNTIME_LIMITS.query_wall_ms
 
 _DATABASE_RE = re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z")
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
@@ -72,15 +75,7 @@ _ATTRIBUTE_TYPE_RANK = {
 _SELECTABLE_ATTRIBUTE_TYPES = frozenset({"string", "number", "boolean", "array"})
 _ALL_ATTRIBUTE_TYPES = frozenset(_ATTRIBUTE_TYPE_RANK)
 
-_READ_SETTINGS = {
-    "max_threads": 2,
-    "max_bytes_to_read": 512 * 1024 * 1024,
-    "read_overflow_mode": "throw",
-    "max_memory_usage": 512 * 1024 * 1024,
-    "max_result_bytes": 8 * 1024 * 1024,
-    "result_overflow_mode": "throw",
-    "timeout_overflow_mode": "throw",
-}
+_READ_SETTINGS = RUNTIME_LIMITS.clickhouse_read_settings
 
 
 class _Result(Protocol):
@@ -781,7 +776,10 @@ class PropertyCatalogValueReader:
             type(page_size) is not int
             or not 1 <= page_size <= PROPERTY_CATALOG_VALUE_MAX_PAGE_SIZE
         ):
-            raise ValueError("page_size must be between 1 and 50")
+            raise ValueError(
+                "page_size must be between 1 and "
+                f"{PROPERTY_CATALOG_VALUE_MAX_PAGE_SIZE}"
+            )
 
         cursor: PropertyCatalogValueCursor | None = None
         if cursor_token:
@@ -864,9 +862,7 @@ class PropertyCatalogValueReader:
         metadata_rows = [row for row in rows if row.get("catalog_metadata_only") == 1]
         if len(metadata_rows) != 1:
             raise PropertyCatalogValueUnavailable("value_conflict_proof_missing")
-        if _strict_uint(
-            metadata_rows[0].get("value_conflicts"), "value_conflicts"
-        ):
+        if _strict_uint(metadata_rows[0].get("value_conflicts"), "value_conflicts"):
             raise PropertyCatalogValueUnavailable("value_conflict")
         rows = [row for row in rows if row.get("catalog_metadata_only") == 0]
         matches: list[PropertyCatalogValue] = []

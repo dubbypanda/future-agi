@@ -78,6 +78,11 @@ import {
   resolveRuleScopeId,
   transformDatasetFilter,
 } from "src/sections/annotations/queues/utils/automation-rule-utils";
+import {
+  PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
+  PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 const activeFilterButtonBg = (theme) => alpha(theme.palette.primary.main, 0.12);
 
@@ -636,7 +641,7 @@ function SimulationRuleFilters({
     category: "eval_metric",
     source: "simulation",
     agentDefinitionId,
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: Boolean(agentDefinitionId),
     allowLegacyNotReadyFallback: true,
     fallbackScopeKey: `simulation-eval-property-catalog:${agentDefinitionId}`,
@@ -655,7 +660,7 @@ function SimulationRuleFilters({
           agent_definition_id: agentDefinitionId,
           exclude_custom_attributes: true,
           page: pageParam,
-          page_size: 200,
+          page_size: PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
         },
         signal,
         timeout: PROPERTY_CATALOG_REQUEST_TIMEOUT_MS,
@@ -671,7 +676,7 @@ function SimulationRuleFilters({
     initialPageParam: 1,
     enabled:
       Boolean(agentDefinitionId) && propertyCatalog.legacyFallbackRequired,
-    staleTime: 5 * 60_000,
+    staleTime: PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
   });
   const useLegacySimulationEvalCatalog = propertyCatalog.legacyFallbackRequired;
   const catalogNotReady = isPropertyCatalogNotReadyError(propertyCatalog.error);

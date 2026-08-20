@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/future-agi/future-agi/fi-collector/pkg/propertycatalog"
 )
@@ -93,6 +94,33 @@ func TestUnifiedConsumerSeedModeIsExplicitAndExclusive(t *testing.T) {
 	}
 }
 
+func TestDeliveryTimeoutSupportsOnlyBoundedEnvironmentOverrides(t *testing.T) {
+	values := validEnvironment()
+	values[envDeliveryWall] = "3s"
+	cfg, err := loadConfig(
+		[]string{"--start-sequence-one-only"},
+		mapLookup(values),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.delivery != 3*time.Second || cfg.write.RequestTimeout != 3*time.Second ||
+		cfg.ledger.RequestTimeout != 3*time.Second {
+		t.Fatalf("delivery config=%+v", cfg)
+	}
+
+	for _, value := range []string{"0s", "11s", "invalid", " 3s"} {
+		values := validEnvironment()
+		values[envDeliveryWall] = value
+		if _, err := loadConfig(
+			[]string{"--start-sequence-one-only"},
+			mapLookup(values),
+		); err == nil || !strings.Contains(err.Error(), envDeliveryWall) {
+			t.Fatalf("delivery timeout %q error=%v", value, err)
+		}
+	}
+}
+
 func TestLedgerModeRequiresSameDestinationAndDistinctReadIdentity(t *testing.T) {
 	for _, name := range []string{envLedgerURL, envLedgerDatabase, envLedgerUsername, envLedgerPassword} {
 		t.Run("missing "+name, func(t *testing.T) {
@@ -125,7 +153,7 @@ func TestKnownEmptyModeProvesEmptyLedgerBeforeKafka(t *testing.T) {
 	consumerCalls := 0
 	deps := dependencies{
 		newSink: func(cfg propertycatalog.ClickHouseSinkConfig) (propertycatalog.DeliverySink, error) {
-			if cfg.Username != "property-writer" || cfg.RequestTimeout != deliveryTimeout {
+			if cfg.Username != "property-writer" || cfg.RequestTimeout != defaultDeliveryTimeout {
 				t.Fatalf("write config=%+v", cfg)
 			}
 			return &fakeSink{}, nil

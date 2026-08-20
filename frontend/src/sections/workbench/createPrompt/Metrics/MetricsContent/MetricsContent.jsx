@@ -21,7 +21,7 @@ import CustomTraceGroupHeaderRenderer from "src/sections/projects/LLMTracing/Ren
 import MetricEmptyState from "../MetricEmptyState";
 import { getZeroBasedGridPage } from "src/utils/agGridPagination";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readPromptMetricsGridPage } from "../promptMetricsGridRead";
+import { readPromptMetricsGridPage } from "../prompt_metrics_grid_read";
 
 const LoadingHeader = () => {
   return <Skeleton variant="text" width={100} height={20} />;

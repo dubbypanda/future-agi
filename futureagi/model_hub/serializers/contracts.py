@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from rest_framework import serializers
 
 from model_hub.constants import MAX_EMPTY_DATASET_ROWS
@@ -22,6 +23,11 @@ from tracer.serializers.filters import (
     json_object_query_param_field,
     parse_filter_list_payload,
 )
+
+_EVAL_LOG_DEFAULT_PAGE_SIZE = settings.EVAL_LOG_DEFAULT_PAGE_SIZE
+_EVAL_LOG_MAX_PAGE_SIZE = settings.INTERACTIVE_READ_DEFAULT_MAX_PAGE_SIZE
+_EVAL_METRIC_MAX_WINDOW_DAYS = settings.EVAL_METRIC_MAX_WINDOW_DAYS
+_ANALYTICS_DEFAULT_LOOKBACK_DAYS = settings.ANALYTICS_DEFAULT_LOOKBACK_DAYS
 
 
 class ModelHubEmptyRequestSerializer(StrictInputSerializer):
@@ -1685,9 +1691,9 @@ class ExperimentDatasetTableQuerySerializer(StrictInputSerializer):
 
     page_size = serializers.IntegerField(
         required=False,
-        default=10,
+        default=_EVAL_LOG_DEFAULT_PAGE_SIZE,
         min_value=1,
-        max_value=100,
+        max_value=_EVAL_LOG_MAX_PAGE_SIZE,
     )
     current_page_index = serializers.IntegerField(
         required=False,
@@ -1737,8 +1743,9 @@ class EvalMetricQuerySerializer(StrictInputSerializer):
         required=False,
         default=list,
         help_text=(
-            "Optional created_at datetime filters. The default window is 30 days; "
-            "the maximum supported window is 365 days."
+            "Optional created_at datetime filters. The default window is "
+            f"{_ANALYTICS_DEFAULT_LOOKBACK_DAYS} days; "
+            f"the maximum supported window is {_EVAL_METRIC_MAX_WINDOW_DAYS} days."
         ),
     )
 
@@ -2166,7 +2173,10 @@ class EvalApiLogTableMetadataSerializer(serializers.Serializer):
     total_rows = serializers.IntegerField()
     total_pages = serializers.IntegerField()
     current_page_index = serializers.IntegerField(min_value=0)
-    page_size = serializers.IntegerField(min_value=1, max_value=100)
+    page_size = serializers.IntegerField(
+        min_value=1,
+        max_value=_EVAL_LOG_MAX_PAGE_SIZE,
+    )
     query_complete = serializers.BooleanField()
     query_status = serializers.ChoiceField(choices=["complete"])
     query_sampled = serializers.BooleanField()
@@ -2197,14 +2207,20 @@ class EvalMetricMetadataSerializer(serializers.Serializer):
     window_start = serializers.DateTimeField()
     window_end = serializers.DateTimeField()
     interval = serializers.ChoiceField(choices=["day"])
-    bucket_count = serializers.IntegerField(min_value=0, max_value=366)
+    bucket_count = serializers.IntegerField(
+        min_value=0,
+        max_value=_EVAL_METRIC_MAX_WINDOW_DAYS + 1,
+    )
     valid_output_count = serializers.IntegerField(min_value=0)
     invalid_output_count = serializers.IntegerField(min_value=0)
     output_type = serializers.CharField()
     query_complete = serializers.BooleanField()
     query_sampled = serializers.BooleanField()
     has_more = serializers.BooleanField()
-    max_window_days = serializers.IntegerField(min_value=1, max_value=365)
+    max_window_days = serializers.IntegerField(
+        min_value=1,
+        max_value=_EVAL_METRIC_MAX_WINDOW_DAYS,
+    )
 
 
 class EvalMetricResponseResultSerializer(serializers.Serializer):
@@ -2985,8 +3001,9 @@ class EvalMetricRequestSerializer(StrictInputSerializer):
         required=False,
         default=list,
         help_text=(
-            "Optional created_at datetime filters. The default window is 30 days; "
-            "the maximum supported window is 365 days."
+            "Optional created_at datetime filters. The default window is "
+            f"{_ANALYTICS_DEFAULT_LOOKBACK_DAYS} days; "
+            f"the maximum supported window is {_EVAL_METRIC_MAX_WINDOW_DAYS} days."
         ),
     )
 

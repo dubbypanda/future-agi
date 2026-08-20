@@ -79,10 +79,13 @@ func NewClickHouseSink(cfg ClickHouseSinkConfig) (*ClickHouseSink, error) {
 		return nil, errors.New("propertycatalog: dedicated ClickHouse username is required")
 	}
 	if cfg.RequestTimeout == 0 {
-		cfg.RequestTimeout = 10 * time.Second
+		cfg.RequestTimeout = DefaultDeliveryTransportTimeout
 	}
-	if cfg.RequestTimeout < 0 || cfg.RequestTimeout > 10*time.Second {
-		return nil, errors.New("propertycatalog: ClickHouse request timeout must be in (0,10s]")
+	if cfg.RequestTimeout < 0 || cfg.RequestTimeout > MaxDeliveryTimeout {
+		return nil, fmt.Errorf(
+			"propertycatalog: ClickHouse request timeout must be in (0,%s]",
+			MaxDeliveryTimeout,
+		)
 	}
 	transport := cfg.RoundTripper
 	if transport == nil {

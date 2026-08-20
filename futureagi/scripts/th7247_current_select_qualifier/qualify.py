@@ -4185,39 +4185,38 @@ def _select_dataset_representative(
     from django.db import connection
 
     with connection.cursor() as cursor:
-        cursor.execute("SELECT to_regclass('public.model_hub_dataset_table_revision')")
-        if cursor.fetchone()[0] is None:
-            raise PopulationGap("dataset revision ledger is not installed")
         cursor.execute(
             """
-            SELECT ledger.dataset_id::text,
-                   ledger.active_rows,
+            SELECT dataset.id::text,
+                   COUNT(dataset_row.id) FILTER (WHERE NOT dataset_row.deleted),
                    representative_column.id::text
-            FROM model_hub_dataset_table_revision AS ledger
-            INNER JOIN model_hub_dataset AS dataset ON dataset.id = ledger.dataset_id
+            FROM model_hub_dataset AS dataset
             INNER JOIN LATERAL (
                 SELECT dataset_column.id
                 FROM model_hub_column AS dataset_column
-                WHERE dataset_column.dataset_id = ledger.dataset_id
+                WHERE dataset_column.dataset_id = dataset.id
                   AND NOT dataset_column.deleted
                 ORDER BY dataset_column.id
                 LIMIT 1
             ) AS representative_column ON TRUE
-            WHERE ledger.is_ready
-              AND NOT dataset.deleted
+            LEFT JOIN model_hub_row AS dataset_row
+              ON dataset_row.dataset_id = dataset.id
+            WHERE NOT dataset.deleted
               AND dataset.organization_id = %s
               AND dataset.workspace_id = %s
-            ORDER BY (ledger.active_rows >= 100) DESC, ledger.active_rows DESC,
-                     ledger.dataset_id
+            GROUP BY dataset.id, representative_column.id
+            ORDER BY
+              (COUNT(dataset_row.id) FILTER (WHERE NOT dataset_row.deleted) >= 100)
+                DESC,
+              COUNT(dataset_row.id) FILTER (WHERE NOT dataset_row.deleted) DESC,
+              dataset.id
             LIMIT 1
             """,
             [str(client.project.organization_id), str(client.principal.workspace.id)],
         )
         row = cursor.fetchone()
     if row is None:
-        raise PopulationGap(
-            "no ready exact dataset with a catalogued column was authorized"
-        )
+        raise PopulationGap("no exact dataset with a catalogued column was authorized")
     dataset_id, raw_active_rows, column_id = row
     try:
         canonical_dataset_id = str(UUID(str(dataset_id)))
@@ -5094,7 +5093,6 @@ def _run() -> dict[str, Any]:
         ),
         "SPAN_ATTRIBUTE_CATALOG_READ_MODE": "off",
         "SPAN_ATTRIBUTE_CATALOG_DEV_SNAPSHOT_ENABLED": "false",
-        "ANNOTATION_SCORE_VALUE_PROJECTION_READ_ENABLED": "false",
         "PYTHONDONTWRITEBYTECODE": "1",
     }
     drift = {

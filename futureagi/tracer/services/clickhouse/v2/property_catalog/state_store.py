@@ -37,6 +37,11 @@ from .models import (
 )
 from .mutation_lock import CatalogMutationSerializer
 from .projection import PostgresSnapshotContext, resolve_binding_history
+from .proof_limits import (
+    MAX_DELIVERIES_PER_REVISION,
+    MAX_DELIVERY_REPLAYS,
+    MAX_LOGICAL_STATE_VARIANTS,
+)
 from .publisher import (
     PROPERTY_CATALOG_TABLES,
     SharedCatalogDeadline,
@@ -44,6 +49,7 @@ from .publisher import (
 )
 from .qualification import CatalogCheckpoint, CheckpointStatus, RevisionRequirement
 from .reconciler import CheckpointWrite, CurrentBindingReader
+from .runtime_limits import RUNTIME_LIMITS
 from .wire import ZERO_SHA256
 
 _CHECKPOINT_TABLE = "property_catalog_checkpoints"
@@ -52,10 +58,10 @@ _DEFINITION_TABLE = "property_definition_catalog"
 _DELIVERY_TABLE = "property_catalog_deliveries"
 _SOURCE_STREAM_TABLE = "property_catalog_source_streams"
 _CONTROL_WRITE_TABLES = frozenset({_CHECKPOINT_TABLE, _ACTIVATION_TABLE})
-_MAX_ACTIVE_LINEAGE_REVISIONS = 2_048
-_MAX_STATE_VARIANTS = 32
-_MAX_DELIVERIES = 100_000
-_MAX_DELIVERY_REPLAYS = 8
+_MAX_ACTIVE_LINEAGE_REVISIONS = RUNTIME_LIMITS.max_lineage_revisions
+_MAX_STATE_VARIANTS = MAX_LOGICAL_STATE_VARIANTS
+_MAX_DELIVERIES = MAX_DELIVERIES_PER_REVISION
+_MAX_DELIVERY_REPLAYS = MAX_DELIVERY_REPLAYS
 
 _CHECKPOINT_COLUMNS = (
     "organization_id",
@@ -275,13 +281,21 @@ class ClickHouseCatalogStateStore(ActivationStore):
         database: str,
         serializer: CatalogMutationSerializer,
         deadline: SharedCatalogDeadline | None = None,
-        timeout_ms: int = 8_500,
+        timeout_ms: int | None = None,
     ) -> None:
         _validate_client(client, database)
         if not callable(getattr(serializer, "serialize", None)):
             raise TypeError("state store requires a mutation serializer")
-        if type(timeout_ms) is not int or not 1 <= timeout_ms <= 8_500:
-            raise ValueError("state-store timeout_ms must be in [1, 8500]")
+        if timeout_ms is None:
+            timeout_ms = RUNTIME_LIMITS.state_store_timeout_ms
+        if (
+            type(timeout_ms) is not int
+            or not 1 <= timeout_ms <= RUNTIME_LIMITS.state_store_timeout_ms
+        ):
+            raise ValueError(
+                "state-store timeout_ms must be in [1, "
+                f"{RUNTIME_LIMITS.state_store_timeout_ms}]"
+            )
         self._client = client
         self._database = database
         self._serializer = serializer
@@ -501,7 +515,10 @@ class ClickHouseCatalogStateStore(ActivationStore):
     def load_checkpoints(
         self, requirement: RevisionRequirement
     ) -> Sequence[CatalogCheckpoint]:
-        row_cap = max(256, len(requirement.streams) * _MAX_STATE_VARIANTS)
+        row_cap = max(
+            RUNTIME_LIMITS.state_store_min_row_cap,
+            len(requirement.streams) * _MAX_STATE_VARIANTS,
+        )
         rows = self._query(
             f"SELECT {', '.join(_CHECKPOINT_COLUMNS)} FROM ("
             f"SELECT {', '.join(_CHECKPOINT_COLUMNS)}, "
@@ -1036,16 +1053,34 @@ class ClickHouseCurrentBindingReader(CurrentBindingReader):
         *,
         database: str,
         deadline: SharedCatalogDeadline | None = None,
-        timeout_ms: int = 8_500,
-        max_rows: int = 100_000,
+        timeout_ms: int | None = None,
+        max_rows: int | None = None,
     ) -> None:
         _validate_client(client, database)
-        if type(max_rows) is not int or not 1 <= max_rows <= 1_000_000:
-            raise ValueError("current-binding max_rows must be in [1, 1000000]")
+        if timeout_ms is None:
+            timeout_ms = RUNTIME_LIMITS.state_store_timeout_ms
+        if max_rows is None:
+            max_rows = RUNTIME_LIMITS.current_binding_max_rows
+        if (
+            type(timeout_ms) is not int
+            or not 1 <= timeout_ms <= RUNTIME_LIMITS.state_store_timeout_ms
+        ):
+            raise ValueError(
+                "current-binding timeout_ms must be in [1, "
+                f"{RUNTIME_LIMITS.state_store_timeout_ms}]"
+            )
+        if (
+            type(max_rows) is not int
+            or not 1 <= max_rows <= RUNTIME_LIMITS.current_binding_max_rows
+        ):
+            raise ValueError(
+                "current-binding max_rows must be in [1, "
+                f"{RUNTIME_LIMITS.current_binding_max_rows}]"
+            )
         self._client = client
         self._database = database
         self._deadline = deadline
-        self._timeout_ms = min(max(timeout_ms, 1), 8_500)
+        self._timeout_ms = timeout_ms
         self._max_rows = max_rows
 
     def read_current(

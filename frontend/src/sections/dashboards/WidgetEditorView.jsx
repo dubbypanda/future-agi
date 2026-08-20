@@ -81,6 +81,11 @@ import {
   normalizeColumnType,
   normalizeFilterType,
 } from "src/api/contracts/filter-contract";
+import {
+  FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+  PROPERTY_CATALOG_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 import {
   DEFAULT_DECIMALS,
@@ -123,8 +128,9 @@ import {
   shouldBlockWidgetPreviewForFailure,
   WIDGET_PREVIEW_MAX_WAIT_MS,
 } from "./widgetEditorState";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 
-const WIDGET_PREVIEW_REQUEST_TIMEOUT_MS = 9_000;
+const WIDGET_PREVIEW_REQUEST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const escapeCsvField = (field) => {
   const str = String(field ?? "");
@@ -391,7 +397,7 @@ export function getWidgetMetricCatalogRequest({
     // "302 results" while rendering none and offer an effectively endless
     // Load more cursor through rows the picker intentionally hides.
     role: pickerMode === "metric" ? "metric" : "",
-    pageSize: 20,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     // Only the legacy fallback reads this flag. The activated catalog always
     // includes custom attributes; the fallback must never rescan the large
     // source attribute maps while the catalog is unavailable.
@@ -1493,7 +1499,7 @@ export function FilterValuePickerPopup({
   // Backend search (custom attributes) reaches values outside the fetched
   // page and the default lookback; the client-side filter below stays as the
   // instant layer on top of whatever is already loaded.
-  const debouncedSearch = useDebounce(search, 500);
+  const debouncedSearch = useDebounce(search, FILTER_VALUE_SEARCH_DEBOUNCE_MS);
   const {
     options,
     isLoading,
@@ -2037,7 +2043,7 @@ export default function WidgetEditorView() {
     search: pickerSearch,
     preservedKeys: preservedDashboardAttributeKeys,
     enabled: cursorAttributePickerActive,
-    pageSize: 50,
+    pageSize: PROPERTY_CATALOG_PAGE_SIZE,
     cacheScopeKey: `widget-picker:${pickerCatalogSession}`,
   });
 

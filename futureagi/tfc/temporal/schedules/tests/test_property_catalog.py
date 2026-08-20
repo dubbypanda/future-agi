@@ -74,23 +74,25 @@ def test_property_catalog_schedule_is_default_off() -> None:
 
 
 def test_property_catalog_task_queue_accepts_only_workspace_isolation() -> None:
-    workspace_queue = (
-        "property_catalog_dev_sidecar_22222222222242228222222222222222"
-    )
+    workspace_queue = "property_catalog_dev_sidecar_22222222222242228222222222222222"
 
     assert configured_property_catalog_task_queue("") == (
         DEFAULT_PROPERTY_CATALOG_TASK_QUEUE
     )
-    assert configured_property_catalog_task_queue(
-        DEFAULT_PROPERTY_CATALOG_TASK_QUEUE
-    ) == DEFAULT_PROPERTY_CATALOG_TASK_QUEUE
+    assert (
+        configured_property_catalog_task_queue(DEFAULT_PROPERTY_CATALOG_TASK_QUEUE)
+        == DEFAULT_PROPERTY_CATALOG_TASK_QUEUE
+    )
     assert configured_property_catalog_task_queue(workspace_queue) == workspace_queue
     assert workspace_property_catalog_task_queue(WORKSPACE_A) == workspace_queue
-    assert configured_property_catalog_task_queue(
-        None,
-        reconcile_enabled=True,
-        workspace_allowlist=(WORKSPACE_A,),
-    ) == workspace_queue
+    assert (
+        configured_property_catalog_task_queue(
+            None,
+            reconcile_enabled=True,
+            workspace_allowlist=(WORKSPACE_A,),
+        )
+        == workspace_queue
+    )
     with pytest.raises(ValueError, match="does not match"):
         configured_property_catalog_task_queue(
             "property_catalog_dev_sidecar_33333333333343338333333333333333",
@@ -139,7 +141,7 @@ def test_enabled_schedule_is_bounded_and_skips_overlap() -> None:
                     WORKSPACE_B,
                 )
             },
-            "exactly one",
+            "workspace allowlist",
         ),
         ({"PROPERTY_CATALOG_DEV_MAX_WALL_MS": 100_001}, "wall"),
         (

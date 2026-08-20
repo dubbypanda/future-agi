@@ -32,8 +32,6 @@ OPERATOR_STARTUP_MUTATION_COMMANDS = frozenset(
         "ch25_apply_schema",
         "ch25_property_catalog_dev_rollout",
         "ch25_remove_pg",
-        "backfill_annotation_score_values",
-        "backfill_dataset_table_revision_ledgers",
         "backfill_score_tracer_project",
         "createcachetable",
         "drop_legacy_observation_span",

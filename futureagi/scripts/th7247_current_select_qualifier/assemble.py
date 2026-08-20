@@ -400,8 +400,6 @@ spec:
               value: \"\"
             - name: SPAN_ATTRIBUTE_CATALOG_CH_DATABASE
               value: \"\"
-            - name: ANNOTATION_SCORE_VALUE_PROJECTION_READ_ENABLED
-              value: \"false\"
             - name: PYTHONDONTWRITEBYTECODE
               value: \"1\"
           resources:

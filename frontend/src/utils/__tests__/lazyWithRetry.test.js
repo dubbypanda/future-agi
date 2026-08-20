@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { retryImport, isChunkError } from "../lazyWithRetry.js";
+import { CHUNK_IMPORT_TIMEOUT_MS } from "src/config/runtime_limits";
 
 const RELOAD_KEY = "chunk_reload_attempted";
 
@@ -62,7 +63,7 @@ describe("retryImport — resolved-to-undefined / missing-default recovery", () 
     vi.useFakeTimers();
     retryImport(() => new Promise(() => {}), 3);
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(CHUNK_IMPORT_TIMEOUT_MS);
 
     expect(reloadMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse(store[RELOAD_KEY])).toEqual(
@@ -75,9 +76,9 @@ describe("retryImport — resolved-to-undefined / missing-default recovery", () 
     vi.useFakeTimers();
     const rejection = expect(
       retryImport(() => new Promise(() => {}), 3),
-    ).rejects.toThrow(/timed out after 10000ms/);
+    ).rejects.toThrow(`timed out after ${CHUNK_IMPORT_TIMEOUT_MS}ms`);
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(CHUNK_IMPORT_TIMEOUT_MS);
     await rejection;
 
     expect(reloadMock).not.toHaveBeenCalled();

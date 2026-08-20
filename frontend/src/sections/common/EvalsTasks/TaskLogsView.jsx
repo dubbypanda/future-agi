@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { format, formatDistanceToNow, differenceInSeconds } from "date-fns";
 import { enrichErrorGroups } from "./classifyTaskError";
-import { readEvalTaskLogs } from "./taskLogRead";
+import { readEvalTaskLogs } from "./task_log_read";
 
 // ── Stat Card ──
 

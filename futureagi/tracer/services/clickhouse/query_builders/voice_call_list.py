@@ -20,29 +20,16 @@ the existing ``ObservabilityService.process_raw_logs()``.
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from django.conf import settings
+
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
 from tracer.services.clickhouse.query_builders.trace_list import TraceListQueryBuilder
+from tracer.services.simulator_phones import SIMULATOR_PHONE_NUMBERS
 
-# Hardcoded simulator phone numbers (must match FilterEngine)
-VAPI_PHONE_NUMBERS = [
-    "+18568806998",
-    "+17755715840",
-    "+13463424590",
-    "+12175683677",
-    "+12175696753",
-    "+12175683493",
-    "+12175681887",
-    "+12176018447",
-    "+12176018280",
-    "+12175696862",
-    "+19168660414",
-    "+19163473349",
-    "+18563161617",
-    "+13463619738",
-    "+19847339395",
-]
+# Backward-compatible public name used by existing callers and tests.
+VAPI_PHONE_NUMBERS = SIMULATOR_PHONE_NUMBERS
 
 
 def _unix_microseconds(value: datetime) -> int:
@@ -105,7 +92,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         self,
         project_id: str,
         page_number: int = 0,
-        page_size: int = 10,
+        page_size: int = settings.VOICE_LIST_DEFAULT_PAGE_SIZE,
         filters: list[dict] | None = None,
         eval_config_ids: list[str] | None = None,
         remove_simulation_calls: bool = False,
@@ -353,12 +340,19 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         """
 
         delegate = self._bounded_delegate()
-        classify_batch_size = int(self.recommended_filter_classify_batch_size() or 50)
+        classify_batch_size = int(
+            self.recommended_filter_classify_batch_size()
+            or settings.VOICE_FILTER_CLASSIFY_FALLBACK_BATCH_SIZE
+        )
         expensive_classifier = bool(
             delegate._custom_span_attribute_filter_count()
             or delegate._unindexed_positive_micro_seed_plan() is not None
         )
-        classifier_chunks = 4 if expensive_classifier else 8
+        classifier_chunks = (
+            settings.VOICE_FILTER_EXPENSIVE_CLASSIFIER_CHUNKS
+            if expensive_classifier
+            else settings.VOICE_FILTER_LIGHT_CLASSIFIER_CHUNKS
+        )
         requested = max(
             self.page_size + 1,
             classify_batch_size * classifier_chunks,
@@ -369,7 +363,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         """Share the public endpoint's 9.5-second wall across required reads."""
 
         if not self._bounded_internal_scan and not self._bounded_identity_only:
-            return 9_500
+            return settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
         return None
 
     def recommended_filter_classify_batch_size(self) -> int | None:
@@ -557,7 +551,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         return bool(
             not self._bounded_internal_scan
             and not self._bounded_identity_only
-            and self.page_size <= 512
+            and self.page_size <= settings.VOICE_FILTER_PUBLIC_MAX_PAGE_SIZE
         )
 
     def fill_bounded_cursor_page_across_slices(self) -> bool:
@@ -575,7 +569,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
             not self._bounded_internal_scan
             and not self._bounded_identity_only
             and self._bounded_sampling_rate is None
-            and self.page_size <= 512
+            and self.page_size <= settings.VOICE_FILTER_PUBLIC_MAX_PAGE_SIZE
         )
 
     @staticmethod
@@ -929,7 +923,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         )
         if root_identities is not None and len(identities) != len(root_identities):
             raise ValueError("voice root identities are incomplete")
-        if len(identities) > 200:
+        if len(identities) > settings.VOICE_CONTENT_MAX_BATCH_SIZE:
             raise ValueError("voice content batch exceeds bounded limit")
 
         params = {**self.params, "content_span_ids": tuple(dict.fromkeys(span_ids))}
@@ -1004,7 +998,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         ) AS latest_voice_content
         WHERE latest_is_deleted = 0
         ORDER BY grouped_start_time DESC, grouped_id DESC
-        LIMIT 200
+        LIMIT {settings.VOICE_CONTENT_MAX_BATCH_SIZE}
         """
         return query, params
 

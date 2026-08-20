@@ -22,11 +22,41 @@ const (
 	// DevelopmentAcknowledgement is deliberately long and version-specific so
 	// copying only FI_PROPERTY_CATALOG_MODE cannot activate the writer.
 	DevelopmentAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY"
+
+	defaultReplayInterval               = time.Second
+	defaultShutdownTimeout              = 10 * time.Second
+	defaultQueueDepth                   = 64
+	defaultMaxSpansPerBatch             = 20_000
+	defaultMaxKeysPerSpan               = 128
+	defaultMaxArrayMembersPerSpan       = 256
+	defaultMaxEncodedBytesPerSpan       = 64 << 10
+	defaultMaxChunkRows                 = 2_000
+	defaultMaxChunkBytes                = 256 << 10
+	defaultMaxSpoolFiles                = 10_000
+	defaultMaxSpoolBytes          int64 = 512 << 20
+
+	maxReplayInterval             = 30 * time.Second
+	maxShutdownTimeout            = 2 * time.Minute
+	maxRuntimeQueueDepth          = 1_024
+	maxRuntimeSpansPerBatch       = 100_000
+	maxRuntimeKeysPerSpan         = 4_096
+	maxRuntimeArrayMembers        = 16_384
+	maxRuntimeSpoolFiles          = 1_000_000
+	maxRuntimeSpoolBytes    int64 = 1 << 40
+	maxWorkspaceAllowlist         = 256
+
+	// MaxKafkaBrokers is the reviewed producer/consumer broker-list bound.
+	MaxKafkaBrokers = 16
+	// MaxKafkaIdentityBytes bounds brokers, group IDs, and client IDs.
+	MaxKafkaIdentityBytes = 255
+	// MaxKafkaTopicBytes is Kafka's protocol topic-name ceiling.
+	MaxKafkaTopicBytes = 249
 )
 
 type KafkaRuntimeConfig struct {
-	Brokers []string `yaml:"brokers"`
-	Topic   string   `yaml:"topic"`
+	Brokers         []string      `yaml:"brokers"`
+	Topic           string        `yaml:"topic"`
+	DeliveryTimeout time.Duration `yaml:"delivery_timeout"`
 }
 
 // RuntimeConfig owns only collector-side hot attribute production. It has no
@@ -42,6 +72,7 @@ type RuntimeConfig struct {
 	RevisionFenceFile          string             `yaml:"revision_fence_file"`
 	SpoolDirectory             string             `yaml:"spool_directory"`
 	ReplayInterval             time.Duration      `yaml:"replay_interval"`
+	ShutdownTimeout            time.Duration      `yaml:"shutdown_timeout"`
 	QueueDepth                 int                `yaml:"queue_depth"`
 	MaxSpansPerBatch           int                `yaml:"max_spans_per_batch"`
 	MaxKeysPerSpan             int                `yaml:"max_keys_per_span"`
@@ -63,34 +94,40 @@ func (c RuntimeConfig) normalizedMode() RuntimeMode {
 
 func (c RuntimeConfig) WithDefaults() RuntimeConfig {
 	if c.ReplayInterval == 0 {
-		c.ReplayInterval = time.Second
+		c.ReplayInterval = defaultReplayInterval
+	}
+	if c.ShutdownTimeout == 0 {
+		c.ShutdownTimeout = defaultShutdownTimeout
 	}
 	if c.QueueDepth == 0 {
-		c.QueueDepth = 64
+		c.QueueDepth = defaultQueueDepth
 	}
 	if c.MaxSpansPerBatch == 0 {
-		c.MaxSpansPerBatch = 20_000
+		c.MaxSpansPerBatch = defaultMaxSpansPerBatch
 	}
 	if c.MaxKeysPerSpan == 0 {
-		c.MaxKeysPerSpan = 128
+		c.MaxKeysPerSpan = defaultMaxKeysPerSpan
 	}
 	if c.MaxArrayMembersPerSpan == 0 {
-		c.MaxArrayMembersPerSpan = 256
+		c.MaxArrayMembersPerSpan = defaultMaxArrayMembersPerSpan
 	}
 	if c.MaxEncodedBytesPerSpan == 0 {
-		c.MaxEncodedBytesPerSpan = 64 << 10
+		c.MaxEncodedBytesPerSpan = defaultMaxEncodedBytesPerSpan
 	}
 	if c.MaxChunkRows == 0 {
-		c.MaxChunkRows = 2_000
+		c.MaxChunkRows = defaultMaxChunkRows
 	}
 	if c.MaxChunkBytes == 0 {
-		c.MaxChunkBytes = 256 << 10
+		c.MaxChunkBytes = defaultMaxChunkBytes
 	}
 	if c.MaxSpoolFiles == 0 {
-		c.MaxSpoolFiles = 10_000
+		c.MaxSpoolFiles = defaultMaxSpoolFiles
 	}
 	if c.MaxSpoolBytes == 0 {
-		c.MaxSpoolBytes = 512 << 20
+		c.MaxSpoolBytes = defaultMaxSpoolBytes
+	}
+	if c.Kafka.DeliveryTimeout == 0 {
+		c.Kafka.DeliveryTimeout = DefaultDeliveryTransportTimeout
 	}
 	return c
 }
@@ -122,11 +159,23 @@ func (c RuntimeConfig) Validate() error {
 		filepath.Clean(c.RevisionFenceFile) == filepath.Clean(c.SpoolDirectory) {
 		return errors.New("propertycatalog: enabled runtime requires an absolute revision fence file")
 	}
-	if c.ReplayInterval <= 0 || c.ReplayInterval > 30*time.Second {
-		return errors.New("propertycatalog: replay interval must be in (0,30s]")
+	if c.ReplayInterval <= 0 || c.ReplayInterval > maxReplayInterval {
+		return fmt.Errorf(
+			"propertycatalog: replay interval must be in (0,%s]",
+			maxReplayInterval,
+		)
 	}
-	if len(c.WorkspaceAllowlist) == 0 || len(c.WorkspaceAllowlist) > 256 {
-		return errors.New("propertycatalog: enabled runtime requires 1..256 allowlisted workspaces")
+	if c.ShutdownTimeout <= 0 || c.ShutdownTimeout > maxShutdownTimeout {
+		return fmt.Errorf(
+			"propertycatalog: shutdown timeout must be in (0,%s]",
+			maxShutdownTimeout,
+		)
+	}
+	if len(c.WorkspaceAllowlist) == 0 || len(c.WorkspaceAllowlist) > maxWorkspaceAllowlist {
+		return fmt.Errorf(
+			"propertycatalog: enabled runtime requires 1..%d allowlisted workspaces",
+			maxWorkspaceAllowlist,
+		)
 	}
 	if !slices.IsSorted(c.WorkspaceAllowlist) {
 		return errors.New("propertycatalog: workspace allowlist must be sorted")
@@ -139,21 +188,31 @@ func (c RuntimeConfig) Validate() error {
 			return errors.New("propertycatalog: workspace allowlist contains a duplicate")
 		}
 	}
-	if c.QueueDepth < 1 || c.QueueDepth > 1_024 ||
-		c.MaxSpansPerBatch < 1 || c.MaxSpansPerBatch > 100_000 ||
-		c.MaxKeysPerSpan < 1 || c.MaxKeysPerSpan > 4_096 ||
-		c.MaxArrayMembersPerSpan < 1 || c.MaxArrayMembersPerSpan > 16_384 ||
+	if c.QueueDepth < 1 || c.QueueDepth > maxRuntimeQueueDepth ||
+		c.MaxSpansPerBatch < 1 || c.MaxSpansPerBatch > maxRuntimeSpansPerBatch ||
+		c.MaxKeysPerSpan < 1 || c.MaxKeysPerSpan > maxRuntimeKeysPerSpan ||
+		c.MaxArrayMembersPerSpan < 1 || c.MaxArrayMembersPerSpan > maxRuntimeArrayMembers ||
 		c.MaxEncodedBytesPerSpan < 1 || c.MaxEncodedBytesPerSpan > MaxChunkBytes ||
 		c.MaxChunkRows < 1 || c.MaxChunkRows > MaxRowsPerChunk ||
 		c.MaxChunkBytes < 1 || c.MaxChunkBytes > MaxChunkBytes ||
-		c.MaxSpoolFiles < 1 || c.MaxSpoolFiles > 1_000_000 || c.MaxSpoolBytes < 1 {
+		c.MaxSpoolFiles < 1 || c.MaxSpoolFiles > maxRuntimeSpoolFiles ||
+		c.MaxSpoolBytes < 1 || c.MaxSpoolBytes > maxRuntimeSpoolBytes {
 		return errors.New("propertycatalog: runtime queue/build/chunk/spool bounds are outside hard limits")
 	}
-	if len(c.Kafka.Brokers) == 0 || len(c.Kafka.Brokers) > 16 {
-		return errors.New("propertycatalog: Kafka runtime requires 1..16 brokers")
+	if c.Kafka.DeliveryTimeout <= 0 || c.Kafka.DeliveryTimeout > MaxDeliveryTimeout {
+		return fmt.Errorf(
+			"propertycatalog: Kafka delivery timeout must be in (0,%s]",
+			MaxDeliveryTimeout,
+		)
+	}
+	if len(c.Kafka.Brokers) == 0 || len(c.Kafka.Brokers) > MaxKafkaBrokers {
+		return fmt.Errorf(
+			"propertycatalog: Kafka runtime requires 1..%d brokers",
+			MaxKafkaBrokers,
+		)
 	}
 	for _, broker := range c.Kafka.Brokers {
-		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > 255 {
+		if broker == "" || strings.TrimSpace(broker) != broker || len(broker) > MaxKafkaIdentityBytes {
 			return errors.New("propertycatalog: Kafka broker is empty, padded, or too long")
 		}
 	}

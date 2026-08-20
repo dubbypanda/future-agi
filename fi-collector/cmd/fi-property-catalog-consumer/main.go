@@ -39,9 +39,10 @@ const (
 	envKafkaBrokers = "FI_PROPERTY_CATALOG_KAFKA_BROKERS"
 	envKafkaTopic   = "FI_PROPERTY_CATALOG_KAFKA_TOPIC"
 	envKafkaGroup   = "FI_PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP"
+	envDeliveryWall = "FI_PROPERTY_CATALOG_DELIVERY_TIMEOUT"
 
-	consumerModeKafka = "kafka"
-	deliveryTimeout   = 10 * time.Second
+	consumerModeKafka      = "kafka"
+	defaultDeliveryTimeout = propertycatalog.DefaultDeliveryTransportTimeout
 )
 
 type lookupEnvFunc func(string) (string, bool)
@@ -198,8 +199,19 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 	if value, _ := lookup(envDevAck); value != propertycatalog.DevelopmentAcknowledgement {
 		return commandConfig{}, fmt.Errorf("%s does not contain the exact development-only acknowledgement", envDevAck)
 	}
+	deliveryTimeout, err := boundedDeliveryTimeout(lookup)
+	if err != nil {
+		return commandConfig{}, err
+	}
 
-	write, err := clickHouseConfig(lookup, envClickHouseURL, envClickHouseDatabase, envClickHouseUsername, envClickHousePassword)
+	write, err := clickHouseConfig(
+		lookup,
+		envClickHouseURL,
+		envClickHouseDatabase,
+		envClickHouseUsername,
+		envClickHousePassword,
+		deliveryTimeout,
+	)
 	if err != nil {
 		return commandConfig{}, err
 	}
@@ -221,7 +233,12 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 	}
 
 	ledgerConfig, err := clickHouseConfig(
-		lookup, envLedgerURL, envLedgerDatabase, envLedgerUsername, envLedgerPassword,
+		lookup,
+		envLedgerURL,
+		envLedgerDatabase,
+		envLedgerUsername,
+		envLedgerPassword,
+		deliveryTimeout,
 	)
 	if err != nil {
 		return commandConfig{}, err
@@ -249,6 +266,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 func clickHouseConfig(
 	lookup lookupEnvFunc,
 	urlName, databaseName, usernameName, passwordName string,
+	requestTimeout time.Duration,
 ) (propertycatalog.ClickHouseSinkConfig, error) {
 	urlValue, err := requireEnv(lookup, urlName, false)
 	if err != nil {
@@ -268,7 +286,7 @@ func clickHouseConfig(
 	}
 	cfg := propertycatalog.ClickHouseSinkConfig{
 		URL: urlValue, Database: database, Username: username, Password: password,
-		RequestTimeout: deliveryTimeout,
+		RequestTimeout: requestTimeout,
 	}
 	// Constructor validation is local-only and makes the isolated DEV database
 	// prefix part of configuration parsing, before a ledger read or Kafka client.
@@ -276,6 +294,25 @@ func clickHouseConfig(
 		return propertycatalog.ClickHouseSinkConfig{}, fmt.Errorf("%s: %w", databaseName, err)
 	}
 	return cfg, nil
+}
+
+func boundedDeliveryTimeout(lookup lookupEnvFunc) (time.Duration, error) {
+	value, present := lookup(envDeliveryWall)
+	if !present || value == "" {
+		return defaultDeliveryTimeout, nil
+	}
+	if strings.TrimSpace(value) != value {
+		return 0, fmt.Errorf("%s must not contain surrounding whitespace", envDeliveryWall)
+	}
+	timeout, err := time.ParseDuration(value)
+	if err != nil || timeout <= 0 || timeout > propertycatalog.MaxDeliveryTimeout {
+		return 0, fmt.Errorf(
+			"%s must be a positive duration no greater than %s",
+			envDeliveryWall,
+			propertycatalog.MaxDeliveryTimeout,
+		)
+	}
+	return timeout, nil
 }
 
 func requireEnv(lookup lookupEnvFunc, name string, allowEmpty bool) (string, error) {
@@ -290,12 +327,12 @@ func requireEnv(lookup lookupEnvFunc, name string, allowEmpty bool) (string, err
 }
 
 func validateKafkaConfig(brokers []string, topic, group string) error {
-	if len(brokers) == 0 || len(brokers) > 16 {
+	if len(brokers) == 0 || len(brokers) > propertycatalog.MaxKafkaBrokers {
 		return errors.New("property catalog Kafka requires 1..16 brokers")
 	}
 	seen := make(map[string]struct{}, len(brokers))
 	for index, broker := range brokers {
-		if !safeKafkaText(broker, 255) || strings.Contains(broker, "://") || strings.ContainsAny(broker, "/?#") {
+		if !safeKafkaText(broker, propertycatalog.MaxKafkaIdentityBytes) || strings.Contains(broker, "://") || strings.ContainsAny(broker, "/?#") {
 			return fmt.Errorf("property catalog Kafka broker %d must be a bounded host[:port]", index)
 		}
 		if _, exists := seen[broker]; exists {
@@ -303,7 +340,7 @@ func validateKafkaConfig(brokers []string, topic, group string) error {
 		}
 		seen[broker] = struct{}{}
 	}
-	if topic == "" || topic == "." || topic == ".." || len(topic) > 249 {
+	if topic == "" || topic == "." || topic == ".." || len(topic) > propertycatalog.MaxKafkaTopicBytes {
 		return errors.New("property catalog Kafka topic is invalid")
 	}
 	for _, char := range topic {
@@ -312,7 +349,7 @@ func validateKafkaConfig(brokers []string, topic, group string) error {
 			return errors.New("property catalog Kafka topic contains an invalid character")
 		}
 	}
-	if !safeKafkaText(group, 255) {
+	if !safeKafkaText(group, propertycatalog.MaxKafkaIdentityBytes) {
 		return errors.New("property catalog Kafka consumer group is invalid")
 	}
 	return nil

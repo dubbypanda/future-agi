@@ -27,6 +27,7 @@ from time import monotonic
 from typing import Any
 
 import structlog
+from django.conf import settings
 from django.db import DatabaseError, connection, transaction
 
 from model_hub.models.choices import AnnotationTypeChoices
@@ -86,89 +87,107 @@ logger = structlog.get_logger(__name__)
 # the interactive session-graph contract so an exact trace/span action cannot
 # outlive its bounded wait. Source-row volume is not capped; byte,
 # memory, result, partition, and admission limits remain independent boundaries.
-EXACT_GRAPH_WALL_DEADLINE_MS = 9_500
+EXACT_GRAPH_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 # Keep one canonical alias for refresh-budget arithmetic and qualification
 # overrides.
 EXACT_GRAPH_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
 # This partition size belongs to the PostgreSQL-backed annotation membership
 # reader below. Most system graphs deliberately remain one ClickHouse statement
 # so CH25.3 cannot stitch independently changing ReplacingMergeTree snapshots.
-EXACT_GRAPH_MAX_BUCKETS_PER_PARTITION = 31
-EXACT_GRAPH_MEMBERSHIP_BATCH_SIZE = 1_000
+EXACT_GRAPH_MAX_BUCKETS_PER_PARTITION = settings.EXACT_GRAPH_MAX_BUCKETS_PER_PARTITION
+EXACT_GRAPH_MEMBERSHIP_BATCH_SIZE = settings.EXACT_GRAPH_MEMBERSHIP_BATCH_SIZE
 # Filtered trace graphs cannot retain tenant-wide per-trace membership state in
 # one ClickHouse query under the production memory envelope.  The background
 # refresh exhausts a necessary raw filter-witness cursor, classifies every
 # finite identity batch against latest state, then aggregates only proven trace
 # identities.  Neither value is a result ceiling.
-EXACT_GRAPH_TRACE_SELECTOR_PAGE_SIZE = 5_000
+EXACT_GRAPH_TRACE_SELECTOR_PAGE_SIZE = settings.EXACT_GRAPH_TRACE_SELECTOR_PAGE_SIZE
 # A selective raw witness is only an optimization when it proves the complete
 # candidate population is genuinely small. Keep this sentinel independent of
 # the larger root transport page: broad values should abandon the optional
 # probe promptly instead of reading another 4k raw witnesses. The extra row is
 # an exact broadness sentinel, not sampling or a public result ceiling.
-EXACT_GRAPH_TRACE_CANDIDATE_SENTINEL = 1_001
+EXACT_GRAPH_TRACE_CANDIDATE_SENTINEL = settings.EXACT_GRAPH_TRACE_CANDIDATE_MAX_ROWS + 1
 # Broad positive scalar Map filters use an authoritative latest-state scan over
 # disjoint whole-hour storage identities. A failing slice is split to
 # whole-hour children without publishing its partial rows. Every attempt is
 # additionally clamped to the action-owned wall below.
-EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH = timedelta(hours=2)
-EXACT_GRAPH_TRACE_ANCHOR_MIN_PARTITION_WIDTH = timedelta(hours=1)
+EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH = timedelta(
+    hours=settings.EXACT_GRAPH_TRACE_ANCHOR_PARTITION_HOURS
+)
+EXACT_GRAPH_TRACE_ANCHOR_MIN_PARTITION_WIDTH = timedelta(
+    hours=settings.EXACT_GRAPH_TRACE_ANCHOR_MIN_PARTITION_HOURS
+)
 # Exact aggregation has one admitted background refresh at a time and the
 # ClickHouse client owns a thread-safe connection pool.  Two independent
 # one-thread partition reads halve the dense-retention wall clock without the
 # four-to-ten-way I/O burst used by interactive fan-out endpoints.  Results are
 # still withheld until every disjoint partition completes.
-EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS = 2
-EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE = 50_000
+EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS = settings.EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS
+EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE = settings.EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE
 EXACT_GRAPH_TRACE_ANCHOR_RESULT_SENTINEL = EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE + 1
 EXACT_GRAPH_TRACE_ANCHOR_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
-EXACT_GRAPH_TRACE_ANCHOR_MAX_BYTES_TO_READ = 36 * 1024 * 1024 * 1024
+EXACT_GRAPH_TRACE_ANCHOR_MAX_BYTES_TO_READ = settings.OBSERVABILITY_LIST_MAX_BYTES
 # Scanning complete retained history is worthwhile only when the requested
 # root window is both substantial in absolute terms and covers a meaningful
 # fraction of project retention.  Shorter/narrower windows stay on the ordered
 # root cursor, whose finite 5k-identity classifier is cheaper than replaying
 # every retained hour.
-EXACT_GRAPH_TRACE_ANCHOR_MIN_REQUEST_WIDTH = timedelta(days=30)
-EXACT_GRAPH_TRACE_ANCHOR_MIN_RETENTION_FRACTION = 0.25
+EXACT_GRAPH_TRACE_ANCHOR_MIN_REQUEST_WIDTH = timedelta(
+    days=settings.EXACT_GRAPH_TRACE_ANCHOR_MIN_REQUEST_DAYS
+)
+EXACT_GRAPH_TRACE_ANCHOR_MIN_RETENTION_FRACTION = (
+    settings.EXACT_GRAPH_TRACE_ANCHOR_MIN_RETENTION_FRACTION
+)
 # The bounded-bulk classifier enforces the same 5k-identity ceiling. Using
 # that complete finite page avoids rescanning retained child history once per
 # much smaller root page while adaptive bisection still handles a hot batch.
 # Production A/B on Coletia measured the 5k classifier at 3.05--3.22 seconds
 # versus 1.63--1.79 seconds for 1k; reducing roughly 70 repeated scans to 14 is
 # the material wall-clock win. This changes query chunking only.
-EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE = 5_000
+EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE = settings.EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE
 # The compatibility root verifier builder has a separately proven 512-ID hard
 # ceiling. The authoritative partition route normally avoids this replay, but
 # alternate builders must still receive valid finite batches.
-EXACT_GRAPH_TRACE_ROOT_VERIFY_BATCH_SIZE = 512
+EXACT_GRAPH_TRACE_ROOT_VERIFY_BATCH_SIZE = (
+    settings.EXACT_GRAPH_TRACE_ROOT_VERIFY_BATCH_SIZE
+)
 # Once exact trace membership is proven, contribution rows are additive across
 # disjoint trace-ID batches.  A 5k initial batch materially reduces repeated
 # range scans; resource-limited batches are bisected without publishing any
 # partial aggregate.
-EXACT_GRAPH_TRACE_CONTRIBUTION_BATCH_SIZE = 5_000
+EXACT_GRAPH_TRACE_CONTRIBUTION_BATCH_SIZE = (
+    settings.EXACT_GRAPH_TRACE_CONTRIBUTION_BATCH_SIZE
+)
 # Production A/B on a fixed 5k Coletia population measured the one-statement
 # contribution at 0.95 seconds and 1.79 GB. A hotter tenant-specific batch is
 # bisected, and every retry receives only the action's remaining wall time.
 EXACT_GRAPH_TRACE_CONTRIBUTION_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
-EXACT_GRAPH_TRACE_CONTRIBUTION_MAX_BYTES_TO_READ = 36 * 1024 * 1024 * 1024
+EXACT_GRAPH_TRACE_CONTRIBUTION_MAX_BYTES_TO_READ = settings.OBSERVABILITY_LIST_MAX_BYTES
 # Witness work runs only in the exact-snapshot background activity; public
 # graph polls never wait on an individual statement. Witnesses, classifiers,
 # and contributions consume the same action wall; adaptive bisection remains
 # fail-closed for any batch that cannot complete inside the remaining budget.
 EXACT_GRAPH_TRACE_WITNESS_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
 EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
-EXACT_GRAPH_TRACE_INITIAL_SLICE = timedelta(minutes=5)
+EXACT_GRAPH_TRACE_INITIAL_SLICE = timedelta(
+    seconds=settings.EXACT_GRAPH_TRACE_INITIAL_SLICE_SECONDS
+)
 # A failed raw witness slice is retried at the same upper bound so no interval
 # is skipped. The shared wall bounds retry fan-out while still allowing a hot
 # five-minute partition to be divided without a schema or index dependency.
-EXACT_GRAPH_TRACE_MIN_SLICE = timedelta(seconds=30)
+EXACT_GRAPH_TRACE_MIN_SLICE = timedelta(
+    seconds=settings.EXACT_GRAPH_TRACE_MIN_SLICE_SECONDS
+)
 # Even proven-empty history must not collapse a long unindexed time predicate
 # into an arbitrarily large statement. Two days preserves logarithmic widening
 # for ordinary ranges and puts an explicit ceiling on each physical read.
-EXACT_GRAPH_TRACE_MAX_SLICE = timedelta(days=2)
+EXACT_GRAPH_TRACE_MAX_SLICE = timedelta(
+    seconds=settings.EXACT_GRAPH_TRACE_MAX_SLICE_SECONDS
+)
 # Widen only cheap, fully exhausted slices. QueryResult exposes the measured
 # ClickHouse wall time; the monotonic fallback keeps alternate executors safe.
-EXACT_GRAPH_TRACE_GROWTH_QUERY_TIME_MS = 2_000
+EXACT_GRAPH_TRACE_GROWTH_QUERY_TIME_MS = settings.EXACT_GRAPH_TRACE_GROWTH_QUERY_TIME_MS
 # Span membership is row-local. Resolve latest state and emit additive bucket
 # states over adjacent, half-open storage-identity windows. The spans table's
 # replacement key contains ``toStartOfHour(start_time)`` (not exact start_time),
@@ -178,33 +197,38 @@ EXACT_GRAPH_TRACE_GROWTH_QUERY_TIME_MS = 2_000
 # tombstone, must reach the same argMax. Requested first/last partial-hour bounds
 # are applied only after that collapse. The caller withholds all results until
 # every required partition succeeds.
-EXACT_GRAPH_SPAN_PARTITION_WIDTH = timedelta(hours=1)
-EXACT_GRAPH_SPAN_MAX_PARTITION_WIDTH = timedelta(days=1)
+EXACT_GRAPH_SPAN_MIN_PARTITION_WIDTH = timedelta(hours=1)
+EXACT_GRAPH_SPAN_PARTITION_WIDTH = timedelta(
+    hours=settings.EXACT_GRAPH_SPAN_INITIAL_PARTITION_HOURS
+)
+EXACT_GRAPH_SPAN_MAX_PARTITION_WIDTH = timedelta(
+    hours=settings.EXACT_GRAPH_SPAN_MAX_PARTITION_HOURS
+)
 # A result-row count cannot reveal how many physical rows ClickHouse scanned.
 # Grow only when the executor's measured statement latency proves that the
 # current slice was cheap. All growth/retry widths remain integer multiples of
 # the one-hour storage-identity floor.
-EXACT_GRAPH_SPAN_GROW_BELOW_QUERY_MS = 250.0
+EXACT_GRAPH_SPAN_GROW_BELOW_QUERY_MS = settings.EXACT_GRAPH_SPAN_GROW_BELOW_QUERY_MS
 EXACT_GRAPH_SPAN_PARTITION_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
-EXACT_GRAPH_MAX_RESULT_ROWS = 10_000
+EXACT_GRAPH_MAX_RESULT_ROWS = settings.DASHBOARD_ROLLUP_MAX_POINTS
 EXACT_GRAPH_RESULT_ROW_SENTINEL = EXACT_GRAPH_MAX_RESULT_ROWS + 1
-EXACT_GRAPH_MAX_RESULT_BYTES = 32 * 1024 * 1024
+EXACT_GRAPH_MAX_RESULT_BYTES = settings.DASHBOARD_ROLLUP_MAX_RESULT_BYTES
 # Ordinary application reads share the same finite 36-GiB byte and memory
 # envelope. Row volume remains uncapped; an exact background refresh that needs
 # more than this envelope fails closed while the bounded interactive graph path
 # can still publish an explicitly sampled result.
-EXACT_GRAPH_MAX_BYTES_TO_READ = 36 * 1024 * 1024 * 1024
+EXACT_GRAPH_MAX_BYTES_TO_READ = settings.OBSERVABILITY_LIST_MAX_BYTES
 EXACT_GRAPH_READ_SETTINGS = {
-    "max_threads": 1,
+    "max_threads": settings.FILTER_SELECTOR_MAX_THREADS,
     # Attribute maps are several KiB per row on the heaviest tenants.  Smaller
     # source blocks keep decompression below the fixed query-memory envelope
     # while the in-order latest-row reducer consumes them.
-    "max_block_size": 512,
-    "preferred_block_size_bytes": 4 * 1024 * 1024,
+    "max_block_size": settings.EXACT_GRAPH_READ_BLOCK_SIZE,
+    "preferred_block_size_bytes": settings.EXACT_GRAPH_READ_PREFERRED_BLOCK_BYTES,
     # Map columns can dominate a block even when the row-count limit is low.
     # This CH25 setting asks the reader to split once any single wide column
     # reaches the same byte envelope.
-    "preferred_max_column_in_block_size_bytes": 4 * 1024 * 1024,
+    "preferred_max_column_in_block_size_bytes": settings.EXACT_GRAPH_READ_PREFERRED_BLOCK_BYTES,
     # The direct-write table is ordered by the complete physical span
     # identity.  The exact builder resolves ReplacingMergeTree winners with an
     # argMax aggregation in that order, so ClickHouse can retire each logical
@@ -213,8 +237,8 @@ EXACT_GRAPH_READ_SETTINGS = {
     # Later trace/bucket reductions are not ordered by the physical primary
     # key.  Spill those compact scalar states before they threaten the worker
     # memory ceiling; no raw attribute Map/JSON value crosses the first stage.
-    "max_bytes_before_external_group_by": 32 * 1024 * 1024,
-    "max_bytes_before_external_sort": 32 * 1024 * 1024,
+    "max_bytes_before_external_group_by": settings.EXACT_GRAPH_READ_EXTERNAL_SPILL_BYTES,
+    "max_bytes_before_external_sort": settings.EXACT_GRAPH_READ_EXTERNAL_SPILL_BYTES,
     # Exact reads collapse ReplacingMergeTree versions before applying mutable
     # value predicates.  Keep these defenses explicit for the related exact
     # readers that still use FINAL; the argMax spans source itself exposes only
@@ -231,7 +255,7 @@ EXACT_GRAPH_READ_SETTINGS = {
     # The same observed seven-day read peaked at 1,055,221,165 bytes.  Preserve
     # measured headroom while spilling compact aggregation/sort state early;
     # the production exact-aggregation worker has a separate 32-GiB pod limit.
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
+    "max_memory_usage": settings.CLICKHOUSE_APPLICATION_READ_MAX_MEMORY_BYTES,
     "read_overflow_mode": "throw",
     "max_result_rows": EXACT_GRAPH_RESULT_ROW_SENTINEL,
     "max_result_bytes": EXACT_GRAPH_MAX_RESULT_BYTES,
@@ -248,13 +272,13 @@ EXACT_GRAPH_READ_SETTINGS = {
 # authoritative; this raises parallelism, never work or result cardinality.
 EXACT_GRAPH_TRACE_CLASSIFIER_READ_SETTINGS = {
     **EXACT_GRAPH_READ_SETTINGS,
-    "max_threads": 8,
+    "max_threads": settings.EXACT_GRAPH_TRACE_CLASSIFIER_MAX_THREADS,
 }
 EXACT_GRAPH_SPAN_PARTITION_READ_SETTINGS = {
     **EXACT_GRAPH_READ_SETTINGS,
     # Span partitions use the same application envelope; their time partition,
     # shared deadline and result ceilings remain the tighter controls.
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
+    "max_bytes_to_read": settings.CLICKHOUSE_APPLICATION_READ_MAX_BYTES,
 }
 EXACT_GRAPH_TRACE_ANCHOR_READ_SETTINGS = {
     **EXACT_GRAPH_READ_SETTINGS,
@@ -374,7 +398,7 @@ def _remaining_exact_graph_timeout_ms(
     # Floor the remaining duration, rather than subtracting a floored elapsed
     # duration, so rounding can never grant a statement time beyond the wall.
     remaining_ms = int(EXACT_GRAPH_QUERY_TIMEOUT_MS - elapsed_ms)
-    if remaining_ms < 25:
+    if remaining_ms < settings.EXACT_GRAPH_MIN_REMAINING_MS:
         raise ExactGraphReadError("exact graph refresh bounded deadline exceeded")
     if statement_ceiling_ms is None:
         return remaining_ms
@@ -1506,7 +1530,7 @@ def _read_exact_filtered_span_graph(
     partition_start = start_date.replace(minute=0, second=0, microsecond=0)
     partition_limit = end_date.replace(minute=0, second=0, microsecond=0)
     if partition_limit < end_date:
-        partition_limit += EXACT_GRAPH_SPAN_PARTITION_WIDTH
+        partition_limit += EXACT_GRAPH_SPAN_MIN_PARTITION_WIDTH
     scan_width = partition_limit - partition_start
     partition_width = min(EXACT_GRAPH_SPAN_PARTITION_WIDTH, scan_width)
     max_partition_width = min(EXACT_GRAPH_SPAN_MAX_PARTITION_WIDTH, scan_width)
@@ -1531,10 +1555,10 @@ def _read_exact_filtered_span_graph(
         except Exception as exc:
             if (
                 is_read_budget_error(exc)
-                and partition_width > EXACT_GRAPH_SPAN_PARTITION_WIDTH
+                and partition_width > EXACT_GRAPH_SPAN_MIN_PARTITION_WIDTH
             ):
                 partition_width = max(
-                    EXACT_GRAPH_SPAN_PARTITION_WIDTH,
+                    EXACT_GRAPH_SPAN_MIN_PARTITION_WIDTH,
                     partition_width / 2,
                 )
                 max_partition_width = min(max_partition_width, partition_width)

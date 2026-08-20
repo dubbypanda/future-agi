@@ -388,19 +388,43 @@ def apply_filters(row_data, filters):
     return filtered_data
 
 
-EVAL_METRIC_REQUEST_WALL_MS = 8_500
-EVAL_METRIC_MAX_WINDOW_DAYS = 365
+EVAL_METRIC_REQUEST_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+EVAL_METRIC_MAX_WINDOW_DAYS = settings.EVAL_METRIC_MAX_WINDOW_DAYS
 EVAL_METRIC_MAX_BUCKETS = EVAL_METRIC_MAX_WINDOW_DAYS + 1
-EVAL_METRIC_MAX_CHOICE_SCORES = 100
-_EVAL_METRIC_NUMERIC_RE = r"^[+-]?([0-9]{1,7}([.][0-9]{0,55})?|[.][0-9]{1,55})$"
+EVAL_METRIC_MAX_CHOICE_SCORES = settings.EVAL_METRIC_MAX_CHOICE_SCORES
+EVAL_METRIC_CHOICE_LABEL_MAX_UTF8_BYTES = (
+    settings.EVAL_METRIC_CHOICE_LABEL_MAX_UTF8_BYTES
+)
+EVAL_METRIC_NUMERIC_TEXT_MAX_CHARS = settings.EVAL_METRIC_NUMERIC_TEXT_MAX_CHARS
+EVAL_METRIC_ABS_SCORE_LIMIT = settings.EVAL_METRIC_ABS_SCORE_LIMIT
+EVAL_METRIC_BUCKET_DEADLINE_CHECK_INTERVAL = (
+    settings.EVAL_METRIC_BUCKET_DEADLINE_CHECK_INTERVAL
+)
+_EVAL_METRIC_ABS_SCORE_LIMIT_DECIMAL = Decimal(EVAL_METRIC_ABS_SCORE_LIMIT)
+_EVAL_METRIC_MAX_INTEGER_DIGITS = len(str(EVAL_METRIC_ABS_SCORE_LIMIT))
+_EVAL_METRIC_MAX_FRACTION_DIGITS = max(
+    1,
+    EVAL_METRIC_NUMERIC_TEXT_MAX_CHARS - _EVAL_METRIC_MAX_INTEGER_DIGITS - 2,
+)
+_EVAL_METRIC_NUMERIC_RE = (
+    rf"^[+-]?([0-9]{{1,{_EVAL_METRIC_MAX_INTEGER_DIGITS}}}"
+    rf"([.][0-9]{{0,{_EVAL_METRIC_MAX_FRACTION_DIGITS}}})?"
+    rf"|[.][0-9]{{1,{_EVAL_METRIC_MAX_FRACTION_DIGITS}}})$"
+)
 
-EVAL_LOG_REQUEST_WALL_MS = 8_500
-EVAL_LOG_MAX_PAGE_SIZE = 100
-EVAL_LOG_MAX_OFFSET = 1_000_000
-EVAL_LOG_MAX_SEARCH_LENGTH = 512
-EVAL_LOG_MAX_SEARCH_COLUMNS = 64
-EVAL_LOG_MAX_SORT_COLUMNS = 3
-EVAL_LOG_MAX_COLUMNS = 200
+EVAL_LOG_REQUEST_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+EVAL_LOG_MAX_PAGE_SIZE = settings.INTERACTIVE_READ_DEFAULT_MAX_PAGE_SIZE
+EVAL_LOG_MAX_OFFSET = settings.EVAL_LOG_MAX_OFFSET
+EVAL_LOG_MAX_SEARCH_LENGTH = settings.EVAL_LOG_MAX_SEARCH_LENGTH
+EVAL_LOG_MAX_SEARCH_COLUMNS = settings.EVAL_LOG_MAX_SEARCH_COLUMNS
+EVAL_LOG_MAX_SORT_COLUMNS = settings.EVAL_LOG_MAX_SORT_COLUMNS
+EVAL_LOG_MAX_COLUMNS = settings.EVAL_LOG_MAX_COLUMNS
+EVAL_LOG_COLUMN_NAME_MAX_CHARS = settings.EVAL_LOG_COLUMN_NAME_MAX_CHARS
+EVAL_LOG_REQUIRED_KEYS_LIMIT = settings.EVAL_LOG_REQUIRED_KEYS_LIMIT
+EVAL_LOG_ROW_DEADLINE_CHECK_INTERVAL = settings.EVAL_LOG_ROW_DEADLINE_CHECK_INTERVAL
+EVAL_LOG_COLUMN_DEADLINE_CHECK_INTERVAL = (
+    settings.EVAL_LOG_COLUMN_DEADLINE_CHECK_INTERVAL
+)
 
 
 class EvalLogScopeError(ValueError):
@@ -456,7 +480,8 @@ def _resolve_eval_metric_window(filters: list[dict[str, Any]]) -> BoundedDateTim
 
     if window.end - window.start > timedelta(days=EVAL_METRIC_MAX_WINDOW_DAYS):
         raise EvalMetricScopeError(
-            "Evaluation metrics support a maximum time range of 365 days.",
+            "Evaluation metrics support a maximum time range of "
+            f"{EVAL_METRIC_MAX_WINDOW_DAYS} days.",
             code="eval_metric_window_too_wide",
         )
     return window
@@ -508,11 +533,15 @@ def _eval_metric_choice_score_map(eval_template) -> dict[str, float]:
     for label, raw_score in items:
         if len(score_map) >= EVAL_METRIC_MAX_CHOICE_SCORES:
             raise EvalMetricScopeError(
-                "Evaluation metrics support at most 100 configured choices.",
+                "Evaluation metrics support at most "
+                f"{EVAL_METRIC_MAX_CHOICE_SCORES} configured choices.",
                 code="eval_metric_scope_too_wide",
             )
         label_text = str(label)
-        if not label_text or len(label_text.encode("utf-8")) > 1_024:
+        if (
+            not label_text
+            or len(label_text.encode("utf-8")) > EVAL_METRIC_CHOICE_LABEL_MAX_UTF8_BYTES
+        ):
             raise EvalMetricScopeError(
                 "Evaluation choice labels exceed the bounded metrics contract.",
                 code="eval_metric_scope_too_wide",
@@ -524,7 +553,10 @@ def _eval_metric_choice_score_map(eval_template) -> dict[str, float]:
                 "Evaluation choice scores must be finite numbers.",
                 code="eval_metric_output_unsupported",
             ) from exc
-        if not numeric_score.is_finite() or abs(numeric_score) > Decimal("1000000"):
+        if (
+            not numeric_score.is_finite()
+            or abs(numeric_score) > _EVAL_METRIC_ABS_SCORE_LIMIT_DECIMAL
+        ):
             raise EvalMetricScopeError(
                 "Evaluation choice scores must be finite numbers.",
                 code="eval_metric_output_unsupported",
@@ -553,17 +585,21 @@ def _eval_metric_score_sql(eval_template) -> tuple[str, list[Any], str]:
             CASE
                 WHEN output_parent_type = 'object'
                   AND output_json_type IN ('number', 'string')
-                  AND length(output_text) <= 64
+                  AND length(output_text) <= %s
                   AND output_text ~ %s
                 THEN CASE
-                    WHEN abs(output_text::numeric) <= 1000000
+                    WHEN abs(output_text::numeric) <= %s
                     THEN output_text::numeric
                     ELSE NULL::numeric
                 END
                 ELSE NULL::numeric
             END
             """,
-            [_EVAL_METRIC_NUMERIC_RE],
+            [
+                EVAL_METRIC_NUMERIC_TEXT_MAX_CHARS,
+                _EVAL_METRIC_NUMERIC_RE,
+                EVAL_METRIC_ABS_SCORE_LIMIT,
+            ],
             public_output_type,
         )
 
@@ -584,10 +620,10 @@ def _eval_metric_score_sql(eval_template) -> tuple[str, list[Any], str]:
         CASE
             WHEN output_parent_type <> 'object' THEN NULL::numeric
             WHEN output_json_type = 'object'
-              AND length(object_score_text) <= 64
+              AND length(object_score_text) <= %s
               AND object_score_text ~ %s
             THEN CASE
-                WHEN abs(object_score_text::numeric) <= 1000000
+                WHEN abs(object_score_text::numeric) <= %s
                 THEN object_score_text::numeric
                 ELSE NULL::numeric
             END
@@ -596,7 +632,12 @@ def _eval_metric_score_sql(eval_template) -> tuple[str, list[Any], str]:
             ELSE NULL::numeric
         END
         """,
-        [_EVAL_METRIC_NUMERIC_RE, json.dumps(score_map, separators=(",", ":"))],
+        [
+            EVAL_METRIC_NUMERIC_TEXT_MAX_CHARS,
+            _EVAL_METRIC_NUMERIC_RE,
+            EVAL_METRIC_ABS_SCORE_LIMIT,
+            json.dumps(score_map, separators=(",", ":")),
+        ],
         public_output_type,
     )
 
@@ -813,7 +854,7 @@ def get_eval_metric_data(
 
     bucket_dates = _eval_metric_bucket_dates(window)
     for index, bucket in enumerate(bucket_dates):
-        if index % 32 == 0:
+        if index % EVAL_METRIC_BUCKET_DEADLINE_CHECK_INTERVAL == 0:
             deadline.remaining_ms(floor_ms=1)
         call_count, valid_count, score_sum = by_day.get(
             bucket.date(),
@@ -919,7 +960,7 @@ def _bounded_eval_log_read(deadline: ReadDeadline):
 def _validate_eval_log_page_scope(*, page_size: int, current_page: int) -> int:
     if page_size > EVAL_LOG_MAX_PAGE_SIZE:
         raise EvalLogScopeError(
-            "Evaluation logs support at most 100 rows per page.",
+            f"Evaluation logs support at most {EVAL_LOG_MAX_PAGE_SIZE} rows per page.",
             code="eval_log_page_too_large",
         )
     offset = current_page * page_size
@@ -960,7 +1001,7 @@ def _validate_eval_log_column_data(column_data: Any) -> list[dict[str, Any]]:
             or column_id in seen_ids
             or not isinstance(name, str)
             or not name
-            or len(name) > 2_000
+            or len(name) > EVAL_LOG_COLUMN_NAME_MAX_CHARS
         ):
             raise EvalLogScopeError(
                 "The evaluation log column configuration is invalid.",
@@ -1205,14 +1246,14 @@ def _eval_log_required_keys_from_config(raw_config: Any) -> list[str]:
         return []
     required_keys = config.get("required_keys") or []
     if isinstance(required_keys, list) and required_keys:
-        return [str(key) for key in required_keys[:100]]
+        return [str(key) for key in required_keys[:EVAL_LOG_REQUIRED_KEYS_LIMIT]]
     mappings = config.get("mappings") or {}
     if not isinstance(mappings, dict):
         return []
     mapped_required_keys = mappings.get("required_keys")
     if isinstance(mapped_required_keys, list):
-        return [str(key) for key in mapped_required_keys[:100]]
-    return [str(key) for key in list(mappings)[:100]]
+        return [str(key) for key in mapped_required_keys[:EVAL_LOG_REQUIRED_KEYS_LIMIT]]
+    return [str(key) for key in list(mappings)[:EVAL_LOG_REQUIRED_KEYS_LIMIT]]
 
 
 def _read_eval_log_column_data(
@@ -1243,7 +1284,9 @@ def _read_eval_log_column_data(
     )
     configured_keys = template_config.get("required_keys") or []
     if isinstance(configured_keys, list):
-        required_keys = [str(key) for key in configured_keys[:100]]
+        required_keys = [
+            str(key) for key in configured_keys[:EVAL_LOG_REQUIRED_KEYS_LIMIT]
+        ]
     if not required_keys:
         latest_log = (
             scoped_logs.only("config").order_by("-created_at", "-log_id").first()
@@ -8242,7 +8285,10 @@ def populate_log_row_data(
     try:
         row_data = []
         for row_index, log in enumerate(logs):
-            if deadline is not None and row_index % 8 == 0:
+            if (
+                deadline is not None
+                and row_index % EVAL_LOG_ROW_DEADLINE_CHECK_INTERVAL == 0
+            ):
                 deadline.remaining_ms(floor_ms=1)
             config = parse_api_log_config(log.config)
             if not isinstance(config, dict):
@@ -8277,7 +8323,10 @@ def populate_log_row_data(
                 return feedback.value, feedback.explanation
 
             for column_index, (col_key, key) in enumerate(key_map.items()):
-                if deadline is not None and column_index % 32 == 0:
+                if (
+                    deadline is not None
+                    and column_index % EVAL_LOG_COLUMN_DEADLINE_CHECK_INTERVAL == 0
+                ):
                     deadline.remaining_ms(floor_ms=1)
                 value = ""
                 status = ""

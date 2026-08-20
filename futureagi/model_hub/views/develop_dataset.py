@@ -232,6 +232,7 @@ from model_hub.serializers.develop_optimisation import EvalTemplateSerializer
 from model_hub.serializers.eval_runner import UserEvalSerializer
 from model_hub.serializers.experiments import DerivedDatasetSerializer
 from model_hub.services.bounded_dataset_read import (
+    DATASET_ROW_ADJACENCY_MAX_ROWS,
     BoundedDatasetPageDepthExceeded,
     BoundedDatasetReadDeadline,
     BoundedDatasetReadDeadlineExceeded,
@@ -240,6 +241,7 @@ from model_hub.services.bounded_dataset_read import (
     assert_bounded_projection,
 )
 from model_hub.services.dataset_table_snapshot import (
+    DATASET_TABLE_EXACT_MAX_COLUMNS,
     DatasetTableCursorError,
     DatasetTableExactLimitExceeded,
     DatasetTableReadDeadline,
@@ -2775,11 +2777,11 @@ class GetDatasetTableView(APIView):
                         )
                         # Exact snapshot reads intentionally do not hydrate
                         # OptimizationDataset: it is outside the dataset
-                        # revision ledger and is not needed by Ground Truth
-                        # import. Preserve the ledger-bound Column status when
-                        # that presentation enrichment is absent instead of
-                        # dropping the column and turning every retry into a
-                        # dataset_exact_read_failed response.
+                        # revision fingerprint and is not needed by Ground
+                        # Truth import. Preserve the fingerprint-bound Column
+                        # status when that presentation enrichment is absent
+                        # instead of dropping the column and turning every
+                        # retry into a dataset_exact_read_failed response.
                         if optimisation is not None:
                             status = optimisation.status
                         if column_config_only and separator and user_metric_id:
@@ -2960,10 +2962,11 @@ class GetDatasetTableView(APIView):
             optimisation_map = {}
             experiment_map = {}
 
-            # Exact GT pages expose only ledger-bound Dataset/Column/Row/Cell
-            # state. Source enrichments belong to other tables and are not
-            # consumed by the importer, so reading them here would both widen
-            # the transaction and make repeated pages depend on unfenced data.
+            # Exact GT pages expose only fingerprint-bound
+            # Dataset/Column/Row/Cell state. Source enrichments belong to other
+            # tables and are not consumed by the importer, so reading them here
+            # would widen the transaction and make repeated pages depend on
+            # unfenced data.
             if source_ids["uem"] and not snapshot_bound:
                 exact_checkpoint(before_statement=True)
                 uem_map = {
@@ -3531,7 +3534,11 @@ class GetRowDataView(APIView):
                         ]
                     )
                 deadline.before_query()
-                all_columns = list(columns.order_by("created_at", "id")[:129])
+                all_columns = list(
+                    columns.order_by("created_at", "id")[
+                        : DATASET_TABLE_EXACT_MAX_COLUMNS + 1
+                    ]
+                )
                 assert_bounded_projection(
                     column_count=len(all_columns), page_row_count=1
                 )
@@ -3600,7 +3607,11 @@ class GetRowDataView(APIView):
                     ).order_by("order", "id")
 
                 deadline.before_query()
-                next_row_ids = list(next_rows.values_list("id", flat=True)[:50])
+                next_row_ids = list(
+                    next_rows.values_list("id", flat=True)[
+                        :DATASET_ROW_ADJACENCY_MAX_ROWS
+                    ]
+                )
 
                 column_ids = list(columns_map.keys())
                 if connection.vendor == "postgresql":
@@ -3787,11 +3798,12 @@ class GetExperimentDatasetTableView(APIView):
                     .annotate(
                         _last_cell_status=Subquery(latest_status.values("status")[:1])
                     )
-                    .order_by("created_at", "id")[:129]
+                    .order_by("created_at", "id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
                 )
-                if len(raw_experiment_columns) > 128:
+                if len(raw_experiment_columns) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                     raise BoundedDatasetReadLimitExceeded(
-                        "The experiment projection contains more than 128 columns."
+                        "The experiment projection contains more than "
+                        f"{DATASET_TABLE_EXACT_MAX_COLUMNS} columns."
                     )
                 if any(
                     column.dataset_id != working_dataset.id
@@ -3810,11 +3822,12 @@ class GetExperimentDatasetTableView(APIView):
                 user_eval_metric = list(
                     experiment.user_eval_template_ids.select_related("template")
                     .filter(deleted=False)
-                    .order_by("id")[:129]
+                    .order_by("id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
                 )
-                if len(user_eval_metric) > 128:
+                if len(user_eval_metric) > DATASET_TABLE_EXACT_MAX_COLUMNS:
                     raise BoundedDatasetReadLimitExceeded(
-                        "The experiment contains more than 128 evaluation metrics."
+                        "The experiment contains more than "
+                        f"{DATASET_TABLE_EXACT_MAX_COLUMNS} evaluation metrics."
                     )
 
                 total_columns = []
@@ -3895,7 +3908,7 @@ class GetExperimentDatasetTableView(APIView):
                         dataset=working_dataset,
                     )
                     .exclude(name__endswith="reason")
-                    .order_by("created_at", "id")[:129]
+                    .order_by("created_at", "id")[: DATASET_TABLE_EXACT_MAX_COLUMNS + 1]
                 )
 
                 projected_column_ids = {

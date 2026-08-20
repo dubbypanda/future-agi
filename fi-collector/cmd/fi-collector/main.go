@@ -51,6 +51,21 @@ type rootConfig struct {
 	PropertyCatalog propertycatalog.RuntimeConfig `yaml:"property_catalog"`
 }
 
+const (
+	envPropertyCatalogReplayInterval         = "FI_PROPERTY_CATALOG_REPLAY_INTERVAL"
+	envPropertyCatalogShutdownTimeout        = "FI_PROPERTY_CATALOG_SHUTDOWN_TIMEOUT"
+	envPropertyCatalogQueueDepth             = "FI_PROPERTY_CATALOG_QUEUE_DEPTH"
+	envPropertyCatalogMaxSpansPerBatch       = "FI_PROPERTY_CATALOG_MAX_SPANS_PER_BATCH"
+	envPropertyCatalogMaxKeysPerSpan         = "FI_PROPERTY_CATALOG_MAX_KEYS_PER_SPAN"
+	envPropertyCatalogMaxArrayMembersPerSpan = "FI_PROPERTY_CATALOG_MAX_ARRAY_MEMBERS_PER_SPAN"
+	envPropertyCatalogMaxEncodedBytesPerSpan = "FI_PROPERTY_CATALOG_MAX_ENCODED_BYTES_PER_SPAN"
+	envPropertyCatalogMaxChunkRows           = "FI_PROPERTY_CATALOG_MAX_CHUNK_ROWS"
+	envPropertyCatalogMaxChunkBytes          = "FI_PROPERTY_CATALOG_MAX_CHUNK_BYTES"
+	envPropertyCatalogMaxSpoolFiles          = "FI_PROPERTY_CATALOG_MAX_SPOOL_FILES"
+	envPropertyCatalogMaxSpoolBytes          = "FI_PROPERTY_CATALOG_MAX_SPOOL_BYTES"
+	envPropertyCatalogKafkaDeliveryTimeout   = "FI_PROPERTY_CATALOG_KAFKA_DELIVERY_TIMEOUT"
+)
+
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "config", "/etc/fi-collector/config.yaml", "path to YAML config")
@@ -190,8 +205,9 @@ func main() {
 			os.Exit(1)
 		}
 		propertyProducer, err = propertycatalog.NewFranzProducer(propertycatalog.FranzProducerConfig{
-			Brokers: cfg.PropertyCatalog.Kafka.Brokers,
-			Topic:   cfg.PropertyCatalog.Kafka.Topic,
+			Brokers:         cfg.PropertyCatalog.Kafka.Brokers,
+			Topic:           cfg.PropertyCatalog.Kafka.Topic,
+			DeliveryTimeout: cfg.PropertyCatalog.Kafka.DeliveryTimeout,
 		})
 		if err != nil {
 			log.Error("property catalog Kafka producer init failed", "err", err)
@@ -264,7 +280,10 @@ func main() {
 		<-catalogReplayDone
 	}
 	if propertyRuntime != nil {
-		shutdownCtx, stopShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, stopShutdown := context.WithTimeout(
+			context.Background(),
+			cfg.PropertyCatalog.ShutdownTimeout,
+		)
 		if err := propertyRuntime.Shutdown(shutdownCtx); err != nil {
 			log.Error("property catalog runtime shutdown incomplete", "err", err)
 		}
@@ -325,6 +344,63 @@ func loadConfig(log *slog.Logger, path string) rootConfig {
 		os.Exit(1)
 	}
 	return cfg
+}
+
+type positiveIntEnvOverride struct {
+	name   string
+	target *int
+}
+
+func positiveIntOverride(name string, target *int) positiveIntEnvOverride {
+	return positiveIntEnvOverride{name: name, target: target}
+}
+
+func applyPositiveIntEnvOverrides(overrides ...positiveIntEnvOverride) error {
+	for _, override := range overrides {
+		rawValue := os.Getenv(override.name)
+		if rawValue == "" {
+			continue
+		}
+		value, err := strconv.Atoi(rawValue)
+		if err != nil || value <= 0 {
+			return fmt.Errorf("%s must be a positive integer", override.name)
+		}
+		*override.target = value
+	}
+	return nil
+}
+
+func applyPositiveInt64EnvOverride(name string, target *int64) error {
+	rawValue := os.Getenv(name)
+	if rawValue == "" {
+		return nil
+	}
+	value, err := strconv.ParseInt(rawValue, 10, 64)
+	if err != nil || value <= 0 {
+		return fmt.Errorf("%s must be a positive integer", name)
+	}
+	*target = value
+	return nil
+}
+
+func applyPositiveDurationEnvOverride(
+	name string,
+	target *time.Duration,
+	maximum time.Duration,
+) error {
+	rawValue := os.Getenv(name)
+	if rawValue == "" {
+		return nil
+	}
+	value, err := time.ParseDuration(rawValue)
+	if err != nil || value <= 0 {
+		return fmt.Errorf("%s must be a positive duration", name)
+	}
+	if maximum > 0 && value > maximum {
+		return fmt.Errorf("%s must not exceed %s", name, maximum)
+	}
+	*target = value
+	return nil
 }
 
 // applyEnvOverrides — surgical, only the fields ops most often need to
@@ -399,12 +475,12 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	if v := os.Getenv("FI_CATALOG_SPOOL_DIR"); v != "" {
 		c.Catalog.SpoolDir = v
 	}
-	if v := os.Getenv("FI_CATALOG_REPLAY_INTERVAL"); v != "" {
-		interval, err := time.ParseDuration(v)
-		if err != nil || interval <= 0 {
-			return fmt.Errorf("FI_CATALOG_REPLAY_INTERVAL must be a positive duration")
-		}
-		c.Catalog.ReplayInterval = interval
+	if err := applyPositiveDurationEnvOverride(
+		"FI_CATALOG_REPLAY_INTERVAL",
+		&c.Catalog.ReplayInterval,
+		0,
+	); err != nil {
+		return err
 	}
 	if v := os.Getenv("FI_CATALOG_CH_URL"); v != "" {
 		c.Catalog.ClickHouse.URL = v
@@ -459,12 +535,44 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	if v := os.Getenv("FI_PROPERTY_CATALOG_SPOOL_DIR"); v != "" {
 		c.PropertyCatalog.SpoolDirectory = v
 	}
-	if v := os.Getenv("FI_PROPERTY_CATALOG_REPLAY_INTERVAL"); v != "" {
-		interval, err := time.ParseDuration(v)
-		if err != nil || interval <= 0 {
-			return fmt.Errorf("FI_PROPERTY_CATALOG_REPLAY_INTERVAL must be a positive duration")
-		}
-		c.PropertyCatalog.ReplayInterval = interval
+	if err := applyPositiveDurationEnvOverride(
+		envPropertyCatalogReplayInterval,
+		&c.PropertyCatalog.ReplayInterval,
+		0,
+	); err != nil {
+		return err
+	}
+	if err := applyPositiveDurationEnvOverride(
+		envPropertyCatalogShutdownTimeout,
+		&c.PropertyCatalog.ShutdownTimeout,
+		2*time.Minute,
+	); err != nil {
+		return err
+	}
+	if err := applyPositiveIntEnvOverrides(
+		positiveIntOverride(envPropertyCatalogQueueDepth, &c.PropertyCatalog.QueueDepth),
+		positiveIntOverride(envPropertyCatalogMaxSpansPerBatch, &c.PropertyCatalog.MaxSpansPerBatch),
+		positiveIntOverride(envPropertyCatalogMaxKeysPerSpan, &c.PropertyCatalog.MaxKeysPerSpan),
+		positiveIntOverride(envPropertyCatalogMaxArrayMembersPerSpan, &c.PropertyCatalog.MaxArrayMembersPerSpan),
+		positiveIntOverride(envPropertyCatalogMaxEncodedBytesPerSpan, &c.PropertyCatalog.MaxEncodedBytesPerSpan),
+		positiveIntOverride(envPropertyCatalogMaxChunkRows, &c.PropertyCatalog.MaxChunkRows),
+		positiveIntOverride(envPropertyCatalogMaxChunkBytes, &c.PropertyCatalog.MaxChunkBytes),
+		positiveIntOverride(envPropertyCatalogMaxSpoolFiles, &c.PropertyCatalog.MaxSpoolFiles),
+	); err != nil {
+		return err
+	}
+	if err := applyPositiveInt64EnvOverride(
+		envPropertyCatalogMaxSpoolBytes,
+		&c.PropertyCatalog.MaxSpoolBytes,
+	); err != nil {
+		return err
+	}
+	if err := applyPositiveDurationEnvOverride(
+		envPropertyCatalogKafkaDeliveryTimeout,
+		&c.PropertyCatalog.Kafka.DeliveryTimeout,
+		propertycatalog.MaxDeliveryTimeout,
+	); err != nil {
+		return err
 	}
 	if v := os.Getenv("FI_PROPERTY_CATALOG_KAFKA_BROKERS"); v != "" {
 		c.PropertyCatalog.Kafka.Brokers = splitNonempty(v)
@@ -475,6 +583,9 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	if err := c.Catalog.ValidateMode(); err != nil {
 		return err
 	}
+	// Freeze one normalized snapshot so the producer and hot runtime consume
+	// exactly the same defaults and environment overrides.
+	c.PropertyCatalog = c.PropertyCatalog.WithDefaults()
 	propertyMode, err := c.PropertyCatalog.SelectedMode()
 	if err != nil {
 		return err

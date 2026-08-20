@@ -55,7 +55,7 @@ import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import {
   createEmptyGroundTruthDatasetRead,
   readNextGroundTruthDatasetPage,
-} from "./groundTruthDatasetPagination";
+} from "./ground_truth_dataset_pagination";
 
 // ═══════════════════════════════════════════════════════════════
 // Status Badge

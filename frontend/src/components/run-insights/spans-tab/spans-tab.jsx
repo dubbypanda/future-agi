@@ -30,7 +30,11 @@ import { getSpanPhysicalRowId } from "src/sections/projects/LLMTracing/spanPhysi
 import AttributeInventoryControls from "src/sections/projects/LLMTracing/AttributeInventoryControls";
 import { useCursorAttributeInventory } from "src/sections/projects/LLMTracing/useCursorAttributeInventory";
 import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
-import { readRunInsightListPage } from "../runInsightListRead";
+import { readRunInsightListPage } from "../run_insight_list_read";
+import {
+  FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 const defaultFilter = {
   column_id: "",
@@ -117,7 +121,10 @@ const SpanTab = React.forwardRef(
       getFilterExtraProperties,
     );
 
-    const debouncedValidatedFilters = useDebounce(validatedFilters, 500);
+    const debouncedValidatedFilters = useDebounce(
+      validatedFilters,
+      FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+    );
 
     useEffect(() => {
       const hasActiveFilter = debouncedValidatedFilters?.some((f) =>
@@ -245,8 +252,9 @@ const SpanTab = React.forwardRef(
           try {
             const { request } = params;
 
-            // request has startRow and endRow get next page number and each page has 10 rows
-            const pageNumber = Math.floor(request.startRow / 10);
+            const pageNumber = Math.floor(
+              request.startRow / INTERACTIVE_TABLE_PAGE_SIZE,
+            );
 
             const results = await readRunInsightListPage(
               ({ signal, timeout }) =>
@@ -257,7 +265,7 @@ const SpanTab = React.forwardRef(
                     filters: JSON.stringify(debouncedValidatedFilters),
                     project_version_id: runId,
                     page_number: pageNumber,
-                    page_size: 10,
+                    page_size: INTERACTIVE_TABLE_PAGE_SIZE,
                   },
                 }),
             );
@@ -365,12 +373,12 @@ const SpanTab = React.forwardRef(
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               pagination={false}
-              cacheBlockSize={10}
+              cacheBlockSize={INTERACTIVE_TABLE_PAGE_SIZE}
               maxBlocksInCache={10}
               suppressRowClickSelection={true}
               rowModelType="serverSide"
               suppressServerSideFullWidthLoadingRow={true}
-              serverSideInitialRowCount={10}
+              serverSideInitialRowCount={INTERACTIVE_TABLE_PAGE_SIZE}
               serverSideDatasource={dataSource}
               onRowClicked={(event) => {
                 setTraceDetailDrawerOpen({

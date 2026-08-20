@@ -150,6 +150,32 @@ the complete span-attribute definition/type union and value/source-audit proof.
 Relational reconcilers publish definitions through the same transport rather
 than writing a second catalog.
 
+### Runtime tuning
+
+Operational producer limits have one Go settings snapshot. YAML may set the
+same fields and the environment wins at process startup. Invalid, zero, or
+out-of-range overrides fail startup instead of silently falling back.
+
+| Environment override | Default | Purpose |
+| --- | ---: | --- |
+| `FI_PROPERTY_CATALOG_REPLAY_INTERVAL` | `1s` | Durable-spool replay cadence |
+| `FI_PROPERTY_CATALOG_QUEUE_DEPTH` | `64` | In-memory submission queue |
+| `FI_PROPERTY_CATALOG_MAX_SPANS_PER_BATCH` | `20000` | Accepted canonical spans per hot batch |
+| `FI_PROPERTY_CATALOG_MAX_KEYS_PER_SPAN` | `128` | Extracted keys per span |
+| `FI_PROPERTY_CATALOG_MAX_ARRAY_MEMBERS_PER_SPAN` | `256` | Flattened array members per span |
+| `FI_PROPERTY_CATALOG_MAX_ENCODED_BYTES_PER_SPAN` | `65536` | Encoded attribute budget per span |
+| `FI_PROPERTY_CATALOG_MAX_CHUNK_ROWS` | `2000` | Rows per catalog envelope chunk |
+| `FI_PROPERTY_CATALOG_MAX_CHUNK_BYTES` | `262144` | Bytes per catalog envelope chunk |
+| `FI_PROPERTY_CATALOG_MAX_SPOOL_FILES` | `10000` | Durable spool file ceiling |
+| `FI_PROPERTY_CATALOG_MAX_SPOOL_BYTES` | `536870912` | Durable spool byte ceiling |
+| `FI_PROPERTY_CATALOG_KAFKA_DELIVERY_TIMEOUT` | `10s` | Producer delivery wall |
+| `FI_PROPERTY_CATALOG_DELIVERY_TIMEOUT` | `10s` | Consumer data-plus-ledger and ClickHouse wall |
+
+Environment values may lower or tune operational defaults only within the
+reviewed hard bounds. Wire versions, hash sizes, record ceilings, and other
+protocol invariants are named code constants and are intentionally not runtime
+configuration.
+
 ## 6. Epoch, revision, and activation lifecycle
 
 An issued cursor must never observe rows moving underneath it.

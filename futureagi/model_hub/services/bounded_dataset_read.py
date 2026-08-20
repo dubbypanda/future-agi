@@ -12,14 +12,16 @@ from dataclasses import dataclass
 
 from django.db import connection
 
+from model_hub.services.dataset_read_limits import DATASET_READ_LIMITS
 from model_hub.services.dataset_table_snapshot import (
     DATASET_TABLE_EXACT_MAX_CELLS,
     DATASET_TABLE_EXACT_MAX_COLUMNS,
     DATASET_TABLE_SERVER_WALL_SECONDS,
 )
 
-DATASET_INTERACTIVE_MAX_PAGE_SIZE = 100
-DATASET_INTERACTIVE_MAX_OFFSET_ROWS = 100_000
+DATASET_INTERACTIVE_MAX_PAGE_SIZE = DATASET_READ_LIMITS.interactive_max_page_size
+DATASET_INTERACTIVE_MAX_OFFSET_ROWS = DATASET_READ_LIMITS.interactive_max_offset_rows
+DATASET_ROW_ADJACENCY_MAX_ROWS = DATASET_READ_LIMITS.row_adjacency_max_rows
 
 
 class BoundedDatasetReadDeadlineExceeded(TimeoutError):

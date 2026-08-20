@@ -1,7 +1,11 @@
 import { lazy } from "react";
+import {
+  CHUNK_IMPORT_MAX_RETRIES,
+  CHUNK_IMPORT_RETRY_BASE_DELAY_MS,
+  CHUNK_IMPORT_TIMEOUT_MS,
+} from "src/config/runtime_limits";
 
 const RELOAD_KEY = "chunk_reload_attempted";
-const CHUNK_IMPORT_TIMEOUT_MS = 10_000;
 
 function getReloadScope() {
   try {
@@ -110,12 +114,15 @@ function importWithTimeout(importPromise) {
  * Usage:
  *   const MyPage = lazyWithRetry(() => import("./MyPage"));
  */
-export default function lazyWithRetry(importFn, maxRetries = 3) {
+export default function lazyWithRetry(
+  importFn,
+  maxRetries = CHUNK_IMPORT_MAX_RETRIES,
+) {
   return lazy(() => retryImport(importFn, maxRetries));
 }
 
 // Exported for unit testing the post-deploy recovery logic directly.
-export async function retryImport(importFn, retriesLeft) {
+export async function retryImport(importFn, retriesLeft, attempt = 1) {
   try {
     const module = await importWithTimeout(importFn());
 
@@ -152,8 +159,10 @@ export async function retryImport(importFn, retriesLeft) {
   } catch (error) {
     if (retriesLeft > 0 && isChunkError(error) && !error?.skipChunkRetry) {
       // Wait briefly — CDN may need time to propagate new chunks
-      await new Promise((r) => setTimeout(r, 1000 * (4 - retriesLeft)));
-      return retryImport(importFn, retriesLeft - 1);
+      await new Promise((resolve) =>
+        setTimeout(resolve, CHUNK_IMPORT_RETRY_BASE_DELAY_MS * attempt),
+      );
+      return retryImport(importFn, retriesLeft - 1, attempt + 1);
     }
 
     // All retries exhausted — try a silent one-time page reload

@@ -178,11 +178,12 @@ ERROR_RESPONSES = {
 # Shared cap for filter-mode bulk add. Phase 11 may introduce an async job
 # path for selections exceeding this; until then, the endpoint errors with
 # ``selection_too_large`` so the UI can prompt the user to narrow the filter.
-MAX_SELECTION_CAP = 10_000
+MAX_SELECTION_CAP = settings.BULK_SELECTION_MAX_CAP
 
-# The browser aborts filter-mode add-items after nine seconds. Finish the
-# request-owned backend transaction first, leaving response/network headroom.
-ADD_ITEMS_FILTER_MODE_WALL_MS = 8_500
+# Finish the request-owned backend transaction before the separately configured
+# browser transport wall, leaving response/network headroom.
+ADD_ITEMS_FILTER_MODE_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+ADD_ITEMS_DEADLINE_CHECK_INTERVAL = settings.ANNOTATION_QUEUE_DEADLINE_CHECK_INTERVAL
 _ADD_ITEMS_FILTER_DEADLINE_ATTR = "_annotation_queue_add_items_filter_deadline"
 
 
@@ -213,7 +214,9 @@ def _add_items_deadline_checkpoint(
     *,
     index: int | None = None,
 ) -> None:
-    if deadline is not None and (index is None or index % 128 == 0):
+    if deadline is not None and (
+        index is None or index % ADD_ITEMS_DEADLINE_CHECK_INTERVAL == 0
+    ):
         deadline.remaining_ms(floor_ms=1)
 
 
@@ -255,14 +258,14 @@ def _bounded_add_items_postgres(deadline: ReadDeadline):
 # raw payload at 2x that — an SDK/API caller can otherwise POST a pathological
 # list that becomes one giant CH IN(...) plus a long sequential INSERT run under
 # the gateway timeout. Filter-mode has its own MAX_SELECTION_CAP.
-ADD_ITEMS_SYNC_MAX = 1_000
+ADD_ITEMS_SYNC_MAX = settings.ANNOTATION_QUEUE_ADD_ITEMS_SYNC_MAX
 
 # Synchronous export materializes and resolves full content for every item in one
 # HTTP request. Past this size it can't reliably finish under the gateway timeout,
 # and the ClickHouse content reads over very wide (voice) rows risk OOM-ing the
 # shared cluster, so cap it and let the caller narrow the set (a background export
 # lifts the ceiling). Conservative default; override via settings to tune in prod.
-EXPORT_SYNC_MAX_ITEMS = 1_000
+EXPORT_SYNC_MAX_ITEMS = settings.ANNOTATION_QUEUE_EXPORT_SYNC_MAX_ITEMS
 
 
 def _queue_item_export_prefetches():
@@ -2803,7 +2806,7 @@ def _ensure_default_queue_member_can_manage(queue, user):
 
 # Cap the rows per INSERT / UPDATE round-trip so a large add (thousands of items) can't
 # build one oversized statement — the FE already chunks add-items requests at 500.
-_BULK_ADD_BATCH_SIZE = 500
+_BULK_ADD_BATCH_SIZE = settings.ANNOTATION_QUEUE_DEADLINE_BULK_BATCH_SIZE
 
 
 def _finalize_bulk_add(queue, items_to_create, *, deadline=None):
@@ -7855,12 +7858,14 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
 class AutomationRulePagination(ExtendedPageNumberPagination):
     """Bound one automation-rule page without changing shared pagination."""
 
-    page_size = 25
-    max_page_size = 100
+    page_size = settings.ANNOTATION_QUEUE_AUTOMATION_DEFAULT_PAGE_SIZE
+    max_page_size = settings.ANNOTATION_QUEUE_AUTOMATION_MAX_PAGE_SIZE
 
 
-_AUTOMATION_RULE_READ_WALL_MS = 8_500
-_AUTOMATION_RULE_READ_MAX_RESPONSE_UNITS = 1024 * 1024
+_AUTOMATION_RULE_READ_WALL_MS = settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+_AUTOMATION_RULE_READ_MAX_RESPONSE_UNITS = (
+    settings.ANNOTATION_QUEUE_AUTOMATION_MAX_RESPONSE_UNITS
+)
 
 
 class AutomationRuleReadLimitExceeded(RuntimeError):

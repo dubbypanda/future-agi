@@ -13,6 +13,7 @@ import { selectContractedList } from "src/api/contract-validation";
 import { ModelHubAnnotationQueuesForSourceResponse } from "src/generated/api-contracts/api.zod";
 import { paramsSerializer } from "src/utils/utils";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 import {
   AUTOMATION_RULE_LIST_PAGE_SIZE,
   readAutomationRulePage,
@@ -432,7 +433,7 @@ export const useQueueItems = (queueId, filters = {}, options = {}) => {
   });
 };
 
-export const ADD_QUEUE_ITEMS_TIMEOUT_MS = 9_000;
+export const ADD_QUEUE_ITEMS_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES = new Set([
   "ERR_CANCELED",

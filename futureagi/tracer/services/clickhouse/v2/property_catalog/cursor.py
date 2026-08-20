@@ -18,10 +18,13 @@ from typing import Any
 from django.conf import settings
 from django.core import signing
 
+from .runtime_limits import RUNTIME_LIMITS
+
 PROPERTY_CATALOG_CURSOR_VERSION = 1
 PROPERTY_CATALOG_CURSOR_SALT = "tracer.property-catalog-cursor.v1"
-PROPERTY_CATALOG_CURSOR_MAX_AGE_SECONDS = 24 * 60 * 60
-PROPERTY_CATALOG_CURSOR_MAX_BYTES = 16 * 1024
+PROPERTY_CATALOG_CURSOR_MAX_AGE_SECONDS = RUNTIME_LIMITS.cursor_max_age_seconds
+PROPERTY_CATALOG_CURSOR_MAX_BYTES = RUNTIME_LIMITS.cursor_max_bytes
+PROPERTY_CATALOG_CURSOR_MAX_PAGE_SIZE = RUNTIME_LIMITS.max_page_size
 PROPERTY_CATALOG_ORDER_WIDTH = 6
 
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
@@ -152,7 +155,7 @@ def encode_property_catalog_cursor(
 ) -> str:
     if (
         type(page_size) is not int
-        or not 1 <= page_size <= 200
+        or not 1 <= page_size <= PROPERTY_CATALOG_CURSOR_MAX_PAGE_SIZE
         or type(catalog_epoch) is not int
         or not 1 <= catalog_epoch <= 65_535
         or type(catalog_revision) is not int
