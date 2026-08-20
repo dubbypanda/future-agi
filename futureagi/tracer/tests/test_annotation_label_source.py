@@ -639,10 +639,10 @@ class TestBackfillTracerProject:
         )
         assert score.tracer_project_id is None
 
-        res = backfill_tracer_project_ids()
+        res = backfill_tracer_project_ids(only_project=str(project.id))
         score.refresh_from_db()
         assert score.tracer_project_id == project.id
         assert res["updated"] >= 1
 
         # Idempotent second run.
-        assert backfill_tracer_project_ids()["updated"] == 0
+        assert backfill_tracer_project_ids(only_project=str(project.id))["updated"] == 0

@@ -1850,7 +1850,16 @@ class TestMetricsEndpoint:
             organization=organization,
             workspace=workspace,
             project=project,
-            settings={"options": [{"value": "ready", "label": "Ready"}]},
+            settings={
+                "options": [
+                    {"value": "ready", "label": "Ready"},
+                    {"value": "blocked", "label": "Blocked"},
+                ],
+                "strategy": None,
+                "auto_annotate": False,
+                "multi_choice": False,
+                "rule_prompt": "",
+            },
         )
 
         response = _get_metrics_with_annotation_labels(
@@ -1866,7 +1875,10 @@ class TestMetricsEndpoint:
             if entry["name"] == str(label.id)
         )
         assert metric["category"] == "annotation_metric"
-        assert metric["choice_options"] == [{"value": "ready", "label": "Ready"}]
+        assert metric["choice_options"] == [
+            {"value": "ready", "label": "Ready"},
+            {"value": "blocked", "label": "Blocked"},
+        ]
 
     @pytest.mark.django_db
     @patch("tracer.services.dashboard_metrics_catalog.V2AnalyticsQueryService")

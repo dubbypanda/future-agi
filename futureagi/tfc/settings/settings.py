@@ -44,6 +44,14 @@ EXACT_AGGREGATION_TASK_QUEUE = os.getenv(
     "tasks_xl",
 )
 
+# Eval-usage API reads use ClickHouse in deployed environments. Keep the
+# source selection explicit so contract tests and standalone installs can use
+# the existing PostgreSQL fallback without changing global ClickHouse routing.
+EVAL_USAGE_CLICKHOUSE_ENABLED = os.getenv(
+    "EVAL_USAGE_CLICKHOUSE_ENABLED",
+    "true",
+).lower() in ("true", "1", "t", "yes", "y")
+
 
 def _split_env(name: str, default: str = "") -> list[str]:
     """Parse a comma-separated env var into a list."""

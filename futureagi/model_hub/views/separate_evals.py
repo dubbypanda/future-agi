@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 from django.shortcuts import get_object_or_404
@@ -5030,7 +5031,7 @@ class EvalUsageStatsView(APIView):
             period_qs = None
             read_completeness = EvalUsageReadCompleteness.COMPLETE.value
             unavailable_fields: list[str] = []
-            if is_clickhouse_enabled():
+            if settings.EVAL_USAGE_CLICKHOUSE_ENABLED and is_clickhouse_enabled():
                 project_configs = CustomEvalConfig.objects.filter(
                     eval_template_id=template_id,
                     deleted=False,

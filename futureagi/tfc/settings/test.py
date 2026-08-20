@@ -30,6 +30,14 @@ from .settings import INSTALLED_APPS  # noqa: E402
 TESTING = True
 DEBUG = False
 
+# EE usage endpoint contract fixtures create APICallLog rows directly in the
+# test database. ClickHouse selector behavior has dedicated tests; endpoint
+# contract tests should exercise the deterministic ORM fallback they seed.
+EVAL_USAGE_CLICKHOUSE_ENABLED = os.environ.get(
+    "EVAL_USAGE_CLICKHOUSE_ENABLED",
+    "false",
+).lower() in ("true", "1", "t", "yes", "y")
+
 # Test database configuration
 # Use different ports than dev (5432/9000) to avoid collisions
 # Dev: PG=5432, CH=9000 | Test: PG=15432, CH=19000
