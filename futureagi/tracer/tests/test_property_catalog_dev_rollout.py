@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from io import StringIO
@@ -250,10 +251,11 @@ def _request(**overrides: object) -> DevRolloutRequest:
 
 
 def _unit_runtime_config(
-    runtime_directory: str = "/private/tmp",
+    runtime_directory: str | None = None,
     *,
     now: datetime = datetime(2026, 8, 14, 12, tzinfo=UTC),
 ) -> DevRuntimeConfig:
+    runtime_directory = runtime_directory or tempfile.gettempdir()
     return DevRuntimeConfig(
         catalog=NativeConnectionConfig(
             host="catalog.dev.invalid",

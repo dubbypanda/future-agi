@@ -54738,11 +54738,9 @@
                         "name": "filters",
                         "in": "query",
                         "required": false,
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "default": []
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     },
                     {
                         "name": "property",

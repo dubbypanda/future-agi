@@ -30296,11 +30296,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           filters: {
             required: false,
             schema: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              default: [],
+              type: "string",
+              minLength: 1,
+              default: "[]",
             },
           },
           property: {

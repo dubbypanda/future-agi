@@ -29185,7 +29185,10 @@ export type TracerChartsFetchGraphParams = {
    * @minLength 1
    */
   interval: string;
-  filters?: string[];
+  /**
+   * @minLength 1
+   */
+  filters?: string;
   property?: string;
   req_data_config: string;
   project_id: string;

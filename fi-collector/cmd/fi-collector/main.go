@@ -545,7 +545,7 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	if err := applyPositiveDurationEnvOverride(
 		envPropertyCatalogShutdownTimeout,
 		&c.PropertyCatalog.ShutdownTimeout,
-		2*time.Minute,
+		propertycatalog.MaxShutdownTimeout,
 	); err != nil {
 		return err
 	}

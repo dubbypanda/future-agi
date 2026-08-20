@@ -209,8 +209,7 @@ const UsersView = ({
     discoveryMode: "eval_mapping",
     search: customAttributeSearch,
     preservedKeys: preservedCustomAttributeKeys,
-    enabled:
-      openCustomColumnDialog && Boolean(observeId || currentWorkspaceId),
+    enabled: openCustomColumnDialog && Boolean(observeId || currentWorkspaceId),
   });
 
   // --- Observe header refresh wiring (TH-4023) ---

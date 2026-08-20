@@ -42460,7 +42460,8 @@ Query parameters same as fetch_graph.
  * @summary Optimized version of fetch_graph using database-level aggregation.
  */
 
-export const tracerChartsFetchGraphQueryFiltersDefault = [];
+export const tracerChartsFetchGraphQueryFiltersDefault = `[]`;
+
 export const tracerChartsFetchGraphQueryPropertyDefault = `average`;
 export const tracerChartsFetchGraphQueryAllowSampledDefault = false;
 export const tracerChartsFetchGraphQueryRefreshDefault = false;
@@ -42468,7 +42469,8 @@ export const tracerChartsFetchGraphQueryRefreshDefault = false;
 export const TracerChartsFetchGraphQueryParams = zod.object({
   interval: zod.string().min(1),
   filters: zod
-    .array(zod.string())
+    .string()
+    .min(1)
     .default(tracerChartsFetchGraphQueryFiltersDefault),
   property: zod.string().default(tracerChartsFetchGraphQueryPropertyDefault),
   req_data_config: zod.string(),

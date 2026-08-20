@@ -35,8 +35,10 @@ const (
 	defaultMaxSpoolFiles                = 10_000
 	defaultMaxSpoolBytes          int64 = 512 << 20
 
-	maxReplayInterval             = 30 * time.Second
-	maxShutdownTimeout            = 2 * time.Minute
+	maxReplayInterval = 30 * time.Second
+	// MaxShutdownTimeout is shared by environment parsing and runtime validation
+	// so the accepted operational range has one source of truth.
+	MaxShutdownTimeout            = 2 * time.Minute
 	maxRuntimeQueueDepth          = 1_024
 	maxRuntimeSpansPerBatch       = 100_000
 	maxRuntimeKeysPerSpan         = 4_096
@@ -165,10 +167,10 @@ func (c RuntimeConfig) Validate() error {
 			maxReplayInterval,
 		)
 	}
-	if c.ShutdownTimeout <= 0 || c.ShutdownTimeout > maxShutdownTimeout {
+	if c.ShutdownTimeout <= 0 || c.ShutdownTimeout > MaxShutdownTimeout {
 		return fmt.Errorf(
 			"propertycatalog: shutdown timeout must be in (0,%s]",
-			maxShutdownTimeout,
+			MaxShutdownTimeout,
 		)
 	}
 	if len(c.WorkspaceAllowlist) == 0 || len(c.WorkspaceAllowlist) > maxWorkspaceAllowlist {

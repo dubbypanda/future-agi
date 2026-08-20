@@ -49,7 +49,7 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModeIsDevKafkaOnly(t *testing.T)
 			c.Kafka.DeliveryTimeout = MaxDeliveryTimeout + time.Second
 		},
 		"shutdown timeout above ceiling": func(c *RuntimeConfig) {
-			c.ShutdownTimeout = maxShutdownTimeout + time.Second
+			c.ShutdownTimeout = MaxShutdownTimeout + time.Second
 		},
 		"spool bytes above ceiling": func(c *RuntimeConfig) {
 			c.MaxSpoolBytes = maxRuntimeSpoolBytes + 1

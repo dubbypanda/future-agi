@@ -493,14 +493,12 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
 
   it("shows replacement loading only after AG Grid starts that read", async () => {
     let resolveReplacement;
-    getMock
-      .mockResolvedValueOnce(listResponse())
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveReplacement = resolve;
-          }),
-      );
+    getMock.mockResolvedValueOnce(listResponse()).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveReplacement = resolve;
+        }),
+    );
 
     const ref = React.createRef();
     const props = baseProps();
@@ -531,9 +529,8 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
     const replacementParams = makeParams();
     let replacementRead;
     act(() => {
-      replacementRead = gridState.props.serverSideDatasource.getRows(
-        replacementParams,
-      );
+      replacementRead =
+        gridState.props.serverSideDatasource.getRows(replacementParams);
     });
     await waitFor(() => expect(resolveReplacement).toBeTypeOf("function"));
     expect(gridState.props.loading).toBe(true);

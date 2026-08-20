@@ -962,7 +962,8 @@ const SessionsView = ({ mode = "project", userIdForUserMode = null }) => {
     search: customAttributeSearch,
     preservedKeys: preservedCustomAttributeKeys,
     enabled:
-      openCustomColumn && Boolean(observeId || (isUserMode && currentWorkspaceId)),
+      openCustomColumn &&
+      Boolean(observeId || (isUserMode && currentWorkspaceId)),
   });
 
   const handleAddCustomColumns = useCallback((newCols) => {

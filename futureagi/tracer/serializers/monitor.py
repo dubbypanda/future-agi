@@ -16,6 +16,7 @@ from tracer.models.project import Project
 from tracer.serializers.filters import (
     StrictInputSerializer,
     filter_list_field,
+    filter_list_query_param_field,
 )
 
 OBSERVATION_SPAN_TYPES = [t[0] for t in ObservationSpan.OBSERVATION_SPAN_TYPES]
@@ -520,7 +521,7 @@ class FetchGraphMetricConfigField(serializers.Field):
 
 class FetchGraphSerializer(StrictInputSerializer):
     interval = serializers.CharField()
-    filters = filter_list_field(required=False, default=list)
+    filters = filter_list_query_param_field(required=False, default=list)
     property = serializers.CharField(
         required=False, allow_blank=True, default="average"
     )
