@@ -554,10 +554,12 @@ def test_unicode_search_rechecks_with_python_casefold(settings):
 
     assert [item.value for item in page.values] == ["Straße"]
     assert executor.calls[-1]["params"]["catalog_search"] == "strasse"
+    assert executor.calls[-1]["params"]["catalog_search_pattern"] == "%strasse%"
     assert (
-        "position(value_search_text_folded, %(catalog_search)s) > 0"
+        "value_search_text_folded LIKE %(catalog_search_pattern)s"
         in (executor.calls[-1]["query"])
     )
+    assert "position(value_search_text_folded" not in executor.calls[-1]["query"]
     assert "value_search_text AS" not in executor.calls[-1]["query"]
     assert "length(value_search_text) != lengthUTF8" not in executor.calls[-1]["query"]
 

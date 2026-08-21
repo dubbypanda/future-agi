@@ -28,6 +28,7 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     MAX_IDENTITY_COMPONENT_BYTES,
     canonical_json,
     canonical_json_sha256,
+    like_contains_pattern,
 )
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_scope,
@@ -650,7 +651,7 @@ WHERE catalog_metadata_only = 1
    OR (
        (
            %(catalog_search)s = ''
-           OR position(value_search_text_folded, %(catalog_search)s) > 0
+           OR value_search_text_folded LIKE %(catalog_search_pattern)s
        )
        AND tuple(attribute_type_rank, value_fingerprint) > tuple(
            %(catalog_after_attribute_type_rank)s,
@@ -1246,6 +1247,7 @@ class PropertyCatalogValueReader:
             "catalog_window_start_us": _unix_microseconds(window_start),
             "catalog_window_end_us": _unix_microseconds(window_end),
             "catalog_search": query["search"],
+            "catalog_search_pattern": like_contains_pattern(query["search"]),
         }
 
     def _execute(

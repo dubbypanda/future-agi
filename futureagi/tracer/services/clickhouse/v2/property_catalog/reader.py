@@ -15,6 +15,7 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_json_sha256,
     casefold_text,
     combine_search_text,
+    like_contains_pattern,
 )
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     PropertyCatalogCursor,
@@ -501,7 +502,7 @@ _PROPERTY_SUMMARY_CTE = """
         )
         AND (
             %(catalog_search)s = ''
-            OR position(search_text_folded, %(catalog_search)s) > 0
+            OR search_text_folded LIKE %(catalog_search_pattern)s
         ) AS catalog_visible
     FROM resolved_properties
 )
@@ -859,6 +860,7 @@ def _query_params(
         "catalog_role": query.get("role", ""),
         "catalog_per_eval_config": int(query["per_eval_config"]),
         "catalog_search": query["search"],
+        "catalog_search_pattern": like_contains_pattern(query["search"]),
         "catalog_after_category_rank": order[0],
         "catalog_after_source_rank": order[1],
         "catalog_after_primary_source": order[2],

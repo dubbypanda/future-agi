@@ -55,6 +55,21 @@ def casefold_text(value: str, *, field: str = "text") -> str:
     return value.casefold()
 
 
+def like_contains_pattern(value: str) -> str:
+    """Escape one literal substring for a ClickHouse ``LIKE`` predicate."""
+
+    validate_text(
+        value,
+        field="search",
+        max_bytes=MAX_SEARCH_COMPONENT_BYTES,
+        allow_empty=True,
+    )
+    if not value:
+        return "%"
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 def validate_text(
     value: str,
     *,

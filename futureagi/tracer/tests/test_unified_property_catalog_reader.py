@@ -262,6 +262,12 @@ def test_catalog_reader_returns_signed_keyset_page(settings):
     assert len(executor.calls) == 3
     assert executor.calls[0]["params"]["catalog_exact_activation"] == 0
     assert executor.calls[1]["settings"]["max_result_rows"] == 3
+    assert executor.calls[1]["params"]["catalog_search"] == "customer"
+    assert executor.calls[1]["params"]["catalog_search_pattern"] == "%customer%"
+    assert "search_text_folded LIKE %(catalog_search_pattern)s" in executor.calls[1][
+        "query"
+    ]
+    assert "position(search_text_folded" not in executor.calls[1]["query"]
     assert " OFFSET " not in executor.calls[1]["query"].upper()
     assert "catalog_revision, build_token" in executor.calls[0]["query"]
     assert "rows.build_token = lineage.build_token" in executor.calls[1]["query"]

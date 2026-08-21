@@ -14,6 +14,7 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_json_sha256,
     casefold_text,
     framed_sha256,
+    like_contains_pattern,
     stable_property_id,
 )
 
@@ -71,6 +72,11 @@ def test_casefold_contract_does_not_normalize_unicode() -> None:
     assert casefold_text("Straße") == "strasse"
     assert casefold_text("İtem") == "i\u0307tem"
     assert casefold_text("é") != casefold_text("e\u0301")
+
+
+def test_like_contains_pattern_escapes_clickhouse_wildcards() -> None:
+    assert like_contains_pattern("") == "%"
+    assert like_contains_pattern("a%b_c\\d") == r"%a\%b\_c\\d%"
 
 
 def test_canonical_json_is_sorted_utf8_and_bounded_by_bytes() -> None:
