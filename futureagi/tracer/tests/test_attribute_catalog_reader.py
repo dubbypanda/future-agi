@@ -16,6 +16,8 @@ from tracer.services.clickhouse.v2.attribute_catalog_reader import (
     CATALOG_MAX_PAGE_SIZE,
     CATALOG_MAX_PROJECTS,
     AttributeCatalogReader,
+    CatalogActivationStatus,
+    CatalogCheckpointStatus,
     CatalogKeyCheckpoint,
     CatalogKeyPage,
     CatalogQualification,
@@ -62,7 +64,7 @@ def _activation(project_id=PROJECT_A, **overrides):
         "handoff_start": WINDOW_START - timedelta(days=2),
         "handoff_end": WINDOW_START - timedelta(days=1),
         "writer_watermark": WINDOW_END + timedelta(seconds=1),
-        "status": "active",
+        "status": CatalogActivationStatus.ACTIVE.value,
         "qualified_at": WINDOW_START,
         "state_version": 10,
         "latest_state_variants": 1,
@@ -298,7 +300,10 @@ def test_qualification_fingerprint_is_deterministic_across_project_row_order():
         ([], "activation_missing"),
         ([_activation(catalog_epoch=EPOCH + 1)], "activation_epoch_mismatch"),
         ([_activation(catalog_epoch="7")], "activation_invalid"),
-        ([_activation(status="shadow")], "activation_status_not_active"),
+        (
+            [_activation(status=CatalogActivationStatus.SHADOW.value)],
+            "activation_status_not_active",
+        ),
         (
             [_activation(handoff_end=WINDOW_START - timedelta(days=3))],
             "activation_handoff_invalid",
@@ -413,6 +418,18 @@ def test_equal_max_version_checkpoint_conflict_fails_closed():
 
     assert reader.qualify() == CatalogUnavailable("checkpoint_version_conflict")
     assert "uniqExactIf" in executor.calls[1].sql
+
+
+def test_checkpoint_completion_status_is_named_and_bound():
+    reader, executor = _reader(_successful_responder())
+
+    assert isinstance(reader.qualify(), CatalogQualification)
+    checkpoint_call = executor.calls[1]
+    assert "status != %(catalog_checkpoint_complete_status)s" in checkpoint_call.sql
+    assert "status != 'complete'" not in checkpoint_call.sql
+    assert checkpoint_call.params["catalog_checkpoint_complete_status"] == (
+        CatalogCheckpointStatus.COMPLETE.value
+    )
 
 
 def test_key_multi_page_result_fails_closed_without_immutable_snapshot():
@@ -544,7 +561,7 @@ def test_value_multi_page_result_fails_closed_and_binds_filters():
     )
     assert value_call.params["catalog_page_limit"] == 4
     assert "voice.kind" not in value_call.sql
-    assert "uniqExact(value_json)" in value_call.sql
+    assert "uniqExact(raw_value_json)" in value_call.sql
 
 
 def test_value_checkpoint_binds_key_types_search_and_page_identity():

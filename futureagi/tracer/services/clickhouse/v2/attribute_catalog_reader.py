@@ -29,6 +29,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Any, Literal, Protocol, TypeAlias, cast
 
 from tracer.services.clickhouse.v2.attribute_catalog_codec import (
@@ -61,6 +62,25 @@ CATALOG_READ_SETTINGS: dict[str, Any] = {
 
 AttributeType = Literal["string", "number", "boolean", "array", "map", "json"]
 CatalogScalar: TypeAlias = str | int | Decimal | bool
+
+
+class CatalogCheckpointStatus(StrEnum):
+    """Checkpoint states shared with schema 025 and its future writers."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETE = "complete"
+    GAP = "gap"
+    FAILED = "failed"
+
+
+class CatalogActivationStatus(StrEnum):
+    """Activation states shared with schema 025 and its future writers."""
+
+    SHADOW = "shadow"
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
 
 _ATTRIBUTE_TYPES = frozenset(("string", "number", "boolean", "array", "map", "json"))
 _SCALAR_ATTRIBUTE_TYPES = frozenset(("string", "number", "boolean", "array"))
@@ -311,7 +331,7 @@ WITH checkpoint_rows AS
 SELECT
     toString(project_id) AS project_id,
     count() AS checkpoint_count,
-    countIf(status != 'complete') AS incomplete_count,
+    countIf(status != %(catalog_checkpoint_complete_status)s) AS incomplete_count,
     countIf(gap_count != 0 OR notEmpty(gap_reasons)) AS declared_gap_count,
     countIf(source_rows != processed_rows) AS row_mismatch_count,
     countIf(source_version_fence = 0) AS missing_fence_count,
@@ -330,8 +350,11 @@ SELECT
     ) AS checkpoint_fences,
     countIf(
         window_start > greatest(
-            %(catalog_window_start)s,
-            ifNull(prior_coverage_end, %(catalog_window_start)s)
+            toDateTime64(%(catalog_window_start)s, 6, 'UTC'),
+            ifNull(
+                prior_coverage_end,
+                toDateTime64(%(catalog_window_start)s, 6, 'UTC')
+            )
         )
     ) AS interior_gap_count
 FROM ordered_checkpoints
@@ -356,15 +379,25 @@ WITH grouped_keys AS
     WHERE key_folded LIKE %(catalog_key_search_pattern)s
        OR length(key_folded) != lengthUTF8(key_folded)
     GROUP BY key_folded, attribute_key, attribute_type
+), ordered_keys AS
+(
+    SELECT
+        key_folded,
+        attribute_key,
+        attribute_type,
+        toInt8(attribute_type) AS attribute_type_rank,
+        first_seen,
+        last_seen
+    FROM grouped_keys
 )
 SELECT
     key_folded,
     attribute_key,
     toString(attribute_type) AS attribute_type,
-    toInt8(attribute_type) AS attribute_type_rank,
+    attribute_type_rank,
     first_seen,
     last_seen
-FROM grouped_keys
+FROM ordered_keys
 WHERE first_seen < %(catalog_window_end)s
   AND last_seen >= %(catalog_window_start)s
   AND tuple(key_folded, attribute_key, attribute_type_rank) > tuple(
@@ -378,23 +411,33 @@ LIMIT %(catalog_page_limit)s
 
 
 _VALUE_PAGE_SQL = """
-WITH grouped_values AS
+WITH source_values AS
 (
     SELECT
         attribute_type,
         value_fingerprint,
-        min(value_json) AS value_json,
-        min(value_search_text) AS value_search_text,
-        uniqExact(value_json) AS value_json_variants,
-        uniqExact(value_search_text) AS value_search_variants,
-        min(first_seen) AS first_seen,
-        max(last_seen) AS last_seen
+        value_json AS raw_value_json,
+        value_search_text AS raw_value_search_text,
+        first_seen AS raw_first_seen,
+        last_seen AS raw_last_seen
     FROM span_attribute_value_catalog
     PREWHERE project_id IN %(catalog_project_ids)s
       AND catalog_epoch = %(catalog_epoch)s
       AND attribute_key = %(catalog_attribute_key)s
     WHERE lower(value_search_text) LIKE %(catalog_value_search_pattern)s
        OR length(value_search_text) != lengthUTF8(value_search_text)
+), grouped_values AS
+(
+    SELECT
+        attribute_type,
+        value_fingerprint,
+        min(raw_value_json) AS value_json,
+        min(raw_value_search_text) AS value_search_text,
+        uniqExact(raw_value_json) AS value_json_variants,
+        uniqExact(raw_value_search_text) AS value_search_variants,
+        min(raw_first_seen) AS first_seen,
+        max(raw_last_seen) AS last_seen
+    FROM source_values
     GROUP BY attribute_type, value_fingerprint
 ), ordered_values AS
 (
@@ -494,6 +537,9 @@ class AttributeCatalogReader:
             "catalog_epoch": self.catalog_epoch,
             "catalog_window_start": self.window_start,
             "catalog_window_end": self.window_end,
+            "catalog_checkpoint_complete_status": (
+                CatalogCheckpointStatus.COMPLETE.value
+            ),
             "catalog_checkpoint_limit": CATALOG_MAX_PROJECTS + 1,
         }
         try:
@@ -764,7 +810,7 @@ class AttributeCatalogReader:
                 return CatalogUnavailable("activation_invalid")
             if epoch != self.catalog_epoch:
                 return CatalogUnavailable("activation_epoch_mismatch")
-            if row.get("status") != "active":
+            if row.get("status") != CatalogActivationStatus.ACTIVE.value:
                 return CatalogUnavailable("activation_status_not_active")
             try:
                 handoff_start = _row_datetime(row.get("handoff_start"))

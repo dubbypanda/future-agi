@@ -12,13 +12,17 @@
 --   * Four independent tables keep key discovery, selectable values,
 --     checkpoint progress, and reader activation independently operable.
 --   * Project-hash partitioning has a fixed 64-bucket ceiling across every
---     epoch. `catalog_epoch` remains in each sorting key for logical generation
---     isolation, but it is deliberately not a partition dimension: successive
---     rebuilds cannot create unbounded partition fan-out.
---   * `catalog_epoch` is part of every sorting key so a rebuild/cutover never
---     mixes generations.
+--     epoch. `catalog_epoch` remains in the three data/progress sorting keys
+--     for logical generation isolation, but it is deliberately not a partition
+--     dimension: successive rebuilds cannot create unbounded partition fan-out.
+--   * The activation table keeps one replaceable pointer per project. Rollback
+--     writes a newer activation state; it does not read an epoch history from
+--     that table's sorting key.
 --   * There are intentionally NO occurrence counters. Replayed ingestion can
 --     update first/last-seen bounds without inflating a user-visible count.
+--   * Search skip indexes are deferred until the folded-storage contract makes
+--     the full Unicode-safe predicate indexable. The current conservative OR
+--     branch prevents an ngram bloom filter from excluding any granule.
 --   * Value fingerprints are lowercase SHA-256 hex (`FixedString(64)`), i.e.
 --     a semantic 256-bit fingerprint transported safely over JSONEachRow.
 --     The shared Python/Go codec and golden fixtures pin the byte contract.
@@ -47,10 +51,7 @@ CREATE TABLE IF NOT EXISTS span_attribute_key_catalog
     ),
     first_seen      SimpleAggregateFunction(min, DateTime64(6, 'UTC')),
     last_seen       SimpleAggregateFunction(max, DateTime64(6, 'UTC')),
-    catalog_epoch   UInt16,
-
-    INDEX idx_catalog_key_ngram key_folded
-        TYPE ngrambf_v1(3, 32768, 3, 0) GRANULARITY 1
+    catalog_epoch   UInt16
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY cityHash64(project_id) % 64
@@ -74,10 +75,7 @@ CREATE TABLE IF NOT EXISTS span_attribute_value_catalog
     value_search_text SimpleAggregateFunction(anyLast, String),
     first_seen        SimpleAggregateFunction(min, DateTime64(6, 'UTC')),
     last_seen         SimpleAggregateFunction(max, DateTime64(6, 'UTC')),
-    catalog_epoch     UInt16,
-
-    INDEX idx_catalog_value_ngram lower(value_search_text)
-        TYPE ngrambf_v1(3, 32768, 3, 0) GRANULARITY 1
+    catalog_epoch     UInt16
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY cityHash64(project_id) % 64

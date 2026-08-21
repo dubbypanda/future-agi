@@ -13,6 +13,10 @@ from tracer.services.clickhouse.v2.apply_schema_rewriter import (
     split_statements,
 )
 from tracer.services.clickhouse.v2.attribute_catalog_codec import encode_catalog_scalar
+from tracer.services.clickhouse.v2.attribute_catalog_reader import (
+    CatalogActivationStatus,
+    CatalogCheckpointStatus,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = (
@@ -65,8 +69,11 @@ def test_catalog_schema_pins_scale_and_identity_invariants() -> None:
     assert "ORDER BY (project_id)" in statements[3]
     assert "value_fingerprint FixedString(64)" in statements[1]
     assert "SimpleAggregateFunction(anyLast, String)" in statements[1]
-    assert "ngrambf_v1" in statements[0]
-    assert "ngrambf_v1" in statements[1]
+    # The conservative Unicode-parity branch is OR-ed with each ASCII LIKE
+    # predicate, which prevents these indexes from excluding any granules.
+    # Add a search index only with a later folded-storage contract that makes
+    # the complete predicate indexable.
+    assert all("ngrambf_v1" not in statement for statement in statements)
 
     for statement in statements:
         table = extract_table_name(statement)
@@ -108,16 +115,7 @@ def test_catalog_checkpoint_contract_is_restartable_and_gap_explicit() -> None:
     assert re.search(r"\bupdated_at\s+DateTime64\(6, 'UTC'\)", checkpoint)
     assert "finished_at                Nullable(DateTime64(6, 'UTC'))" in checkpoint
     assert re.search(r"\b_version\s+UInt64\b", checkpoint)
-    assert all(
-        f"'{status}'" in checkpoint
-        for status in (
-            "pending",
-            "running",
-            "complete",
-            "gap",
-            "failed",
-        )
-    )
+    assert all(f"'{status.value}'" in checkpoint for status in CatalogCheckpointStatus)
     assert (
         "ORDER BY (project_id, catalog_epoch, window_start, window_end)" in checkpoint
     )
@@ -134,9 +132,7 @@ def test_catalog_activation_contract_is_one_state_per_project() -> None:
         "updated_at",
     ):
         assert re.search(rf"\b{column}\s+DateTime64\(6, 'UTC'\)", activation)
-    assert all(
-        f"'{status}'" in activation for status in ("shadow", "active", "disabled")
-    )
+    assert all(f"'{status.value}'" in activation for status in CatalogActivationStatus)
     assert re.search(r"\b_version\s+UInt64\b", activation)
     assert "ORDER BY (project_id)" in activation
 
