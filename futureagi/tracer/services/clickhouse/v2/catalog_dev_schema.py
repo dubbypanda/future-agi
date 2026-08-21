@@ -206,10 +206,10 @@ _SCHEMA_DIR = Path(__file__).with_name("schema")
 _PINNED_MIGRATIONS = (
     _PinnedMigration(
         filename="025_span_attribute_catalog.sql",
-        file_sha256="a2486c00fd4e302040237be7829ffb12fbe2f5ea3d48d8f318e5346da215f051",
+        file_sha256="69ff1ca253aac2f1e790ac1e506413eabcbec902431f85e5a8f8225d8b3f70e2",
         statement_sha256s=(
-            "2edaa197ad9d7f556c07ecc8a101e6aa2db8ef61bd226daf29d675728d976856",
-            "96ca4d8efdfbd27c13e591e70b16910af7bdd475ba2b3bbc94eb0d37cea9fa28",
+            "915ef9ce7a3bc78c0cfe21247cc45eb57192c0d30dccca574c89aac24b91e797",
+            "cc6f693b258add4fe3ff2cba5da8025164b3478fe5c01f7c8e8e9413e42e8eeb",
             "2ff92f36cbb747d92b057e410352ef848e3bfba91e2b37a669d92bedcc329fd6",
             "72047aea95c024f9dbc1f17b266a4fae3f7cf0f1bc9815f150363b73cc27c42d",
         ),
