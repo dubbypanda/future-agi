@@ -10646,8 +10646,10 @@ def test_span_attribute_key_cursor_compresses_widened_checkpoint_and_continues(
 
     assert attempted_segments[0] == (
         (
-            first.next_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            first.next_segment_end,
+            first.next_before_identity[3]
+            + timedelta(microseconds=1)
+            - ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
+            first.next_before_identity[3] + timedelta(microseconds=1),
         ),
         first.next_before_identity,
     )
@@ -10940,9 +10942,9 @@ def test_span_attribute_key_cursor_recuts_dense_checkpoint_at_same_keyset_fronti
         (
             None,
             (
-                ATTRIBUTE_READ_EXPLICIT_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT,
+                ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT,
             ),
         ),
@@ -11074,15 +11076,27 @@ def test_span_attribute_key_cursor_dense_retry_keeps_late_pages_exact(
         expected_widths
     )
     assert tuple(call[2] for call in candidate_calls[: len(expected_widths)]) == (
-        *(ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS for _ in expected_widths[:-2]),
-        None,
-        None,
+        tuple(
+            (
+                ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS
+                if width > ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT
+                else None
+            )
+            for width in expected_widths
+        )
     )
-    assert replay_calls == [
-        (0, None),
-        (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
-        (1, None),
-    ]
+    assert replay_calls == (
+        [
+            (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
+            (1, None),
+        ]
+        if segment_start is None
+        else [
+            (0, None),
+            (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
+            (1, None),
+        ]
+    )
 
 
 def test_span_attribute_key_cursor_dense_floor_failure_is_fail_closed(monkeypatch):
@@ -11125,18 +11139,14 @@ def test_span_attribute_key_cursor_dense_floor_failure_is_fail_closed(monkeypatc
                 before_identity=checkpoint,
             )
 
-    assert calls[:3] == [
-        (
-            ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS,
-        ),
+    assert calls[:2] == [
         (
             ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
             ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS,
         ),
         (ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT, None),
     ]
-    assert calls[3:] == calls[:3]
+    assert calls[2:] == calls[:2]
 
 
 def test_span_attribute_key_cursor_reuses_candidate_proof_while_recutting_replay(

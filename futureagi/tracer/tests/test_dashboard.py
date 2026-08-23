@@ -51,7 +51,10 @@ from tracer.services.clickhouse.attribute_reads import (
     AttributeValueRow,
     attribute_value_cursor_digest,
 )
-from tracer.services.clickhouse.filter_value_reads import _value_digest
+from tracer.services.clickhouse.filter_value_reads import (
+    FILTER_VALUE_CURSOR_INITIAL_SEGMENT,
+    _value_digest,
+)
 from tracer.services.clickhouse.list_cursor import (
     CURSOR_SALT,
     decode_list_cursor,
@@ -4007,8 +4010,9 @@ class TestMetricsEndpoint:
         assert isinstance(payload["next_cursor"], str)
         assert payload["query_window_start"] == "2024-01-01T00:00:00+00:00"
         call = mock_analytics_cls.return_value.execute_ch_query.call_args
-        assert call.args[1]["window_end"] - call.args[1]["window_start"] == timedelta(
-            minutes=5
+        assert (
+            call.args[1]["window_end"] - call.args[1]["window_start"]
+            == FILTER_VALUE_CURSOR_INITIAL_SEGMENT
         )
         assert "LIMIT %(result_limit)s" in call.args[0]
 

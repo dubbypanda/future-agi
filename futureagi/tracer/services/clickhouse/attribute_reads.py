@@ -3761,15 +3761,35 @@ class AttributeReadSelector:
             or not start <= active_segment_start < current_segment_end
         ):
             raise ValueError("invalid attribute-key segment cursor")
-        if has_physical_checkpoint and active_segment_start is None:
-            # Five-field cursors from older pods always checkpointed inside the
-            # fixed six-hour slice.  Derive that legacy lower bound while new
-            # widened checkpoints carry an explicit sixth field.
-            active_segment_start = max(
-                start,
-                current_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            )
         checkpoint_identity = before_identity or resume_identity
+        if checkpoint_identity is not None and active_segment_start is None:
+            if exact_key is None:
+                # Rolling-compatible five-field generic cursors omit the active
+                # slice after checkpointing inside a fully consumed range.
+                # Everything newer than the checkpoint has already been
+                # certified, so resuming the whole six-hour prefix is
+                # unnecessary and can turn a small picker page into a
+                # multi-gigabyte global sort. Re-anchor the unchanged keyset
+                # frontier to the five-minute dense slice that ends one
+                # DateTime64 tick after the checkpoint. That includes lower-id
+                # timestamp ties plus older rows immediately; the next adjacent
+                # slice starts at the resulting lower boundary.
+                current_segment_end = min(
+                    current_segment_end,
+                    checkpoint_identity[3] + timedelta(microseconds=1),
+                )
+                active_segment_start = max(
+                    start,
+                    current_segment_end - ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
+                )
+            else:
+                # Exact-key continuations retain the rolling-compatible legacy
+                # envelope; the exact lane below re-anchors it at the requested
+                # key's deterministic fallback width.
+                active_segment_start = max(
+                    start,
+                    current_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
+                )
         if checkpoint_identity is not None and not (
             active_segment_start is not None
             and active_segment_start <= checkpoint_identity[3] < current_segment_end

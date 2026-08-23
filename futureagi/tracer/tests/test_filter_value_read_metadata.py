@@ -372,6 +372,9 @@ def test_system_value_budget_backoff_changes_cursor_then_fails_at_floor():
         page_size=10,
         window_start=NOW - timedelta(hours=1),
         window_end=NOW,
+        # Exercise a rolling cursor created before the production-qualified
+        # default moved to the five-second floor.
+        segment_start=NOW - timedelta(minutes=5),
     )
 
     assert first.values == ()
@@ -391,6 +394,31 @@ def test_system_value_budget_backoff_changes_cursor_then_fails_at_floor():
             segment_start=first.next_segment_start,
             seen_value_digests=first.seen_value_digests,
         )
+
+
+def test_system_value_cursor_starts_at_the_exact_floor():
+    class Analytics:
+        calls = []
+
+        def execute_ch_query(self, _query, params, **_kwargs):
+            type(self).calls.append(dict(params))
+            return SimpleNamespace(data=[{"val": "completed"}])
+
+    read = read_span_system_filter_value_cursor_page(
+        Analytics(),
+        project_ids=[PROJECT_ID],
+        metric_name="status",
+        page_size=1,
+        window_start=NOW - timedelta(days=365),
+        window_end=NOW,
+    )
+
+    assert len(Analytics.calls) == 1
+    assert Analytics.calls[0]["window_end"] - Analytics.calls[0]["window_start"] == (
+        FILTER_VALUE_CURSOR_MIN_SEGMENT
+    )
+    assert read.values == ("completed",)
+    assert read.has_more is True
 
 
 def test_system_value_floor_failure_keeps_values_from_completed_slices():

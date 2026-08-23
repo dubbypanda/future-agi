@@ -310,7 +310,11 @@ INTERACTIVE_READ_SETTING_SPECS = {
             ("GRAPH_SPAN_METRIC_BATCH_SIZE", 1_024, 1, 4_096),
             ("FILTER_VALUE_READ_TIMEOUT_MS", 8_000, 100, 60_000),
             ("FILTER_VALUE_CURSOR_MIN_SEGMENT_SECONDS", 5, 1, 300),
-            ("FILTER_VALUE_CURSOR_INITIAL_SEGMENT_SECONDS", 5 * 60, 1, 86_400),
+            # A five-minute system-value continuation read crossed 1 GiB and
+            # the four-second picker wall on a production-scale project. Start
+            # at the existing exact five-second floor and grow only after a
+            # complete empty/duplicate-only slice proves it is safe.
+            ("FILTER_VALUE_CURSOR_INITIAL_SEGMENT_SECONDS", 5, 1, 86_400),
             (
                 "FILTER_VALUE_CURSOR_MAX_SEGMENT_SECONDS",
                 60 * 24 * 60 * 60,

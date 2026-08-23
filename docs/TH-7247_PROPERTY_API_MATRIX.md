@@ -164,7 +164,7 @@ frontend overrides fall back to the documented default.
 | Area                       | High-impact environment settings and defaults                                                                                                                                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Shared backend bounds      | `INTERACTIVE_READ_DEFAULT_WALL_MS=8500`; `INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS=9500`; `INTERACTIVE_READ_DEFAULT_MAX_PAGE_SIZE=100`; `CLICKHOUSE_REVIEWED_READ_TIMEOUT_CEILING_MS=30000`                                             |
-| Property and value pickers | `DASHBOARD_FILTER_VALUE_WALL_MS=4000`; `DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE=50`; `FILTER_VALUE_READ_TIMEOUT_MS=8000`; `FILTER_VALUE_CURSOR_MAX_QUERIES=6`; `FILTER_SELECTOR_QUERY_TIMEOUT_MS=2500`; `FILTER_SELECTOR_MAX_THREADS=1` |
+| Property and value pickers | `DASHBOARD_FILTER_VALUE_WALL_MS=4000`; `DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE=50`; `FILTER_VALUE_READ_TIMEOUT_MS=8000`; `FILTER_VALUE_CURSOR_MIN_SEGMENT_SECONDS=5`; `FILTER_VALUE_CURSOR_INITIAL_SEGMENT_SECONDS=5`; `FILTER_VALUE_CURSOR_MAX_QUERIES=6`; `FILTER_SELECTOR_QUERY_TIMEOUT_MS=2500`; `FILTER_SELECTOR_MAX_THREADS=1` |
 | Graph and monitor reads    | `MONITOR_GRAPH_CH_TIMEOUT_CAP_MS=6000`; `MONITOR_GRAPH_METADATA_PG_TIMEOUT_CAP_MS=1000`; `GRAPH_BACKGROUND_WALL_MS=30000`; `GRAPH_EVENT_LIMIT=2000`                                                                                  |
 | Bulk annotation selection  | `BULK_SELECTION_DEADLINE_MS=15000`; `BULK_SELECTION_MAX_CAP=10000`; `ANNOTATION_QUEUE_DEADLINE_BULK_BATCH_SIZE=500`                                                                                                                  |
 | Eval/simulation/dataset UI | `EVAL_METRIC_MAX_WINDOW_DAYS=365`; `SIMULATION_PREVIEW_DEFAULT_PAGE_SIZE=50`; `SIMULATION_PREVIEW_MAX_PAGE_SIZE=50`; `DATASET_ROW_ADJACENCY_MAX_ROWS=50`                                                                             |
@@ -257,6 +257,30 @@ public-API proof. See
 [query_builder_matrix.py](../futureagi/scripts/th7247_current_select_qualifier/query_builder_matrix.py)
 and the detailed evidence boundary in
 [`TH7247_INTERACTIVE_READ_MATRIX.md`](TH7247_INTERACTIVE_READ_MATRIX.md#current-source-production-select-matrix-supplementary-not-http-sign-off).
+
+A focused 2026-08-22 production picker probe at parent
+`b81aeb991fbe677ab41dae3c40fd829b5f960c9c` used the same
+server-enforced read-only boundary and found two continuation shapes that did
+not meet the four-second picker wall. A dense Whatfix generic attribute-key
+page two repeated a rolling-compatible six-hour ordered Map-key prefix and
+read about 4.02 GB in 3.45-5.45 seconds. A sparse Colektia `Model` value page
+two scanned a five-minute latest-state distinct-value slice and read about
+1.05 GB in 4.17-5.67 seconds. The remaining focused key/value pages completed
+in 0.19-2.00 seconds with disjoint, advancing cursors. The full probe issued
+219 `SELECT` statements, read 24,663,703 rows / 10.86 GiB in aggregate, and
+issued no DDL or DML. Pre/post catalog-table, source-table metadata, and active
+mutation snapshots were identical.
+
+The local fix re-anchors an already-certified generic key checkpoint at its
+five-minute dense slice instead of replaying the six-hour prefix, and changes
+the env-backed system-value initial slice default from five minutes to the
+existing exact five-second floor. Cursor reachability is unchanged: adjacent
+slices still advance through the frozen retained window, and the initial width
+can be overridden with `FILTER_VALUE_CURSOR_INITIAL_SEGMENT_SECONDS`. This is
+source-path diagnosis and local regression evidence, not post-fix production
+qualification. The six catalog tables were absent from every US production
+replica during the probe, so activated unified-catalog APIs and post-fix HTTP
+latency remain pending an explicitly approved rollout.
 
 DEV graph/dashboard preparation had a separate deployment-skew failure: the
 backend scheduled `tracer.refresh_exact_aggregation_snapshot` to `tasks_xl`,
