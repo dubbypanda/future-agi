@@ -104,7 +104,14 @@ const TaskDetailPage = () => {
     },
   });
 
-  const { control, handleSubmit, getValues, setValue, reset } = useForm({
+  const {
+    control,
+    handleSubmit,
+    getValues,
+    setValue,
+    reset,
+    formState: { dirtyFields },
+  } = useForm({
     defaultValues: getDefaultTaskValues(null, null),
     resolver: zodResolver(NewTaskValidationSchema()),
   });
@@ -232,6 +239,7 @@ const TaskDetailPage = () => {
   const { mutate: duplicateTask, isPending: isDuplicating } = useMutation({
     mutationFn: (payload) =>
       axios.post(endpoints.project.createEvalTask(), payload),
+    meta: { errorHandled: true },
     onSuccess: (resp) => {
       queryClient.invalidateQueries({ queryKey: ["eval-tasks"] });
       enqueueSnackbar("Your task has been duplicated", { variant: "success" });
@@ -248,22 +256,42 @@ const TaskDetailPage = () => {
 
   const handleDuplicate = () => {
     if (!taskDetails || isDuplicating) return;
-    const src = getDefaultTaskValues(taskDetails, null);
+    const src = formValues?.name
+      ? formValues
+      : getDefaultTaskValues(taskDetails, null);
+
+    const isDateDirty = Boolean(dirtyFields?.startDate || dirtyFields?.endDate);
+    const hasSavedDateRange = Boolean(
+      taskDetails?.filters_applied?.date_range?.length ||
+        taskDetails?.filters_applied?.start_date ||
+        taskDetails?.filters_applied?.end_date ||
+        taskDetails?.start_date ||
+        taskDetails?.end_date,
+    );
+    const includeDateRange = hasSavedDateRange || isDateDirty;
+
     const { filters: wireFilters, attributeFilters } = getNewTaskFilters(
       src,
       src.project,
+      !includeDateRange,
     );
+
+    if (!includeDateRange && wireFilters.date_range) {
+      delete wireFilters.date_range;
+    }
 
     const payload = {
       name: `${src.name}-duplicate`,
       project: src.project,
       run_type: src.runType,
       row_type: src.rowType,
-      ...(src.runType !== "continuous" && src.spansLimit
-        ? { spans_limit: src.spansLimit }
+      ...(src.runType !== "continuous" &&
+      Number.isFinite(Number(src.spansLimit)) &&
+      Number(src.spansLimit) > 0
+        ? { spans_limit: Number(src.spansLimit) }
         : {}),
       sampling_rate: src.samplingRate,
-      evals_details: src.evalsDetails,
+      evals: src.evalsDetails?.map((item) => item.id || item) || [],
       filters: {
         ...wireFilters,
         ...(attributeFilters?.length > 0
@@ -274,11 +302,6 @@ const TaskDetailPage = () => {
     duplicateTask(payload);
     popover.onClose();
   };
-
-  // Transform form → update payload (same logic as EditTaskDrawerV2)
-  const handleSave = useCallback(() => {
-    openConfirm("update");
-  }, [openConfirm]);
 
   const handleConfirm = useCallback(
     (editType) => {
@@ -458,20 +481,18 @@ const TaskDetailPage = () => {
         </span>
       </CustomTooltip>
 
-      <Button
+      <LoadingButton
         variant="outlined"
         size="small"
         onClick={popover.onOpen}
-        endIcon={<Iconify icon="solar:chevron-down-linear" width={14} />}
+        loading={isDuplicating}
+        endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
         sx={{
           textTransform: "none",
-          fontWeight: 500,
-          fontSize: "12px",
-          height: 30,
         }}
       >
         Actions
-      </Button>
+      </LoadingButton>
 
       <CustomPopover
         open={popover.open}
