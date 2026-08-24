@@ -212,7 +212,6 @@ const TaskDetailPage = () => {
     },
   });
 
-<<<<<<< HEAD
   // Re-run is reachable from the Logs tab, where an invalid field isn't
   // rendered — a silent validation failure would read as a broken button.
   const openConfirm = useCallback(
@@ -229,7 +228,7 @@ const TaskDetailPage = () => {
       )(),
     [handleSubmit],
   );
-=======
+
   const { mutate: duplicateTask, isPending: isDuplicating } = useMutation({
     mutationFn: (payload) =>
       axios.post(endpoints.project.createEvalTask(), payload),
@@ -278,11 +277,8 @@ const TaskDetailPage = () => {
 
   // Transform form → update payload (same logic as EditTaskDrawerV2)
   const handleSave = useCallback(() => {
-    handleSubmit(() => {
-      setConfirmOpen(true);
-    })();
-  }, [handleSubmit]);
->>>>>>> 9587e9cb0 (feat(tasks): add Duplicate action to task detail page)
+    openConfirm("update");
+  }, [openConfirm]);
 
   const handleConfirm = useCallback(
     (editType) => {
@@ -437,7 +433,6 @@ const TaskDetailPage = () => {
           Resume
         </Button>
       )}
-<<<<<<< HEAD
       <CustomTooltip
         show={!!rerunBlockedReason}
         title={rerunBlockedReason}
@@ -462,7 +457,7 @@ const TaskDetailPage = () => {
           </LoadingButton>
         </span>
       </CustomTooltip>
-=======
+
       <Button
         variant="outlined"
         size="small"
@@ -492,7 +487,6 @@ const TaskDetailPage = () => {
           Duplicate
         </MenuItem>
       </CustomPopover>
->>>>>>> 9587e9cb0 (feat(tasks): add Duplicate action to task detail page)
     </>
   );
 
