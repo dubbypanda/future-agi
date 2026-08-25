@@ -9,6 +9,10 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import Any, Protocol
 
+from tracer.services.clickhouse.v2.property_catalog.activation import (
+    BuildPlanSourceScope,
+    RevisionBuildPlan,
+)
 from tracer.services.clickhouse.v2.property_catalog.codec import (
     MAX_DEFINITION_JSON_BYTES,
     canonical_json,
@@ -25,7 +29,10 @@ from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_scope,
 )
 from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
-from tracer.utils.property_registry import parse_property_registry_id
+from tracer.utils.property_registry import (
+    normalize_custom_attribute_source,
+    parse_property_registry_id,
+)
 
 PROPERTY_CATALOG_MAX_PROJECTS = RUNTIME_LIMITS.max_projects
 PROPERTY_CATALOG_MAX_PAGE_SIZE = RUNTIME_LIMITS.max_page_size
@@ -36,6 +43,14 @@ PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION = 1
 PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS = RUNTIME_LIMITS.max_lineage_revisions
 PROPERTY_CATALOG_LIFECYCLE_MODES = frozenset(
     {"initial_backfill", "incremental", "full_repair"}
+)
+PROPERTY_CATALOG_NOT_READY_REASONS = frozenset(
+    {
+        "activation_missing",
+        "activation_not_active",
+        "projection_incompatible",
+        "activation_scope_incomplete",
+    }
 )
 
 _DATABASE_RE = re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z")
@@ -79,6 +94,15 @@ class PropertyCatalogUnavailable(RuntimeError):
         super().__init__("The property catalog is temporarily unavailable.")
 
 
+def is_property_catalog_not_ready_error(error: BaseException) -> bool:
+    """Return whether a sanitized availability failure permits legacy fallback."""
+
+    return (
+        isinstance(error, PropertyCatalogUnavailable)
+        and error.reason in PROPERTY_CATALOG_NOT_READY_REASONS
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class PropertyCatalogActivation:
     catalog_epoch: int
@@ -90,6 +114,7 @@ class PropertyCatalogActivation:
     activation_sequence: int
     source_manifest_sha256: str
     activation_sha256: str
+    source_scope: BuildPlanSourceScope | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,18 +212,73 @@ WITH versioned AS
     SELECT catalog_epoch, catalog_revision, count() AS active_builds
     FROM active_candidates
     GROUP BY catalog_epoch, catalog_revision
+), reservation_versioned AS
+(
+    SELECT
+        *,
+        max(_version) OVER (
+            PARTITION BY organization_id, workspace_id,
+                         catalog_epoch, catalog_revision, build_token,
+                         source_adapter, producer_stream_id, envelope_version
+        ) AS latest_version
+    FROM __CATALOG_DATABASE__.property_catalog_source_streams
+    PREWHERE organization_id = %(catalog_organization_id)s
+      AND workspace_id = %(catalog_workspace_id)s
+    WHERE source_adapter = 'system_manifest'
+      AND producer_stream_id = build_token
+      AND envelope_version = 0
+), reservation_states AS
+(
+    SELECT
+        reservation_rows.catalog_epoch,
+        reservation_rows.catalog_revision,
+        reservation_rows.build_token,
+        argMax(reservation_rows.projection_version, reservation_rows._version)
+            AS reservation_projection_version,
+        argMax(reservation_rows.build_plan_json, reservation_rows._version)
+            AS build_plan_json,
+        argMax(reservation_rows.build_lease_sha256, reservation_rows._version)
+            AS build_lease_sha256,
+        uniqExactIf(
+            tuple(
+                reservation_rows.projection_version,
+                reservation_rows.build_plan_json,
+                reservation_rows.build_lease_sha256
+            ),
+            reservation_rows._version = reservation_rows.latest_version
+        ) AS latest_reservation_variants
+    FROM reservation_versioned AS reservation_rows
+    GROUP BY
+        reservation_rows.catalog_epoch,
+        reservation_rows.catalog_revision,
+        reservation_rows.build_token
 )
-SELECT active_candidates.*, active_revision_counts.active_builds
+SELECT
+    active_candidates.*,
+    active_revision_counts.active_builds,
+    reservation_states.reservation_projection_version,
+    reservation_states.build_plan_json,
+    reservation_states.build_lease_sha256,
+    reservation_states.latest_reservation_variants
 FROM active_candidates
-INNER JOIN active_revision_counts USING (catalog_epoch, catalog_revision)
+INNER JOIN active_revision_counts
+    ON active_candidates.catalog_epoch = active_revision_counts.catalog_epoch
+   AND active_candidates.catalog_revision = active_revision_counts.catalog_revision
+LEFT JOIN reservation_states
+    ON active_candidates.catalog_epoch = reservation_states.catalog_epoch
+   AND active_candidates.catalog_revision = reservation_states.catalog_revision
+   AND active_candidates.build_token = reservation_states.build_token
 WHERE (
     %(catalog_exact_activation)s = 0
     OR (
-        catalog_epoch = %(catalog_epoch)s
-        AND catalog_revision = %(catalog_revision)s
+        active_candidates.catalog_epoch = %(catalog_epoch)s
+        AND active_candidates.catalog_revision = %(catalog_revision)s
     )
 )
-ORDER BY catalog_epoch DESC, catalog_revision DESC, activation_sequence DESC
+ORDER BY
+    active_candidates.catalog_epoch DESC,
+    active_candidates.catalog_revision DESC,
+    active_candidates.activation_sequence DESC
 LIMIT 2
 """
 
@@ -460,6 +540,14 @@ _PROPERTY_SUMMARY_CTE = """
             OR primary_source IN ('all', 'both')
             OR has(source_tokens, 'all')
             OR has(source_tokens, 'both')
+            OR (
+                category = 'custom_attribute'
+                AND %(catalog_custom_attribute_source)s = 'traces'
+                AND (
+                    primary_source = 'traces'
+                    OR has(source_tokens, 'traces')
+                )
+            )
             OR (
                 %(catalog_source)s = 'spans'
                 AND (
@@ -804,7 +892,16 @@ def _qualified_activation_sql(database: str) -> str:
     return _ACTIVATION_SQL.replace(
         "__CATALOG_DATABASE__.property_catalog_activations",
         f"`{database}`.`property_catalog_activations`",
+    ).replace(
+        "__CATALOG_DATABASE__.property_catalog_source_streams",
+        f"`{database}`.`property_catalog_source_streams`",
     )
+
+
+def property_catalog_activation_sql(database: str) -> str:
+    """Return the one immutable activation/reservation proof query."""
+
+    return _qualified_activation_sql(database)
 
 
 def _uuid(value: Any, label: str, *, allow_empty: bool = False) -> str:
@@ -828,6 +925,178 @@ def _sha256(value: Any, label: str) -> str:
     return value
 
 
+def verify_property_catalog_activation(
+    rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
+    cursor_present: bool,
+    unavailable_type: type[PropertyCatalogUnavailable] = PropertyCatalogUnavailable,
+) -> PropertyCatalogActivation:
+    """Verify one active revision and its immutable reservation/build plan."""
+
+    def unavailable(reason: str) -> None:
+        raise unavailable_type(reason)
+
+    def strict_uint(value: Any, label: str, maximum: int | None = None) -> int:
+        if (
+            type(value) is not int
+            or value < 0
+            or (maximum is not None and value > maximum)
+        ):
+            unavailable(f"invalid_{label}")
+        return value
+
+    def strict_uuid(value: Any, label: str) -> str:
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError, AttributeError):
+            unavailable(f"invalid_{label}")
+
+    def strict_sha256(value: Any, label: str) -> str:
+        if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+            unavailable(f"invalid_{label}")
+        return value
+
+    if not rows:
+        unavailable("activation_mismatch" if cursor_present else "activation_missing")
+    row = rows[0]
+    catalog_epoch = strict_uint(row.get("catalog_epoch"), "epoch", 65_535)
+    sequence = strict_uint(row.get("activation_sequence"), "activation_sequence")
+    if sequence < 1:
+        unavailable("activation_invalid")
+    if (
+        len(rows) > 1
+        and strict_uint(rows[1].get("catalog_epoch"), "epoch", 65_535) == catalog_epoch
+        and strict_uint(rows[1].get("activation_sequence"), "activation_sequence")
+        == sequence
+    ):
+        unavailable("activation_sequence_conflict")
+    if strict_uint(row.get("active_builds"), "active_builds") != 1:
+        unavailable("activation_conflict")
+    if strict_uint(row.get("latest_state_variants"), "activation_variants") != 1:
+        unavailable("activation_conflict")
+    if row.get("status") != "active" or row.get("qualified_at") is None:
+        unavailable("activation_not_active")
+    if strict_uint(row.get("state_version"), "activation_state_version") < 1:
+        unavailable("activation_invalid")
+
+    projection_version = strict_uint(
+        row.get("projection_version"), "projection_version", 65_535
+    )
+    catalog_revision = strict_uint(row.get("catalog_revision"), "revision")
+    if catalog_epoch < 1 or catalog_revision < 1:
+        unavailable("activation_invalid")
+    lifecycle_mode = row.get("lifecycle_mode")
+    if lifecycle_mode not in PROPERTY_CATALOG_LIFECYCLE_MODES:
+        unavailable("activation_lifecycle_invalid")
+    lineage_anchor_revision = strict_uint(
+        row.get("lineage_anchor_revision"), "lineage_anchor_revision"
+    )
+    if (
+        lineage_anchor_revision < 1
+        or lineage_anchor_revision > catalog_revision
+        or catalog_revision - lineage_anchor_revision
+        > PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS
+        or (
+            lineage_anchor_revision == catalog_revision
+            and lifecycle_mode not in {"initial_backfill", "full_repair"}
+        )
+        or (
+            lineage_anchor_revision < catalog_revision
+            and lifecycle_mode != "incremental"
+        )
+    ):
+        unavailable("activation_lineage_invalid")
+
+    build_token = strict_uuid(row.get("build_token"), "build_token")
+    source_manifest_sha256 = strict_sha256(
+        row.get("source_manifest_sha256"), "source_manifest"
+    )
+    activation_sha256 = strict_sha256(row.get("activation_sha256"), "activation")
+    if (
+        strict_uint(
+            row.get("latest_reservation_variants"),
+            "activation_reservation_variants",
+        )
+        != 1
+    ):
+        unavailable("activation_scope_conflict")
+    if (
+        strict_uint(
+            row.get("reservation_projection_version"),
+            "activation_reservation_projection_version",
+            65_535,
+        )
+        != projection_version
+    ):
+        unavailable("activation_scope_invalid")
+    build_lease_sha256 = strict_sha256(row.get("build_lease_sha256"), "build_lease")
+    try:
+        build_plan = RevisionBuildPlan.from_json(row.get("build_plan_json"))
+    except (TypeError, ValueError) as exc:
+        raise unavailable_type("activation_scope_invalid") from exc
+    if (
+        build_plan.organization_id != scope["organization_id"]
+        or build_plan.workspace_id != scope["workspace_id"]
+        or build_plan.catalog_epoch != catalog_epoch
+        or build_plan.catalog_revision != catalog_revision
+        or build_plan.build_token != build_token
+        or build_plan.projection_version != projection_version
+        or build_plan.sha256 != build_lease_sha256
+    ):
+        unavailable("activation_scope_invalid")
+    if projection_version < PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION:
+        unavailable("projection_incompatible")
+    return PropertyCatalogActivation(
+        catalog_epoch=catalog_epoch,
+        catalog_revision=catalog_revision,
+        build_token=build_token,
+        projection_version=projection_version,
+        lifecycle_mode=lifecycle_mode,
+        lineage_anchor_revision=lineage_anchor_revision,
+        activation_sequence=sequence,
+        source_manifest_sha256=source_manifest_sha256,
+        activation_sha256=activation_sha256,
+        source_scope=build_plan.source_scope,
+    )
+
+
+def require_property_catalog_activation_coverage(
+    *,
+    scope: dict[str, Any],
+    activation: PropertyCatalogActivation,
+    unavailable_type: type[PropertyCatalogUnavailable] = PropertyCatalogUnavailable,
+) -> None:
+    """Require the immutable build to cover the complete authorized scope."""
+
+    source_scope = activation.source_scope
+    if source_scope is None:
+        raise unavailable_type("activation_scope_invalid")
+    requested_projects = frozenset(scope["project_ids"])
+    covered_projects = frozenset(source_scope.project_ids)
+    workspace_scope = scope.get("workspace_scope") is True
+    if workspace_scope:
+        # The API materializes the full currently-authorized PG project set for
+        # an all-project request. Equality prevents both stale extra projects
+        # and newly-created uncovered projects from producing a partial exact
+        # response.
+        if requested_projects != covered_projects:
+            raise unavailable_type("activation_scope_incomplete")
+        return
+    if not requested_projects or not requested_projects.issubset(covered_projects):
+        raise unavailable_type("activation_scope_incomplete")
+
+
+def _custom_attribute_transport_source(source: str) -> str:
+    try:
+        return normalize_custom_attribute_source(source, allow_blank=True)
+    except ValueError:
+        # A generic mixed-family query may legitimately target a source that
+        # has no custom attributes. The explicit custom-attribute contract is
+        # rejected by ``_validate_query`` before any ClickHouse read.
+        return ""
+
+
 def _query_params(
     *,
     scope: dict[str, Any],
@@ -837,6 +1106,7 @@ def _query_params(
     page_size: int,
 ) -> dict[str, Any]:
     projects = tuple(scope["project_ids"])
+    workspace_scope = scope.get("workspace_scope") is True
     order = after or (0, 0, "", "", "", "")
     return {
         "catalog_organization_id": scope["organization_id"],
@@ -849,13 +1119,18 @@ def _query_params(
         # that have no relationship to the selected project.  Workspace-wide
         # consumers still receive defaults when they intentionally omit a
         # project scope; universal system fields use ``always`` visibility.
-        "catalog_include_workspace_default": int(not projects),
-        "catalog_include_all_projects": int(not projects),
+        "catalog_include_workspace_default": int(workspace_scope),
+        # Workspace reads carry the complete authorized PG project set. Never
+        # widen the ClickHouse predicate to every catalog row in the tenant.
+        "catalog_include_all_projects": 0,
         "catalog_project_ids": projects,
         "catalog_agent_definition_id": scope["agent_definition_id"],
         "catalog_dataset_id": scope["dataset_id"],
         "catalog_category": query["category"],
         "catalog_source": query["source"],
+        "catalog_custom_attribute_source": _custom_attribute_transport_source(
+            query["source"]
+        ),
         "catalog_property_kind": query["property_kind"],
         "catalog_role": query.get("role", ""),
         "catalog_per_eval_config": int(query["per_eval_config"]),
@@ -886,7 +1161,7 @@ class PropertyCatalogReader:
         self._executor = executor
         self._database = _database(catalog_database)
         ctes = _definition_ctes(self._database)
-        self._activation_sql = _qualified_activation_sql(self._database)
+        self._activation_sql = property_catalog_activation_sql(self._database)
         self._conflict_sql = ctes + _CONFLICT_SQL_SUFFIX
         self._page_sql = ctes + _PAGE_SQL_SUFFIX
         self._payload_sql = _PAYLOAD_SQL.replace(
@@ -928,6 +1203,10 @@ class PropertyCatalogReader:
         )
         if cursor and activation.activation_sha256 != cursor.activation_fingerprint:
             raise PropertyCatalogUnavailable("activation_mismatch")
+        self._require_activation_coverage(
+            scope=checked_scope,
+            activation=activation,
+        )
 
         params = _query_params(
             scope=checked_scope,
@@ -1155,70 +1434,21 @@ class PropertyCatalogReader:
             max_result_rows=2,
             budget=budget,
         )
-        if not rows:
-            raise PropertyCatalogUnavailable("activation_missing")
-        row = rows[0]
-        catalog_epoch = _strict_uint(row.get("catalog_epoch"), "epoch", 65_535)
-        sequence = _strict_uint(row.get("activation_sequence"), "activation_sequence")
-        if sequence < 1:
-            raise PropertyCatalogUnavailable("activation_invalid")
-        if (
-            len(rows) > 1
-            and _strict_uint(rows[1].get("catalog_epoch"), "epoch", 65_535)
-            == catalog_epoch
-            and _strict_uint(rows[1].get("activation_sequence"), "activation_sequence")
-            == sequence
-        ):
-            raise PropertyCatalogUnavailable("activation_sequence_conflict")
-        if _strict_uint(row.get("active_builds"), "active_builds") != 1:
-            raise PropertyCatalogUnavailable("activation_conflict")
-        if _strict_uint(row.get("latest_state_variants"), "activation_variants") != 1:
-            raise PropertyCatalogUnavailable("activation_conflict")
-        if row.get("status") != "active" or row.get("qualified_at") is None:
-            raise PropertyCatalogUnavailable("activation_not_active")
-        if _strict_uint(row.get("state_version"), "activation_state_version") < 1:
-            raise PropertyCatalogUnavailable("activation_invalid")
-        projection_version = _strict_uint(
-            row.get("projection_version"), "projection_version", 65_535
+        return verify_property_catalog_activation(
+            rows,
+            scope=scope,
+            cursor_present=cursor is not None,
         )
-        if projection_version < PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION:
-            raise PropertyCatalogUnavailable("projection_incompatible")
-        catalog_revision = _strict_uint(row.get("catalog_revision"), "revision")
-        if catalog_epoch < 1 or catalog_revision < 1:
-            raise PropertyCatalogUnavailable("activation_invalid")
-        lifecycle_mode = row.get("lifecycle_mode")
-        if lifecycle_mode not in PROPERTY_CATALOG_LIFECYCLE_MODES:
-            raise PropertyCatalogUnavailable("activation_lifecycle_invalid")
-        lineage_anchor_revision = _strict_uint(
-            row.get("lineage_anchor_revision"), "lineage_anchor_revision"
-        )
-        if (
-            lineage_anchor_revision < 1
-            or lineage_anchor_revision > catalog_revision
-            or catalog_revision - lineage_anchor_revision
-            > PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS
-            or (
-                lineage_anchor_revision == catalog_revision
-                and lifecycle_mode not in {"initial_backfill", "full_repair"}
-            )
-            or (
-                lineage_anchor_revision < catalog_revision
-                and lifecycle_mode != "incremental"
-            )
-        ):
-            raise PropertyCatalogUnavailable("activation_lineage_invalid")
-        return PropertyCatalogActivation(
-            catalog_epoch=catalog_epoch,
-            catalog_revision=catalog_revision,
-            build_token=_uuid(row.get("build_token"), "build_token"),
-            projection_version=projection_version,
-            lifecycle_mode=lifecycle_mode,
-            lineage_anchor_revision=lineage_anchor_revision,
-            activation_sequence=sequence,
-            source_manifest_sha256=_sha256(
-                row.get("source_manifest_sha256"), "source_manifest"
-            ),
-            activation_sha256=_sha256(row.get("activation_sha256"), "activation"),
+
+    @staticmethod
+    def _require_activation_coverage(
+        *,
+        scope: dict[str, Any],
+        activation: PropertyCatalogActivation,
+    ) -> None:
+        require_property_catalog_activation_coverage(
+            scope=scope,
+            activation=activation,
         )
 
     def _execute(
@@ -1266,7 +1496,12 @@ class PropertyCatalogReader:
             _uuid(item, "project_id") for item in normalized["project_ids"]
         )
         if len(projects) > PROPERTY_CATALOG_MAX_PROJECTS:
-            raise ValueError("at most 64 projects may be searched at once")
+            if normalized.get("workspace_scope") is True:
+                raise PropertyCatalogUnavailable("activation_scope_incomplete")
+            raise ValueError(
+                "at most "
+                f"{PROPERTY_CATALOG_MAX_PROJECTS} projects may be searched at once"
+            )
         normalized["project_ids"] = projects
         normalized["agent_definition_id"] = _uuid(
             normalized["agent_definition_id"],
@@ -1281,11 +1516,20 @@ class PropertyCatalogReader:
     @staticmethod
     def _validate_query(query: dict[str, Any]) -> dict[str, Any]:
         normalized = normalize_property_catalog_query(query)
+        if normalized["source"] and (
+            normalized["category"] == "custom_attribute"
+            or normalized["property_kind"] == "custom_attribute"
+        ):
+            normalized["source"] = normalize_custom_attribute_source(
+                normalized["source"]
+            )
         if (
             len(normalized["search"].encode("utf-8"))
             > PROPERTY_CATALOG_MAX_SEARCH_BYTES
         ):
-            raise ValueError("search exceeds 512 UTF-8 bytes")
+            raise ValueError(
+                f"search exceeds {PROPERTY_CATALOG_MAX_SEARCH_BYTES} UTF-8 bytes"
+            )
         return normalized
 
     @staticmethod
@@ -1407,9 +1651,14 @@ class PropertyCatalogReader:
 
 __all__ = [
     "PROPERTY_CATALOG_MAX_PAGE_SIZE",
+    "PROPERTY_CATALOG_NOT_READY_REASONS",
     "PropertyCatalogActivation",
     "PropertyCatalogPage",
     "PropertyCatalogQueryExecutor",
     "PropertyCatalogReader",
     "PropertyCatalogUnavailable",
+    "is_property_catalog_not_ready_error",
+    "property_catalog_activation_sql",
+    "require_property_catalog_activation_coverage",
+    "verify_property_catalog_activation",
 ]

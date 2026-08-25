@@ -10,15 +10,22 @@ import pytest
 from tracer.services.clickhouse.v2.attribute_catalog_codec import (
     encode_catalog_scalar,
 )
+from tracer.services.clickhouse.v2.property_catalog.activation import (
+    BuildPlanSourceScope,
+    BuildPlanStream,
+    ManifestStreamRole,
+    RevisionBuildPlan,
+)
 from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_json,
     canonical_json_sha256,
 )
+from tracer.services.clickhouse.v2.property_catalog.models import SourceAdapter
+from tracer.services.clickhouse.v2.property_catalog.reader import _ACTIVATION_SQL
 from tracer.services.clickhouse.v2.property_catalog.value_cursor import (
     PropertyCatalogValueCursorError,
 )
 from tracer.services.clickhouse.v2.property_catalog.value_reader import (
-    _ACTIVATION_SQL,
     _ATTRIBUTE_TYPE_RANK,
     PropertyCatalogValueNotReady,
     PropertyCatalogValueReader,
@@ -28,7 +35,9 @@ from tracer.services.clickhouse.v2.property_catalog.value_reader import (
 
 ORG_ID = "11111111-1111-1111-1111-111111111111"
 WORKSPACE_ID = "22222222-2222-2222-2222-222222222222"
+OTHER_WORKSPACE_ID = "22222222-2222-4222-8222-222222222223"
 PROJECT_ID = "33333333-3333-3333-3333-333333333333"
+OTHER_PROJECT_ID = "33333333-3333-4333-8333-333333333334"
 ACTIVATION_SHA = "a" * 64
 MANIFEST_SHA = "b" * 64
 BUILD_TOKEN = "44444444-4444-4444-8444-444444444444"
@@ -44,6 +53,8 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     )
     assert "versioned_rows.status = 'active'" in _ACTIVATION_SQL
     assert "argMax(projection_version, _version)" not in _ACTIVATION_SQL
+    assert "property_catalog_source_streams" in _ACTIVATION_SQL
+    assert "reservation_states.build_plan_json" in _ACTIVATION_SQL
 
     definitions_sql = _definition_ctes("th7247_catalog_dev_test")
     assert "FROM lineage_versioned AS versioned_rows" in definitions_sql
@@ -84,8 +95,8 @@ def test_value_rank_casts_qualified_raw_enum8_before_string_alias_rewrite() -> N
     assert "toInt8(toString(attribute_type))" not in sql
 
 
-def _scope(*, project_ids=(PROJECT_ID,)):
-    return {
+def _scope(*, project_ids=(PROJECT_ID,), workspace_scope=False):
+    scope = {
         "principal_id": "user-1",
         "auth_type": "Token",
         "auth_id": "token-1",
@@ -93,6 +104,9 @@ def _scope(*, project_ids=(PROJECT_ID,)):
         "workspace_id": WORKSPACE_ID,
         "project_ids": project_ids,
     }
+    if workspace_scope:
+        scope["workspace_scope"] = True
+    return scope
 
 
 def _query(**overrides):
@@ -106,7 +120,58 @@ def _query(**overrides):
     return values
 
 
-def _activation_row(**overrides):
+def _build_plan(
+    row,
+    *,
+    covered_project_ids,
+    workspace_id=WORKSPACE_ID,
+):
+    streams = []
+    stream_index = 1
+    for adapter in SourceAdapter:
+        roles = (
+            (
+                ManifestStreamRole.DEFINITIONS,
+                ManifestStreamRole.VALUES,
+                ManifestStreamRole.HOT_VALUES,
+                ManifestStreamRole.SOURCE_AUDIT,
+            )
+            if adapter is SourceAdapter.SPAN_ATTRIBUTE
+            else (ManifestStreamRole.DEFINITIONS,)
+        )
+        for role in roles:
+            streams.append(
+                BuildPlanStream(
+                    source_adapter=adapter,
+                    role=role,
+                    producer_stream_id=f"55555555-5555-4555-8555-{stream_index:012d}",
+                    source_cutoff_label=f"{adapter.value}_{role.value}",
+                    source_version_fence=stream_index,
+                )
+            )
+            stream_index += 1
+    return RevisionBuildPlan(
+        organization_id=ORG_ID,
+        workspace_id=workspace_id,
+        catalog_epoch=row["catalog_epoch"],
+        catalog_revision=row["catalog_revision"],
+        build_token=row["build_token"],
+        projection_version=row["projection_version"],
+        source_scope=BuildPlanSourceScope(
+            project_ids=tuple(covered_project_ids),
+            span_since_us=1_723_638_000_000_000,
+            span_until_us=1_723_641_600_000_000,
+        ),
+        streams=tuple(streams),
+    )
+
+
+def _activation_row(
+    *,
+    covered_project_ids=(PROJECT_ID,),
+    build_plan_workspace_id=WORKSPACE_ID,
+    **overrides,
+):
     row = {
         "catalog_epoch": 3,
         "catalog_revision": 17,
@@ -124,6 +189,15 @@ def _activation_row(**overrides):
         "active_builds": 1,
     }
     row.update(overrides)
+    plan = _build_plan(
+        row,
+        covered_project_ids=covered_project_ids,
+        workspace_id=build_plan_workspace_id,
+    )
+    row.setdefault("reservation_projection_version", row["projection_version"])
+    row.setdefault("build_plan_json", plan.canonical_json)
+    row.setdefault("build_lease_sha256", plan.sha256)
+    row.setdefault("latest_reservation_variants", 1)
     return row
 
 
@@ -337,12 +411,8 @@ def test_value_reader_returns_typed_signed_keyset_page_at_active_revision(settin
     )
     assert " OFFSET " not in value_call["query"].upper()
     assert value_call["params"]["catalog_revision"] == 17
-    assert value_call["params"]["catalog_project_uuid_ids"] == (
-        uuid.UUID(PROJECT_ID),
-    )
-    project_prewhere = (
-        "OR value_rows.project_id IN %(catalog_project_uuid_ids)s"
-    )
+    assert value_call["params"]["catalog_project_uuid_ids"] == (uuid.UUID(PROJECT_ID),)
+    project_prewhere = "OR value_rows.project_id IN %(catalog_project_uuid_ids)s"
     assert project_prewhere in value_call["query"]
     assert value_call["query"].index(project_prewhere) < value_call["query"].index(
         "WHERE (\n        %(catalog_source_kind)s = 'system_attribute'"
@@ -375,10 +445,7 @@ def test_value_reader_prefers_new_epoch_when_activation_sequences_restart(settin
     page = _read(_reader(executor))
 
     assert page.catalog_epoch == 4
-    assert (
-        "ORDER BY catalog_epoch DESC, catalog_revision DESC, activation_sequence DESC"
-        in executor.calls[0]["query"]
-    )
+    assert "active_candidates.catalog_epoch DESC" in executor.calls[0]["query"]
     assert "WHERE latest_active_states > 0" in executor.calls[0]["query"]
     assert "WHERE latest_state_variants = 1" not in executor.calls[0]["query"]
 
@@ -459,6 +526,17 @@ def test_value_cursor_continuation_pins_activation_window_and_last_typed_key(set
     assert (
         second_executor.calls[-1]["params"]["catalog_after_value_fingerprint"]
         == expected_after
+    )
+    second_sql = second_executor.calls[-1]["query"]
+    source_values_start = second_sql.index("source_values AS")
+    grouped_values_start = second_sql.index("grouped_values AS")
+    source_values_sql = second_sql[source_values_start:grouped_values_start]
+    assert "toInt8(value_rows.attribute_type)" in source_values_sql
+    assert "%(catalog_after_attribute_type_rank)s" in source_values_sql
+    assert "%(catalog_after_value_fingerprint)s" in source_values_sql
+    assert (
+        second_sql.index("%(catalog_after_value_fingerprint)s", source_values_start)
+        < grouped_values_start
     )
 
 
@@ -555,13 +633,40 @@ def test_unicode_search_rechecks_with_python_casefold(settings):
     assert [item.value for item in page.values] == ["Straße"]
     assert executor.calls[-1]["params"]["catalog_search"] == "strasse"
     assert executor.calls[-1]["params"]["catalog_search_pattern"] == "%strasse%"
-    assert (
+    sql = executor.calls[-1]["query"]
+    source_values_start = sql.index("source_values AS")
+    grouped_values_start = sql.index("grouped_values AS")
+    source_values_sql = sql[source_values_start:grouped_values_start]
+    assert "raw_value_search_text_folded LIKE" not in source_values_sql
+    assert "%(catalog_search_pattern)s" not in source_values_sql
+    assert "value_search_text_folded LIKE %(catalog_search_pattern)s" in sql
+    assert sql.index(
         "value_search_text_folded LIKE %(catalog_search_pattern)s"
-        in (executor.calls[-1]["query"])
+    ) > sql.index("checked_value_rows AS")
+    assert "position(value_search_text_folded" not in sql
+    assert "value_search_text AS" not in sql
+    assert "length(value_search_text) != lengthUTF8" not in sql
+
+
+def test_search_does_not_mask_conflicting_raw_variants(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_definition_row(attribute_types=("string",))],
+            [{"value_conflicts": 1}],
+        ]
     )
-    assert "position(value_search_text_folded" not in executor.calls[-1]["query"]
-    assert "value_search_text AS" not in executor.calls[-1]["query"]
-    assert "length(value_search_text) != lengthUTF8" not in executor.calls[-1]["query"]
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(
+            _reader(executor),
+            query=_query(search="matching variant"),
+            page_size=10,
+        )
+
+    assert exc_info.value.reason == "value_conflict"
+    assert len(executor.calls) == 3
 
 
 def test_folded_search_payload_mismatch_fails_closed(settings):
@@ -622,6 +727,103 @@ def test_value_reader_rejects_invalid_lifecycle_anchor(settings, activation):
         _read(_reader(executor))
 
     assert exc_info.value.reason == "activation_lineage_invalid"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_rejects_project_missing_from_immutable_build_scope(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor(
+        [[_activation_row(covered_project_ids=(OTHER_PROJECT_ID,))]]
+    )
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(_reader(executor))
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_rejects_partial_workspace_activation_coverage(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(
+            _reader(executor),
+            scope=_scope(
+                project_ids=(PROJECT_ID, OTHER_PROJECT_ID),
+                workspace_scope=True,
+            ),
+        )
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_workspace_scope_uses_authorized_project_ids(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_definition_row()],
+            [{"value_conflicts": 0}],
+            [],
+        ]
+    )
+
+    _read(
+        _reader(executor),
+        scope=_scope(project_ids=(PROJECT_ID,), workspace_scope=True),
+    )
+
+    params = executor.calls[1]["params"]
+    assert params["catalog_project_ids"] == (PROJECT_ID,)
+    assert params["catalog_include_all_projects"] == 0
+
+
+def test_value_reader_rejects_unproven_empty_project_scope(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(_reader(executor), scope=_scope(project_ids=()))
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_rejects_foreign_workspace_build_plan(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor(
+        [[_activation_row(build_plan_workspace_id=OTHER_WORKSPACE_ID)]]
+    )
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(_reader(executor))
+
+    assert exc_info.value.reason == "activation_scope_invalid"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_rejects_conflicting_reservation(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor([[_activation_row(latest_reservation_variants=2)]])
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(_reader(executor))
+
+    assert exc_info.value.reason == "activation_scope_conflict"
+    assert len(executor.calls) == 1
+
+
+def test_value_reader_rejects_build_plan_lease_hash_mismatch(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor([[_activation_row(build_lease_sha256="c" * 64)]])
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _read(_reader(executor))
+
+    assert exc_info.value.reason == "activation_scope_invalid"
     assert len(executor.calls) == 1
 
 

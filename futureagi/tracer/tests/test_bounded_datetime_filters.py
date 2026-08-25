@@ -41,6 +41,9 @@ from tracer.services.clickhouse.query_builders.session_list import (
 )
 from tracer.services.clickhouse.query_builders.span_list import SpanListQueryBuilder
 from tracer.services.clickhouse.query_builders.trace_list import TraceListQueryBuilder
+from tracer.services.clickhouse.query_builders.voice_call_list import (
+    VoiceCallListQueryBuilder,
+)
 from tracer.services.clickhouse.v2.query_builders.session_list import (
     SessionListQueryBuilderV2,
 )
@@ -869,6 +872,7 @@ class _NoQueryAnalytics:
         (TraceListQueryBuilder, "trace_id"),
         (SpanListQueryBuilder, "id"),
         (SessionListQueryBuilder, "session_id"),
+        (VoiceCallListQueryBuilder, "trace_id"),
     ],
 )
 def test_bounded_list_is_null_returns_exact_empty_without_clickhouse(

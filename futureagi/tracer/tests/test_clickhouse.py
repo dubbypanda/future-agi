@@ -7737,6 +7737,35 @@ class TestVoiceCallListQueryBuilderComprehensive:
         assert params["end_date"].month == 6
         assert params["end_date"].day == 30
 
+    def test_bounded_delegate_retains_datetime_nullness_filter(self):
+        """The finite voice selector must not erase exact-empty date filters."""
+        from tracer.services.clickhouse.query_builders.voice_call_list import (
+            VoiceCallListQueryBuilder,
+        )
+
+        null_filter = {
+            "column_id": "created_at",
+            "filter_config": {
+                "filter_type": "datetime",
+                "filter_op": "is_null",
+            },
+        }
+        builder = VoiceCallListQueryBuilder(
+            project_id="proj-1",
+            filters=[null_filter],
+        )
+
+        delegate_filters = builder._bounded_delegate().filters
+
+        request_start, request_end = builder._bounded_request_window
+        assert request_start == request_end
+        assert null_filter in delegate_filters
+        assert any(
+            item.get("column_id") == "start_time"
+            and item.get("filter_config", {}).get("filter_op") == "between"
+            for item in delegate_filters
+        )
+
     def test_build_page_zero(self):
         """Page 0 should have offset 0."""
         from tracer.services.clickhouse.query_builders.voice_call_list import (
@@ -9203,6 +9232,56 @@ class TestSessionTimeSeriesQueryBuilder:
         assert "span_attr_num" not in query
         assert params["having_901"] == 50
 
+    @pytest.mark.parametrize(
+        ("filter_op", "filter_value", "expected_sql", "expected_params"),
+        [
+            (
+                "between",
+                [10, 20],
+                "session_total_tokens BETWEEN %(having_901_lo)s AND %(having_901_hi)s",
+                {"having_901_lo": 10, "having_901_hi": 20},
+            ),
+            (
+                "not_between",
+                [10, 20],
+                "session_total_tokens NOT BETWEEN %(having_901_lo)s AND %(having_901_hi)s",
+                {"having_901_lo": 10, "having_901_hi": 20},
+            ),
+            ("is_null", None, "session_total_tokens IS NULL", {}),
+            ("is_not_null", None, "session_total_tokens IS NOT NULL", {}),
+        ],
+    )
+    def test_session_aggregate_graph_supports_complete_number_contract(
+        self,
+        filter_op,
+        filter_value,
+        expected_sql,
+        expected_params,
+    ):
+        from tracer.services.clickhouse.query_builders.session_time_series import (
+            SessionTimeSeriesQueryBuilder,
+        )
+
+        builder = SessionTimeSeriesQueryBuilder(
+            project_id="project-1",
+            filters=[
+                {
+                    "column_id": "total_tokens",
+                    "filter_config": {
+                        "filter_type": "number",
+                        "filter_op": filter_op,
+                        "filter_value": filter_value,
+                        "col_type": "SYSTEM_METRIC",
+                    },
+                }
+            ],
+        )
+
+        query, params = builder.build()
+
+        assert expected_sql in query
+        assert {key: params[key] for key in expected_params} == expected_params
+
     def test_date_only_rollup_never_reads_raw_spans_or_global_remap(self):
         from tracer.services.clickhouse.query_builders.session_time_series import (
             SessionRollupTimeSeriesQueryBuilder,
@@ -9624,7 +9703,13 @@ class TestSpanAttrConditionContract:
         where, _ = _translate_one(
             _span_attr_filter("k", filter_type="text", filter_op="is_null")
         )
-        assert "NOT mapContains(span_attr_str, 'k')" in where
+        assert "trace_id NOT IN (SELECT trace_id FROM (" in where
+        assert "argMax(_peerdb_is_deleted, _peerdb_version)" in where
+        assert (
+            "argMax(toUInt8(mapContains(span_attr_str, 'k')), _peerdb_version)" in where
+        )
+        assert "WHERE latest_is_deleted = 0 AND latest_attribute_match = 1" in where
+        assert "NOT mapContains(span_attr_str, 'k')" not in where
 
     def test_text_is_not_null(self):
         where, _ = _translate_one(

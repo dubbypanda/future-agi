@@ -5,6 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from tracer.services.clickhouse.v2.property_catalog.activation import (
+    BuildPlanSourceScope,
+    BuildPlanStream,
+    ManifestStreamRole,
+    RevisionBuildPlan,
+)
 from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_json,
     canonical_json_sha256,
@@ -17,6 +23,7 @@ from tracer.services.clickhouse.v2.property_catalog.models import (
     PropertyDefinition,
     PropertyKind,
     PropertyRole,
+    SourceAdapter,
     canonicalize_definition,
 )
 from tracer.services.clickhouse.v2.property_catalog.reader import (
@@ -24,11 +31,13 @@ from tracer.services.clickhouse.v2.property_catalog.reader import (
     PropertyCatalogReader,
     PropertyCatalogUnavailable,
     _definition_ctes,
+    is_property_catalog_not_ready_error,
 )
 
 ORG_ID = "11111111-1111-1111-1111-111111111111"
 WORKSPACE_ID = "22222222-2222-2222-2222-222222222222"
 PROJECT_ID = "33333333-3333-3333-3333-333333333333"
+OTHER_PROJECT_ID = "33333333-3333-4333-8333-333333333334"
 ACTIVATION_SHA = "a" * 64
 MANIFEST_SHA = "b" * 64
 BUILD_TOKEN = "44444444-4444-4444-8444-444444444444"
@@ -42,6 +51,8 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     )
     assert "versioned_rows.status = 'active'" in _ACTIVATION_SQL
     assert "argMax(projection_version, _version)" not in _ACTIVATION_SQL
+    assert "property_catalog_source_streams" in _ACTIVATION_SQL
+    assert "reservation_states.build_plan_json" in _ACTIVATION_SQL
 
     definitions_sql = _definition_ctes("th7247_catalog_dev_test")
     assert "FROM lineage_versioned AS versioned_rows" in definitions_sql
@@ -51,8 +62,8 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "any(property_id) AS property_id" not in definitions_sql
 
 
-def _scope(*, project_ids=(PROJECT_ID,)):
-    return {
+def _scope(*, project_ids=(PROJECT_ID,), workspace_scope=False):
+    scope = {
         "principal_id": "user-1",
         "auth_type": "Token",
         "auth_id": "token-1",
@@ -62,6 +73,9 @@ def _scope(*, project_ids=(PROJECT_ID,)):
         "agent_definition_id": "",
         "dataset_id": "",
     }
+    if workspace_scope:
+        scope["workspace_scope"] = True
+    return scope
 
 
 QUERY = {
@@ -73,7 +87,48 @@ QUERY = {
 }
 
 
-def _activation_row(**overrides):
+def _build_plan(row, *, covered_project_ids):
+    streams = []
+    stream_index = 1
+    for adapter in SourceAdapter:
+        roles = (
+            (
+                ManifestStreamRole.DEFINITIONS,
+                ManifestStreamRole.VALUES,
+                ManifestStreamRole.HOT_VALUES,
+                ManifestStreamRole.SOURCE_AUDIT,
+            )
+            if adapter is SourceAdapter.SPAN_ATTRIBUTE
+            else (ManifestStreamRole.DEFINITIONS,)
+        )
+        for role in roles:
+            streams.append(
+                BuildPlanStream(
+                    source_adapter=adapter,
+                    role=role,
+                    producer_stream_id=(f"55555555-5555-4555-8555-{stream_index:012d}"),
+                    source_cutoff_label=f"{adapter.value}_{role.value}",
+                    source_version_fence=stream_index,
+                )
+            )
+            stream_index += 1
+    return RevisionBuildPlan(
+        organization_id=ORG_ID,
+        workspace_id=WORKSPACE_ID,
+        catalog_epoch=row["catalog_epoch"],
+        catalog_revision=row["catalog_revision"],
+        build_token=row["build_token"],
+        projection_version=row["projection_version"],
+        source_scope=BuildPlanSourceScope(
+            project_ids=tuple(covered_project_ids),
+            span_since_us=1_723_638_000_000_000,
+            span_until_us=1_723_641_600_000_000,
+        ),
+        streams=tuple(streams),
+    )
+
+
+def _activation_row(*, covered_project_ids=(PROJECT_ID,), **overrides):
     row = {
         "catalog_epoch": 3,
         "catalog_revision": 17,
@@ -91,6 +146,11 @@ def _activation_row(**overrides):
         "active_builds": 1,
     }
     row.update(overrides)
+    plan = _build_plan(row, covered_project_ids=covered_project_ids)
+    row.setdefault("reservation_projection_version", row["projection_version"])
+    row.setdefault("build_plan_json", plan.canonical_json)
+    row.setdefault("build_lease_sha256", plan.sha256)
+    row.setdefault("latest_reservation_variants", 1)
     return row
 
 
@@ -150,9 +210,7 @@ def _property_row(name, rank):
         "role": definition.role.value,
         "definition_json": definition.definition_json,
         "definition_sha256": definition.definition_sha256,
-        "payload_binding_id": canonical_json_sha256(
-            canonical_json({"binding": name})
-        ),
+        "payload_binding_id": canonical_json_sha256(canonical_json({"binding": name})),
         "payload_catalog_revision": 17,
         "payload_build_token": BUILD_TOKEN,
         "payload_source_version": 1,
@@ -191,9 +249,7 @@ class FakeExecutor:
                     {
                         "property_id": row["property_id"],
                         "payload_binding_id": row["payload_binding_id"],
-                        "payload_catalog_revision": row[
-                            "payload_catalog_revision"
-                        ],
+                        "payload_catalog_revision": row["payload_catalog_revision"],
                         "payload_build_token": row["payload_build_token"],
                         "payload_source_version": row["payload_source_version"],
                         "payload_definition_json": row["definition_json"],
@@ -264,9 +320,10 @@ def test_catalog_reader_returns_signed_keyset_page(settings):
     assert executor.calls[1]["settings"]["max_result_rows"] == 3
     assert executor.calls[1]["params"]["catalog_search"] == "customer"
     assert executor.calls[1]["params"]["catalog_search_pattern"] == "%customer%"
-    assert "search_text_folded LIKE %(catalog_search_pattern)s" in executor.calls[1][
-        "query"
-    ]
+    assert (
+        "search_text_folded LIKE %(catalog_search_pattern)s"
+        in executor.calls[1]["query"]
+    )
     assert "position(search_text_folded" not in executor.calls[1]["query"]
     assert " OFFSET " not in executor.calls[1]["query"].upper()
     assert "catalog_revision, build_token" in executor.calls[0]["query"]
@@ -291,9 +348,9 @@ def test_catalog_reader_returns_signed_keyset_page(settings):
         in executor.calls[1]["query"]
     )
     assert "any(binding.definition_json)" not in executor.calls[1]["query"]
-    assert "property_id IN %(catalog_payload_property_ids)s" in executor.calls[2][
-        "query"
-    ]
+    assert (
+        "property_id IN %(catalog_payload_property_ids)s" in executor.calls[2]["query"]
+    )
     assert executor.calls[2]["settings"]["max_result_rows"] == 1
 
 
@@ -327,7 +384,16 @@ def test_span_catalog_includes_trace_defined_attributes(settings):
 
     PropertyCatalogReader(
         executor, catalog_database="th7247_catalog_dev_test"
-    ).read_page(scope=_scope(), query={**QUERY, "source": "spans"}, page_size=20)
+    ).read_page(
+        scope=_scope(),
+        query={
+            **QUERY,
+            "category": "",
+            "property_kind": "",
+            "source": "spans",
+        },
+        page_size=20,
+    )
 
     call = executor.calls[1]
     assert "%(catalog_source)s = 'spans'" in call["query"]
@@ -347,7 +413,16 @@ def test_voice_call_catalog_bridges_shared_and_trace_derived_families(settings):
 
     PropertyCatalogReader(
         executor, catalog_database="th7247_catalog_dev_test"
-    ).read_page(scope=_scope(), query={**QUERY, "source": "voice_calls"}, page_size=20)
+    ).read_page(
+        scope=_scope(),
+        query={
+            **QUERY,
+            "category": "",
+            "property_kind": "",
+            "source": "voice_calls",
+        },
+        page_size=20,
+    )
 
     call = executor.calls[1]
     query = call["query"]
@@ -357,6 +432,70 @@ def test_voice_call_catalog_bridges_shared_and_trace_derived_families(settings):
     assert "'custom_attribute'" in query
     assert "primary_source = 'traces'" in query
     assert call["params"]["catalog_source"] == "voice_calls"
+
+
+def test_prompt_catalog_bridges_trace_backed_custom_attributes(settings):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_conflict_row()],
+            [],
+        ]
+    )
+
+    PropertyCatalogReader(
+        executor, catalog_database="th7247_catalog_dev_test"
+    ).read_page(
+        scope=_scope(),
+        query={
+            **QUERY,
+            "category": "",
+            "property_kind": "",
+            "source": "prompts",
+        },
+        page_size=20,
+    )
+
+    call = executor.calls[1]
+    assert call["params"]["catalog_source"] == "prompts"
+    assert call["params"]["catalog_custom_attribute_source"] == "traces"
+    assert "category = 'custom_attribute'" in call["query"]
+    assert "%(catalog_custom_attribute_source)s = 'traces'" in call["query"]
+
+
+@pytest.mark.parametrize("source", ["spans", "voice_calls", "prompts"])
+def test_exact_custom_attribute_query_normalizes_supported_aliases(settings, source):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_conflict_row()],
+            [],
+        ]
+    )
+
+    PropertyCatalogReader(
+        executor, catalog_database="th7247_catalog_dev_test"
+    ).read_page(scope=_scope(), query={**QUERY, "source": source}, page_size=20)
+
+    assert executor.calls[1]["params"]["catalog_source"] == "traces"
+    assert executor.calls[1]["params"]["catalog_custom_attribute_source"] == "traces"
+
+
+@pytest.mark.parametrize(
+    "source", ["sessions", "users", "datasets", "simulation", "all", "both"]
+)
+def test_exact_custom_attribute_query_rejects_unsupported_sources(settings, source):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor([])
+
+    with pytest.raises(ValueError, match="custom_attribute is not compatible"):
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(), query={**QUERY, "source": source}, page_size=20)
+
+    assert executor.calls == []
 
 
 def test_catalog_reader_scopes_counts_and_page_membership_by_role(settings):
@@ -418,10 +557,7 @@ def test_catalog_reader_prefers_new_epoch_when_activation_sequences_restart(sett
     ).read_page(scope=_scope(), query=QUERY, page_size=1)
 
     assert page.catalog_epoch == 4
-    assert (
-        "ORDER BY catalog_epoch DESC, catalog_revision DESC, activation_sequence DESC"
-        in executor.calls[0]["query"]
-    )
+    assert "active_candidates.catalog_epoch DESC" in executor.calls[0]["query"]
     assert "WHERE latest_active_states > 0" in executor.calls[0]["query"]
     assert "WHERE latest_state_variants = 1" not in executor.calls[0]["query"]
 
@@ -483,6 +619,37 @@ def test_catalog_cursor_continuation_pins_activation_and_last_tuple(settings):
     assert page_params["catalog_after_sort_name"] == "customer.plan"
 
 
+def test_catalog_cursor_missing_pinned_activation_is_generic_fail_closed(settings):
+    settings.SECRET_KEY = "property-reader-secret"
+    issuer = FakeExecutor(
+        [
+            [_activation_row()],
+            [_conflict_row()],
+            [_property_row("customer.plan", 1), _property_row("customer.tier", 2)],
+        ]
+    )
+    token = (
+        PropertyCatalogReader(issuer, catalog_database="th7247_catalog_dev_test")
+        .read_page(scope=_scope(), query=QUERY, page_size=1)
+        .next_cursor
+    )
+    continuation = FakeExecutor([[]])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            continuation, catalog_database="th7247_catalog_dev_test"
+        ).read_page(
+            scope=_scope(),
+            query=QUERY,
+            page_size=1,
+            cursor_token=token,
+        )
+
+    assert exc_info.value.reason == "activation_mismatch"
+    assert not is_property_catalog_not_ready_error(exc_info.value)
+    assert len(continuation.calls) == 1
+
+
 def test_catalog_cursor_mismatch_fails_before_clickhouse(settings):
     settings.SECRET_KEY = "property-reader-secret"
     issuer = FakeExecutor(
@@ -535,6 +702,53 @@ def test_catalog_reader_rejects_any_qualified_state_conflict(settings, conflicts
 
     assert exc_info.value.reason == "definition_conflict"
     assert len(executor.calls) == 2
+
+
+@pytest.mark.parametrize(
+    ("activation_rows", "reason"),
+    [
+        ([], "activation_missing"),
+        (
+            [_activation_row(status="disabled", qualified_at=None)],
+            "activation_not_active",
+        ),
+    ],
+)
+def test_catalog_reader_classifies_genuine_activation_readiness(
+    settings, activation_rows, reason
+):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor([activation_rows])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(), query=QUERY, page_size=50)
+
+    assert exc_info.value.reason == reason
+    assert is_property_catalog_not_ready_error(exc_info.value)
+    assert len(executor.calls) == 1
+
+
+def test_catalog_reader_classifies_older_valid_projection_as_not_ready(
+    settings, monkeypatch
+):
+    settings.SECRET_KEY = "property-reader-secret"
+    monkeypatch.setattr(
+        "tracer.services.clickhouse.v2.property_catalog.reader."
+        "PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION",
+        2,
+    )
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(), query=QUERY, page_size=50)
+
+    assert exc_info.value.reason == "projection_incompatible"
+    assert is_property_catalog_not_ready_error(exc_info.value)
+    assert len(executor.calls) == 1
 
 
 def test_catalog_reader_rejects_inactive_or_conflicting_activation(settings):
@@ -645,23 +859,183 @@ def test_catalog_reader_rejects_folded_order_drift(settings):
     assert exc_info.value.reason == "definition_fold_mismatch"
 
 
-def test_catalog_reader_visibility_params_are_authorization_owned(settings):
+@pytest.mark.parametrize("role", ["", "metric", "dimension"])
+def test_catalog_reader_workspace_custom_query_uses_activated_snapshot(settings, role):
     settings.SECRET_KEY = "property-reader-secret"
     executor = FakeExecutor(
         [
             [_activation_row()],
-            [_conflict_row()],
+            [_conflict_row(catalog_count_all=0, catalog_count_custom_attribute=0)],
             [],
         ]
     )
+
     PropertyCatalogReader(
         executor, catalog_database="th7247_catalog_dev_test"
-    ).read_page(scope=_scope(project_ids=()), query=QUERY, page_size=50)
+    ).read_page(
+        scope=_scope(project_ids=(PROJECT_ID,), workspace_scope=True),
+        query={**QUERY, "role": role},
+        page_size=50,
+    )
 
     params = executor.calls[1]["params"]
     assert params["catalog_include_workspace_default"] == 1
-    assert params["catalog_include_all_projects"] == 1
-    assert params["catalog_project_ids"] == ()
+    assert params["catalog_include_all_projects"] == 0
+    assert params["catalog_project_ids"] == (PROJECT_ID,)
+
+
+def test_catalog_reader_workspace_category_filter_uses_same_snapshot(settings):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_conflict_row(catalog_count_all=0, catalog_count_custom_attribute=0)],
+            [],
+        ]
+    )
+    query = {
+        **QUERY,
+        "category": "system_metric",
+        "property_kind": "",
+        "search": "",
+    }
+
+    PropertyCatalogReader(
+        executor, catalog_database="th7247_catalog_dev_test"
+    ).read_page(
+        scope=_scope(project_ids=(PROJECT_ID,), workspace_scope=True),
+        query=query,
+        page_size=50,
+    )
+
+    assert len(executor.calls) == 2
+
+
+def test_catalog_reader_workspace_system_manifest_query_keeps_workspace_visibility(
+    settings,
+):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [
+                _conflict_row(
+                    catalog_count_all=0,
+                    catalog_count_custom_attribute=0,
+                )
+            ],
+            [],
+        ]
+    )
+    query = {
+        **QUERY,
+        "category": "system_metric",
+        "source": "sessions",
+        "property_kind": "system_attribute",
+        "search": "",
+    }
+
+    PropertyCatalogReader(
+        executor, catalog_database="th7247_catalog_dev_test"
+    ).read_page(
+        scope=_scope(project_ids=(PROJECT_ID,), workspace_scope=True),
+        query=query,
+        page_size=50,
+    )
+
+    params = executor.calls[1]["params"]
+    assert params["catalog_include_workspace_default"] == 1
+    assert params["catalog_include_all_projects"] == 0
+    assert params["catalog_project_ids"] == (PROJECT_ID,)
+
+
+def test_catalog_reader_rejects_partial_workspace_activation_coverage(settings):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(
+            scope=_scope(
+                project_ids=(PROJECT_ID, OTHER_PROJECT_ID),
+                workspace_scope=True,
+            ),
+            query=QUERY,
+            page_size=50,
+        )
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
+
+
+def test_catalog_reader_rejects_unproven_empty_project_scope(settings):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(project_ids=()), query=QUERY, page_size=50)
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        QUERY,
+        {
+            **QUERY,
+            "category": "system_metric",
+            "source": "sessions",
+            "property_kind": "system_attribute",
+            "search": "",
+        },
+    ],
+)
+def test_catalog_reader_rejects_project_missing_from_immutable_build_scope(
+    settings, query
+):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor(
+        [[_activation_row(covered_project_ids=(OTHER_PROJECT_ID,))]]
+    )
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(), query=query, page_size=50)
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert is_property_catalog_not_ready_error(exc_info.value)
+    assert len(executor.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("activation_overrides", "reason"),
+    [
+        ({"latest_reservation_variants": 2}, "activation_scope_conflict"),
+        ({"reservation_projection_version": 2}, "activation_scope_invalid"),
+        ({"build_plan_json": "{}"}, "activation_scope_invalid"),
+        ({"build_lease_sha256": "c" * 64}, "activation_scope_invalid"),
+    ],
+)
+def test_catalog_reader_rejects_untrusted_activation_scope_metadata(
+    settings, activation_overrides, reason
+):
+    settings.SECRET_KEY = "property-reader-secret"
+    executor = FakeExecutor([[_activation_row(**activation_overrides)]])
+
+    with pytest.raises(PropertyCatalogUnavailable) as exc_info:
+        PropertyCatalogReader(
+            executor, catalog_database="th7247_catalog_dev_test"
+        ).read_page(scope=_scope(), query=QUERY, page_size=50)
+
+    assert exc_info.value.reason == reason
+    assert not is_property_catalog_not_ready_error(exc_info.value)
+    assert len(executor.calls) == 1
 
 
 def test_catalog_reader_hides_workspace_defaults_for_project_scope(settings):

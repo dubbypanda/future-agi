@@ -131,14 +131,16 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         # each seed/classifier query; recomputing that implicit range would
         # move it forward by microseconds and reject the selector's exact
         # slice. Pin one request window for the lifetime of this builder.
-        self._bounded_request_window = BaseQueryBuilder.parse_time_range(self.filters)
+        self._bounded_request_window = BaseQueryBuilder.parse_time_range(
+            self.filters, strict=True
+        )
 
     def parse_time_range(
         self, filters: list[dict]
     ) -> tuple[datetime | None, datetime | None]:
         if filters is self.filters or filters == self.filters:
             return self._bounded_request_window
-        return BaseQueryBuilder.parse_time_range(filters)
+        return BaseQueryBuilder.parse_time_range(filters, strict=True)
 
     # ------------------------------------------------------------------
     # Bounded latest-state page selection
@@ -169,6 +171,7 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
                 for filter_item in self.filters
                 if (filter_item.get("column_id") or filter_item.get("columnId"))
                 not in {"created_at", "start_time"}
+                or BaseQueryBuilder.is_datetime_complement_filter(filter_item)
             ]
             delegate_filters.append(
                 {

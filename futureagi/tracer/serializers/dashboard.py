@@ -21,6 +21,7 @@ from tracer.services.clickhouse.query_builders.simulation_dashboard import (
     SIMULATION_FILTER_COLUMNS,
 )
 from tracer.utils.property_registry import (
+    normalize_custom_attribute_source,
     parse_property_registry_id,
     property_value_transport_source,
     validate_property_metric_binding,
@@ -87,6 +88,33 @@ _PROPERTY_CATALOG_MAX_PROJECTS = settings.PROPERTY_CATALOG_MAX_PROJECTS
 _PROPERTY_CATALOG_MAX_PAGE_SIZE = settings.PROPERTY_CATALOG_MAX_PAGE_SIZE
 _PROPERTY_CATALOG_MAX_SEARCH_BYTES = settings.PROPERTY_CATALOG_MAX_SEARCH_BYTES
 _PROPERTY_CATALOG_CURSOR_MAX_BYTES = settings.PROPERTY_CATALOG_CURSOR_MAX_BYTES
+_DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE = settings.DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE
+_FILTER_VALUE_MAX_PAGE_SIZE = min(
+    _DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE,
+    _PROPERTY_CATALOG_MAX_PAGE_SIZE,
+)
+
+
+def _validate_property_catalog_project_ids(value):
+    if len(value) > _PROPERTY_CATALOG_MAX_PROJECTS:
+        raise serializers.ValidationError(
+            "At most "
+            f"{_PROPERTY_CATALOG_MAX_PROJECTS} project_ids may be searched at once"
+        )
+    uuid_field = serializers.UUIDField()
+    validated = []
+    seen = set()
+    for raw_value in value:
+        try:
+            project_id = str(uuid_field.run_validation(raw_value))
+        except serializers.ValidationError as exc:
+            raise serializers.ValidationError(
+                f"Invalid project id: {raw_value}"
+            ) from exc
+        if project_id not in seen:
+            seen.add(project_id)
+            validated.append(project_id)
+    return validated
 
 
 class DashboardTimeRangeSerializer(StrictInputSerializer):
@@ -822,25 +850,7 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
         swagger_schema_fields = {"additionalProperties": False}
 
     def validate_project_ids(self, value):
-        uuid_field = serializers.UUIDField()
-        validated = []
-        seen = set()
-        for raw_value in value:
-            try:
-                project_id = str(uuid_field.run_validation(raw_value))
-            except serializers.ValidationError as exc:
-                raise serializers.ValidationError(
-                    f"Invalid project id: {raw_value}"
-                ) from exc
-            if project_id not in seen:
-                seen.add(project_id)
-                validated.append(project_id)
-        if len(validated) > _PROPERTY_CATALOG_MAX_PROJECTS:
-            raise serializers.ValidationError(
-                "At most "
-                f"{_PROPERTY_CATALOG_MAX_PROJECTS} project_ids may be searched at once"
-            )
-        return validated
+        return _validate_property_catalog_project_ids(value)
 
     def validate_search(self, value):
         if len(value.encode("utf-8")) > _PROPERTY_CATALOG_MAX_SEARCH_BYTES:
@@ -885,6 +895,15 @@ class DashboardMetricsCatalogQuerySerializer(StrictInputSerializer):
             raise serializers.ValidationError(
                 {"workflow": "workflow is not supported in unified cursor mode"}
             )
+        if (
+            cursor_mode
+            and attrs.get("category") == "custom_attribute"
+            and attrs.get("source")
+        ):
+            try:
+                attrs["source"] = normalize_custom_attribute_source(attrs["source"])
+            except ValueError as exc:
+                raise serializers.ValidationError({"source": str(exc)}) from exc
         if not cursor_mode and attrs.get("role"):
             raise serializers.ValidationError(
                 {"role": "role requires cursor_mode=true"}
@@ -936,7 +955,7 @@ class DashboardFilterValuesQuerySerializer(serializers.Serializer):
         required=False,
         default="traces",
     )
-    project_ids = CommaSeparatedListField(required=False, default="")
+    project_ids = CommaSeparatedListField(required=False, default=list)
     dataset_id = serializers.UUIDField(required=False)
     search = serializers.CharField(
         required=False,
@@ -945,22 +964,36 @@ class DashboardFilterValuesQuerySerializer(serializers.Serializer):
         # The selector enforces the same limit in encoded UTF-8 bytes.  This
         # character cap keeps obviously oversized requests out of every
         # source-specific branch before any database work.
-        max_length=512,
+        max_length=_PROPERTY_CATALOG_MAX_SEARCH_BYTES,
     )
     page_size = serializers.IntegerField(
         required=False,
         min_value=1,
-        max_value=50,
+        max_value=_FILTER_VALUE_MAX_PAGE_SIZE,
     )
     cursor = serializers.CharField(
         required=False,
         allow_blank=False,
-        max_length=16_384,
+        max_length=_PROPERTY_CATALOG_CURSOR_MAX_BYTES,
     )
     attribute_type = serializers.ChoiceField(
         choices=["string", "number", "boolean", "array", "map", "json"],
         required=False,
     )
+
+    def validate_page_size(self, value):
+        max_page_size = min(
+            settings.DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE,
+            settings.PROPERTY_CATALOG_MAX_PAGE_SIZE,
+        )
+        if value > max_page_size:
+            raise serializers.ValidationError(
+                f"page_size must be at most {max_page_size}"
+            )
+        return value
+
+    def validate_project_ids(self, value):
+        return _validate_property_catalog_project_ids(value)
 
     def validate(self, attrs):
         property_id = attrs.get("property_id")
@@ -1001,7 +1034,17 @@ class DashboardFilterValuesQuerySerializer(serializers.Serializer):
             )
         else:
             attrs.setdefault("metric_type", "system_metric")
-        attrs["source"] = property_value_transport_source(attrs.get("source", "traces"))
+        if attrs["metric_type"] == "custom_attribute":
+            try:
+                attrs["source"] = normalize_custom_attribute_source(
+                    attrs.get("source", "traces")
+                )
+            except ValueError as exc:
+                raise serializers.ValidationError({"source": str(exc)}) from exc
+        else:
+            attrs["source"] = property_value_transport_source(
+                attrs.get("source", "traces")
+            )
         if attrs.get("cursor") and "page_size" not in attrs:
             raise serializers.ValidationError(
                 {"page_size": "page_size is required with cursor"}

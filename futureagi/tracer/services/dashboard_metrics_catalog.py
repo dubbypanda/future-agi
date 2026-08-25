@@ -16,6 +16,7 @@ from concurrent.futures import (
 )
 from contextlib import nullcontext
 from dataclasses import dataclass
+from uuid import UUID
 
 import structlog
 from django.conf import settings
@@ -27,6 +28,7 @@ from tracer.models.custom_eval_config import CustomEvalConfig
 from tracer.models.project import Project, ProjectSourceChoices
 from tracer.services.annotation_label_source import AnnotationLabelScoresProjectPG
 from tracer.services.clickhouse.read_budget import ReadDeadline, ReadDeadlineExceeded
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.query_service import V2AnalyticsQueryService
 
 logger = structlog.get_logger(__name__)
@@ -547,19 +549,42 @@ def resolve_property_catalog_project_scope(
     workspace,
     project_ids: list[str] | tuple[str, ...],
     *,
+    include_workspace_projects: bool = False,
     deadline: ReadDeadline,
 ) -> list[str]:
-    """Authorize an explicit unified-catalog project scope without widening.
+    """Authorize a unified-catalog project scope without silent narrowing.
 
     The ClickHouse definition reader owns no authorization logic. Every UUID
     carried into its visibility predicate must first be proven to belong to
-    the already-authorized workspace. Unlike the legacy catalog builder, a
-    mixed valid/foreign scope is rejected instead of silently narrowed.
+    the already-authorized workspace. Unlike the legacy catalog builder,
+    malformed, oversized, and mixed valid/foreign scopes are rejected instead
+    of silently narrowed. Workspace reads materialize the complete authorized
+    PG project set so the activation can prove full coverage.
     """
 
-    requested = list(dict.fromkeys(str(project_id) for project_id in project_ids))
+    raw_project_ids = list(project_ids)
+    if len(raw_project_ids) > RUNTIME_LIMITS.max_projects:
+        raise ValueError(
+            f"At most {RUNTIME_LIMITS.max_projects} project_ids may be searched at once"
+        )
+    try:
+        requested = list(
+            dict.fromkeys(str(UUID(str(project_id))) for project_id in raw_project_ids)
+        )
+    except (TypeError, ValueError, AttributeError) as exc:
+        raise ValueError("Some project_ids are invalid") from exc
     if not requested:
-        return []
+        if not include_workspace_projects:
+            return []
+        resolved, explicit = _resolve_metrics_catalog_project_scope(
+            workspace,
+            "",
+            include_workspace_projects=True,
+            deadline=deadline,
+        )
+        if explicit:
+            raise MetricsCatalogUnavailable("project_scope")
+        return sorted(resolved)
     resolved, explicit = _resolve_metrics_catalog_project_scope(
         workspace,
         ",".join(requested),

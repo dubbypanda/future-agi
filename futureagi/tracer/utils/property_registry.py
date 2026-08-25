@@ -137,6 +137,28 @@ def property_value_transport_source(source: str) -> str:
     return _LOGICAL_SOURCE_TO_TRANSPORT.get(normalized, normalized)
 
 
+def normalize_custom_attribute_source(
+    source: str | None, *, allow_blank: bool = False
+) -> str:
+    """Return the one native source supported by custom attributes.
+
+    Discovery accepts logical namespaces such as ``spans``, ``voice_calls``,
+    and ``prompts`` while exact value reads operate on trace-backed span
+    attributes.  Keeping this admission rule beside the shared transport map
+    prevents the definition and value APIs from silently disagreeing.
+    """
+
+    normalized = str(source or "").strip()
+    if not normalized:
+        if allow_blank:
+            return ""
+        raise ValueError("property source must be a non-empty string")
+    transport_source = property_value_transport_source(normalized)
+    if transport_source not in _PROPERTY_KIND_ALLOWED_SOURCES["custom_attribute"]:
+        raise ValueError("custom_attribute is not compatible with source")
+    return transport_source
+
+
 def parse_property_registry_id(property_id: str) -> dict[str, str]:
     """Decode one public registry identity into its native adapter identity."""
 
@@ -183,15 +205,19 @@ def validate_property_source_binding(
     if not normalized_source:
         raise ValueError("property source must be a non-empty string")
 
-    normalized_source = property_value_transport_source(normalized_source)
     property_kind = decoded["property_kind"]
-    if property_kind == "system_attribute":
+    if property_kind == "custom_attribute":
+        normalized_source = normalize_custom_attribute_source(normalized_source)
+        allowed_sources = _PROPERTY_KIND_ALLOWED_SOURCES[property_kind]
+    elif property_kind == "system_attribute":
+        normalized_source = property_value_transport_source(normalized_source)
         definition_source = decoded["definition_source"]
         allowed_sources = _SYSTEM_DEFINITION_ALLOWED_TRANSPORTS.get(
             definition_source,
             frozenset({definition_source}),
         )
     else:
+        normalized_source = property_value_transport_source(normalized_source)
         allowed_sources = _PROPERTY_KIND_ALLOWED_SOURCES[property_kind]
     if normalized_source not in allowed_sources:
         raise ValueError("property_id is not compatible with source")

@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 from rest_framework.response import Response
 
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     system_property_value_adapter,
 )
@@ -137,6 +138,30 @@ def test_filter_values_uses_authorized_activated_native_catalog_page(settings):
     legacy.assert_not_called()
 
 
+def test_filter_values_workspace_scope_binds_full_authorized_project_set(settings):
+    _enable(settings)
+    reader = Mock()
+    reader.read_page.return_value = _page()
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ) as authorize,
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch("tracer.views.dashboard.PropertyCatalogValueReader", return_value=reader),
+    ):
+        response = inspect.unwrap(DashboardViewSet.filter_values)(
+            DashboardViewSet(), _request(project_ids=[])
+        )
+
+    assert response.status_code == 200
+    assert authorize.call_args.kwargs["include_workspace_projects"] is True
+    scope = reader.read_page.call_args.kwargs["scope"]
+    assert scope["project_ids"] == [PROJECT_ID]
+    assert scope["workspace_scope"] is True
+
+
 def test_filter_values_cursor_continuation_uses_signed_window_not_new_now(settings):
     _enable(settings)
     reader = Mock()
@@ -202,11 +227,14 @@ def test_filter_values_catalog_failure_is_503_without_legacy_span_read(settings)
     legacy.assert_not_called()
 
 
-def test_filter_values_catalog_cursor_error_is_sanitized_400(settings):
+@pytest.mark.parametrize("cursor_code", ["cursor_mismatch", "invalid_cursor"])
+def test_filter_values_catalog_cursor_error_is_sanitized_400_without_legacy_fallback(
+    settings, cursor_code
+):
     _enable(settings)
     reader = Mock()
     reader.read_page.side_effect = PropertyCatalogValueCursorError(
-        "cursor_mismatch",
+        cursor_code,
         "The property-value continuation cursor does not match this request.",
     )
 
@@ -217,13 +245,15 @@ def test_filter_values_catalog_cursor_error_is_sanitized_400(settings):
         ),
         patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
         patch("tracer.views.dashboard.PropertyCatalogValueReader", return_value=reader),
+        patch("tracer.views.dashboard.AttributeReadSelector") as legacy,
     ):
         response = inspect.unwrap(DashboardViewSet.filter_values)(
             DashboardViewSet(), _request(cursor="signed-old")
         )
 
     assert response.status_code == 400
-    assert response.data["code"] == "cursor_mismatch"
+    assert response.data["code"] == cursor_code
+    legacy.assert_not_called()
 
 
 def test_native_value_cursor_bypasses_additive_catalog_decoder(settings):
@@ -254,7 +284,7 @@ def test_native_value_cursor_bypasses_additive_catalog_decoder(settings):
             deadline=deadline,
         )
     assert raised.value.reason == "native_value_adapter"
-    authorize.assert_not_called()
+    authorize.assert_called_once()
     reader.assert_not_called()
 
 
@@ -272,7 +302,8 @@ def test_native_system_value_preflight_skips_catalog_queries(settings):
 
     with (
         patch(
-            "tracer.views.dashboard.resolve_property_catalog_project_scope"
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
         ) as authorize,
         patch("tracer.views.dashboard.PropertyCatalogReadExecutor") as executor,
         patch("tracer.views.dashboard.PropertyCatalogValueReader") as reader,
@@ -285,10 +316,57 @@ def test_native_system_value_preflight_skips_catalog_queries(settings):
         )
 
     assert raised.value.reason == "native_value_adapter"
-    authorize.assert_not_called()
+    authorize.assert_called_once()
     executor.assert_not_called()
     reader.assert_not_called()
     deadline.remaining_ms.assert_not_called()
+
+
+def test_oversized_native_scope_is_400_before_legacy_fallback(settings):
+    _enable(settings)
+    request = _request(
+        property_id="system_attribute:traces:provider",
+        _property_kind="system_attribute",
+        metric_name="provider",
+        metric_type="system_metric",
+        search="",
+        project_ids=[PROJECT_ID] * (RUNTIME_LIMITS.max_projects + 1),
+    )
+
+    with (
+        patch("tracer.views.dashboard.PropertyCatalogValueReader") as reader,
+        patch("tracer.views.dashboard.AttributeReadSelector") as legacy,
+    ):
+        response = inspect.unwrap(DashboardViewSet.filter_values)(
+            DashboardViewSet(), request
+        )
+
+    assert response.status_code == 400
+    reader.assert_not_called()
+    legacy.assert_not_called()
+
+
+def test_catalog_definition_native_adapter_mismatch_is_503_without_legacy(settings):
+    _enable(settings)
+    reader = Mock()
+    reader.read_page.side_effect = PropertyCatalogValueNotReady("native_value_adapter")
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ),
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch("tracer.views.dashboard.PropertyCatalogValueReader", return_value=reader),
+        patch("tracer.views.dashboard.AttributeReadSelector") as legacy,
+    ):
+        response = inspect.unwrap(DashboardViewSet.filter_values)(
+            DashboardViewSet(), _request()
+        )
+
+    assert response.status_code == 503
+    assert response.data["code"] == "service_unavailable"
+    legacy.assert_not_called()
 
 
 def test_system_value_adapter_preflight_matches_manifest_contract():

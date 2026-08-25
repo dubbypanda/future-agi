@@ -24,7 +24,10 @@ from tracer.services.clickhouse.query_builders.base import (
     BaseQueryBuilder,
     _unix_microseconds,
 )
-from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
+from tracer.services.clickhouse.query_builders.filters import (
+    ClickHouseFilterBuilder,
+    build_numeric_filter_predicate,
+)
 from tracer.services.clickhouse.query_builders.latest_filter_predicates import (
     partition_span_filter_plans,
 )
@@ -220,7 +223,10 @@ class SessionListQueryBuilder(BaseQueryBuilder):
         ]
 
     def _bounded_span_filter_parts(self):
-        return partition_span_filter_plans(self._bounded_scalar_span_filters())
+        return partition_span_filter_plans(
+            self._bounded_scalar_span_filters(),
+            group_attribute_nulls=True,
+        )
 
     @staticmethod
     def _bounded_has_eval_values(
@@ -1424,7 +1430,7 @@ class SessionListQueryBuilder(BaseQueryBuilder):
                 "latest_trace_session_id", "scalar_ts_remap"
             )
             scalar_filter_having = " AND ".join(
-                f"countIf({plan.predicate}) > 0" for plan in root_filter_plans
+                plan.grouped_match_predicate() for plan in root_filter_plans
             )
             scalar_filter_ctes = f""",
         candidate_scalar_span_identities AS (
@@ -1455,7 +1461,8 @@ class SessionListQueryBuilder(BaseQueryBuilder):
         resolved_candidate_scalar_spans AS (
             SELECT
                 project_id,
-                {resolved_scalar_session} AS session_id
+                {resolved_scalar_session} AS session_id,
+                trace_id
                 {scalar_alias_select}
             FROM latest_candidate_scalar_spans
             LEFT JOIN ts_survivor_map AS scalar_ts_remap
@@ -1464,11 +1471,16 @@ class SessionListQueryBuilder(BaseQueryBuilder):
               AND isNotNull(latest_trace_session_id)
               AND latest_trace_session_id != toUUID('{NIL_UUID}')
         ),
+        matching_scalar_traces AS (
+            SELECT project_id, session_id, trace_id
+            FROM resolved_candidate_scalar_spans
+            GROUP BY project_id, session_id, trace_id
+            HAVING {scalar_filter_having}
+        ),
         matching_scalar_sessions AS (
             SELECT project_id, session_id
-            FROM resolved_candidate_scalar_spans
+            FROM matching_scalar_traces
             GROUP BY project_id, session_id
-            HAVING {scalar_filter_having}
         )"""
             if self.project_ids is not None:
                 scalar_filter_membership = (
@@ -3315,23 +3327,17 @@ class SessionListQueryBuilder(BaseQueryBuilder):
                 conditions.append(f"{ch_col} {text_op} %({param_name})s")
                 continue
 
-            op_map = {
-                "equals": "=",
-                "not_equals": "!=",
-                "greater_than": ">",
-                "less_than": "<",
-                "greater_than_or_equal": ">=",
-                "less_than_or_equal": "<=",
-            }
-            op = op_map.get(filter_op)
-            if op is None:
-                conditions.append("0 = 1")
-                continue
-
             param_counter += 1
             param_name = f"having_{param_counter}"
-            self.params[param_name] = filter_value
-            conditions.append(f"{ch_col} {op} %({param_name})s")
+            conditions.append(
+                build_numeric_filter_predicate(
+                    ch_col,
+                    filter_op,
+                    filter_value,
+                    param_prefix=param_name,
+                    params=self.params,
+                )
+            )
 
         return " AND ".join(conditions)
 

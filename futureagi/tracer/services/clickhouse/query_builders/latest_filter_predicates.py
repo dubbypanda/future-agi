@@ -181,6 +181,20 @@ class LatestFilterPredicate:
     raw_key_witness_predicate: str | None = None
     raw_witness_rank: int | None = None
     source_metric: str | None = None
+    # ``predicate`` normally identifies one matching latest-live span. Grouped
+    # trace/session reducers then require at least one such span. Attribute
+    # ``is_null`` is the one inverse shape: its predicate identifies key
+    # presence, and the target trace matches only when the group has none.
+    exclude_group_matches: bool = False
+
+    def grouped_match_predicate(self, row_scope: str | None = None) -> str:
+        """Compile this latest-span predicate at its enclosing target grain."""
+
+        predicate = self.predicate
+        if row_scope:
+            predicate = f"{row_scope} AND ({predicate})"
+        comparison = "= 0" if self.exclude_group_matches else "> 0"
+        return f"countIf({predicate}) {comparison}"
 
 
 def _parts(item: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -326,10 +340,49 @@ def _raw_uuid_seed_predicate(
 
 
 def _attribute_plan(
-    item: dict[str, Any], *, index: int, scope: str
+    item: dict[str, Any],
+    *,
+    index: int,
+    scope: str,
+    group_nulls: bool = False,
 ) -> LatestFilterPredicate:
     raw_key, config = _parts(item)
     key = _validate_attribute_key(raw_key)
+    operation = normalize_filter_op(
+        str(config.get("filter_op") or config.get("filterOp") or "")
+    )
+    if group_nulls and operation == "is_null":
+        # Keep the ordinary row-level null plan for its safe seed/witness
+        # metadata, but classify the enclosing trace by absence of the
+        # corresponding positive key-presence predicate. Building that
+        # predicate through the same compiler keeps scalar and structured
+        # attributes on one semantic path.
+        row_plan = _attribute_plan(item, index=index, scope=scope)
+        presence_item = {
+            **item,
+            "filter_config": {
+                **config,
+                "filter_op": "is_not_null",
+            },
+        }
+        presence_item.pop("filterConfig", None)
+        presence_plan = _attribute_plan(
+            presence_item,
+            index=index,
+            scope=scope,
+        )
+        if (
+            row_plan.aggregates != presence_plan.aggregates
+            or row_plan.params != presence_plan.params
+        ):
+            raise AssertionError(
+                "attribute null and presence plans must share latest state"
+            )
+        return replace(
+            row_plan,
+            predicate=presence_plan.predicate,
+            exclude_group_matches=True,
+        )
     raw_filter_value = config.get("filter_value", config.get("filterValue"))
     filter_type = normalize_span_attribute_filter_type(
         str(config.get("filter_type") or config.get("filterType") or ""),
@@ -396,9 +449,6 @@ def _attribute_plan(
     # that companion must never participate in an exhaustive raw witness.
     exact_seed_predicate = seed_predicate
     params[key_param] = key
-    operation = normalize_filter_op(
-        str(config.get("filter_op") or config.get("filterOp") or "")
-    )
     if map_column == "span_attr_num" and operation in {"equals", "in"}:
         bound_value = params[f"latest_filter_param_{index}"]
         normalized_values = (
@@ -571,9 +621,7 @@ def _mixed_typed_attribute_plan(
             f"(indexHint(has(mapKeys({map_column}), {bound_key})) "
             f"AND has({map_column}.keys, {bound_key}))"
         )
-        typed_raw_witnesses.append(
-            f"(({key_witnesses[-1]}) AND ({seed_matches[-1]}))"
-        )
+        typed_raw_witnesses.append(f"(({key_witnesses[-1]}) AND ({seed_matches[-1]}))")
 
     if not latest_matches:
         raise UnsupportedFilterShapeError(
@@ -1510,7 +1558,14 @@ def compile_trace_filter_plans(
         elif col_type == "SPAN_ATTRIBUTE":
             # Trace attribute filters retain their documented any-span
             # semantics: separate child spans may satisfy separate filters.
-            plans.append(_attribute_plan(item, index=index, scope="any"))
+            plans.append(
+                _attribute_plan(
+                    item,
+                    index=index,
+                    scope="any",
+                    group_nulls=True,
+                )
+            )
         elif col_type in {"SYSTEM_METRIC", "TRACE_END_USER"}:
             plans.append(
                 _system_metric_plan(
@@ -1527,6 +1582,8 @@ def compile_trace_filter_plans(
 
 def compile_span_filter_plans(
     filters: list[dict[str, Any]],
+    *,
+    group_attribute_nulls: bool = False,
 ) -> list[LatestFilterPredicate]:
     plans: list[LatestFilterPredicate] = []
     for item in filters:
@@ -1553,7 +1610,14 @@ def compile_span_filter_plans(
         } and col_type in {"", "NORMAL"}:
             plans.append(_system_metric_plan(item, index=index, trace_mode=False))
         elif col_type == "SPAN_ATTRIBUTE":
-            plans.append(_attribute_plan(item, index=index, scope="span"))
+            plans.append(
+                _attribute_plan(
+                    item,
+                    index=index,
+                    scope="span",
+                    group_nulls=group_attribute_nulls,
+                )
+            )
         elif col_type in {"SYSTEM_METRIC", "TRACE_END_USER"}:
             plans.append(_system_metric_plan(item, index=index, trace_mode=False))
         else:
@@ -1611,6 +1675,8 @@ def partition_trace_filter_plans(
 
 def partition_span_filter_plans(
     filters: list[dict[str, Any]],
+    *,
+    group_attribute_nulls: bool = False,
 ) -> tuple[list[LatestFilterPredicate], list[dict[str, Any]]]:
     """Span equivalent of :func:`partition_trace_filter_plans`."""
 
@@ -1623,9 +1689,18 @@ def partition_span_filter_plans(
         elif _is_candidate_residual_filter(item):
             residual.append(item)
         else:
-            compile_span_filter_plans([item])
+            compile_span_filter_plans(
+                [item],
+                group_attribute_nulls=group_attribute_nulls,
+            )
             supported.append(item)
-    return compile_span_filter_plans(supported), residual
+    return (
+        compile_span_filter_plans(
+            supported,
+            group_attribute_nulls=group_attribute_nulls,
+        ),
+        residual,
+    )
 
 
 def supports_trace_filters(filters: list[dict[str, Any]]) -> bool:

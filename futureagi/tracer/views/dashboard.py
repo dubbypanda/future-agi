@@ -140,6 +140,7 @@ from tracer.services.clickhouse.v2.property_catalog.cursor import (
 from tracer.services.clickhouse.v2.property_catalog.reader import (
     PropertyCatalogReader,
     PropertyCatalogUnavailable,
+    is_property_catalog_not_ready_error,
 )
 from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     system_property_value_adapter,
@@ -149,7 +150,6 @@ from tracer.services.clickhouse.v2.property_catalog.value_cursor import (
 )
 from tracer.services.clickhouse.v2.property_catalog.value_reader import (
     PROPERTY_CATALOG_VALUE_ADAPTER,
-    PROPERTY_CATALOG_VALUE_MAX_PROJECTS,
     PropertyCatalogValueNotReady,
     PropertyCatalogValueReader,
     PropertyCatalogValueUnavailable,
@@ -208,12 +208,39 @@ def _read_property_catalog_value_page(request, query_params, *, deadline):
     property_id = query_params.get("property_id")
     property_kind = query_params.get("_property_kind")
     page_size = query_params.get("page_size")
+    raw_project_ids = list(query_params.get("project_ids") or [])
+
+    def authorize_project_scope(
+        project_ids_to_authorize, *, include_workspace_projects=False
+    ):
+        try:
+            return resolve_property_catalog_project_scope(
+                request.workspace,
+                project_ids_to_authorize,
+                include_workspace_projects=include_workspace_projects,
+                deadline=deadline,
+            )
+        except ValueError as exc:
+            raise _PropertyCatalogValueRequestError(str(exc)) from exc
+        except (DatabaseError, MetricsCatalogUnavailable) as exc:
+            raise PropertyCatalogValueUnavailable("scope_unavailable") from exc
+
+    project_ids = None
+    # Explicit scopes are validated before every compatibility exit. This
+    # prevents malformed, oversized, mixed, or foreign IDs from being silently
+    # narrowed by a legacy adapter.
+    if raw_project_ids:
+        project_ids = authorize_project_scope(raw_project_ids)
     if (
         not property_id
         or property_kind not in {"custom_attribute", "system_attribute"}
         or page_size is None
     ):
         raise PropertyCatalogValueNotReady("native_value_adapter")
+
+    workspace_scope = not raw_project_ids
+    if project_ids is None:
+        project_ids = authorize_project_scope((), include_workspace_projects=True)
 
     if property_kind == "system_attribute":
         try:
@@ -230,20 +257,14 @@ def _read_property_catalog_value_page(request, query_params, *, deadline):
         ):
             raise PropertyCatalogValueNotReady("native_value_adapter")
 
-    raw_project_ids = query_params.get("project_ids", [])
-    if len(raw_project_ids) > PROPERTY_CATALOG_VALUE_MAX_PROJECTS:
-        raise PropertyCatalogValueNotReady("project_scope_too_large")
-    try:
-        project_ids = resolve_property_catalog_project_scope(
-            request.workspace,
-            raw_project_ids,
-            deadline=deadline,
-        )
-    except ValueError as exc:
-        raise _PropertyCatalogValueRequestError(str(exc)) from exc
-
     cursor_scope = cursor_scope_for_request(request, project_ids=project_ids)
-    cursor_scope.update({"agent_definition_id": "", "dataset_id": ""})
+    cursor_scope.update(
+        {
+            "agent_definition_id": "",
+            "dataset_id": "",
+            "workspace_scope": workspace_scope,
+        }
+    )
     cursor_query = {
         "property_id": property_id,
         "source": query_params.get("source", "traces"),
@@ -279,18 +300,11 @@ def _read_property_catalog_value_page(request, query_params, *, deadline):
         )
     try:
         page = reader.read_page(**read_args)
-    except PropertyCatalogValueCursorError as exc:
-        # A system definition can deliberately retain its established native
-        # value adapter.  Its first cursor page is then emitted by the native
-        # reader below, but the next request still reaches this additive
-        # catalog probe first.  The two cursor families use different signing
-        # salts, so an otherwise valid native cursor is ``invalid_cursor`` to
-        # the catalog decoder.  Preserve real catalog scope/query mismatches,
-        # while allowing only a foreign cursor family to reach the native
-        # decoder that owns it.
-        if query_params.get("cursor") and exc.code == "invalid_cursor":
-            raise PropertyCatalogValueNotReady("native_cursor_adapter") from exc
-        raise
+    except PropertyCatalogValueNotReady as exc:
+        # Only the explicit native-system preflight above may enter legacy
+        # routing. A catalog definition that unexpectedly advertises another
+        # adapter is an availability failure, never a fallback authorization.
+        raise PropertyCatalogValueUnavailable(exc.reason) from exc
     deadline.remaining_ms(floor_ms=1)
     return page
 
@@ -2600,9 +2614,12 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     code="property_catalog_not_ready",
                 )
             try:
+                raw_project_ids = query_params.get("project_ids", [])
+                workspace_scope = not raw_project_ids
                 project_ids = resolve_property_catalog_project_scope(
                     workspace,
-                    query_params.get("project_ids", []),
+                    raw_project_ids,
+                    include_workspace_projects=workspace_scope,
                     deadline=read_deadline,
                 )
                 agent_definition_id = resolve_property_catalog_agent_scope(
@@ -2643,6 +2660,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 {
                     "agent_definition_id": agent_definition_id,
                     "dataset_id": "",
+                    "workspace_scope": workspace_scope,
                 }
             )
             cursor_query = {
@@ -2678,6 +2696,12 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     reason=getattr(exc, "reason", "deadline_exceeded"),
                     workspace_id=str(workspace.id),
                 )
+                if is_property_catalog_not_ready_error(exc):
+                    return self._gm.custom_error_response(
+                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                        "The unified property catalog is not ready for this scope.",
+                        code="property_catalog_not_ready",
+                    )
                 return self._gm.custom_error_response(
                     status.HTTP_503_SERVICE_UNAVAILABLE,
                     "Dashboard properties are temporarily unavailable. Please retry.",
@@ -3165,6 +3189,8 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                     str(exc),
                     code=exc.code,
                 )
+            except ValueError as exc:
+                return self._gm.bad_request(str(exc))
             except (PropertyCatalogValueUnavailable, ReadDeadlineExceeded) as exc:
                 logger.warning(
                     "property_catalog_value_read_unavailable",

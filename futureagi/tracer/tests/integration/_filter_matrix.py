@@ -81,7 +81,7 @@ class FilterCase:
 # ---------- SYSTEM_METRIC leaves (per filter_type × filter_op) ---------------
 
 _DATETIME_GAP = "finite default window excludes the fixed historical corpus"
-_AGG_GAP = "session/trace aggregate HAVING supports comparison ops only"
+_NUMBER_MEMBERSHIP_GAP = "number filters do not support membership operators"
 
 
 def _sm_number_leaves():
@@ -195,7 +195,7 @@ def _sm_datetime_leaves():
         ),
         # No row has a null created_at → endpoint (0) agrees with predicate (0).
         ("is_null", None, lambda r: False, {}),
-        ("is_not_null", None, lambda r: True, gap),
+        ("is_not_null", None, lambda r: True, {}),
     ]
     return [
         ("SYSTEM_METRIC", "datetime", op, "created_at", val, pred, ex)
@@ -792,10 +792,13 @@ def _global_annotator_leaves(annotator_user_id: str):
 
 def _session_aggregate_leaves():
     # Session aggregates sum over ROOT spans (session_list restricts the inner
-    # scan to parent_span_id IS NULL). HAVING supports only comparison ops;
-    # between/in/nulls compile to 0=1 → contract_gap.
+    # scan to parent_span_id IS NULL). The shared aggregate compiler supports
+    # the complete number-operator contract in both list and graph queries.
     sess = {"only_targets": ("sessions",)}
-    gap = {"only_targets": ("sessions",), "contract_gap": _AGG_GAP}
+    membership_gap = {
+        "only_targets": ("sessions",),
+        "contract_gap": _NUMBER_MEMBERSHIP_GAP,
+    }
 
     def cost(g):
         return sum(r.cost for r in g)
@@ -814,18 +817,29 @@ def _session_aggregate_leaves():
         ("total_tokens", "equals", 20, lambda g: tokens(g) == 20, sess),
         ("traces_count", "equals", 3, lambda g: traces(g) == 3, sess),
         ("traces_count", "greater_than", 2, lambda g: traces(g) > 2, sess),
-        # gaps
-        ("total_cost", "between", [0.04, 0.2], lambda g: 0.04 <= cost(g) <= 0.2, gap),
+        ("total_cost", "between", [0.04, 0.2], lambda g: 0.04 <= cost(g) <= 0.2, sess),
         (
             "total_cost",
             "not_between",
             [0.04, 0.2],
             lambda g: not (0.04 <= cost(g) <= 0.2),
-            gap,
+            sess,
         ),
-        ("traces_count", "in", [3], lambda g: traces(g) in (3,), gap),
-        ("traces_count", "not_in", [3], lambda g: traces(g) not in (3,), gap),
-        ("total_tokens", "is_not_null", None, lambda g: True, gap),
+        (
+            "traces_count",
+            "in",
+            [3],
+            lambda g: traces(g) in (3,),
+            membership_gap,
+        ),
+        (
+            "traces_count",
+            "not_in",
+            [3],
+            lambda g: traces(g) not in (3,),
+            membership_gap,
+        ),
+        ("total_tokens", "is_not_null", None, lambda g: True, sess),
         ("total_tokens", "is_null", None, lambda g: False, sess),
     ]
     return [

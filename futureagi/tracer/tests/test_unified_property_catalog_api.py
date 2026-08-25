@@ -4,12 +4,17 @@ import inspect
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
+
 from tracer.serializers.dashboard import (
     DashboardFilterValuesQuerySerializer,
     DashboardMetricsCatalogQuerySerializer,
 )
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     PropertyCatalogCursorError,
+)
+from tracer.services.clickhouse.v2.property_catalog.reader import (
+    PropertyCatalogUnavailable,
 )
 from tracer.views.dashboard import DashboardViewSet
 
@@ -125,12 +130,46 @@ def test_metrics_cursor_contract_requires_explicit_bounded_mode():
     assert not multibyte_search.is_valid()
 
 
+def test_metrics_cursor_normalizes_exact_custom_attribute_sources():
+    for source in ("traces", "spans", "voice_calls", "prompts"):
+        serializer = DashboardMetricsCatalogQuerySerializer(
+            data={
+                "cursor_mode": True,
+                "page_size": 50,
+                "category": "custom_attribute",
+                "source": source,
+            }
+        )
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["source"] == "traces"
+
+
+@pytest.mark.parametrize(
+    "source", ["sessions", "users", "datasets", "simulation", "all", "both"]
+)
+def test_metrics_cursor_rejects_unsupported_custom_attribute_sources(source):
+    serializer = DashboardMetricsCatalogQuerySerializer(
+        data={
+            "cursor_mode": True,
+            "page_size": 50,
+            "category": "custom_attribute",
+            "source": source,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "source" in serializer.errors
+
+
 def test_filter_values_normalizes_logical_definition_sources_to_native_transport():
     cases = (
         ("system_attribute:spans:latency", "spans", "traces"),
         ("system_attribute:users:user", "users", "sessions"),
         ("system_attribute:voice_calls:latency", "voice_calls", "traces"),
         ("system_attribute:prompts:avg_latency", "prompts", "traces"),
+        ("custom_attribute:customer.plan", "spans", "traces"),
+        ("custom_attribute:customer.plan", "voice_calls", "traces"),
+        ("custom_attribute:customer.plan", "prompts", "traces"),
     )
 
     for property_id, source, expected_transport in cases:
@@ -143,6 +182,117 @@ def test_filter_values_normalizes_logical_definition_sources_to_native_transport
         )
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["source"] == expected_transport
+
+
+def test_filter_values_rejects_unsupported_custom_attribute_source():
+    serializer = DashboardFilterValuesQuerySerializer(
+        data={
+            "property_id": "custom_attribute:customer.plan",
+            "source": "sessions",
+            "page_size": 25,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "property_id" in serializer.errors
+
+    legacy_serializer = DashboardFilterValuesQuerySerializer(
+        data={
+            "metric_name": "customer.plan",
+            "metric_type": "custom_attribute",
+            "source": "sessions",
+            "page_size": 25,
+        }
+    )
+    assert not legacy_serializer.is_valid()
+    assert "source" in legacy_serializer.errors
+
+
+@pytest.mark.parametrize(
+    "project_ids",
+    [
+        "not-a-uuid",
+        ",".join(f"00000000-0000-4000-8000-{index:012d}" for index in range(1, 66)),
+    ],
+)
+def test_filter_values_rejects_malformed_or_oversized_project_scope(project_ids):
+    serializer = DashboardFilterValuesQuerySerializer(
+        data={
+            "property_id": "custom_attribute:customer.plan",
+            "source": "traces",
+            "page_size": 25,
+            "project_ids": project_ids,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "project_ids" in serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("catalog_max", "dashboard_max"),
+    [(7, 11), (11, 7)],
+)
+def test_filter_values_page_size_honors_both_configured_maxima(
+    settings, catalog_max, dashboard_max
+):
+    settings.PROPERTY_CATALOG_MAX_PAGE_SIZE = catalog_max
+    settings.DASHBOARD_FILTER_VALUE_MAX_PAGE_SIZE = dashboard_max
+    admitted_max = min(catalog_max, dashboard_max)
+
+    accepted = DashboardFilterValuesQuerySerializer(
+        data={
+            "property_id": "custom_attribute:customer.plan",
+            "source": "traces",
+            "page_size": admitted_max,
+        }
+    )
+    rejected = DashboardFilterValuesQuerySerializer(
+        data={
+            "property_id": "custom_attribute:customer.plan",
+            "source": "traces",
+            "page_size": admitted_max + 1,
+        }
+    )
+
+    assert accepted.is_valid(), accepted.errors
+    assert not rejected.is_valid()
+    assert "page_size" in rejected.errors
+
+
+def test_filter_values_maps_reader_value_error_to_400(settings):
+    settings.PROPERTY_CATALOG_READ_MODE = "read"
+    settings.PROPERTY_CATALOG_DATABASE = "th7247_catalog_dev_clean"
+    settings.PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = (WORKSPACE_ID,)
+    reader = Mock()
+    reader.read_page.side_effect = ValueError("page_size must be between 1 and 25")
+    request = _request(
+        metric_name="customer.plan",
+        metric_type="custom_attribute",
+        property_id="custom_attribute:customer.plan",
+        _property_kind="custom_attribute",
+        source="traces",
+        search="",
+        page_size=26,
+    )
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ),
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch(
+            "tracer.views.dashboard.PropertyCatalogValueReader",
+            return_value=reader,
+        ),
+    ):
+        response = inspect.unwrap(DashboardViewSet.filter_values)(
+            DashboardViewSet(), request
+        )
+
+    assert response.status_code == 400
+    reader.read_page.assert_called_once()
 
 
 def test_metrics_cursor_mode_uses_one_activated_definition_reader(settings):
@@ -217,6 +367,48 @@ def test_metrics_cursor_mode_uses_one_activated_definition_reader(settings):
     legacy.assert_not_called()
 
 
+def test_metrics_workspace_scope_binds_full_authorized_project_set(settings):
+    settings.PROPERTY_CATALOG_READ_MODE = "read"
+    settings.PROPERTY_CATALOG_DATABASE = "th7247_catalog_dev_clean"
+    settings.PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = (WORKSPACE_ID,)
+    reader = Mock()
+    reader.read_page.return_value = SimpleNamespace(
+        metrics=(),
+        has_more=False,
+        next_cursor=None,
+        catalog_epoch=3,
+        catalog_revision=17,
+        activation_fingerprint="a" * 64,
+        category_counts={
+            "all": 0,
+            "system_metric": 0,
+            "eval_metric": 0,
+            "annotation_metric": 0,
+            "custom_attribute": 0,
+            "custom_column": 0,
+        },
+        category_counts_exact=True,
+    )
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ) as authorize,
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch("tracer.views.dashboard.PropertyCatalogReader", return_value=reader),
+    ):
+        response = inspect.unwrap(DashboardViewSet.metrics)(
+            DashboardViewSet(), _request(project_ids=[])
+        )
+
+    assert response.status_code == 200
+    assert authorize.call_args.kwargs["include_workspace_projects"] is True
+    scope = reader.read_page.call_args.kwargs["scope"]
+    assert scope["project_ids"] == [PROJECT_ID]
+    assert scope["workspace_scope"] is True
+
+
 def test_metrics_cursor_mode_fails_closed_before_reader_when_not_allowlisted(settings):
     settings.PROPERTY_CATALOG_READ_MODE = "read"
     settings.PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = ()
@@ -254,6 +446,75 @@ def test_metrics_cursor_error_is_sanitized_400(settings):
 
     assert response.status_code == 400
     assert response.data["code"] == "cursor_mismatch"
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "activation_missing",
+        "activation_not_active",
+        "projection_incompatible",
+        "activation_scope_incomplete",
+    ],
+)
+def test_metrics_cursor_maps_only_genuine_activation_readiness_to_typed_503(
+    settings, reason
+):
+    settings.PROPERTY_CATALOG_READ_MODE = "read"
+    settings.PROPERTY_CATALOG_DATABASE = "th7247_catalog_dev_clean"
+    settings.PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = (WORKSPACE_ID,)
+    reader = Mock()
+    reader.read_page.side_effect = PropertyCatalogUnavailable(reason)
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ),
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch("tracer.views.dashboard.PropertyCatalogReader", return_value=reader),
+    ):
+        response = inspect.unwrap(DashboardViewSet.metrics)(
+            DashboardViewSet(), _request()
+        )
+
+    assert response.status_code == 503
+    assert response.data["code"] == "property_catalog_not_ready"
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "activation_mismatch",
+        "activation_conflict",
+        "activation_scope_conflict",
+        "activation_scope_invalid",
+        "definition_conflict",
+        "deadline_exceeded",
+        "query_failed",
+    ],
+)
+def test_metrics_cursor_keeps_conflicts_and_query_defects_generic(settings, reason):
+    settings.PROPERTY_CATALOG_READ_MODE = "read"
+    settings.PROPERTY_CATALOG_DATABASE = "th7247_catalog_dev_clean"
+    settings.PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST = (WORKSPACE_ID,)
+    reader = Mock()
+    reader.read_page.side_effect = PropertyCatalogUnavailable(reason)
+
+    with (
+        patch(
+            "tracer.views.dashboard.resolve_property_catalog_project_scope",
+            return_value=[PROJECT_ID],
+        ),
+        patch("tracer.views.dashboard.PropertyCatalogReadExecutor"),
+        patch("tracer.views.dashboard.PropertyCatalogReader", return_value=reader),
+    ):
+        response = inspect.unwrap(DashboardViewSet.metrics)(
+            DashboardViewSet(), _request()
+        )
+
+    assert response.status_code == 503
+    assert response.data["code"] == "service_unavailable"
 
 
 def test_metrics_cursor_rejects_foreign_project_before_clickhouse(settings):

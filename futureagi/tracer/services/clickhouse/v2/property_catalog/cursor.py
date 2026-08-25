@@ -64,7 +64,7 @@ def normalize_property_catalog_scope(scope: dict[str, Any]) -> dict[str, Any]:
     """Canonicalize auth/visibility scope before it is cursor-bound."""
 
     project_ids = sorted({str(item) for item in scope.get("project_ids", ())})
-    return {
+    normalized = {
         "principal_id": str(scope.get("principal_id") or ""),
         "auth_type": str(scope.get("auth_type") or ""),
         "auth_id": str(scope.get("auth_id") or ""),
@@ -74,6 +74,12 @@ def normalize_property_catalog_scope(scope: dict[str, Any]) -> dict[str, Any]:
         "agent_definition_id": str(scope.get("agent_definition_id") or ""),
         "dataset_id": str(scope.get("dataset_id") or ""),
     }
+    # Preserve existing explicit-project cursor digests. Workspace-wide reads
+    # opt into a stronger contract: ``project_ids`` is the complete authorized
+    # PG snapshot and the activation must prove exactly that set.
+    if scope.get("workspace_scope") is True:
+        normalized["workspace_scope"] = True
+    return normalized
 
 
 def normalize_property_catalog_query(query: dict[str, Any]) -> dict[str, Any]:

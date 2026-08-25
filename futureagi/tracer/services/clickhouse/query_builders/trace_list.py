@@ -1753,14 +1753,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                   ) < %(bounded_sampling_rate)s
                 """
             identity_projection = (
-                "project_id, trace_id"
-                if self.project_ids is not None
-                else "trace_id"
+                "project_id, trace_id" if self.project_ids is not None else "trace_id"
             )
             identity_limit_by = (
-                "project_id, trace_id"
-                if self.project_ids is not None
-                else "trace_id"
+                "project_id, trace_id" if self.project_ids is not None else "trace_id"
             )
             query = f"""
             SELECT {identity_projection}
@@ -3654,12 +3650,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                     AND latest_start_time < fromUnixTimestamp64Micro(%(candidate_end_date_us)s)
                 )"""
             any_span_having = " AND ".join(
-                (f"countIf({any_span_window_condition} AND ({plan.predicate})) > 0")
+                plan.grouped_match_predicate(any_span_window_condition)
                 for plan in any_span_plans
             )
         else:
             any_span_having = " AND ".join(
-                f"countIf({plan.predicate}) > 0" for plan in any_span_plans
+                plan.grouped_match_predicate() for plan in any_span_plans
             )
         any_span_having_fragment = (
             f"\n              AND {any_span_having}" if any_span_having else ""
@@ -3704,8 +3700,18 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             for witness_index, plan in enumerate(any_span_plans):
                 witness_alias = f"filter_witness_{witness_index}"
                 witness_aliases.append(witness_alias)
-                witness_condition = f"({plan.predicate})"
-                if scope_span_witnesses_to_request_window:
+                if plan.exclude_group_matches:
+                    # Group absence has no positive attribute span. The live
+                    # canonical root is nevertheless an exact row-level
+                    # is-null witness because the group proof established that
+                    # no span in this trace contains the key.
+                    witness_condition = canonical_root_condition
+                else:
+                    witness_condition = f"({plan.predicate})"
+                if (
+                    scope_span_witnesses_to_request_window
+                    and not plan.exclude_group_matches
+                ):
                     witness_condition = (
                         f"{any_span_window_condition} AND {witness_condition}"
                     )
