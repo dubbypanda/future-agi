@@ -10,6 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from tracer.constants.eval_task_usage import (
@@ -20,6 +21,7 @@ from tracer.constants.eval_task_usage import (
     UsagePeriod,
 )
 from tracer.models.custom_eval_config import CustomEvalConfig
+from tracer.models.observation_span import EvalLogger
 
 DEFAULT_OUTPUT_TYPE = "pass_fail"
 _INPUT_SUMMARY_LIMIT = 200
@@ -36,7 +38,11 @@ class UsageWindow:
     used: UsagePeriod
 
 
-def resolve_window(period, start_date=None, end_date=None):
+def resolve_window(
+    period: UsagePeriod,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> UsageWindow:
     """Build the initially requested window from the validated query params."""
     if start_date and end_date:
         return UsageWindow(
@@ -55,7 +61,9 @@ def resolve_window(period, start_date=None, end_date=None):
     )
 
 
-def apply_window(base_qs, window, total_runs):
+def apply_window(
+    base_qs: QuerySet, window: UsageWindow, total_runs: int
+) -> tuple[QuerySet, int, UsageWindow]:
     """Scope ``base_qs`` to ``window``, widening to all-time when it is empty.
 
     A window that excludes every run leaves the user staring at an empty chart,
@@ -86,7 +94,9 @@ def apply_window(base_qs, window, total_runs):
     )
 
 
-def build_stats(period_qs, total_runs, runs_period):
+def build_stats(
+    period_qs: QuerySet, total_runs: int, runs_period: int
+) -> dict:
     success_count = period_qs.filter(error=False).count()
     return {
         "total_runs": total_runs,
@@ -99,7 +109,7 @@ def build_stats(period_qs, total_runs, runs_period):
     }
 
 
-def list_configured_evals(eval_task_id):
+def list_configured_evals(eval_task_id: str) -> list[dict]:
     """Configured evals on the task — drives the usage-tab filter dropdown."""
     configs = CustomEvalConfig.objects.filter(
         eval_loggers__eval_task_id=eval_task_id
@@ -127,7 +137,7 @@ def list_configured_evals(eval_task_id):
     ]
 
 
-def bucket_minutes_for(window):
+def bucket_minutes_for(window: UsageWindow) -> int:
     """Pick a bucket width from the window length, capped at a sane point count."""
     span = window.end_date - window.start_date
     minutes = DEFAULT_USAGE_BUCKET_MINUTES
@@ -142,7 +152,7 @@ def bucket_minutes_for(window):
     return minutes
 
 
-def _floor_to_bucket(ts, bucket_minutes):
+def _floor_to_bucket(ts: datetime, bucket_minutes: int) -> datetime:
     if bucket_minutes >= 1440:
         return ts.replace(hour=0, minute=0, second=0, microsecond=0)
     if bucket_minutes >= 60:
@@ -160,12 +170,33 @@ def _floor_to_bucket(ts, bucket_minutes):
     )
 
 
-def build_chart(period_qs, window, runs_period):
+def _bucket_start(ts: datetime, origin: datetime, width: timedelta) -> datetime:
+    """Snap ``ts`` to its bucket, counted positionally from ``origin``.
+
+    The data keys and the zero-fill loop have to land on the same instants.
+    Flooring each side independently only agrees while the bucket width divides
+    the calendar unit ``_floor_to_bucket`` snaps to, and that stops holding as
+    soon as the ``MAX_USAGE_CHART_BUCKETS`` cap derives a width of its own — a
+    ~2400-day custom range yields 2305 minutes, which floors to midnight on one
+    side and steps 1.6 days on the other. Only the first bucket would then
+    match, and the chart would drop nearly every row while the stats and logs
+    still counted it: TH-4805's symptom, reachable again through the custom
+    picker. Counting from a shared origin makes the two sides equal by
+    construction, whatever the width.
+    """
+    return origin + ((ts - origin) // width) * width
+
+
+def build_chart(
+    period_qs: QuerySet, window: UsageWindow, runs_period: int
+) -> list[dict]:
     """Time series over ``window``, zero-filled so the line stays continuous."""
     if not runs_period:
         return []
 
     bucket_minutes = bucket_minutes_for(window)
+    width = timedelta(minutes=bucket_minutes)
+    origin = _floor_to_bucket(window.start_date, bucket_minutes)
     calls = defaultdict(int)
     passes = defaultdict(int)
     fails = defaultdict(int)
@@ -174,7 +205,7 @@ def build_chart(period_qs, window, runs_period):
     for log in period_qs.values(
         "created_at", "error", "output_bool", "output_float"
     ):
-        key = _floor_to_bucket(log["created_at"], bucket_minutes).isoformat()
+        key = _bucket_start(log["created_at"], origin, width).isoformat()
         calls[key] += 1
 
         if log["error"]:
@@ -191,7 +222,7 @@ def build_chart(period_qs, window, runs_period):
             scores[key].append(float(log["output_float"]))
 
     chart = []
-    current = _floor_to_bucket(window.start_date, bucket_minutes)
+    current = origin
     while current <= window.end_date:
         key = current.isoformat()
         bucket_scores = scores.get(key, [])
@@ -209,7 +240,7 @@ def build_chart(period_qs, window, runs_period):
                 "avg_latency_ms": 0,  # not tracked at logger level
             }
         )
-        current += timedelta(minutes=bucket_minutes)
+        current += width
     return chart
 
 
@@ -245,7 +276,7 @@ def _input_summary(obs_span, trace_session):
     return ""
 
 
-def build_log_item(log, input_variables):
+def build_log_item(log: EvalLogger, input_variables: dict) -> dict:
     """One row of the paginated logs table, plus its side-panel detail."""
     result_label, score, status = _result_from_outputs(log)
     obs_span = log.observation_span
