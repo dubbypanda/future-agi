@@ -1051,10 +1051,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         Rank-zero equality/IN leaves keep their selective raw key/value
         witness. Other positive scalar operations (for example ``>`` or
-        ``is_not_null``) can combine all-time key presence with their raw-row
-        seed predicate as a necessary superset. This helper is intentionally
-        limited to the optional exact graph candidate probe; authoritative
-        partitioning continues to require the narrower rank-zero plan above.
+        ``is_not_null``) may add their raw-row seed predicate only when the
+        compiler proves a missing-key default cannot satisfy it; unsafe shapes
+        keep key presence alone. This helper is intentionally limited to the
+        optional exact graph candidate probe; authoritative partitioning
+        continues to require the narrower rank-zero plan above.
         """
 
         for plan in self._graph_key_witness_plans():
@@ -1911,14 +1912,16 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         """Return a finite necessary superset for a selective exact graph.
 
         Positive scalar typed-Map predicates have an exhaustive raw witness:
-        equality/IN use their existing rank-zero key/value witness, while other
-        positive operations combine key presence with the raw-row seed
-        predicate. Every latest-live matching span necessarily has a raw live
-        version satisfying that predicate. Historical matching rows may also
-        survive before ReplacingMergeTree merges, so this result is deliberately
-        *not* authoritative. The exact graph reader must replay every returned
-        trace through its ordinary latest-state classifier, which also verifies
-        the canonical root is inside the request window.
+        default-safe comparisons use a key/value witness, while shapes whose
+        missing-key default could satisfy an independently aggregated value
+        keep key presence alone. Every latest-live matching span is therefore
+        still represented even with conflicting rows tied at the maximum
+        version. Historical matching rows and tombstones may also survive
+        before ReplacingMergeTree merges, so this result is deliberately *not*
+        authoritative. The probe retains tombstones because deletion is also
+        independently aggregated at latest state; the exact graph reader must
+        replay every returned trace through its ordinary classifier, which
+        resolves deletion and verifies the canonical root request window.
 
         Child spans have no maximum duration relative to their root, so raw
         span-attribute witnesses are intentionally all-time.  Positive
@@ -1964,14 +1967,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 limit=limit,
                 _positive_relation_candidate_first=True,
             )
-        if anchor.raw_witness_rank == 0:
-            raw_witness_predicate = str(anchor.raw_witness_predicate or "")
-        else:
-            raw_key_witness = str(anchor.raw_key_witness_predicate or "")
-            raw_seed_predicate = str(anchor.seed_predicate or "")
-            if not raw_key_witness or not raw_seed_predicate:
-                return "", {}
-            raw_witness_predicate = f"({raw_key_witness}) AND ({raw_seed_predicate})"
+        raw_witness_predicate = str(
+            anchor.raw_graph_value_witness_predicate
+            or anchor.raw_key_witness_predicate
+            or ""
+        )
         if not raw_witness_predicate:
             return "", {}
 
@@ -1992,7 +1992,6 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         SELECT trace_id
         FROM {self.TABLE}
         PREWHERE {self.project_filter_sql()}
-          AND is_deleted = 0
           {project_version_fragment}
         WHERE {raw_witness_predicate}
         LIMIT 1 BY trace_id

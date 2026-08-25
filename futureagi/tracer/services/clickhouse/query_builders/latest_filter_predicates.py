@@ -179,6 +179,12 @@ class LatestFilterPredicate:
     # attribute value; the latest-state classifier still applies the complete
     # value predicate before a row can become a graph point.
     raw_key_witness_predicate: str | None = None
+    # Stricter raw key/value witness for the optional exact-graph shortcut.
+    # This is populated only when a missing Map key's physical default cannot
+    # satisfy the value comparison. That keeps the witness exhaustive even if
+    # equal-version rows make the classifier's independent argMax fields pick
+    # existence and value from different physical rows.
+    raw_graph_value_witness_predicate: str | None = None
     raw_witness_rank: int | None = None
     source_metric: str | None = None
     # ``predicate`` normally identifies one matching latest-live span. Grouped
@@ -231,6 +237,63 @@ def _normalize_value(
     if raw is None or raw == "":
         raise UnsupportedFilterShapeError(f"{operation} requires a value")
     return operation, coerce(raw)
+
+
+def _missing_typed_map_default_can_match(
+    *,
+    map_column: str,
+    operation: str,
+    params: dict[str, Any],
+    index: int,
+) -> bool:
+    """Return whether a missing key's Map lookup default can pass the value test.
+
+    The latest-state classifier aggregates key existence and value separately.
+    With conflicting rows tied at the maximum version, those fields can be
+    sourced from different physical rows. A graph candidate may therefore add
+    the raw value predicate only when the missing-key default itself cannot
+    satisfy that predicate. Unknown and text-ordering shapes stay conservative.
+    """
+
+    if operation == "is_not_null":
+        return False
+    if map_column == "span_attr_str":
+        # Value normalization rejects empty operands for these operations, so
+        # the missing-key default (empty string) cannot satisfy them. Keep
+        # ordering/range operations conservative because their collation
+        # semantics are delegated to ClickHouse.
+        return operation not in {
+            "equals",
+            "in",
+            "contains",
+            "starts_with",
+            "ends_with",
+        }
+    if map_column not in {"span_attr_num", "span_attr_bool"}:
+        return True
+
+    value = params.get(f"latest_filter_param_{index}")
+    default: object = 0.0 if map_column == "span_attr_num" else False
+    try:
+        if operation == "equals":
+            return default == value
+        if operation == "in":
+            return default in value
+        if operation == "between":
+            low = params[f"latest_filter_param_{index}_low"]
+            high = params[f"latest_filter_param_{index}_high"]
+            return low <= default <= high
+        if operation == "greater_than":
+            return default > value
+        if operation == "greater_than_or_equal":
+            return default >= value
+        if operation == "less_than":
+            return default < value
+        if operation == "less_than_or_equal":
+            return default <= value
+    except (KeyError, TypeError):
+        return True
+    return True
 
 
 def _comparison(
@@ -480,6 +543,7 @@ def _attribute_plan(
         key_witness_predicate if operation in _POSITIVE_RAW_WITNESS_OPS else None
     )
     raw_witness_predicate = None
+    raw_graph_value_witness_predicate = None
     if operation in _POSITIVE_RAW_WITNESS_OPS:
         raw_witness_predicate = key_witness_predicate
         if operation in {"equals", "in"}:
@@ -495,6 +559,20 @@ def _attribute_plan(
             raw_witness_predicate = (
                 f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
             )
+        if not _missing_typed_map_default_can_match(
+            map_column=map_column,
+            operation=operation,
+            params=params,
+            index=index,
+        ):
+            exhaustive_value_predicate = (
+                exact_seed_predicate
+                if map_column == "span_attr_str"
+                else seed_predicate
+            )
+            raw_graph_value_witness_predicate = (
+                f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
+            )
     return LatestFilterPredicate(
         aggregates=(
             f"argMax(mapContains({map_column}, {bound_key}), _peerdb_version) AS {exists_alias}",
@@ -506,6 +584,7 @@ def _attribute_plan(
         scope=scope,
         raw_witness_predicate=raw_witness_predicate,
         raw_key_witness_predicate=raw_key_witness_predicate,
+        raw_graph_value_witness_predicate=raw_graph_value_witness_predicate,
         raw_witness_rank=(
             {"equals": 0, "in": 0}.get(operation, 10)
             if operation in _POSITIVE_RAW_WITNESS_OPS

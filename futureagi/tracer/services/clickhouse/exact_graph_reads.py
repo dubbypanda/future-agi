@@ -1117,8 +1117,9 @@ def _enumerate_exact_trace_ids(
     # CH statements. The first key-only candidate follow-up still hit its 1,001
     # sentinel for ai_interruption_count > 3 and fell back to 259 statements in
     # 12.10s. The optional typed-Map witness therefore retains the positive raw
-    # value predicate as well as key presence; increasing a per-statement
-    # timeout alone cannot address this measured serial fan-out.
+    # value predicate when the missing-key default cannot satisfy it; unsafe
+    # shapes keep key presence alone. Increasing a per-statement timeout cannot
+    # address this measured serial fan-out.
     #
     # A selective typed-Map leaf has an all-time raw witness, while a positive
     # relational condition can provide request-window canonical roots.  Both

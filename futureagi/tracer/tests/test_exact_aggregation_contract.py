@@ -2922,6 +2922,58 @@ def test_exact_trace_candidate_probe_is_all_time_but_classifier_stays_authoritat
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("filter_type", "filter_op", "filter_value"),
+    (
+        ("number", "greater_than", -1),
+        ("number", "equals", 0),
+        ("number", "less_than", 1),
+        ("number", "between", [-1, 1]),
+        ("boolean", "equals", False),
+    ),
+)
+def test_exact_trace_candidate_probe_keeps_key_only_when_map_default_can_match(
+    filter_type,
+    filter_op,
+    filter_value,
+):
+    """A tied missing-key row must not make the candidate narrower than argMax."""
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    filters = _exact_reported_sparse_filters(start, end)
+    filters[-1]["filter_config"].update(
+        filter_type=filter_type,
+        filter_op=filter_op,
+        filter_value=filter_value,
+    )
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=filters,
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+
+    assert "%(latest_filter_key_1)s" in compact_probe_sql
+    assert "latest_filter_param_1" not in probe_params
+    assert probe_params["latest_filter_key_1"] == "ai_interruption_count"
+
+
+@pytest.mark.unit
 def test_exact_trace_candidate_probe_uses_value_superset_for_positive_comparison():
     """Regress the DEV shape that hit the key-only 1,001-row sentinel.
 
@@ -2971,6 +3023,7 @@ def test_exact_trace_candidate_probe_uses_value_superset_for_positive_comparison
     assert probe_params["latest_filter_param_1"] == 3.0
     assert "start_time >=" not in compact_probe_sql
     assert "start_time <" not in compact_probe_sql
+    assert "is_deleted = 0" not in compact_probe_sql
     assert "modulo(" not in compact_probe_sql
     assert "LIMIT 1 BY trace_id" in compact_probe_sql
     assert "LIMIT %(exact_graph_candidate_limit)s" in compact_probe_sql
