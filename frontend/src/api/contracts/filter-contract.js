@@ -28,6 +28,21 @@ export const TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES = 16 * 1024;
 export const getUtf8ByteLength = (value) =>
   new TextEncoder().encode(String(value ?? "")).byteLength;
 
+export const truncateUtf8String = (value, maxUtf8Bytes) => {
+  const text = String(value ?? "");
+  if (getUtf8ByteLength(text) <= maxUtf8Bytes) return text;
+
+  let result = "";
+  let byteLength = 0;
+  for (const character of text) {
+    const characterBytes = getUtf8ByteLength(character);
+    if (byteLength + characterBytes > maxUtf8Bytes) break;
+    result += character;
+    byteLength += characterBytes;
+  }
+  return result;
+};
+
 const assertBoundedTypedAttributeStrings = (
   filterValue,
   attributeValueTypes,

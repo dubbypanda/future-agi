@@ -10,6 +10,7 @@ import {
   FILTER_TYPE_ALLOWED_OPS,
   LIST_FILTER_OPS,
 } from "src/api/contracts/filter-contract.generated";
+import { boundPropertyCatalogSearch } from "src/hooks/useDashboards";
 import { accumulateUniqueListContinuations } from "src/sections/projects/LLMTracing/listCursorPagination";
 import {
   FILTER_VALUE_MIN_VISIBLE_RESULTS,
@@ -150,6 +151,7 @@ const AutocompleteTextValueSelector = ({
     inputValue,
     PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
   );
+  const boundedDebouncedInput = boundPropertyCatalogSearch(debouncedInput);
   const queryClient = useQueryClient();
   const { observeId, id } = useParams();
   const projectId = projectIdProp || observeId || id;
@@ -171,9 +173,9 @@ const AutocompleteTextValueSelector = ({
       projectId,
       propertyRegistryId,
       attributeType || "all-types",
-      debouncedInput,
+      boundedDebouncedInput,
     ],
-    [attributeType, debouncedInput, projectId, propertyRegistryId],
+    [attributeType, boundedDebouncedInput, projectId, propertyRegistryId],
   );
   const valueOptionsListRef = useRef(null);
   const nextPageRequestRef = useRef(null);
@@ -214,7 +216,7 @@ const AutocompleteTextValueSelector = ({
             metric_name: definition?.propertyId,
             metric_type: "custom_attribute",
             source: "traces",
-            search: debouncedInput,
+            search: boundedDebouncedInput,
             page_size: INTERACTIVE_TABLE_PAGE_SIZE,
             ...(attributeType ? { attribute_type: attributeType } : {}),
             ...(cursor ? { cursor } : {}),
@@ -349,7 +351,7 @@ const AutocompleteTextValueSelector = ({
           metric_name: definition?.propertyId,
           metric_type: "custom_attribute",
           source: "traces",
-          search: debouncedInput,
+          search: boundedDebouncedInput,
           page_size: INTERACTIVE_TABLE_PAGE_SIZE,
           ...(attributeType ? { attribute_type: attributeType } : {}),
         },
@@ -408,7 +410,7 @@ const AutocompleteTextValueSelector = ({
     return settledPromise;
   }, [
     attributeType,
-    debouncedInput,
+    boundedDebouncedInput,
     definition?.propertyId,
     propertyRegistryId,
     paginationIdentity,

@@ -55,9 +55,19 @@ import {
   useDashboardFilterValues,
   useDatasetColumnValues,
   buildPropertyRegistryId,
+  boundPropertyCatalogSearch,
   FILTER_VALUE_REQUEST_TIMEOUT_MS,
   PROPERTY_CATALOG_REQUEST_TIMEOUT_MS,
 } from "../useDashboards";
+
+describe("property catalog search contract", () => {
+  it("bounds multibyte searches without splitting a code point", () => {
+    const search = boundPropertyCatalogSearch("é".repeat(400));
+
+    expect(new TextEncoder().encode(search)).toHaveLength(512);
+    expect(search).toBe("é".repeat(256));
+  });
+});
 
 const DASHBOARD_LIST_KEY = ["dashboards", "list"];
 const dashboardDetailKey = (id) => ["dashboards", "detail", id];

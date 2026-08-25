@@ -9,9 +9,21 @@ import {
   normalizeFilterOperator,
   normalizeFilterType,
   serializeFilterForApi,
+  truncateUtf8String,
   serializeFilterListForApi,
   TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
 } from "../filter-contract";
+
+describe("truncateUtf8String", () => {
+  it("preserves text at the byte boundary", () => {
+    expect(truncateUtf8String("abcd", 4)).toBe("abcd");
+  });
+
+  it("truncates without splitting a multibyte character", () => {
+    expect(truncateUtf8String("abéz", 4)).toBe("abé");
+    expect(truncateUtf8String("🙂🙂", 5)).toBe("🙂");
+  });
+});
 import {
   FILTER_CONTRACT_VERSION,
   FILTER_TYPE_ALLOWED_OPS,

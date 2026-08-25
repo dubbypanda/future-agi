@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import axios, { endpoints } from "src/utils/axios";
 import { getFilterValueReadState } from "src/utils/queryReadState";
 import { accumulateUniqueListContinuations } from "src/sections/projects/LLMTracing/listCursorPagination";
+import { truncateUtf8String } from "src/api/contracts/filter-contract";
 import {
   ANALYTICS_REQUEST_TIMEOUT_MS,
   CURSOR_MAX_EMPTY_CONTINUATIONS,
@@ -19,8 +20,12 @@ import {
   INTERACTIVE_REQUEST_TIMEOUT_MS,
   PROPERTY_CATALOG_CACHE_TIME_MS,
   PROPERTY_CATALOG_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_MAX_UTF8_BYTES,
   PROPERTY_CATALOG_STALE_TIME_MS,
 } from "src/config/runtime_limits";
+
+export const boundPropertyCatalogSearch = (search) =>
+  truncateUtf8String(search, PROPERTY_CATALOG_SEARCH_MAX_UTF8_BYTES);
 
 const DASHBOARD_KEYS = {
   all: ["dashboards"],
@@ -406,10 +411,11 @@ export function useLegacyDashboardMetricsPaginated({
   excludeCustomAttributes = false,
   enabled = true,
 } = {}) {
+  const boundedSearch = boundPropertyCatalogSearch(search);
   const query = useInfiniteQuery({
     queryKey: DASHBOARD_KEYS.metricsPaginated(
       category,
-      search,
+      boundedSearch,
       source,
       excludeCustomAttributes,
       pageSize,
@@ -421,7 +427,7 @@ export function useLegacyDashboardMetricsPaginated({
         params: {
           ...(category ? { category } : {}),
           ...(source ? { source } : {}),
-          ...(search ? { search } : {}),
+          ...(boundedSearch ? { search: boundedSearch } : {}),
           ...(excludeCustomAttributes
             ? { exclude_custom_attributes: true }
             : {}),
@@ -476,6 +482,7 @@ export function usePropertyCatalog({
   fallbackScopeKey = "",
   cacheScopeKey = "",
 } = {}) {
+  const boundedSearch = boundPropertyCatalogSearch(search);
   const canonicalProjectIds = [
     ...new Set((projectIds || []).map(String)),
   ].sort();
@@ -488,7 +495,7 @@ export function usePropertyCatalog({
   const query = useInfiniteQuery({
     queryKey: DASHBOARD_KEYS.propertyCatalog(
       category,
-      search,
+      boundedSearch,
       source,
       canonicalProjectIds,
       agentDefinitionId,
@@ -507,7 +514,7 @@ export function usePropertyCatalog({
             page_size: pageSize,
             ...(category ? { category } : {}),
             ...(source ? { source } : {}),
-            ...(search ? { search } : {}),
+            ...(boundedSearch ? { search: boundedSearch } : {}),
             ...(canonicalProjectIds.length
               ? { project_ids: canonicalProjectIds.join(",") }
               : {}),
@@ -811,6 +818,7 @@ export function useDashboardFilterValues({
   attributeType,
 }) {
   const queryClient = useQueryClient();
+  const boundedSearch = boundPropertyCatalogSearch(search);
   const normalizedSearchGesture = String(searchGesture || "").trim();
   const valueSearchGestureStateRef = useRef({
     scope: null,
@@ -835,7 +843,7 @@ export function useDashboardFilterValues({
     datasetId,
     source,
     workflow,
-    search,
+    boundedSearch,
     pageSize,
     attributeType,
   ];
@@ -853,7 +861,7 @@ export function useDashboardFilterValues({
           ...(datasetId ? { dataset_id: datasetId } : {}),
           source,
           ...(workflow ? { workflow } : {}),
-          ...(search ? { search } : {}),
+          ...(boundedSearch ? { search: boundedSearch } : {}),
           ...(pageSize ? { page_size: pageSize } : {}),
           ...(cursor ? { cursor } : {}),
           ...(attributeType ? { attribute_type: attributeType } : {}),

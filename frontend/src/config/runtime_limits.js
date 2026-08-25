@@ -176,6 +176,15 @@ export const PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS = readBoundedRuntimeInteger(
   { minimum: 0, maximum: 5_000 },
 );
 
+// Must remain aligned with PROPERTY_CATALOG_MAX_SEARCH_BYTES on the API.
+// Exact filter values have a separate, larger limit; this only bounds the
+// server-side vocabulary-search prefix sent while a user is typing.
+export const PROPERTY_CATALOG_SEARCH_MAX_UTF8_BYTES = readBoundedRuntimeInteger(
+  "VITE_PROPERTY_CATALOG_SEARCH_MAX_UTF8_BYTES",
+  512,
+  { minimum: 1, maximum: 4_096 },
+);
+
 export const PROPERTY_PICKER_RENDER_BATCH_SIZE = readBoundedRuntimeInteger(
   "VITE_PROPERTY_PICKER_RENDER_BATCH_SIZE",
   500,
