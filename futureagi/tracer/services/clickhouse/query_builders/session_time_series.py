@@ -71,7 +71,11 @@ class SessionTimeSeriesQueryBuilder(BaseQueryBuilder):
         self.params["start_date"] = self.start_date
         self.params["end_date"] = self.end_date
 
-        filter_builder = ClickHouseFilterBuilder(table=self.TABLE)
+        filter_builder = ClickHouseFilterBuilder(
+            table=self.TABLE,
+            project_id=self.project_id,
+            project_ids=self.project_ids,
+        )
         span_filters = self._extract_span_filters()
         extra_where, extra_params = filter_builder.translate(span_filters)
         self.params.update(extra_params)

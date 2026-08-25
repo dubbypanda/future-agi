@@ -15,7 +15,7 @@ import re
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from time import monotonic
 from typing import Any, Protocol
@@ -650,6 +650,13 @@ def _unix_microseconds(value: datetime) -> int:
     return delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
 
 
+def _datetime_from_unix_microseconds(value: int) -> datetime:
+    try:
+        return datetime(1970, 1, 1, tzinfo=UTC) + timedelta(microseconds=value)
+    except OverflowError as exc:
+        raise PropertyCatalogValueUnavailable("activation_scope_invalid") from exc
+
+
 def _row_datetime(value: Any) -> datetime:
     if isinstance(value, datetime):
         parsed = value
@@ -737,10 +744,35 @@ class PropertyCatalogValueReader:
         )
         if cursor and activation.activation_sha256 != cursor.activation_fingerprint:
             raise PropertyCatalogValueUnavailable("activation_mismatch")
+        source_scope = activation.source_scope
+        if source_scope is None:
+            raise PropertyCatalogValueUnavailable("activation_scope_invalid")
+        covered_window_start_us = _unix_microseconds(checked_window_start)
+        covered_window_end_us = _unix_microseconds(checked_window_end)
+        if cursor is None:
+            # A first page may request the full retained horizon while an
+            # immutable activation proves a narrower snapshot. Publish only
+            # the intersection and bind that exact window into its cursor.
+            covered_window_start_us = max(
+                covered_window_start_us,
+                source_scope.span_since_us,
+            )
+            covered_window_end_us = min(
+                covered_window_end_us,
+                source_scope.span_until_us,
+            )
+            if covered_window_start_us >= covered_window_end_us:
+                raise PropertyCatalogValueUnavailable("activation_scope_incomplete")
+            checked_window_start = _datetime_from_unix_microseconds(
+                covered_window_start_us
+            )
+            checked_window_end = _datetime_from_unix_microseconds(covered_window_end_us)
         require_property_catalog_activation_coverage(
             scope=checked_scope,
             activation=activation,
             unavailable_type=PropertyCatalogValueUnavailable,
+            requested_span_since_us=covered_window_start_us,
+            requested_span_until_us=covered_window_end_us,
         )
 
         base_params = self._base_params(

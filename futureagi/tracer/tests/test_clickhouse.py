@@ -9205,6 +9205,33 @@ class TestSessionTimeSeriesQueryBuilder:
         assert query.index("IN %(session_id_1)s") < query.index("GROUP BY session_id")
         assert params["session_id_1"] == (session_id,)
 
+    def test_span_attribute_null_membership_is_project_correlated(self):
+        from tracer.services.clickhouse.query_builders.session_time_series import (
+            SessionTimeSeriesQueryBuilder,
+        )
+
+        builder = SessionTimeSeriesQueryBuilder(
+            project_id="project-1",
+            filters=[
+                {
+                    "column_id": "optional.attribute",
+                    "filter_config": {
+                        "filter_type": "text",
+                        "filter_op": "is_null",
+                        "filter_value": None,
+                        "col_type": "SPAN_ATTRIBUTE",
+                    },
+                }
+            ],
+        )
+
+        query, params = builder.build()
+
+        assert "argMax(_peerdb_is_deleted, _peerdb_version)" in query
+        assert query.count("project_id = %(project_id)s") >= 2
+        assert "WHERE 1 = 1" not in query
+        assert params["project_id"] == "project-1"
+
     def test_session_aggregate_filter_uses_inner_having(self):
         from tracer.services.clickhouse.query_builders.session_time_series import (
             SessionTimeSeriesQueryBuilder,

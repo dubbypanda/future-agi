@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -24,6 +24,7 @@ from tracer.services.clickhouse.v2.property_catalog.models import SourceAdapter
 from tracer.services.clickhouse.v2.property_catalog.reader import _ACTIVATION_SQL
 from tracer.services.clickhouse.v2.property_catalog.value_cursor import (
     PropertyCatalogValueCursorError,
+    encode_property_catalog_value_cursor,
 )
 from tracer.services.clickhouse.v2.property_catalog.value_reader import (
     _ATTRIBUTE_TYPE_RANK,
@@ -43,6 +44,8 @@ MANIFEST_SHA = "b" * 64
 BUILD_TOKEN = "44444444-4444-4444-8444-444444444444"
 WINDOW_START = datetime(2026, 8, 1, tzinfo=UTC)
 WINDOW_END = datetime(2026, 8, 14, tzinfo=UTC)
+WINDOW_START_US = 1_785_542_400_000_000
+WINDOW_END_US = 1_786_665_600_000_000
 
 
 def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
@@ -125,6 +128,8 @@ def _build_plan(
     *,
     covered_project_ids,
     workspace_id=WORKSPACE_ID,
+    span_since_us=WINDOW_START_US,
+    span_until_us=WINDOW_END_US,
 ):
     streams = []
     stream_index = 1
@@ -159,8 +164,8 @@ def _build_plan(
         projection_version=row["projection_version"],
         source_scope=BuildPlanSourceScope(
             project_ids=tuple(covered_project_ids),
-            span_since_us=1_723_638_000_000_000,
-            span_until_us=1_723_641_600_000_000,
+            span_since_us=span_since_us,
+            span_until_us=span_until_us,
         ),
         streams=tuple(streams),
     )
@@ -170,6 +175,8 @@ def _activation_row(
     *,
     covered_project_ids=(PROJECT_ID,),
     build_plan_workspace_id=WORKSPACE_ID,
+    source_span_since_us=WINDOW_START_US,
+    source_span_until_us=WINDOW_END_US,
     **overrides,
 ):
     row = {
@@ -193,6 +200,8 @@ def _activation_row(
         row,
         covered_project_ids=covered_project_ids,
         workspace_id=build_plan_workspace_id,
+        span_since_us=source_span_since_us,
+        span_until_us=source_span_until_us,
     )
     row.setdefault("reservation_projection_version", row["projection_version"])
     row.setdefault("build_plan_json", plan.canonical_json)
@@ -538,6 +547,58 @@ def test_value_cursor_continuation_pins_activation_window_and_last_typed_key(set
         second_sql.index("%(catalog_after_value_fingerprint)s", source_values_start)
         < grouped_values_start
     )
+
+
+def test_value_reader_pins_first_page_to_activation_time_coverage(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    executor = FakeExecutor(
+        [
+            [_activation_row()],
+            [_definition_row(attribute_types=("string",))],
+            [{"value_conflicts": 0}],
+            [],
+        ]
+    )
+
+    page = _read(
+        _reader(executor),
+        window_start=WINDOW_START - timedelta(days=1),
+        window_end=WINDOW_END + timedelta(days=1),
+        page_size=10,
+    )
+
+    assert page.window_start == WINDOW_START
+    assert page.window_end == WINDOW_END
+    value_params = executor.calls[-1]["params"]
+    assert value_params["catalog_window_start_us"] == WINDOW_START_US
+    assert value_params["catalog_window_end_us"] == WINDOW_END_US
+
+
+def test_value_reader_rejects_cursor_window_outside_activation_coverage(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    token = encode_property_catalog_value_cursor(
+        scope=_scope(),
+        query=_query(),
+        page_size=2,
+        catalog_epoch=3,
+        catalog_revision=17,
+        activation_fingerprint=ACTIVATION_SHA,
+        window_start=WINDOW_START - timedelta(microseconds=1),
+        window_end=WINDOW_END,
+        order=(1, "0" * 64),
+    )
+    executor = FakeExecutor([[_activation_row()]])
+
+    with pytest.raises(PropertyCatalogValueUnavailable) as exc_info:
+        _reader(executor).read_page(
+            scope=_scope(),
+            query=_query(),
+            page_size=2,
+            cursor_token=token,
+        )
+
+    assert exc_info.value.reason == "activation_scope_incomplete"
+    assert len(executor.calls) == 1
 
 
 def test_value_cursor_mismatch_fails_before_clickhouse(settings):

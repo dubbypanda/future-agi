@@ -1066,8 +1066,10 @@ def require_property_catalog_activation_coverage(
     scope: dict[str, Any],
     activation: PropertyCatalogActivation,
     unavailable_type: type[PropertyCatalogUnavailable] = PropertyCatalogUnavailable,
+    requested_span_since_us: int | None = None,
+    requested_span_until_us: int | None = None,
 ) -> None:
-    """Require the immutable build to cover the complete authorized scope."""
+    """Require the immutable build to cover the authorized project/time scope."""
 
     source_scope = activation.source_scope
     if source_scope is None:
@@ -1082,8 +1084,24 @@ def require_property_catalog_activation_coverage(
         # response.
         if requested_projects != covered_projects:
             raise unavailable_type("activation_scope_incomplete")
+    elif not requested_projects or not requested_projects.issubset(covered_projects):
+        raise unavailable_type("activation_scope_incomplete")
+
+    if (requested_span_since_us is None) != (requested_span_until_us is None):
+        raise unavailable_type("activation_scope_invalid")
+    if requested_span_since_us is None:
         return
-    if not requested_projects or not requested_projects.issubset(covered_projects):
+    if (
+        type(requested_span_since_us) is not int
+        or type(requested_span_until_us) is not int
+        or requested_span_since_us < 0
+        or requested_span_since_us >= requested_span_until_us
+    ):
+        raise unavailable_type("activation_scope_invalid")
+    if (
+        requested_span_since_us < source_scope.span_since_us
+        or requested_span_until_us > source_scope.span_until_us
+    ):
         raise unavailable_type("activation_scope_incomplete")
 
 
