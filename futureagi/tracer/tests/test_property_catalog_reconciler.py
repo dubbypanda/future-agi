@@ -17,6 +17,7 @@ from tracer.services.clickhouse.v2.property_catalog.models import (
     VisibilityScope,
 )
 from tracer.services.clickhouse.v2.property_catalog.projection import (
+    PostgresReadBudget,
     PostgresSnapshotContext,
     project_definition,
 )
@@ -26,14 +27,18 @@ from tracer.services.clickhouse.v2.property_catalog.qualification import (
 from tracer.services.clickhouse.v2.property_catalog.reconciler import (
     ZERO_SHA256,
     CheckpointWrite,
+    EnvelopeBudget,
     PropertyCatalogReconciler,
     ReconcileRequest,
     _project_records,
     _starting_progress,
 )
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     DatasetColumnSourceAdapter,
+    PropertySourceDeadlineExceeded,
     SourceDefinitionRecord,
+    SourceReadBudget,
     SourceSnapshot,
     _dataset_column_definition,
     _make_source_record,
@@ -327,6 +332,90 @@ def test_large_postgres_publish_keeps_revision_snapshot_active() -> None:
     assert len(result.envelopes) >= 3
     assert len(guard_observations) >= len(result.envelopes) + 3
     assert set(range(len(result.envelopes))).issubset(guard_observations)
+
+
+def test_scheduled_relational_wall_reaches_terminal_after_standard_wall_expires() -> None:
+    records = _dataset_column_records(360)
+
+    def reconcile(*, scheduled: bool):
+        elapsed = [0.0]
+        page_reads = [0]
+        wall_seconds = (
+            RUNTIME_LIMITS.scheduled_reconcile_source_adapter_wall_seconds
+            if scheduled
+            else RUNTIME_LIMITS.source_adapter_wall_seconds
+        )
+
+        def monotonic() -> float:
+            return elapsed[0]
+
+        def page_loader(*, cursor, limit, **_kwargs):  # type: ignore[no-untyped-def]
+            page_reads[0] += 1
+            elapsed[0] += 0.5
+            remaining = tuple(
+                record for record in records if cursor is None or record.cursor > cursor
+            )
+            return remaining[:limit]
+
+        class AdvancingPublisher(_ExactWirePublisher):
+            def publish(self, envelope: PropertyCatalogEnvelope) -> str:
+                elapsed[0] += 1.0
+                return super().publish(envelope)
+
+        def snapshot_guard() -> None:
+            if monotonic() >= wall_seconds:
+                raise PropertySourceDeadlineExceeded(
+                    "property source deadline exceeded"
+                )
+
+        adapter = DatasetColumnSourceAdapter(page_loader=page_loader)
+        publisher = AdvancingPublisher()
+        checkpoints = _CheckpointSink()
+        reconciler = PropertyCatalogReconciler(
+            publisher=publisher,  # type: ignore[arg-type]
+            checkpoint_writer=checkpoints,  # type: ignore[arg-type]
+            current_bindings=_EmptyCurrentBindings(),
+        )
+        source_budget = SourceReadBudget(
+            postgres=PostgresReadBudget(
+                wall_timeout_seconds=wall_seconds,
+                max_rows_per_page=100,
+                max_total_rows=1_000,
+                scheduled_reconcile=scheduled,
+            ),
+            adapter_wall_timeout_seconds=wall_seconds,
+        )
+        request = replace(
+            _dataset_request(),
+            source_budget=source_budget,
+            envelope_budget=EnvelopeBudget(max_definition_rows=40),
+            postgres_snapshot_guard=snapshot_guard,
+        )
+        result = reconciler.reconcile(adapter, request)
+        return result, publisher, elapsed[0], page_reads[0]
+
+    standard, standard_publisher, standard_elapsed, standard_page_reads = reconcile(
+        scheduled=False
+    )
+    scheduled, scheduled_publisher, scheduled_elapsed, scheduled_page_reads = (
+        reconcile(scheduled=True)
+    )
+
+    assert standard.complete is False
+    assert standard.error == (
+        "envelope publish failed: PropertySourceDeadlineExceeded"
+    )
+    assert all(not envelope.terminal for envelope in standard_publisher.envelopes)
+    assert standard_elapsed > RUNTIME_LIMITS.source_adapter_wall_seconds
+    assert standard_page_reads == 4
+
+    assert scheduled.complete is True
+    assert scheduled.error is None
+    assert scheduled_publisher.envelopes[-1].terminal is True
+    assert RUNTIME_LIMITS.source_adapter_wall_seconds < scheduled_elapsed < (
+        RUNTIME_LIMITS.scheduled_reconcile_source_adapter_wall_seconds
+    )
+    assert scheduled_page_reads == 4
 
 
 def test_wire_failure_retains_static_contract_detail_without_advancing_source() -> None:

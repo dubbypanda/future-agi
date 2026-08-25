@@ -2931,11 +2931,16 @@ class CheckedInPropertyCatalogDevRuntime:
             raise PropertyCatalogDevRuntimeError(
                 "insufficient shared wall for a source snapshot"
             )
-        source_wall_seconds = (
-            RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
-            if self.config.explicit_initial_backfill_wall
-            else RUNTIME_LIMITS.source_adapter_wall_seconds
-        )
+        if self.config.explicit_initial_backfill_wall:
+            source_wall_seconds = (
+                RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
+            )
+        elif self.config.explicit_scheduled_reconcile_wall:
+            source_wall_seconds = (
+                RUNTIME_LIMITS.scheduled_reconcile_source_adapter_wall_seconds
+            )
+        else:
+            source_wall_seconds = RUNTIME_LIMITS.source_adapter_wall_seconds
         postgres_wall_cap_ms = int(source_wall_seconds * 1_000)
         postgres_remaining = min(postgres_wall_cap_ms, remaining)
         return SourceReadBudget(
@@ -2946,6 +2951,7 @@ class CheckedInPropertyCatalogDevRuntime:
                 ),
                 wall_timeout_seconds=postgres_remaining / 1_000,
                 initial_backfill=self.config.explicit_initial_backfill_wall,
+                scheduled_reconcile=self.config.explicit_scheduled_reconcile_wall,
             ),
             adapter_wall_timeout_seconds=min(
                 source_wall_seconds,

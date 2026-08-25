@@ -299,6 +299,7 @@ class PostgresReadBudget:
     max_rows_per_page: int = RUNTIME_LIMITS.postgres_page_rows
     max_total_rows: int = RUNTIME_LIMITS.postgres_max_total_rows
     initial_backfill: bool = False
+    scheduled_reconcile: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -313,19 +314,32 @@ class PostgresReadBudget:
             )
         if type(self.initial_backfill) is not bool:
             raise ValueError("initial_backfill must be a bool")
-        maximum_wall_seconds = (
-            RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
-            if self.initial_backfill
-            else RUNTIME_LIMITS.source_adapter_wall_seconds
-        )
+        if type(self.scheduled_reconcile) is not bool:
+            raise ValueError("scheduled_reconcile must be a bool")
+        if self.initial_backfill and self.scheduled_reconcile:
+            raise ValueError(
+                "initial_backfill and scheduled_reconcile are mutually exclusive"
+            )
+        if self.initial_backfill:
+            wall_mode = "initial-backfill"
+            maximum_wall_seconds = (
+                RUNTIME_LIMITS.initial_backfill_source_adapter_wall_seconds
+            )
+        elif self.scheduled_reconcile:
+            wall_mode = "scheduled-reconcile"
+            maximum_wall_seconds = (
+                RUNTIME_LIMITS.scheduled_reconcile_source_adapter_wall_seconds
+            )
+        else:
+            wall_mode = "standard"
+            maximum_wall_seconds = RUNTIME_LIMITS.source_adapter_wall_seconds
         if (
             type(self.wall_timeout_seconds) not in {int, float}
             or isinstance(self.wall_timeout_seconds, bool)
             or not 0 < self.wall_timeout_seconds <= maximum_wall_seconds
         ):
             raise ValueError(
-                "wall_timeout_seconds exceeds the bounded "
-                f"{'initial-backfill' if self.initial_backfill else 'standard'} wall"
+                f"wall_timeout_seconds exceeds the bounded {wall_mode} wall"
             )
         if self.statement_timeout_ms >= self.wall_timeout_seconds * 1_000:
             raise ValueError("statement timeout must be below the adapter wall")

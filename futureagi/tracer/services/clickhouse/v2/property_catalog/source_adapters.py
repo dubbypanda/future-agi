@@ -2,11 +2,12 @@
 
 PostgreSQL-backed adapters run their complete page loop inside one read-only,
 repeatable-read transaction. They use the stable ``(updated_at, id)`` keyset,
-never OFFSET, and enforce one shared 8.5-second PostgreSQL wall for normal
-runs, or a bounded 540-second wall for an explicit initial backfill, plus row
-and byte caps. Non-PostgreSQL adapters retain the same row and byte bounds, but
-may use the caller's longer overall source wall when an explicitly bounded
-rollout shares that deadline with every other operation.
+never OFFSET, and enforce one shared PostgreSQL wall: 8.5 seconds for normal
+runs, 120 seconds for an explicit scheduled reconcile, or 540 seconds for an
+explicit initial backfill. All modes retain the same row and byte caps.
+Non-PostgreSQL adapters retain those bounds and may use the caller's longer
+overall source wall when an explicitly bounded rollout shares that deadline
+with every other operation.
 """
 
 from __future__ import annotations

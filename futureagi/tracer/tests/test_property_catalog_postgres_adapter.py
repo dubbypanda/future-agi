@@ -51,15 +51,26 @@ def test_postgres_read_budget_rejects_unbounded_values(
         PostgresReadBudget(**budget)  # type: ignore[arg-type]
 
 
-def test_postgres_read_budget_extends_only_explicit_initial_backfill_wall() -> None:
+def test_postgres_read_budget_extends_only_explicit_long_running_modes() -> None:
+    scheduled = PostgresReadBudget(
+        wall_timeout_seconds=120.0,
+        scheduled_reconcile=True,
+    )
     extended = PostgresReadBudget(
         wall_timeout_seconds=540.0,
         initial_backfill=True,
     )
 
+    assert scheduled.wall_timeout_seconds == 120.0
+    assert scheduled.scheduled_reconcile is True
     assert extended.wall_timeout_seconds == 540.0
     assert extended.initial_backfill is True
 
+    with pytest.raises(ValueError):
+        PostgresReadBudget(
+            wall_timeout_seconds=120.01,
+            scheduled_reconcile=True,
+        )
     with pytest.raises(ValueError):
         PostgresReadBudget(
             wall_timeout_seconds=540.01,
@@ -67,6 +78,10 @@ def test_postgres_read_budget_extends_only_explicit_initial_backfill_wall() -> N
         )
     with pytest.raises(ValueError):
         PostgresReadBudget(initial_backfill=1)  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        PostgresReadBudget(scheduled_reconcile=1)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        PostgresReadBudget(initial_backfill=True, scheduled_reconcile=True)
 
 
 def test_postgres_snapshot_models_are_metadata_only() -> None:

@@ -46,6 +46,9 @@ class PropertyCatalogRuntimeLimits:
     source_adapter_wall_seconds: float = _setting(
         "PROPERTY_CATALOG_SOURCE_ADAPTER_WALL_SECONDS"
     )
+    scheduled_reconcile_source_adapter_wall_seconds: float = _setting(
+        "PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS"
+    )
     initial_backfill_source_adapter_wall_seconds: float = _setting(
         "PROPERTY_CATALOG_INITIAL_BACKFILL_SOURCE_ADAPTER_WALL_SECONDS"
     )

@@ -73,6 +73,7 @@ from tracer.services.clickhouse.v2.property_catalog.publisher import (
     SharedCatalogDeadline,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileMode
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.property_catalog.span_source import (
     CANONICAL_SPAN_QUERY_TIMEOUT_MS,
     DEV_INITIAL_BACKFILL_CANONICAL_SPAN_PAGE_ROWS,
@@ -1777,8 +1778,22 @@ def test_factory_shares_one_extended_deadline_with_lease_headroom(
     assert len(authorization.as_dict()["authorization_sha256"]) == 64
 
 
-def test_default_runtime_source_budget_stays_below_standard_shared_wall(
+@pytest.mark.parametrize(
+    ("request_overrides", "expected_wall_seconds", "scheduled_reconcile"),
+    (
+        ({}, RUNTIME_LIMITS.source_adapter_wall_seconds, False),
+        (
+            {"scheduled_reconcile_wall_ms": 1_200_000},
+            RUNTIME_LIMITS.scheduled_reconcile_source_adapter_wall_seconds,
+            True,
+        ),
+    ),
+)
+def test_runtime_source_budget_matches_the_explicit_reconcile_mode(
     tmp_path: Any,
+    request_overrides: dict[str, object],
+    expected_wall_seconds: float,
+    scheduled_reconcile: bool,
 ) -> None:
     class Driver:
         def __init__(self, config: NativeConnectionConfig) -> None:
@@ -1791,19 +1806,26 @@ def test_default_runtime_source_budget_stays_below_standard_shared_wall(
         provenance_probe=lambda *_args: _provenance_observation(),
         project_tenant_binding_probe=_project_bindings,
         now=lambda: ATTESTED_AT,
-    )(_request(execute=True))
+    )(_request(execute=True, **request_overrides))
 
     source_budget = runtime._source_budget()
 
     assert runtime.span_reader._timeout_ms == CANONICAL_SPAN_QUERY_TIMEOUT_MS
     assert runtime.source_client._explicit_initial_backfill is False
-    assert runtime.coordinator._lease_seconds == REVISION_LEASE_SECONDS
+    if scheduled_reconcile:
+        assert (
+            runtime.coordinator._lease_seconds * 1_000 - runtime.deadline.wall_ms
+            >= 60_000
+        )
+    else:
+        assert runtime.coordinator._lease_seconds == REVISION_LEASE_SECONDS
     assert runtime.config.source.read_timeout_ceiling_ms == 9_500
-    assert source_budget.adapter_wall_timeout_seconds <= 100.0
+    assert source_budget.adapter_wall_timeout_seconds == expected_wall_seconds
     assert source_budget.shared_deadline is runtime.deadline
     assert source_budget.postgres.statement_timeout_ms <= 8_000
-    assert source_budget.postgres.wall_timeout_seconds <= 8.5
+    assert source_budget.postgres.wall_timeout_seconds == expected_wall_seconds
     assert source_budget.postgres.initial_backfill is False
+    assert source_budget.postgres.scheduled_reconcile is scheduled_reconcile
 
 
 def test_concrete_runtime_publishes_prior_retirement_then_opens_all_streams(

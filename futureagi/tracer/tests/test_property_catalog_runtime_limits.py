@@ -14,6 +14,7 @@ def test_runtime_limits_accept_bounded_operator_overrides():
             PROPERTY_CATALOG_QUERY_WALL_MS=1_500,
             PROPERTY_CATALOG_READ_MAX_THREADS=3,
             PROPERTY_CATALOG_POSTGRES_PAGE_ROWS=250,
+            PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS=90.0,
             PROPERTY_CATALOG_PUBLISHER_WALL_MS=7_500,
             PROPERTY_CATALOG_STATE_STORE_TIMEOUT_MS=7_500,
             PROPERTY_CATALOG_CURRENT_BINDING_MAX_ROWS=50_000,
@@ -24,6 +25,7 @@ def test_runtime_limits_accept_bounded_operator_overrides():
     assert limits.query_wall_ms == 1_500
     assert limits.clickhouse_read_settings["max_threads"] == 3
     assert limits.postgres_page_rows == 250
+    assert limits.scheduled_reconcile_source_adapter_wall_seconds == 90.0
     assert limits.publisher_wall_ms == 7_500
     assert limits.state_store_timeout_ms == 7_500
     assert limits.current_binding_max_rows == 50_000
@@ -61,6 +63,24 @@ def test_postgres_statement_timeout_must_fit_standard_source_wall():
             SimpleNamespace(
                 PROPERTY_CATALOG_SOURCE_ADAPTER_WALL_SECONDS=1.0,
                 PROPERTY_CATALOG_POSTGRES_STATEMENT_TIMEOUT_MS=1_000,
+            )
+        )
+
+
+def test_scheduled_source_wall_must_stay_between_standard_and_initial_walls():
+    with pytest.raises(ValueError, match="scheduled reconcile source adapter wall"):
+        load_property_catalog_runtime_limits(
+            SimpleNamespace(
+                PROPERTY_CATALOG_SOURCE_ADAPTER_WALL_SECONDS=8.5,
+                PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS=8.4,
+            )
+        )
+
+    with pytest.raises(ValueError, match="initial backfill source adapter wall"):
+        load_property_catalog_runtime_limits(
+            SimpleNamespace(
+                PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS=121.0,
+                PROPERTY_CATALOG_INITIAL_BACKFILL_SOURCE_ADAPTER_WALL_SECONDS=120.0,
             )
         )
 

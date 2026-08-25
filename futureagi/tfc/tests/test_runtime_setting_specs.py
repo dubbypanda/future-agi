@@ -91,6 +91,10 @@ def test_property_catalog_cross_field_limits_are_validated():
         ),
         (
             "PROPERTY_CATALOG_SOURCE_ADAPTER_WALL_SECONDS",
+            "PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS",
+        ),
+        (
+            "PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS",
             "PROPERTY_CATALOG_INITIAL_BACKFILL_SOURCE_ADAPTER_WALL_SECONDS",
         ),
         (

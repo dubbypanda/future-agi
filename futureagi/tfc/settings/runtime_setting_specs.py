@@ -132,6 +132,12 @@ PROPERTY_CATALOG_RUNTIME_SETTING_SPECS = {
         (
             ("READ_TRANSPORT_TIMEOUT_SECONDS", 2.0, 0.1, 30.0),
             ("SOURCE_ADAPTER_WALL_SECONDS", 8.5, 0.1, 540.0),
+            (
+                "SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS",
+                120.0,
+                0.1,
+                540.0,
+            ),
             ("INITIAL_BACKFILL_SOURCE_ADAPTER_WALL_SECONDS", 540.0, 0.1, 540.0),
         ),
         value_type=float,
@@ -527,8 +533,13 @@ def validate_property_catalog_settings(values: Mapping[str, Numeric]) -> None:
     )
     _require_at_most(
         value("SOURCE_ADAPTER_WALL_SECONDS"),
+        value("SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS"),
+        "source adapter wall cannot exceed scheduled reconcile source adapter wall",
+    )
+    _require_at_most(
+        value("SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS"),
         value("INITIAL_BACKFILL_SOURCE_ADAPTER_WALL_SECONDS"),
-        "source adapter wall cannot exceed initial backfill source adapter wall",
+        "scheduled reconcile source adapter wall cannot exceed initial backfill source adapter wall",
     )
     if (
         value("POSTGRES_STATEMENT_TIMEOUT_MS")
