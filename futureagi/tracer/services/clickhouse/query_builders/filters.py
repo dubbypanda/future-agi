@@ -511,6 +511,7 @@ class ClickHouseFilterBuilder:
         span_date_scope: bool = False,
         candidate_ids_param: str | None = None,
         candidate_entities_param: str | None = None,
+        candidate_entities_table: str | None = None,
         strict_trace_project_correlation: bool = False,
         trace_project_eval_config_ids: list[str] | tuple[str, ...] | None = None,
         strict_enduser_project_correlation: bool = False,
@@ -561,8 +562,22 @@ class ClickHouseFilterBuilder:
             is None
         ):
             raise ValueError("candidate_entities_param must be an internal identifier")
+        if (
+            candidate_entities_table is not None
+            and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", candidate_entities_table)
+            is None
+        ):
+            raise ValueError("candidate_entities_table must be an internal identifier")
+        if (
+            candidate_entities_param is not None
+            and candidate_entities_table is not None
+        ):
+            raise ValueError(
+                "candidate_entities_param and candidate_entities_table are mutually exclusive"
+            )
         self.candidate_ids_param = candidate_ids_param
         self.candidate_entities_param = candidate_entities_param
+        self.candidate_entities_table = candidate_entities_table
         # Organization trace pages can contain the same textual trace id in
         # more than one project.  Their residual predicates are compiled as
         # finite, per-project branches and opt into this guard so score rows
@@ -639,6 +654,12 @@ class ClickHouseFilterBuilder:
     ) -> str:
         """Bound a span-side relational probe by its trace-scoped identity."""
 
+        if self.candidate_entities_table is not None:
+            return (
+                f" AND (toString({trace_column}), toString({span_column})) "
+                "IN (SELECT toString(trace_id), toString(id) FROM "
+                f"{self.candidate_entities_table})"
+            )
         if self.candidate_entities_param is not None:
             return (
                 f" AND (toString({trace_column}), toString({span_column})) "
@@ -665,7 +686,11 @@ class ClickHouseFilterBuilder:
     def _score_side_candidate_filter(self, alias: str = "s") -> str:
         """Prune an annotation score probe before it feeds a spans join."""
 
-        if self.candidate_ids_param is None and self.candidate_entities_param is None:
+        if (
+            self.candidate_ids_param is None
+            and self.candidate_entities_param is None
+            and self.candidate_entities_table is None
+        ):
             return ""
         observation_id = f"{alias}.observation_span_id"
         if self.query_mode == self.QUERY_MODE_SPAN:
@@ -676,6 +701,11 @@ class ClickHouseFilterBuilder:
             # check is a safe candidate superset; ``_score_span_select`` joins
             # it back to the project-scoped spans table and applies the exact
             # trace/span tuple after resolution.
+            if self.candidate_entities_table is not None:
+                return (
+                    f" AND toString({observation_id}) IN ("
+                    f"SELECT toString(id) FROM {self.candidate_entities_table})"
+                )
             if self.candidate_ids_param is not None:
                 return self._candidate_filter(observation_id)
             return ""
