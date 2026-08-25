@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -120,6 +120,44 @@ describe("BoundedCursorPaginationControl", () => {
     await act(async () => undefined);
     expect(loadCatalog).toHaveBeenCalledOnce();
     expect(loadAttributes).toHaveBeenCalledOnce();
+  });
+
+  it("allows the same continuation after its logical chain resets", async () => {
+    const intersect = installObserver();
+    const loadFirstProject = vi.fn().mockResolvedValue(undefined);
+    const loadSecondProject = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(
+      <BoundedCursorPaginationControl
+        resetKey="project-one"
+        channels={[
+          {
+            channelKey: "catalog",
+            hasNextPage: true,
+            continuationKey: "cursor-2",
+            loadNextPage: loadFirstProject,
+          },
+        ]}
+      />,
+    );
+
+    intersect(true);
+    await waitFor(() => expect(loadFirstProject).toHaveBeenCalledOnce());
+
+    rerender(
+      <BoundedCursorPaginationControl
+        resetKey="project-two"
+        channels={[
+          {
+            channelKey: "catalog",
+            hasNextPage: true,
+            continuationKey: "cursor-2",
+            loadNextPage: loadSecondProject,
+          },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(loadSecondProject).toHaveBeenCalledOnce());
   });
 
   it("requires an explicit retry, retries only failures, and does not auto-repeat the retried continuation", async () => {

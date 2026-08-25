@@ -23,11 +23,13 @@ import { PROPERTY_PICKER_PREFETCH_MARGIN_PX } from "src/config/runtime_limits";
  * channels may advance together. A newly published continuation may load while
  * the sentinel remains visible, but a continuation already attempted by this
  * mounted picker can never be replayed automatically. Failed channels are
- * retried only by the explicit retry control.
+ * retried only by the explicit retry control. Changing resetKey starts a new
+ * logical cursor chain and makes its continuations eligible again.
  */
 const BoundedCursorPaginationControl = ({
   channels,
   rootRef,
+  resetKey,
   loadingLabel = "Loading more…",
   retryLabel = "Retry loading properties",
   errorMessage,
@@ -129,6 +131,12 @@ const BoundedCursorPaginationControl = ({
     return true;
   }, []);
 
+  useLayoutEffect(() => {
+    attemptedContinuationsRef.current.clear();
+    activeRequestRef.current = null;
+    setIsRequestPending(false);
+  }, [resetKey]);
+
   const loadAtVisibleEnd = useCallback(() => {
     if (hasRetryableError || loadingRef.current) {
       return;
@@ -166,7 +174,13 @@ const BoundedCursorPaginationControl = ({
     if (!loading && isIntersectingRef.current && !hasRetryableError) {
       loadAtVisibleEnd();
     }
-  }, [continuationSignature, hasRetryableError, loadAtVisibleEnd, loading]);
+  }, [
+    continuationSignature,
+    hasRetryableError,
+    loadAtVisibleEnd,
+    loading,
+    resetKey,
+  ]);
 
   if (!shouldRender) return null;
 
@@ -227,6 +241,7 @@ BoundedCursorPaginationControl.propTypes = {
     }),
   ).isRequired,
   rootRef: PropTypes.shape({ current: PropTypes.any }),
+  resetKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   loadingLabel: PropTypes.string,
   retryLabel: PropTypes.string,
   errorMessage: PropTypes.string,

@@ -564,6 +564,51 @@ describe("AutocompleteTextValueSelector", () => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
+  it("reuses the first cursor after a fresh-chain retry resets pagination", async () => {
+    const page = (value, hasMore, nextCursor) => ({
+      data: {
+        result: {
+          values: fullTypedValuePage(value, value),
+          query_complete: true,
+          query_status: "complete",
+          has_more: hasMore,
+          next_cursor: nextCursor,
+        },
+      },
+    });
+    mocks.get
+      .mockResolvedValueOnce(page("initial", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("stalled", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("fresh", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("recovered", false, null));
+
+    render(
+      <AutocompleteTextValueSelector
+        definition={{ propertyId: "retry.status", type: "text" }}
+        filter={{ id: "filter-1", filter_config: { filter_value: "" } }}
+        updateFilter={vi.fn()}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    expect(
+      await screen.findByRole("option", { name: "initial" }),
+    ).toBeVisible();
+    intersectPaginationSentinel();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
+
+    expect(
+      await screen.findByRole("option", { name: "recovered" }),
+    ).toBeVisible();
+    expect(mocks.get).toHaveBeenCalledTimes(4);
+    expect(mocks.get.mock.calls[2][1].params).not.toHaveProperty("cursor");
+    expect(mocks.get.mock.calls[3][1].params.cursor).toBe("same-first-cursor");
+  });
+
   it("preserves values and offers retry for a malformed cursor contract", async () => {
     mocks.get.mockResolvedValue({
       data: {

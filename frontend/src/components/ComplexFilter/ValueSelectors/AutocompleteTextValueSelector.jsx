@@ -179,6 +179,7 @@ const AutocompleteTextValueSelector = ({
   const nextPageRequestRef = useRef(null);
   const freshChainRetryRef = useRef(null);
   const [freshChainRetrying, setFreshChainRetrying] = useState(false);
+  const [paginationChainGeneration, setPaginationChainGeneration] = useState(0);
   const paginationIdentity = JSON.stringify(queryKey);
   useEffect(() => {
     setFreshChainRetrying(false);
@@ -388,6 +389,7 @@ const AutocompleteTextValueSelector = ({
         pages: [compactedResponse],
         pageParams: [null],
       });
+      setPaginationChainGeneration((generation) => generation + 1);
       return compactedResponse;
     })();
     const trackedRequest = {
@@ -447,9 +449,7 @@ const AutocompleteTextValueSelector = ({
     data?.pages?.at(-1)?.data?.result?.[EMPTY_CONTINUATION_GUARD_EXHAUSTED],
   );
   const pages = data?.pages || [];
-  const lastResult = normalizeBrowseMetadata(
-    pages.at(-1)?.data?.result || {},
-  );
+  const lastResult = normalizeBrowseMetadata(pages.at(-1)?.data?.result || {});
   const continuationKey =
     lastResult.has_more === true &&
     typeof lastResult.next_cursor === "string" &&
@@ -485,10 +485,7 @@ const AutocompleteTextValueSelector = ({
     ? retryFreshChain
     : requestNextPage;
   const showPaginationSentinel = Boolean(
-    hasNextPage ||
-      paginationError ||
-      isFetchingNextPage ||
-      freshChainRetrying,
+    hasNextPage || paginationError || isFetchingNextPage || freshChainRetrying,
   );
   const pickerOptions = showPaginationSentinel
     ? [...options, PAGINATION_SENTINEL_OPTION]
@@ -594,7 +591,7 @@ const AutocompleteTextValueSelector = ({
               }}
             >
               <BoundedCursorPaginationControl
-                key={paginationIdentity}
+                resetKey={`${paginationIdentity}:${paginationChainGeneration}`}
                 rootRef={valueOptionsListRef}
                 testId="attribute-value-pagination-sentinel"
                 loadingLabel="Loading more values…"

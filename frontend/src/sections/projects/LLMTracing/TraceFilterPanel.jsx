@@ -1542,6 +1542,7 @@ export function shouldUseRetainedAttributePages({
 
 export function PropertyPickerPaginationControl({
   scrollRootRef,
+  resetKey,
   attributePageAvailable,
   attributeContinuationKey,
   isFetchingAttributePage,
@@ -1556,6 +1557,7 @@ export function PropertyPickerPaginationControl({
   return (
     <BoundedCursorPaginationControl
       rootRef={scrollRootRef}
+      resetKey={resetKey}
       channels={[
         {
           channelKey: "attributes",
@@ -2458,7 +2460,12 @@ function PropertyPicker({
               )}
               {hiddenCount === 0 && (
                 <PropertyPickerPaginationControl
-                  key={`${source}:${category}:${debouncedSearch}`}
+                  resetKey={JSON.stringify([
+                    projectId || "workspace",
+                    source || "",
+                    category,
+                    debouncedSearch,
+                  ])}
                   scrollRootRef={propertyOptionsListRef}
                   attributePageAvailable={attributePageAvailable}
                   attributeContinuationKey={exactAttributeContinuationKey}

@@ -167,12 +167,19 @@ function useLegacyGraphMetrics(projectId, transportSource, enabled = true) {
 
   const metrics =
     query.data?.pages.flatMap((page) => page?.metrics || []) || [];
+  const currentPage = Number(
+    query.data?.pages?.at(-1)?.page ??
+      query.data?.pageParams?.at(-1) ??
+      query.data?.pages?.length ??
+      1,
+  );
   return {
     ...query,
     data: buildGraphMetricGroups(metrics, transportSource),
-    continuationKey: query.hasNextPage
-      ? `legacy-page:${Number(query.data?.pages?.at(-1)?.page || 1) + 1}`
-      : null,
+    continuationKey:
+      query.hasNextPage && Number.isSafeInteger(currentPage) && currentPage >= 1
+        ? `legacy-page:${currentPage + 1}`
+        : null,
   };
 }
 
@@ -1151,10 +1158,7 @@ const PrimaryGraph = ({
             </Box>
 
             {/* Scrollable grouped list */}
-            <Box
-              ref={metricPickerScrollRef}
-              sx={{ overflow: "auto", flex: 1 }}
-            >
+            <Box ref={metricPickerScrollRef} sx={{ overflow: "auto", flex: 1 }}>
               {groupOrder.map((groupKey) => {
                 const items = filteredGroups[groupKey];
                 if (!items?.length) return null;
@@ -1234,6 +1238,7 @@ const PrimaryGraph = ({
               )}
               {!staticMetrics && (
                 <BoundedCursorPaginationControl
+                  resetKey={`primary-graph-metrics:${effectiveObserveId || ""}`}
                   channels={[
                     {
                       channelKey: "primary-graph-metrics",

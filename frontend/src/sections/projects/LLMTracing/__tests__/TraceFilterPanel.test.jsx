@@ -210,6 +210,7 @@ describe("PropertyPickerPaginationControl", () => {
 
     render(
       <PropertyPickerPaginationControl
+        resetKey="project-one"
         scrollRootRef={scrollRootRef}
         attributePageAvailable
         attributeContinuationKey="attribute-cursor-2"
@@ -232,6 +233,35 @@ describe("PropertyPickerPaginationControl", () => {
 
     expect(loadAttributes).toHaveBeenCalledOnce();
     expect(loadCatalog).toHaveBeenCalledOnce();
+  });
+
+  it("restarts the same property cursors when the project scope changes", async () => {
+    const loadProjectOne = vi.fn().mockResolvedValue(undefined);
+    const loadProjectTwo = vi.fn().mockResolvedValue(undefined);
+    const scrollRootRef = { current: document.createElement("div") };
+    const renderControl = (resetKey, loadCatalog) => (
+      <PropertyPickerPaginationControl
+        resetKey={resetKey}
+        scrollRootRef={scrollRootRef}
+        attributePageAvailable={false}
+        attributeContinuationKey={null}
+        isFetchingAttributePage={false}
+        attributePageError={false}
+        onLoadMoreAttributes={vi.fn()}
+        catalogPageAvailable
+        catalogContinuationKey="catalog-cursor-2"
+        isFetchingCatalogPage={false}
+        catalogPageError={false}
+        onLoadMoreCatalog={loadCatalog}
+      />
+    );
+    const { rerender } = render(renderControl("project-one", loadProjectOne));
+
+    triggerPropertyPageIntersection();
+    await waitFor(() => expect(loadProjectOne).toHaveBeenCalledOnce());
+
+    rerender(renderControl("project-two", loadProjectTwo));
+    await waitFor(() => expect(loadProjectTwo).toHaveBeenCalledOnce());
   });
 });
 

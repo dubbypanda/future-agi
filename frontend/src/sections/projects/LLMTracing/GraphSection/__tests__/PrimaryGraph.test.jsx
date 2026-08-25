@@ -297,7 +297,7 @@ describe("PrimaryGraph", () => {
     );
   });
 
-  it("automatically loads each new metric cursor once at the visible end", async () => {
+  it("automatically loads three legacy metric pages when responses omit page", async () => {
     const intersection = installIntersectionObserver();
     const secondPage = deferred();
     const thirdPage = deferred();
@@ -317,7 +317,6 @@ describe("PrimaryGraph", () => {
               type: "number",
             },
           ],
-          page: 1,
           page_size: 200,
           total: 202,
           has_more: true,
@@ -333,9 +332,7 @@ describe("PrimaryGraph", () => {
     const sentinel = await screen.findByTestId(
       "primary-graph-metric-pagination-sentinel",
     );
-    expect(intersection.observers[0].options.root).toBe(
-      sentinel.parentElement,
-    );
+    expect(intersection.observers[0].options.root).toBe(sentinel.parentElement);
     expect(
       screen.queryByRole("button", { name: /load more|continue/i }),
     ).not.toBeInTheDocument();
@@ -363,7 +360,6 @@ describe("PrimaryGraph", () => {
               output_type: "numeric",
             },
           ],
-          page: 2,
           page_size: 200,
           total: 202,
           has_more: true,
@@ -395,7 +391,6 @@ describe("PrimaryGraph", () => {
               output_type: "SCORE",
             },
           ],
-          page: 3,
           page_size: 200,
           total: 202,
           has_more: false,
@@ -409,6 +404,69 @@ describe("PrimaryGraph", () => {
     expect(
       screen.queryByRole("button", { name: /load more|continue/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("restarts the same metric continuation when the project changes", async () => {
+    const intersection = installIntersectionObserver();
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) =>
+      Promise.resolve(
+        response({
+          metrics:
+            params.page === 1
+              ? [
+                  {
+                    category: "system_metric",
+                    name: "latency",
+                    display_name: "Latency",
+                    source: "traces",
+                    property_id: `system_attribute:traces:latency:${params.project_ids}`,
+                    type: "number",
+                  },
+                ]
+              : [],
+          page_size: 200,
+          total: 201,
+          has_more: params.page === 1,
+        }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const graph = (projectId) => (
+      <QueryClientProvider client={queryClient}>
+        <PrimaryGraph observeIdOverride={projectId} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(graph("project-one"));
+
+    fireEvent.click(await screen.findByText("Latency"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+    intersection.emit(true);
+    await waitFor(() =>
+      expect(
+        axios.get.mock.calls.some(
+          ([, { params }]) =>
+            params.project_ids === "project-one" && params.page === 2,
+        ),
+      ).toBe(true),
+    );
+
+    rerender(graph("project-two"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+    intersection.emit(true);
+    await waitFor(() =>
+      expect(
+        axios.get.mock.calls.some(
+          ([, { params }]) =>
+            params.project_ids === "project-two" && params.page === 2,
+        ),
+      ).toBe(true),
+    );
   });
 
   it("requires an explicit retry after an automatic metric page fails", async () => {
