@@ -247,6 +247,65 @@ const PrimaryGraph = lazy(() => import("./GraphSection/PrimaryGraph"));
 const AgentGraph = lazy(() => import("./GraphSection/AgentGraph"));
 const AgentPath = lazy(() => import("./GraphSection/AgentPath"));
 
+const AgentVisualizationProjectScopePrompt = () => (
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100%",
+      minHeight: 80,
+      color: "text.disabled",
+    }}
+  >
+    <Typography role="status" variant="body2" sx={{ fontSize: 13 }}>
+      Select a project filter to use agent visualizations
+    </Typography>
+  </Box>
+);
+
+/**
+ * A compare graph owns its own project scope in cross-project user detail.
+ * The query remains disabled and the empty graph stays hidden until that
+ * project resolves.
+ */
+export const CompareAgentGraph = ({ projectId, filters, onNodeClick }) => {
+  const hasProjectScope = Boolean(projectId);
+  const { data, isLoading, isError, pollingPaused } = useAgentGraph(
+    projectId,
+    filters,
+    {
+      enabled: hasProjectScope,
+    },
+  );
+
+  if (!hasProjectScope) {
+    return (
+      <Box sx={{ height: 220 }}>
+        <AgentVisualizationProjectScopePrompt />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ height: 220 }}>
+      <AgentGraph
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        pollingPaused={pollingPaused}
+        onNodeClick={onNodeClick}
+      />
+    </Box>
+  );
+};
+
+CompareAgentGraph.propTypes = {
+  projectId: PropTypes.string,
+  filters: PropTypes.arrayOf(PropTypes.object),
+  onNodeClick: PropTypes.func,
+};
+
 // Lazy load conditionally rendered components (modals, drawers)
 const CallLogsGrid = lazy(
   () => import("src/sections/agents/CallLogs/CallLogsGrid"),
@@ -1388,17 +1447,17 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       (effectiveViewMode === "agentGraph" || effectiveViewMode === "agentPath"),
   });
 
-  // Compare agent graph data — only fetched in compare mode
+  // Agent Path keeps its existing compare request lifecycle. Agent Graph uses
+  // CompareAgentGraph below so an unresolved compare scope mounts no request.
   const {
-    data: compareAgentGraphData,
-    isLoading: isCompareAgentGraphLoading,
-    isError: isCompareAgentGraphError,
-    pollingPaused: isCompareAgentGraphPollingPaused,
+    data: compareAgentPathData,
+    isLoading: isCompareAgentPathLoading,
+    isError: isCompareAgentPathError,
   } = useAgentGraph(compareAgentGraphProjectId, compareAgentGraphFilters, {
     enabled:
       Boolean(compareAgentGraphProjectId) &&
       showCompare &&
-      (effectiveViewMode === "agentGraph" || effectiveViewMode === "agentPath"),
+      effectiveViewMode === "agentPath",
   });
 
   const [customAttributeSearch, setCustomAttributeSearch] = useState("");
@@ -3714,15 +3773,11 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                     }
                     onClearFilters={() => setCompareExtraFilters([])}
                   />
-                  <Box sx={{ height: 220 }}>
-                    <AgentGraph
-                      data={compareAgentGraphData}
-                      isLoading={isCompareAgentGraphLoading}
-                      isError={isCompareAgentGraphError}
-                      pollingPaused={isCompareAgentGraphPollingPaused}
-                      onNodeClick={handleAgentNodeClick}
-                    />
-                  </Box>
+                  <CompareAgentGraph
+                    projectId={compareAgentGraphProjectId}
+                    filters={compareAgentGraphFilters}
+                    onNodeClick={handleAgentNodeClick}
+                  />
                 </Box>
               )}
             </>
@@ -3798,9 +3853,9 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                     />
                   </Box>
                   <AgentPath
-                    data={compareAgentGraphData}
-                    isLoading={isCompareAgentGraphLoading}
-                    isError={isCompareAgentGraphError}
+                    data={compareAgentPathData}
+                    isLoading={isCompareAgentPathLoading}
+                    isError={isCompareAgentPathError}
                     onNodeClick={handleAgentNodeClick}
                   />
                 </Box>
