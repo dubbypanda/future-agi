@@ -53,6 +53,17 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "argMax(projection_version, _version)" not in _ACTIVATION_SQL
     assert "property_catalog_source_streams" in _ACTIVATION_SQL
     assert "reservation_states.build_plan_json" in _ACTIVATION_SQL
+    assert "active_candidates.*" not in _ACTIVATION_SQL
+    for column in (
+        "catalog_epoch",
+        "catalog_revision",
+        "build_token",
+        "projection_version",
+        "activation_sequence",
+        "activation_sha256",
+        "state_version",
+    ):
+        assert f"active_candidates.{column} AS {column}" in _ACTIVATION_SQL
 
     definitions_sql = _definition_ctes("th7247_catalog_dev_test")
     assert "FROM lineage_versioned AS versioned_rows" in definitions_sql

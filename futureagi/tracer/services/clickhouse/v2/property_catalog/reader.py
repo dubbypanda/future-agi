@@ -254,7 +254,20 @@ WITH versioned AS
         reservation_rows.build_token
 )
 SELECT
-    active_candidates.*,
+    active_candidates.catalog_epoch AS catalog_epoch,
+    active_candidates.catalog_revision AS catalog_revision,
+    active_candidates.build_token AS build_token,
+    active_candidates.projection_version AS projection_version,
+    active_candidates.lifecycle_mode AS lifecycle_mode,
+    active_candidates.lineage_anchor_revision AS lineage_anchor_revision,
+    active_candidates.activation_sequence AS activation_sequence,
+    active_candidates.source_manifest_sha256 AS source_manifest_sha256,
+    active_candidates.activation_sha256 AS activation_sha256,
+    active_candidates.status AS status,
+    active_candidates.qualified_at AS qualified_at,
+    active_candidates.state_version AS state_version,
+    active_candidates.latest_state_variants AS latest_state_variants,
+    active_candidates.latest_active_states AS latest_active_states,
     active_revision_counts.active_builds,
     reservation_states.reservation_projection_version,
     reservation_states.build_plan_json,
