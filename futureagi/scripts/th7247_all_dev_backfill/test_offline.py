@@ -114,6 +114,7 @@ class AllDevScopeTests(unittest.TestCase):
 
         self.assertIn("--scheduled-reconcile", active)
         self.assertIn("full_repair", active)
+        self.assertIn("--repair-expired-incomplete", active)
         self.assertNotIn("--execute", active)
         self.assertIn("--execute", initial)
         self.assertIn("--initial-backfill-wall-ms", initial)

@@ -504,6 +504,7 @@ def _operator_command(
                 "full_repair",
                 "--scheduled-reconcile-wall-ms",
                 str(args.scheduled_reconcile_wall_ms),
+                "--repair-expired-incomplete",
             )
         )
     else:
