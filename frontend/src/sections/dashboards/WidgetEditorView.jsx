@@ -62,7 +62,6 @@ import { useWorkspace } from "src/contexts/WorkspaceContext";
 import Iconify from "src/components/iconify";
 import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import FilterValueLabel, {
-  shouldShowFilterValueContinuation,
   useResolvedFilterOptions,
 } from "src/components/filter-value-label";
 import { useSnackbar } from "src/components/snackbar";
@@ -817,16 +816,20 @@ const DATASET_EXTRA_AGGREGATIONS = [
   { label: "True Rate", value: "true_rate" },
 ];
 
+const PRESENCE_FILTER_OPERATORS = [
+  { label: "Is set", value: "is_set", noValue: true },
+  { label: "Is not set", value: "is_not_set", noValue: true },
+];
+
 const STRING_FILTER_OPERATORS = [
   { label: "Is", value: "contains", multi: true },
   { label: "Is not", value: "not_contains", multi: true },
   { label: "Contains", value: "str_contains" },
   { label: "Does not contain", value: "str_not_contains" },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
-const NUMBER_FILTER_OPERATORS = [
+const COMPARABLE_FILTER_OPERATORS = [
   { label: "Equals", value: "equal_to" },
   { label: "Not equal", value: "not_equal_to" },
   { label: "Greater than", value: "greater_than" },
@@ -835,37 +838,37 @@ const NUMBER_FILTER_OPERATORS = [
   { label: "Less than or equal to", value: "less_than_or_equal" },
   { label: "Between", value: "between", range: true },
   { label: "Not between", value: "not_between", range: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 const BOOLEAN_FILTER_OPERATORS = [
   { label: "Equals", value: "equal_to" },
   { label: "Not equal", value: "not_equal_to" },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 const ARRAY_FILTER_OPERATORS = [
   { label: "Contains", value: "str_contains", multi: true },
   { label: "Does not contain", value: "str_not_contains", multi: true },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 export const getWidgetFilterOperators = (dataType) => {
-  if (dataType === "number") return NUMBER_FILTER_OPERATORS;
-  if (dataType === "boolean") return BOOLEAN_FILTER_OPERATORS;
-  if (dataType === "array") return ARRAY_FILTER_OPERATORS;
+  const filterType = normalizeFilterType(dataType || "string");
+  if (filterType === "number" || filterType === "datetime") {
+    return COMPARABLE_FILTER_OPERATORS;
+  }
+  if (filterType === "boolean") return BOOLEAN_FILTER_OPERATORS;
+  if (filterType === "array") return ARRAY_FILTER_OPERATORS;
   return STRING_FILTER_OPERATORS;
 };
 
 export function getWidgetFilterDefaults(dataType) {
-  if (dataType === "number") {
+  const filterType = normalizeFilterType(dataType || "string");
+  if (["number", "datetime", "boolean"].includes(filterType)) {
     return { operator: "equal_to", value: "", opensValuePicker: false };
   }
-  if (dataType === "boolean") {
-    return { operator: "equal_to", value: "", opensValuePicker: false };
-  }
-  if (dataType === "array") {
+  if (filterType === "array") {
     return { operator: "str_contains", value: [], opensValuePicker: true };
   }
   return { operator: "contains", value: [], opensValuePicker: true };
@@ -1658,6 +1661,7 @@ export function FilterValuePickerPopup({
   const [selectedEntries, setSelectedEntries] = useState(() =>
     selectedEntriesFromFilter(filter),
   );
+  const valueOptionsListRef = useRef(null);
   const selectionScopeKey = filterValuePickerScopeKey(filter, source);
   const filterRef = useRef(filter);
   filterRef.current = filter;
@@ -1690,6 +1694,7 @@ export function FilterValuePickerPopup({
     isError,
     fetchNextPage,
     hasNextPage,
+    continuationKey,
     isFetchingNextPage,
     isFetchNextPageError,
     queryReadState,
@@ -1863,7 +1868,10 @@ export function FilterValuePickerPopup({
           <Divider />
 
           {/* Options list */}
-          <Box sx={{ flex: 1, overflow: "auto", maxHeight: 240 }}>
+          <Box
+            ref={valueOptionsListRef}
+            sx={{ flex: 1, overflow: "auto", maxHeight: 240 }}
+          >
             {canSpecifyExactValue && (
               <Box
                 data-widget-filter-exact-value={exactSearchValue}
@@ -1945,36 +1953,24 @@ export function FilterValuePickerPopup({
                 </Box>
               ))
             )}
-            {shouldShowFilterValueContinuation({
-              hasNextPage,
-              isError,
-              isFetchNextPageError,
-            }) && (
-              <Box sx={{ px: 1.5, py: 1 }}>
-                {isFetchNextPageError && (
-                  <Typography
-                    variant="caption"
-                    color="warning.main"
-                    sx={{ display: "block", mb: 0.5 }}
-                  >
-                    The next page failed. Loaded values remain available.
-                  </Typography>
-                )}
-                <Button
-                  fullWidth
-                  size="small"
-                  variant="outlined"
-                  disabled={isFetchingNextPage}
-                  onClick={() => fetchNextPage?.()}
-                >
-                  {isFetchingNextPage
-                    ? "Loading more values…"
-                    : isFetchNextPageError
-                      ? "Retry next page"
-                      : "Load more values"}
-                </Button>
-              </Box>
-            )}
+            <BoundedCursorPaginationControl
+              key={`${filterValuePickerScopeKey(filter, source)}:${debouncedSearch}`}
+              rootRef={valueOptionsListRef}
+              testId="widget-filter-value-pagination-sentinel"
+              loadingLabel="Loading more values…"
+              retryLabel="Retry next page"
+              errorMessage="The next page failed. Loaded values remain available."
+              channels={[
+                {
+                  channelKey: "widget-filter-values",
+                  hasNextPage: Boolean(hasNextPage),
+                  continuationKey,
+                  isFetching: isFetchingNextPage,
+                  error: isFetchNextPageError,
+                  loadNextPage: fetchNextPage,
+                },
+              ]}
+            />
           </Box>
 
           {/* Add button */}

@@ -712,6 +712,18 @@ function SimulationRuleFilters({
           propertyCatalog.isFetchNextPageError ||
           propertyCatalog.cursorChainStopped,
       );
+  const legacySimulationEvalContinuationKey = hasNextSimulationEvalPageLegacy
+    ? `legacy-page:${
+        Number(
+          simulationEvalCatalog?.pages.at(-1)?.data?.result?.page ||
+            simulationEvalCatalog?.pages.length ||
+            1,
+        ) + 1
+      }`
+    : null;
+  const simulationEvalContinuationKey = useLegacySimulationEvalCatalog
+    ? legacySimulationEvalContinuationKey
+    : propertyCatalog.continuationKey;
   const simulationEvalFields = useMemo(
     () =>
       buildTraceFilterProperties(simulationEvalMetrics, {
@@ -760,21 +772,6 @@ function SimulationRuleFilters({
         />
       </IconButton>
 
-      {(hasNextSimulationEvalPage || isNextSimulationEvalPageError) && (
-        <Button
-          size="small"
-          disabled={isFetchingNextSimulationEvalPage}
-          onClick={() => fetchNextSimulationEvalPage()}
-          sx={{ ml: 1, mb: 1, textTransform: "none" }}
-        >
-          {isFetchingNextSimulationEvalPage
-            ? "Loading more eval properties…"
-            : isNextSimulationEvalPageError
-              ? "Retry loading more eval properties"
-              : "Load more eval properties"}
-        </Button>
-      )}
-
       <TraceFilterPanel
         anchorEl={filterAnchorEl || buttonRef.current}
         open={filterOpen}
@@ -797,6 +794,11 @@ function SimulationRuleFilters({
         showQueryTab={false}
         categories={SIMPLE_FILTER_CATEGORIES}
         panelWidth={560}
+        hasNextCatalogPage={hasNextSimulationEvalPage}
+        catalogContinuationKey={simulationEvalContinuationKey}
+        isFetchingNextCatalogPage={isFetchingNextSimulationEvalPage}
+        catalogNextPageError={isNextSimulationEvalPageError}
+        loadNextCatalogPage={fetchNextSimulationEvalPage}
       />
 
       <FilterChips

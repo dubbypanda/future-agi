@@ -32,6 +32,7 @@ import {
   useTheme,
 } from "@mui/material";
 import Iconify from "src/components/iconify";
+import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import ReactApexChart from "react-apexcharts";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
@@ -166,7 +167,13 @@ function useLegacyGraphMetrics(projectId, transportSource, enabled = true) {
 
   const metrics =
     query.data?.pages.flatMap((page) => page?.metrics || []) || [];
-  return { ...query, data: buildGraphMetricGroups(metrics, transportSource) };
+  return {
+    ...query,
+    data: buildGraphMetricGroups(metrics, transportSource),
+    continuationKey: query.hasNextPage
+      ? `legacy-page:${Number(query.data?.pages?.at(-1)?.page || 1) + 1}`
+      : null,
+  };
 }
 
 function buildGraphMetricGroups(metrics, transportSource) {
@@ -312,6 +319,7 @@ const PrimaryGraph = ({
   const [dateAnchor, setDateAnchor] = useState(null);
   const [customDateOpen, setCustomDateOpen] = useState(false);
   const dateButtonRef = useRef(null);
+  const metricPickerScrollRef = useRef(null);
 
   const handleDateOptionChange = useCallback(
     (option) => {
@@ -387,13 +395,13 @@ const PrimaryGraph = ({
     "&:hover": { bgcolor: "background.neutral", borderColor: "text.disabled" },
   };
 
-  // Fetch the first bounded catalog page. Additional pages stay behind an
-  // explicit picker action so a large project is never silently truncated or
-  // drained in the background.
+  // Fetch a bounded catalog page at a time. The picker end sentinel advances
+  // each distinct continuation once while it remains visible.
   const {
     data: dynamicMetricGroups,
     fetchNextPage: fetchNextMetricPage,
     hasNextPage: hasNextMetricPage,
+    continuationKey: metricContinuationKey,
     isFetchingNextPage: isFetchingNextMetricPage,
     isFetchNextPageError: isNextMetricPageError,
   } = useGraphMetrics(
@@ -1143,7 +1151,10 @@ const PrimaryGraph = ({
             </Box>
 
             {/* Scrollable grouped list */}
-            <Box sx={{ overflow: "auto", flex: 1 }}>
+            <Box
+              ref={metricPickerScrollRef}
+              sx={{ overflow: "auto", flex: 1 }}
+            >
               {groupOrder.map((groupKey) => {
                 const items = filteredGroups[groupKey];
                 if (!items?.length) return null;
@@ -1221,22 +1232,27 @@ const PrimaryGraph = ({
                   No metrics found
                 </Typography>
               )}
-              {!staticMetrics &&
-                (hasNextMetricPage || isNextMetricPageError) && (
-                  <Button
-                    fullWidth
-                    size="small"
-                    disabled={isFetchingNextMetricPage}
-                    onClick={() => fetchNextMetricPage()}
-                    sx={{ my: 0.5, textTransform: "none", fontSize: 12 }}
-                  >
-                    {isFetchingNextMetricPage
-                      ? "Loading more metrics…"
-                      : isNextMetricPageError
-                        ? "Retry loading more metrics"
-                        : "Load more metrics"}
-                  </Button>
-                )}
+              {!staticMetrics && (
+                <BoundedCursorPaginationControl
+                  channels={[
+                    {
+                      channelKey: "primary-graph-metrics",
+                      hasNextPage: Boolean(hasNextMetricPage),
+                      continuationKey: metricContinuationKey,
+                      isFetching: isFetchingNextMetricPage,
+                      error: isNextMetricPageError,
+                      loadNextPage: fetchNextMetricPage,
+                    },
+                  ]}
+                  rootRef={metricPickerScrollRef}
+                  loadingLabel="Loading more metrics…"
+                  retryLabel="Retry loading more metrics"
+                  errorMessage={
+                    "The next metric page failed. Loaded metrics remain available."
+                  }
+                  testId="primary-graph-metric-pagination-sentinel"
+                />
+              )}
             </Box>
           </Popover>
 

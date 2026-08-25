@@ -203,6 +203,7 @@ export function useResolvedFilterOptions(
     queryReadState: valueQuery.queryReadState,
     fetchNextPage: valueQuery.fetchNextPage,
     hasNextPage: valueQuery.hasNextPage,
+    continuationKey: valueQuery.continuationKey,
     isFetchingNextPage: valueQuery.isFetchingNextPage,
     isFetchNextPageError: valueQuery.isFetchNextPageError,
     cursorChainStopped: valueQuery.cursorChainStopped,

@@ -77,6 +77,34 @@ function renderWithQueryClient(ui) {
   );
 }
 
+const installIntersectionObserver = () => {
+  const observers = [];
+  class IntersectionObserverMock {
+    constructor(callback, options) {
+      this.callback = callback;
+      this.options = options;
+      this.observe = vi.fn();
+      this.disconnect = vi.fn();
+      observers.push(this);
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+  const emit = (isIntersecting) => {
+    const observer = observers.at(-1);
+    if (!observer) throw new Error("No IntersectionObserver was created");
+    act(() => observer.callback([{ isIntersecting }]));
+  };
+  return { observers, emit };
+};
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe("PrimaryGraph", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,7 +136,10 @@ describe("PrimaryGraph", () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   it("uses observeIdOverride as the graph project id", async () => {
     renderWithQueryClient(
@@ -266,65 +297,191 @@ describe("PrimaryGraph", () => {
     );
   });
 
-  it("loads each additional metric catalog page only when requested", async () => {
-    axios.get.mockImplementation((_url, { params }) =>
-      Promise.resolve({
-        data: {
-          result:
-            params.page === 1
-              ? {
-                  metrics: [
-                    {
-                      category: "system_metric",
-                      name: "latency",
-                      display_name: "Latency",
-                      source: "traces",
-                      property_id: "system_attribute:traces:latency",
-                      type: "number",
-                    },
-                  ],
-                  page: 1,
-                  page_size: 200,
-                  total: 201,
-                  has_more: true,
-                }
-              : {
-                  metrics: [
-                    {
-                      category: "annotation_metric",
-                      name: "annotation-1",
-                      display_name: "QA Annotation",
-                      source: "both",
-                      property_id: "annotation:annotation-1",
-                      output_type: "numeric",
-                    },
-                  ],
-                  page: 2,
-                  page_size: 200,
-                  total: 201,
-                  has_more: false,
-                },
-        },
-      }),
-    );
+  it("automatically loads each new metric cursor once at the visible end", async () => {
+    const intersection = installIntersectionObserver();
+    const secondPage = deferred();
+    const thirdPage = deferred();
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) => {
+      if (params.page === 2) return secondPage.promise;
+      if (params.page === 3) return thirdPage.promise;
+      return Promise.resolve(
+        response({
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              display_name: "Latency",
+              source: "traces",
+              property_id: "system_attribute:traces:latency",
+              type: "number",
+            },
+          ],
+          page: 1,
+          page_size: 200,
+          total: 202,
+          has_more: true,
+        }),
+      );
+    });
 
     renderWithQueryClient(
       <PrimaryGraph observeIdOverride="project-override" />,
     );
     fireEvent.click(await screen.findByText("Latency"));
 
-    expect(await screen.findByText("Load more metrics")).toBeVisible();
+    const sentinel = await screen.findByTestId(
+      "primary-graph-metric-pagination-sentinel",
+    );
+    expect(intersection.observers[0].options.root).toBe(
+      sentinel.parentElement,
+    );
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
     expect(axios.get).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByText("Load more metrics"));
-
-    expect(await screen.findByText("QA Annotation")).toBeVisible();
+    intersection.emit(true);
+    intersection.emit(true);
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
     expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
       params: expect.objectContaining({ page: 2, page_size: 200 }),
       signal: expect.anything(),
       timeout: 9_000,
     });
-    expect(screen.queryByText("Load more metrics")).not.toBeInTheDocument();
+
+    await act(async () => {
+      secondPage.resolve(
+        response({
+          metrics: [
+            {
+              category: "annotation_metric",
+              name: "annotation-1",
+              display_name: "QA Annotation",
+              source: "both",
+              property_id: "annotation:annotation-1",
+              output_type: "numeric",
+            },
+          ],
+          page: 2,
+          page_size: 200,
+          total: 202,
+          has_more: true,
+        }),
+      );
+      await secondPage.promise;
+    });
+
+    expect(await screen.findByText("QA Annotation")).toBeVisible();
+    // The end remains visible after a short page, so its new cursor advances
+    // without another scroll gesture.
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3));
+    expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
+      params: expect.objectContaining({ page: 3, page_size: 200 }),
+      signal: expect.anything(),
+      timeout: 9_000,
+    });
+
+    await act(async () => {
+      thirdPage.resolve(
+        response({
+          metrics: [
+            {
+              category: "eval_metric",
+              name: "eval-1",
+              display_name: "Quality Eval",
+              source: "traces",
+              property_id: "eval_config:eval-1",
+              output_type: "SCORE",
+            },
+          ],
+          page: 3,
+          page_size: 200,
+          total: 202,
+          has_more: false,
+        }),
+      );
+      await thirdPage.promise;
+    });
+
+    expect(await screen.findByText("Quality Eval")).toBeVisible();
+    expect(axios.get).toHaveBeenCalledTimes(3);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("requires an explicit retry after an automatic metric page fails", async () => {
+    const intersection = installIntersectionObserver();
+    let pageTwoAttempts = 0;
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) => {
+      if (params.page === 2) {
+        pageTwoAttempts += 1;
+        if (pageTwoAttempts === 1) {
+          return Promise.reject(new Error("next page failed"));
+        }
+        return Promise.resolve(
+          response({
+            metrics: [
+              {
+                category: "annotation_metric",
+                name: "annotation-recovered",
+                display_name: "Recovered Annotation",
+                source: "both",
+                property_id: "annotation:annotation-recovered",
+                output_type: "numeric",
+              },
+            ],
+            page: 2,
+            page_size: 200,
+            total: 201,
+            has_more: false,
+          }),
+        );
+      }
+      return Promise.resolve(
+        response({
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              display_name: "Latency",
+              source: "traces",
+              property_id: "system_attribute:traces:latency",
+              type: "number",
+            },
+          ],
+          page: 1,
+          page_size: 200,
+          total: 201,
+          has_more: true,
+        }),
+      );
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    fireEvent.click(await screen.findByText("Latency"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+
+    intersection.emit(true);
+    const retry = await screen.findByRole("button", {
+      name: "Retry loading more metrics",
+    });
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
+
+    intersection.emit(true);
+    await act(async () => undefined);
+    expect(axios.get).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(retry);
+    expect(await screen.findByText("Recovered Annotation")).toBeVisible();
+    expect(axios.get).toHaveBeenCalledTimes(3);
   });
 
   const statusFilter = {
@@ -366,9 +523,7 @@ describe("PrimaryGraph", () => {
     expect(postedFilters()).toEqual([statusFilter]);
   });
 
-  it("strips col-level filters when extraFilters is passed, even empty (trace/span)", async () => {
-    // Regression guard for the round-2 review bug: the mode gate must be
-    // prop PRESENCE — an empty toolbar filter list is still trace mode.
+  it("keeps validated grid filters when trace/span toolbar filters are empty", async () => {
     renderWithQueryClient(
       <PrimaryGraph
         observeIdOverride="project-override"
@@ -379,10 +534,10 @@ describe("PrimaryGraph", () => {
 
     await waitFor(() => expect(axios.post).toHaveBeenCalled());
 
-    expect(postedFilters()).toEqual([]);
+    expect(postedFilters()).toEqual([statusFilter]);
   });
 
-  it("forwards toolbar extraFilters and strips the FE-only id (trace/span)", async () => {
+  it("combines grid and toolbar filters and strips FE-only ids", async () => {
     renderWithQueryClient(
       <PrimaryGraph
         observeIdOverride="project-override"
@@ -394,7 +549,7 @@ describe("PrimaryGraph", () => {
     await waitFor(() => expect(axios.post).toHaveBeenCalled());
 
     const { id: _id, ...metricFilterWithoutId } = metricFilter;
-    expect(postedFilters()).toEqual([metricFilterWithoutId]);
+    expect(postedFilters()).toEqual([statusFilter, metricFilterWithoutId]);
   });
 
   it("does not present a degraded graph read as an empty time range", async () => {

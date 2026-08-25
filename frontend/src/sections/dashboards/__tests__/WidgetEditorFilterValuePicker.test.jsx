@@ -67,6 +67,58 @@ afterEach(() => {
 });
 
 describe("WidgetEditor filter-value picker", () => {
+  it("automatically continues retained values at the list end without a load-more button", async () => {
+    const intersection = installIntersectionObserver();
+    const nextPage = deferred();
+    const fetchNextPage = vi.fn(() => nextPage.promise);
+    useResolvedFilterOptionsMock.mockReturnValue({
+      options: [{ value: "retained", label: "Retained" }],
+      isLoading: false,
+      isError: false,
+      fetchNextPage,
+      hasNextPage: true,
+      continuationKey: "values-cursor-2",
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      queryReadState: "complete",
+      refetch: vi.fn(),
+    });
+    const anchorEl = document.createElement("button");
+    document.body.appendChild(anchorEl);
+
+    render(
+      <FilterValuePickerPopup
+        anchorEl={anchorEl}
+        filter={{ field: "typed-choice", value: [] }}
+        onClose={vi.fn()}
+        onApply={vi.fn()}
+        source="traces"
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /load more values/i }),
+    ).not.toBeInTheDocument();
+    const sentinel = screen.getByTestId(
+      "widget-filter-value-pagination-sentinel",
+    );
+    expect(intersection.observers.at(-1).options.root).toBe(
+      sentinel.parentElement,
+    );
+    intersection.emit(true);
+    intersection.emit(true);
+    expect(fetchNextPage).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Loading more values",
+    );
+
+    await act(async () => {
+      nextPage.resolve();
+      await nextPage.promise;
+    });
+    document.body.removeChild(anchorEl);
+  });
+
   it("automatically loads each new cursor once while the end remains visible", async () => {
     const intersection = installIntersectionObserver();
     const firstPage = deferred();
@@ -657,6 +709,11 @@ describe("WidgetEditor filter-value picker", () => {
       value: "",
       opensValuePicker: false,
     });
+    expect(getWidgetFilterDefaults("date")).toEqual({
+      operator: "equal_to",
+      value: "",
+      opensValuePicker: false,
+    });
     expect(getWidgetFilterDefaults("string")).toEqual({
       operator: "contains",
       value: [],
@@ -676,6 +733,23 @@ describe("WidgetEditor filter-value picker", () => {
     expect(
       getWidgetFilterOperators("boolean").map(({ value }) => value),
     ).toEqual(["equal_to", "not_equal_to", "is_set", "is_not_set"]);
+    expect(
+      getWidgetFilterOperators("number").map(({ value }) => value),
+    ).toEqual([
+      "equal_to",
+      "not_equal_to",
+      "greater_than",
+      "greater_than_or_equal",
+      "less_than",
+      "less_than_or_equal",
+      "between",
+      "not_between",
+      "is_set",
+      "is_not_set",
+    ]);
+    expect(getWidgetFilterOperators("date")).toEqual(
+      getWidgetFilterOperators("number"),
+    );
     expect(getWidgetFilterOperators("array").map(({ value }) => value)).toEqual(
       ["str_contains", "str_not_contains", "is_set", "is_not_set"],
     );
@@ -691,6 +765,45 @@ describe("WidgetEditor filter-value picker", () => {
       filter_type: "number",
       filter_op: "equals",
       filter_value: 7.5,
+      col_type: "SPAN_ATTRIBUTE",
+    });
+    expect(
+      buildWidgetFilterConfig({
+        type: "system",
+        dataType: "date",
+        operator: "greater_than",
+        value: "2026-08-25T11:00:00Z",
+      }),
+    ).toEqual({
+      filter_type: "datetime",
+      filter_op: "greater_than",
+      filter_value: "2026-08-25T11:00:00Z",
+      col_type: "SYSTEM_METRIC",
+    });
+    expect(
+      buildWidgetFilterConfig({
+        type: "custom_attribute",
+        dataType: "number",
+        operator: "is_not_set",
+        value: "",
+      }),
+    ).toEqual({
+      filter_type: "number",
+      filter_op: "is_null",
+      filter_value: null,
+      col_type: "SPAN_ATTRIBUTE",
+    });
+    expect(
+      buildWidgetFilterConfig({
+        type: "custom_attribute",
+        dataType: "number",
+        operator: "is_set",
+        value: "",
+      }),
+    ).toEqual({
+      filter_type: "number",
+      filter_op: "is_not_null",
+      filter_value: null,
       col_type: "SPAN_ATTRIBUTE",
     });
     expect(

@@ -1,7 +1,7 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "src/utils/test-utils";
+import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import axios from "src/utils/axios";
 import { RuleFilterSection } from "../create-rule-dialog";
 import { SESSION_RULE_FILTER_FIELDS } from "../../constants";
@@ -38,6 +38,7 @@ vi.mock("src/api/project/project-detail", () => ({
 vi.mock("src/sections/projects/LLMTracing/TraceFilterPanel", () => ({
   default: (props) => {
     traceFilterPanelPropsMock(props);
+    if (!props.open) return null;
     return (
       <div data-testid="simulation-properties">
         {(props.properties || []).map((property) => property.name).join("|")}
@@ -76,33 +77,50 @@ function renderRuleFilters({
   );
 }
 
-describe("simulation automation metric pagination", () => {
-  it("keeps additional eval properties behind an explicit continuation", async () => {
-    axios.get.mockImplementation((_url, { params }) =>
-      Promise.resolve({
-        data: {
-          result: {
-            metrics: [
-              {
-                name: params.page === 1 ? "eval-1" : "eval-2",
-                display_name: params.page === 1 ? "First Eval" : "Second Eval",
-                category: "eval_metric",
-              },
-            ],
-            page: params.page,
-            page_size: 200,
-            total: 201,
-            has_more: params.page === 1,
-          },
+function mockTwoLegacyEvalPages() {
+  axios.get.mockImplementation((_url, { params }) =>
+    Promise.resolve({
+      data: {
+        result: {
+          metrics: [
+            {
+              name: params.page === 1 ? "eval-1" : "eval-2",
+              display_name: params.page === 1 ? "First Eval" : "Second Eval",
+              category: "eval_metric",
+            },
+          ],
+          page: params.page,
+          page_size: 200,
+          total: 201,
+          has_more: params.page === 1,
         },
-      }),
-    );
+      },
+    }),
+  );
+}
+
+describe("simulation automation metric pagination", () => {
+  beforeEach(() => {
+    axios.get.mockReset();
+    traceFilterPanelPropsMock.mockClear();
+    projectDetailsMock.mockClear();
+  });
+
+  it("delegates eval-property cursor continuation to the shared property picker", async () => {
+    mockTwoLegacyEvalPages();
 
     renderRuleFilters();
 
-    expect(await screen.findByText(/First Eval/)).toBeVisible();
-    expect(screen.queryByText(/Second Eval/)).not.toBeInTheDocument();
-    expect(axios.get).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(axios.get).toHaveBeenCalledTimes(1);
+      expect(
+        traceFilterPanelPropsMock.mock.calls.at(-1)[0].properties,
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: "First Eval" }),
+        ]),
+      );
+    });
     expect(axios.get).toHaveBeenCalledWith("/dashboard/metrics/", {
       params: {
         agent_definition_id: "agent-1",
@@ -114,16 +132,31 @@ describe("simulation automation metric pagination", () => {
       timeout: 9_000,
     });
 
-    fireEvent.click(await screen.findByText("Load more eval properties"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open rule filters" }),
+    );
+    const propertyList = await screen.findByTestId("simulation-properties");
+    expect(propertyList).toHaveTextContent("First Eval");
+    expect(propertyList).not.toHaveTextContent("Second Eval");
+    expect(axios.get).toHaveBeenCalledTimes(1);
+    const pickerProps = traceFilterPanelPropsMock.mock.calls.at(-1)[0];
+    expect(pickerProps.hasNextCatalogPage).toBe(true);
+    expect(pickerProps.catalogContinuationKey).toBe("legacy-page:2");
+    expect(pickerProps.catalogNextPageError).toBe(false);
+    expect(
+      screen.queryByRole("button", { name: "Load more eval properties" }),
+    ).not.toBeInTheDocument();
 
-    expect(await screen.findByText(/Second Eval/)).toBeVisible();
+    await act(async () => pickerProps.loadNextCatalogPage());
+
+    await waitFor(() => expect(propertyList).toHaveTextContent("Second Eval"));
     expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
       params: expect.objectContaining({ page: 2, page_size: 200 }),
       signal: expect.anything(),
       timeout: 9_000,
     });
     expect(
-      screen.queryByText("Load more eval properties"),
+      screen.queryByRole("button", { name: "Load more eval properties" }),
     ).not.toBeInTheDocument();
   });
 });
