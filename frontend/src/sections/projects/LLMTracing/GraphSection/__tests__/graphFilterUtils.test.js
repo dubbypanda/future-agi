@@ -3,6 +3,7 @@ import {
   CREATED_AT,
   buildDefaultDateEntry,
   combineGraphFilters,
+  isCreatedAtFilter,
   resolveAgentGraphProjectScopes,
   selectPanelGraphFilters,
   singleProjectIdFromFilters,
@@ -48,6 +49,29 @@ const metricFilter = {
   },
 };
 
+const nameFilter = {
+  id: "fe-key-3",
+  column_id: "trace_name",
+  filter_config: {
+    col_type: "NORMAL",
+    filter_type: "text",
+    filter_op: "contains",
+    filter_value: "checkout",
+  },
+};
+
+const propertyFilter = {
+  id: "fe-key-4",
+  registryId: "custom_attribute:customer.plan",
+  column_id: "customer.plan",
+  filter_config: {
+    col_type: "SPAN_ATTRIBUTE",
+    filter_type: "text",
+    filter_op: "equals",
+    filter_value: "enterprise",
+  },
+};
+
 describe("combineGraphFilters", () => {
   it("users/sessions mode (extraFilters omitted): non-date filters survive", () => {
     const result = combineGraphFilters({
@@ -59,26 +83,30 @@ describe("combineGraphFilters", () => {
     expect(result.map((f) => f.column_id)).toEqual(["status", CREATED_AT]);
   });
 
-  it("trace/span mode with EMPTY extraFilters still strips col-level filters", () => {
-    // Regression: the mode gate must key off prop presence, not emptiness.
-    // An `extraFilters = []` default made this branch run for users/sessions.
+  it("trace/span mode preserves validated filters when extraFilters is empty", () => {
     const result = combineGraphFilters({
       filters: [statusFilter, createdAtFilter],
       extraFilters: [],
       dateFilter,
       hasEvalFilter: false,
     });
-    expect(result.map((f) => f.column_id)).toEqual([CREATED_AT]);
+    expect(result.map((f) => f.column_id)).toEqual(["status", CREATED_AT]);
   });
 
-  it("trace/span mode: toolbar extraFilters are forwarded", () => {
+  it("preserves status, name, and property filters while applying graph filters", () => {
     const result = combineGraphFilters({
-      filters: [statusFilter],
+      filters: [statusFilter, nameFilter, propertyFilter, createdAtFilter],
       extraFilters: [metricFilter],
       dateFilter,
       hasEvalFilter: false,
     });
-    expect(result.map((f) => f.column_id)).toEqual(["latency", CREATED_AT]);
+    expect(result).toEqual([
+      statusFilter,
+      nameFilter,
+      propertyFilter,
+      metricFilter,
+      createdAtFilter,
+    ]);
   });
 
   it("adds a default created_at entry only when none exists", () => {
@@ -101,6 +129,26 @@ describe("combineGraphFilters", () => {
     expect(withDefault).toHaveLength(1);
     expect(withDefault[0].column_id).toBe(CREATED_AT);
     expect(withDefault[0].filter_config.filter_op).toBe("between");
+  });
+
+  it("keeps one created_at filter with deterministic source precedence", () => {
+    const explicitGraphDateFilter = {
+      ...createdAtFilter,
+      filter_config: {
+        ...createdAtFilter.filter_config,
+        filter_value: ["2026-06-01T00:00:00.000Z", "2026-06-02T00:00:00.000Z"],
+      },
+    };
+
+    const result = combineGraphFilters({
+      filters: [statusFilter, createdAtFilter],
+      extraFilters: [metricFilter, explicitGraphDateFilter],
+      dateFilter,
+      hasEvalFilter: false,
+    });
+
+    expect(result).toEqual([statusFilter, metricFilter, createdAtFilter]);
+    expect(result.filter(isCreatedAtFilter)).toHaveLength(1);
   });
 
   it("appends the has-eval filter when enabled", () => {

@@ -31,18 +31,11 @@ export const buildDefaultDateEntry = (existingFilters, dateFilter) => {
 /**
  * Combine filters for the graph POST body.
  *
- * Two modes depending on whether the caller provides `extraFilters`:
- *   Trace/Span mode (`extraFilters` passed, LLMTracingView): strip `filters`
- *     down to the date entry only — other col-level filters (name, status, …)
- *     carry no col_type and the trace/span graph endpoint rejects them. All
- *     non-date graph filters come via `extraFilters` from the toolbar.
- *   Users/Sessions mode (`extraFilters` omitted → undefined): the caller
- *     already merged everything into `filters`; pass them all through
- *     unchanged so the users/sessions graph stays in sync with its table.
- *
- * The mode check is strict prop presence (`undefined`), NOT emptiness: an
- * empty extraFilters array is a valid trace-mode state (toolbar filters
- * cleared) and must still strip col-level filters.
+ * Keep the merge order stable so every visualization describes the same row
+ * set as its grid: validated grid/saved-view filters, explicit graph filters,
+ * Display filters, eval-only, then the date constraint. The first explicit
+ * created_at filter wins by that same source precedence; all other created_at
+ * entries are omitted so the graph never receives conflicting date ranges.
  *
  * UI-only keys (the FE React-key `id`, etc.) are NOT stripped here — callers
  * pass the result through `toBackendFilters` (../common) at the POST
@@ -55,20 +48,20 @@ export const combineGraphFilters = ({
   dateFilter,
   hasEvalFilter,
 }) => {
-  const isTracingMode = extraFilters !== undefined;
-  const baseFilters = isTracingMode
-    ? (filters || []).filter(isCreatedAtFilter)
-    : filters || [];
-  const base = [
-    ...baseFilters,
+  const merged = [
+    ...(filters || []),
     ...(extraFilters || []),
     ...(metricFilters || []),
   ];
+  const explicitDateFilter = merged.find(isCreatedAtFilter);
+  const nonDateFilters = merged.filter((filter) => !isCreatedAtFilter(filter));
 
   return [
-    ...base,
+    ...nonDateFilters,
     ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
-    ...buildDefaultDateEntry(base, dateFilter),
+    ...(explicitDateFilter
+      ? [explicitDateFilter]
+      : buildDefaultDateEntry([], dateFilter)),
   ];
 };
 
