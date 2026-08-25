@@ -131,17 +131,7 @@ const GLOBAL_CATALOG_SEARCH_CASES = [
     search: "Annotator",
     source: "traces",
     tab: "trace",
-    initialMetrics: [
-      {
-        property_id: "annotation:quality",
-        name: "quality",
-        display_name: "Quality",
-        category: "annotation_metric",
-        source: "traces",
-        sources: ["traces"],
-        output_type: "numeric",
-      },
-    ],
+    initialMetrics: [],
     optionId: "annotator",
     categoryName: "Annotations",
     categoryCountLabel: "Annotations property count",
@@ -751,17 +741,10 @@ describe("catalog search global property supplements", () => {
     "voice_calls",
     "voice_calls",
   );
-  const annotatorProperty = buildTraceFilterProperties([
-    {
-      property_id: "annotation:quality",
-      name: "quality",
-      display_name: "Quality",
-      category: "annotation_metric",
-      source: "traces",
-      sources: ["traces"],
-      output_type: "numeric",
-    },
-  ]).find((property) => property.id === "annotator");
+  const annotatorProperty = buildTraceFilterProperties([], {
+    sourceScope: "traces",
+    includeGlobalAnnotator: true,
+  }).find((property) => property.id === "annotator");
   const emptySearchCounts = {
     all: 0,
     system_metric: 0,
@@ -6077,6 +6060,38 @@ describe("annotator annotation filter (TH-4710)", () => {
     );
     expect(annotatorIndex).toBeLessThan(labelIndex);
   });
+
+  it.each(["traces", "spans", "voice_calls", "sessions"])(
+    "keeps the global Annotator property when the first %s catalog page has no annotation definitions",
+    (sourceScope) => {
+      expect(
+        buildTraceFilterProperties([], {
+          sourceScope,
+          includeGlobalAnnotator: true,
+        }),
+      ).toEqual([
+        expect.objectContaining({
+          id: "annotator",
+          registryId: "annotation:annotator",
+          category: "annotation",
+          apiColType: "SYSTEM_METRIC",
+          catalogSearchFallback: true,
+        }),
+      ]);
+    },
+  );
+
+  it.each(["dataset", "simulation"])(
+    "does not inject Annotator into the %s catalog",
+    (sourceScope) => {
+      expect(
+        buildTraceFilterProperties([], {
+          sourceScope,
+          includeGlobalAnnotator: true,
+        }),
+      ).toEqual([]);
+    },
+  );
 
   it("maps every annotation label output type to the matching filter input type", () => {
     const properties = buildTraceFilterProperties([

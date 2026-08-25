@@ -1244,7 +1244,11 @@ function metricToTraceFilterProperty(m) {
 
 export function buildTraceFilterProperties(
   metrics,
-  { isSimulator = false, sourceScope = null } = {},
+  {
+    isSimulator = false,
+    sourceScope = null,
+    includeGlobalAnnotator = false,
+  } = {},
 ) {
   const properties = metrics
     .filter((m) => {
@@ -1329,8 +1333,22 @@ export function buildTraceFilterProperties(
     (property) => property.id === ANNOTATOR_FILTER_PROPERTY.id,
   );
 
-  if (firstAnnotationIndex !== -1 && !alreadyHasAnnotator) {
-    properties.splice(firstAnnotationIndex, 0, ANNOTATOR_FILTER_PROPERTY);
+  // The base inventory owns global synthetic fields even when its first
+  // catalog page has no annotation definitions. Search-scoped pages leave the
+  // flag disabled so they cannot inject Annotator into an unrelated search.
+  const globalAnnotatorSupported = !["dataset", "simulation"].includes(
+    sourceScope,
+  );
+  if (
+    !alreadyHasAnnotator &&
+    globalAnnotatorSupported &&
+    (firstAnnotationIndex !== -1 || includeGlobalAnnotator)
+  ) {
+    properties.splice(
+      firstAnnotationIndex === -1 ? properties.length : firstAnnotationIndex,
+      0,
+      ANNOTATOR_FILTER_PROPERTY,
+    );
   }
 
   return properties;
@@ -1376,7 +1394,11 @@ export function useLegacyTraceFilterProperties(
   );
   return {
     ...query,
-    data: buildTraceFilterProperties(metrics, { isSimulator, sourceScope }),
+    data: buildTraceFilterProperties(metrics, {
+      isSimulator,
+      sourceScope,
+      includeGlobalAnnotator: true,
+    }),
     continuationKey: query.hasNextPage
       ? `legacy-page:${Number(query.data?.pages?.at(-1)?.page || 1) + 1}`
       : null,
@@ -1427,7 +1449,11 @@ export function useTraceFilterProperties(
   const catalogError = Boolean(catalog.isError && !catalogNotReady);
   return {
     ...catalog,
-    data: buildTraceFilterProperties(metrics, { isSimulator, sourceScope }),
+    data: buildTraceFilterProperties(metrics, {
+      isSimulator,
+      sourceScope,
+      includeGlobalAnnotator: true,
+    }),
     usesUnifiedCatalog: true,
     categoryCounts: catalog.categoryCounts,
     categoryCountsExact: catalog.categoryCountsExact,
