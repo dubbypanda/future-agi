@@ -107,6 +107,7 @@ CANONICAL_SPAN_SCAN_WINDOW_HOURS = RUNTIME_LIMITS.canonical_span_scan_window_hou
 _MAX_OCCUPIED_HOURS = _MAX_WINDOWS + 1
 _MAX_GROUPS = RUNTIME_LIMITS.canonical_span_max_groups
 _MAX_GROUP_BYTES = RUNTIME_LIMITS.canonical_span_max_group_bytes
+_CATALOG_GROUP_QUERY_TIMEOUT_MS = RUNTIME_LIMITS.state_store_timeout_ms
 _MAX_AUDIT_RESUME_STATE_LENGTH = 512
 AUTHORITATIVE_VALUE_BATCH_MAX_ROWS = RUNTIME_LIMITS.authoritative_value_batch_max_rows
 AUTHORITATIVE_VALUE_BATCH_MAX_BYTES = RUNTIME_LIMITS.authoritative_value_batch_max_bytes
@@ -1025,7 +1026,7 @@ class RevisionPinnedSpanAttributeGroupPageLoader:
         context: PostgresSnapshotContext,
         build_token: str,
         deadline: SharedCatalogDeadline,
-        timeout_ms: int = CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+        timeout_ms: int = _CATALOG_GROUP_QUERY_TIMEOUT_MS,
         max_groups: int = _MAX_GROUPS,
         max_group_bytes: int = _MAX_GROUP_BYTES,
     ) -> None:
@@ -1037,11 +1038,11 @@ class RevisionPinnedSpanAttributeGroupPageLoader:
             raise ValueError("revision-pinned catalog database is invalid")
         if (
             type(timeout_ms) is not int
-            or not 1 <= timeout_ms <= _MAX_CANONICAL_SPAN_QUERY_TIMEOUT_MS
+            or not 1 <= timeout_ms <= _CATALOG_GROUP_QUERY_TIMEOUT_MS
         ):
             raise ValueError(
-                "span group query timeout is outside [1, "
-                f"{_MAX_CANONICAL_SPAN_QUERY_TIMEOUT_MS}]"
+                "catalog group query timeout is outside [1, "
+                f"{_CATALOG_GROUP_QUERY_TIMEOUT_MS}]"
             )
         if type(max_groups) is not int or not 1 <= max_groups <= _MAX_GROUPS:
             raise ValueError(f"span group ceiling is outside [1, {_MAX_GROUPS}]")

@@ -29,6 +29,7 @@ from tracer.services.clickhouse.v2.property_catalog.qualification import (
     CheckpointStatus,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import CheckpointWrite
+from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     PropertySourceError,
     SourceKeysetCursor,
@@ -227,7 +228,22 @@ def test_revision_pinned_group_loader_reads_the_exact_build_once_and_paginates()
         "catalog_group_limit": 11,
     }
     assert timeout_ms == 7_000
-    assert deadline.caps == [CANONICAL_SPAN_QUERY_TIMEOUT_MS]
+    assert deadline.caps == [RUNTIME_LIMITS.state_store_timeout_ms]
+
+
+def test_revision_pinned_group_loader_keeps_source_and_catalog_timeouts_separate() -> (
+    None
+):
+    context = _catalog_group_context()
+
+    with pytest.raises(ValueError, match="catalog group query timeout"):
+        RevisionPinnedSpanAttributeGroupPageLoader(
+            _CatalogGroupClient(()),
+            context=context,
+            build_token=BUILD_TOKEN,
+            deadline=_FixedDeadline(7_000),  # type: ignore[arg-type]
+            timeout_ms=DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+        )
 
 
 @pytest.mark.parametrize(
