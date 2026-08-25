@@ -8,8 +8,13 @@ import {
   Typography,
 } from "@mui/material";
 import { formatDistanceToNow } from "date-fns";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import PropTypes from "prop-types";
 import _ from "lodash";
 import Iconify from "src/components/iconify";
@@ -306,6 +311,8 @@ const TaskListView = ({
   const [rowSelection, setRowSelection] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const pageScopeRef = useRef(observeId);
+  const queryPage = pageScopeRef.current === observeId ? page : 0;
 
   const debouncedSearch = useDebounce(searchQuery.trim(), 500);
   const queryClient = useQueryClient();
@@ -319,7 +326,7 @@ const TaskListView = ({
     queryKey: [
       "eval-tasks",
       observeId,
-      page,
+      queryPage,
       pageSize,
       debouncedSearch,
       sorting,
@@ -327,7 +334,7 @@ const TaskListView = ({
     ],
     queryFn: async ({ signal }) => {
       const params = {
-        page_number: page,
+        page_number: queryPage,
         page_size: pageSize,
       };
       if (observeId) params.project_id = observeId;
@@ -361,7 +368,7 @@ const TaskListView = ({
         signal,
       );
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     structuralSharing: false,
     refetchInterval: (query) =>
       (query?.state?.data?.table || []).some(shouldPollRow)
@@ -386,6 +393,21 @@ const TaskListView = ({
     data?.total ??
     data?.total_count ??
     items.length;
+
+  useEffect(() => {
+    pageScopeRef.current = observeId;
+    setPage(0);
+  }, [observeId]);
+
+  const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+  useEffect(() => {
+    if (page > lastPage) setPage(lastPage);
+  }, [lastPage, page]);
+
+  const handleSortingChange = useCallback((nextSorting) => {
+    setSorting(nextSorting);
+    setPage(0);
+  }, []);
 
   // Optimistically flip the row's status across every cached eval-tasks page
   // (the exact key carries page/sort/search) so the badge reacts on click.
@@ -728,7 +750,7 @@ const TaskListView = ({
         isLoading={isLoading}
         rowCount={total}
         sorting={sorting}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         onRowClick={(row) => onRowClick?.(row)}
@@ -739,7 +761,7 @@ const TaskListView = ({
 
       {/* Pagination */}
       <DataTablePagination
-        page={page}
+        page={queryPage}
         pageSize={pageSize}
         total={total}
         onPageChange={setPage}
