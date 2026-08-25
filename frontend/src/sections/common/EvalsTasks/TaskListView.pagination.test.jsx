@@ -281,6 +281,43 @@ describe("TaskListView server pagination", () => {
     expect(screen.getByTestId("task-page")).toHaveTextContent("0");
   });
 
+  it("clears rows and totals while a new project scope is loading", async () => {
+    const projectBPage = deferred();
+    axiosGetMock.mockImplementation((_url, { params }) => {
+      if (params.project_id === "project-a") {
+        return Promise.resolve(
+          taskPage([task("task-a", "Project A task")], 30),
+        );
+      }
+      return projectBPage.promise;
+    });
+
+    const { rerenderView } = renderTaskList({ observeId: "project-a" });
+    expect(await screen.findByText("Project A task")).toBeInTheDocument();
+    expect(screen.getByTestId("task-total")).toHaveTextContent("30");
+
+    rerenderView({ observeId: "project-b" });
+
+    await waitFor(() =>
+      expect(
+        axiosGetMock.mock.calls.some(
+          ([, config]) => config.params.project_id === "project-b",
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByText("Project A task")).not.toBeInTheDocument();
+    expect(screen.getByTestId("task-total")).toHaveTextContent("0");
+    expect(screen.getByTestId("task-loading")).toHaveTextContent("true");
+
+    await act(async () => {
+      projectBPage.resolve(taskPage([task("task-b", "Project B task")], 1));
+      await projectBPage.promise;
+    });
+
+    expect(await screen.findByText("Project B task")).toBeInTheDocument();
+    expect(screen.getByTestId("task-total")).toHaveTextContent("1");
+  });
+
   it("clamps to the prior page when deleting the final row on the last page", async () => {
     let deleted = false;
     axiosPostMock.mockImplementation(() => {

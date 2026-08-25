@@ -9,12 +9,7 @@ import {
 } from "@mui/material";
 import { formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import PropTypes from "prop-types";
 import _ from "lodash";
 import Iconify from "src/components/iconify";
@@ -368,7 +363,14 @@ const TaskListView = ({
         signal,
       );
     },
-    placeholderData: keepPreviousData,
+    // Keep a prior page visible only while paginating inside the same
+    // project/workspace scope. A scope switch must never expose rows or totals
+    // from the previous project while the new request is in flight.
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey?.[0] === "eval-tasks" &&
+      previousQuery.queryKey[1] === observeId
+        ? previousData
+        : undefined,
     structuralSharing: false,
     refetchInterval: (query) =>
       (query?.state?.data?.table || []).some(shouldPollRow)
