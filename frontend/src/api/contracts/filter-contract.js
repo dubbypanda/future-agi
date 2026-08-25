@@ -18,6 +18,35 @@ const MULTI_VALUE_TYPES = new Set([
   "thumbs",
   "annotator",
 ]);
+
+// Keep exact typed attribute strings aligned with the retained-value contract.
+// The backend independently enforces the same byte ceiling; this client-side
+// guard prevents an oversized saved/manual value from becoming a query body.
+export const FILTER_STRING_MAX_UTF8_BYTES = 4 * 1024;
+export const TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES = 16 * 1024;
+
+export const getUtf8ByteLength = (value) =>
+  new TextEncoder().encode(String(value ?? "")).byteLength;
+
+const assertBoundedTypedAttributeStrings = (
+  filterValue,
+  attributeValueTypes,
+) => {
+  if (!Array.isArray(filterValue) || !Array.isArray(attributeValueTypes)) {
+    return;
+  }
+  filterValue.forEach((value, index) => {
+    if (
+      attributeValueTypes[index] === "string" &&
+      typeof value === "string" &&
+      getUtf8ByteLength(value) > TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES
+    ) {
+      throw new Error(
+        `SPAN_ATTRIBUTE string filter values must be at most ${TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES} UTF-8 bytes.`,
+      );
+    }
+  });
+};
 const API_FILTER_ITEM_KEYS = new Set([
   "column_id",
   "property_id",
@@ -175,6 +204,8 @@ export const buildApiFilterFromPanelRow = (row) => {
     return normalized.some(Boolean) ? normalized : undefined;
   })();
 
+  assertBoundedTypedAttributeStrings(filterValue, attributeValueTypes);
+
   if (!isAllowedFilterOperator(filterType, filterOp)) {
     throw new Error(
       `Unsupported filter operator "${filterOp}" for type "${filterType}".`,
@@ -273,6 +304,7 @@ export const serializeFilterForApi = (filter) => {
       );
     }
   }
+  assertBoundedTypedAttributeStrings(filterValue, attributeValueTypes);
   if (
     filterOp !== "is_null" &&
     filterOp !== "is_not_null" &&

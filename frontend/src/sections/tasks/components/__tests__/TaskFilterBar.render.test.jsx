@@ -31,6 +31,7 @@ vi.mock("src/hooks/useDashboards", () => ({
 }));
 
 import TaskFilterBar from "../TaskFilterBar";
+import { SESSION_RULE_FILTER_FIELDS } from "src/sections/annotations/queues/constants";
 
 describe("TaskFilterBar rendered catalog adapters", () => {
   beforeEach(() => {
@@ -120,6 +121,7 @@ describe("TaskFilterBar rendered catalog adapters", () => {
         source: "sessions",
         tab: null,
         attributeSource: "spans",
+        filterFields: SESSION_RULE_FILTER_FIELDS,
       }),
     );
   });

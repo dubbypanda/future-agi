@@ -51,6 +51,11 @@ import { useDebounce } from "src/hooks/use-debounce";
 import { useAIFilter } from "src/hooks/use-ai-filter";
 import { QueryInput } from "src/components/filter-panel";
 import {
+  FILTER_STRING_MAX_UTF8_BYTES,
+  getUtf8ByteLength,
+  TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
+} from "src/api/contracts/filter-contract";
+import {
   getPickerOptionExactMatches,
   getPickerOptionLabel,
   getPickerOptionSearchText,
@@ -2490,6 +2495,12 @@ const SESSION_FREE_TEXT_FIELDS = new Set(["first_message", "last_message"]);
 const FREE_TEXT_NO_OPTIONS_TEXT =
   "No retained values found — type to search, or add an exact value";
 
+// Retain one extra code unit so the picker can report a clear limit error
+// instead of silently truncating oversized pasted values. The stored state and
+// every outbound search remain bounded even for an arbitrarily large paste.
+const boundExactValueSearchInput = (value, maxUtf8Bytes) =>
+  String(value ?? "").slice(0, maxUtf8Bytes + 1);
+
 const pickerValueKey = (value, storageType) =>
   getPickerValueIdentity(value, storageType);
 
@@ -2526,6 +2537,19 @@ function ValuePicker({
     if (propertyCategory === "attribute") return "custom_attribute";
     return "system_metric";
   })();
+  const exactValueMaxUtf8Bytes =
+    metricType === "custom_attribute"
+      ? TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES
+      : FILTER_STRING_MAX_UTF8_BYTES;
+  const customSearchValue = search.trim();
+  const customSearchValueTooLong =
+    getUtf8ByteLength(customSearchValue) > exactValueMaxUtf8Bytes;
+  const debouncedValueSearch = debouncedSearch.trim();
+  const debouncedValueSearchTooLong =
+    getUtf8ByteLength(debouncedValueSearch) > exactValueMaxUtf8Bytes;
+  const backendValueSearch = debouncedValueSearchTooLong
+    ? ""
+    : debouncedValueSearch;
 
   const isSessionFreeTextField =
     !hasStaticChoices && SESSION_FREE_TEXT_FIELDS.has(propertyId);
@@ -2577,11 +2601,12 @@ function ValuePicker({
     metricType,
     projectIds: projectId ? [projectId] : [],
     source: filterValueSource,
-    search: usesBackendSearch ? debouncedSearch : "",
+    search: usesBackendSearch ? backendValueSearch : "",
     // Keep the transport keyed by settled text, while allowing the hook to
     // detect rapid clear/re-entry gestures that happen inside the debounce
     // interval and recover one cached failed continuation.
-    searchGesture: usesBackendSearch ? search.trim() : "",
+    searchGesture:
+      usesBackendSearch && !customSearchValueTooLong ? customSearchValue : "",
     pageSize: FILTER_VALUE_PAGE_SIZE,
     attributeType:
       propertyCategory === "attribute"
@@ -2598,19 +2623,22 @@ function ValuePicker({
       !hasStaticChoices &&
       !isSessionFreeTextField &&
       Boolean(anchorEl) &&
+      !customSearchValueTooLong &&
       (!isIdOnlyField || Boolean(debouncedSearch)),
   });
   // `exhausted` is the authoritative terminal state. `limit_reached` remains
   // resumable when the hook validated an advancing signed cursor.
   const hasMoreDashboardValues =
-    Boolean(hasNextDashboardPage) && dashboardBrowseStatus !== "exhausted";
+    !customSearchValueTooLong &&
+    Boolean(hasNextDashboardPage) &&
+    dashboardBrowseStatus !== "exhausted";
   const loadNextDashboardValues = useSingleFlightPageRequest({
     identity: JSON.stringify([
       projectId,
       filterValueSource,
       property?.registryId || propertyId,
       metricType,
-      usesBackendSearch ? debouncedSearch : "",
+      usesBackendSearch ? backendValueSearch : "",
     ]),
     enabled: hasMoreDashboardValues && !isFetchingNextDashboardPage,
     request: fetchNextDashboardPage,
@@ -2640,28 +2668,39 @@ function ValuePicker({
       return [{ ...option, value: canonical, label: canonical }];
     });
   }, [isCanonicalVoiceStatus, rawOptions]);
-  const isLoading = hasStaticChoices
+  const isLoading = customSearchValueTooLong
     ? false
-    : isSessionFreeTextField
+    : hasStaticChoices
       ? false
-      : dashLoading;
-  const readState = hasStaticChoices
+      : isSessionFreeTextField
+        ? false
+        : dashLoading;
+  const readState = customSearchValueTooLong
     ? "complete"
-    : isSessionFreeTextField
+    : hasStaticChoices
       ? "complete"
-      : dashError
-        ? "error"
-        : dashboardReadState;
+      : isSessionFreeTextField
+        ? "complete"
+        : dashError
+          ? "error"
+          : dashboardReadState;
   const readMessage = getFilterValueReadMessage(readState);
   const refetchOptions = retryDashboardOptions || refetchDashboardOptions;
 
   const filtered = useMemo(() => {
+    if (customSearchValueTooLong) return [];
     if (!search || isSessionFreeTextField || isIdOnlyField) return options;
     const q = search.toLowerCase();
     return options.filter((o) =>
       getPickerOptionSearchText(o).toLowerCase().includes(q),
     );
-  }, [options, search, isSessionFreeTextField, isIdOnlyField]);
+  }, [
+    options,
+    search,
+    isSessionFreeTextField,
+    isIdOnlyField,
+    customSearchValueTooLong,
+  ]);
 
   const selectedValues = useMemo(() => {
     const normalized = normalizePickerValues(value);
@@ -2727,7 +2766,6 @@ function ValuePicker({
     ],
   );
 
-  const customSearchValue = search.trim();
   const searchMatchesExistingOption = options.some((option) =>
     getPickerOptionExactMatches(option).some(
       (matchValue) =>
@@ -2737,6 +2775,7 @@ function ValuePicker({
   const showCustomValueRow = Boolean(
     property?.allowCustomValue !== false &&
       customSearchValue &&
+      !customSearchValueTooLong &&
       !searchMatchesExistingOption,
   );
 
@@ -2887,8 +2926,17 @@ function ValuePicker({
             fullWidth
             placeholder="Search values..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(
+                boundExactValueSearchInput(
+                  e.target.value,
+                  exactValueMaxUtf8Bytes,
+                ),
+              )
+            }
+            error={customSearchValueTooLong}
             autoFocus
+            inputProps={{ maxLength: exactValueMaxUtf8Bytes + 1 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -2916,6 +2964,16 @@ function ValuePicker({
           data-filter-value-options-list
           sx={{ maxHeight: 220, overflow: "auto" }}
         >
+          {customSearchValueTooLong && (
+            <Typography
+              role="alert"
+              sx={{ px: 1.5, py: 1, fontSize: 11, color: "error.main" }}
+            >
+              Exact values are limited to {exactValueMaxUtf8Bytes / 1024} KiB (
+              {exactValueMaxUtf8Bytes.toLocaleString("en-US")} UTF-8 bytes).
+              Shorten this value to search or apply it.
+            </Typography>
+          )}
           {isLoading && (
             <Box
               role="status"
@@ -3060,12 +3118,16 @@ function ValuePicker({
                 onClick={() => {
                   // singleSelect: replace the selection. Otherwise: append
                   // (but skip if the value is already selected).
+                  const customValueType =
+                    metricType === "custom_attribute" ? "string" : undefined;
                   if (singleSelect) {
-                    onChange([customSearchValue], [undefined]);
-                  } else if (!selectedValues.includes(customSearchValue)) {
+                    onChange([customSearchValue], [customValueType]);
+                  } else if (
+                    selectedIndexFor(customSearchValue, customValueType) < 0
+                  ) {
                     onChange(
                       [...selectedValues, customSearchValue],
-                      [...selectedValueTypes, undefined],
+                      [...selectedValueTypes, customValueType],
                     );
                   }
                   setSearch("");
@@ -3095,6 +3157,7 @@ function ValuePicker({
             </>
           )}
           {!isLoading &&
+            !customSearchValueTooLong &&
             dashboardBrowseLimitReached &&
             metricType === "custom_attribute" && (
               <Typography
@@ -3110,7 +3173,7 @@ function ValuePicker({
               </Typography>
             )}
           <BoundedCursorPaginationControl
-            key={`${projectId || "workspace"}:${filterValueSource}:${property?.registryId || propertyId}:${metricType}:${debouncedSearch}`}
+            key={`${projectId || "workspace"}:${filterValueSource}:${property?.registryId || propertyId}:${metricType}:${backendValueSearch}`}
             rootRef={valueOptionsListRef}
             channels={[
               {
@@ -3118,7 +3181,7 @@ function ValuePicker({
                 hasNextPage: hasMoreDashboardValues,
                 continuationKey: dashboardContinuationKey,
                 isFetching: isFetchingNextDashboardPage,
-                error: isNextDashboardPageError,
+                error: !customSearchValueTooLong && isNextDashboardPageError,
                 loadNextPage: loadNextDashboardValues,
               },
             ]}

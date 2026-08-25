@@ -32,6 +32,7 @@ import {
   getVoiceCallFilterField,
   toVoiceCallApiValue,
 } from "src/sections/projects/LLMTracing/voiceCallFilterFields";
+import { SESSION_RULE_FILTER_FIELDS } from "src/sections/annotations/queues/constants";
 
 // ── Operator handling — canonical backend ops ──
 //
@@ -728,6 +729,11 @@ const TaskFilterBar = ({
         // Keep the semantic row source for value lookup (sessions must remain
         // sessions) while browsing raw keys through the retained span cursor.
         attributeSource={filterPanelSources.attributeSource}
+        filterFields={
+          filterPanelSources.source === "sessions"
+            ? SESSION_RULE_FILTER_FIELDS
+            : undefined
+        }
         onApply={(next) => applyPanelFilters(next || [])}
       />
     </Box>

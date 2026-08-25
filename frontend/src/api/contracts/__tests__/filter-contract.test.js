@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildApiFilterFromPanelRow,
   coerceFilterValue,
+  FILTER_STRING_MAX_UTF8_BYTES,
   hydrateStoredFilterList,
   isAllowedFilterOperator,
   normalizeFilterOperator,
   normalizeFilterType,
   serializeFilterForApi,
   serializeFilterListForApi,
+  TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
 } from "../filter-contract";
 import {
   FILTER_CONTRACT_VERSION,
@@ -128,6 +130,50 @@ describe("filter contract", () => {
       attribute_value_types: ["string", "number", "boolean"],
     });
     expect(serializeFilterForApi(apiFilter)).toEqual(apiFilter);
+  });
+
+  it.each([
+    ["normal", "ordinary exact value"],
+    [
+      "above the generic scalar limit",
+      "x".repeat(FILTER_STRING_MAX_UTF8_BYTES + 1),
+    ],
+    [
+      "at the typed string limit",
+      "é".repeat(TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2),
+    ],
+  ])("keeps %s typed exact attribute values filterable", (_case, value) => {
+    const apiFilter = buildApiFilterFromPanelRow({
+      field: "long.attribute",
+      fieldCategory: "attribute",
+      fieldType: "string",
+      operator: "in",
+      value: [value],
+      valueTypes: ["string"],
+    });
+
+    expect(apiFilter.filter_config).toMatchObject({
+      filter_value: [value],
+      attribute_value_types: ["string"],
+    });
+    expect(serializeFilterForApi(apiFilter)).toEqual(apiFilter);
+  });
+
+  it("rejects a typed exact attribute value above the 16 KiB bound", () => {
+    const value = `${"é".repeat(
+      TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2,
+    )}x`;
+
+    expect(() =>
+      buildApiFilterFromPanelRow({
+        field: "long.attribute",
+        fieldCategory: "attribute",
+        fieldType: "string",
+        operator: "in",
+        value: [value],
+        valueTypes: ["string"],
+      }),
+    ).toThrow(`${TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES} UTF-8 bytes`);
   });
 
   it("rejects misaligned typed custom-attribute provenance", () => {

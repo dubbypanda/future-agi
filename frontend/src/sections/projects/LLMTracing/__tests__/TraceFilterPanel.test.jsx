@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
+import {
+  buildApiFilterFromPanelRow,
+  FILTER_STRING_MAX_UTF8_BYTES,
+  TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
+} from "src/api/contracts/filter-contract";
 import { FILTER_VALUE_PAGE_SIZE } from "src/config/runtime_limits";
 import axios, { endpoints } from "src/utils/axios";
 import TraceFilterPanel, {
@@ -4222,6 +4226,89 @@ describe("filter-value picker bounded-read UX", () => {
     const applied = onApply.mock.calls.at(-1)[0][0];
     expect(applied.value).toEqual(["1", 1, true]);
     expect(applied.valueTypes).toEqual(["string", "number", "boolean"]);
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it.each([
+    ["normal", "manual-completed"],
+    ["between 4 and 16 KiB", "x".repeat(FILTER_STRING_MAX_UTF8_BYTES + 1)],
+    ["at 16 KiB", "é".repeat(TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2)],
+  ])(
+    "preserves string provenance for a %s free-typed exact attribute value",
+    async (_case, exactValue) => {
+      const onApply = vi.fn();
+      const { anchorEl } = renderPanel({
+        currentFilters,
+        properties: [statusProperty],
+        onApply,
+      });
+
+      openValuePicker();
+      fireEvent.change(screen.getByPlaceholderText("Search values..."), {
+        target: { value: exactValue },
+      });
+      const exactOption = document.querySelector("[data-filter-value-option]");
+      expect(exactOption).toHaveAttribute(
+        "data-filter-value-option",
+        exactValue,
+      );
+      fireEvent.click(exactOption);
+
+      await waitFor(() => expect(onApply).toHaveBeenCalled());
+      const applied = onApply.mock.calls.at(-1)[0][0];
+      expect(applied).toMatchObject({
+        field: "call.status",
+        fieldCategory: "attribute",
+        apiColType: "SPAN_ATTRIBUTE",
+        value: [exactValue],
+        valueTypes: ["string"],
+      });
+      expect(buildApiFilterFromPanelRow(applied).filter_config).toMatchObject({
+        filter_value: [exactValue],
+        attribute_value_types: ["string"],
+      });
+
+      document.body.removeChild(anchorEl);
+    },
+  );
+
+  it("blocks an oversized exact attribute value before search or apply", async () => {
+    const oversizedValue = `${"é".repeat(
+      TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2,
+    )}x`;
+    const onApply = vi.fn();
+    const { anchorEl } = renderPanel({
+      currentFilters,
+      properties: [statusProperty],
+      onApply,
+    });
+
+    openValuePicker();
+    const callsBeforeInput = dashboardFilterValuesMock.mock.calls.length;
+    fireEvent.change(screen.getByPlaceholderText("Search values..."), {
+      target: { value: oversizedValue },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Exact values are limited to 16 KiB (16,384 UTF-8 bytes).",
+    );
+    expect(
+      document.querySelector("[data-filter-value-option]"),
+    ).not.toBeInTheDocument();
+    expect(onApply).not.toHaveBeenCalled();
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 550)));
+    const requestsAfterInput = dashboardFilterValuesMock.mock.calls
+      .slice(callsBeforeInput)
+      .map(([request]) => request);
+    expect(
+      requestsAfterInput.every(
+        ({ search, searchGesture }) =>
+          search !== oversizedValue && searchGesture !== oversizedValue,
+      ),
+    ).toBe(true);
+    expect(onApply).not.toHaveBeenCalled();
 
     document.body.removeChild(anchorEl);
   });
