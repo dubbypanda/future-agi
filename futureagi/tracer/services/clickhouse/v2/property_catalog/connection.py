@@ -2,13 +2,12 @@
 
 This boundary deliberately uses a separate catalog identity/database and a
 hard physical-table allowlist.  It cannot read application fact tables and it
-cannot execute mutations.  Production admission remains disabled in settings;
-the config validation below accepts only an isolated development database.
+cannot execute mutations. Production admission is fail-closed in settings and
+is repeated here so runtime overrides cannot bypass environment binding.
 """
 
 from __future__ import annotations
 
-import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -17,6 +16,11 @@ from typing import Any
 
 from django.conf import settings as django_settings
 
+from tfc.settings.settings import (
+    validate_property_catalog_database,
+    validate_property_catalog_read_admission,
+    validate_property_catalog_read_connection,
+)
 from tracer.services.clickhouse.client import ClickHouseClient
 from tracer.services.clickhouse.v2.attribute_catalog_connection import (
     AttributeCatalogQueryPage,
@@ -41,7 +45,6 @@ PROPERTY_CATALOG_TABLES = frozenset(
         "property_catalog_source_streams",
     }
 )
-_DATABASE_RE = re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +57,14 @@ class PropertyCatalogConnectionConfig:
 
     @classmethod
     def from_settings(cls, source: Any = django_settings):
+        source_users = {
+            str(
+                (getattr(source, "CLICKHOUSE_V2", {}) or {}).get("CH25_USER") or ""
+            ).strip(),
+            str(
+                (getattr(source, "CLICKHOUSE", {}) or {}).get("CH_USERNAME") or ""
+            ).strip(),
+        } - {""}
         config = cls(
             host=getattr(source, "PROPERTY_CATALOG_CH_HOST", None),
             port=getattr(source, "PROPERTY_CATALOG_CH_PORT", None),
@@ -61,51 +72,46 @@ class PropertyCatalogConnectionConfig:
             user=getattr(source, "PROPERTY_CATALOG_CH_USER", None),
             password=getattr(source, "PROPERTY_CATALOG_CH_PASSWORD", None),
         )
-        config.validate(
+        deployment = validate_property_catalog_read_admission(
+            read_mode=getattr(source, "PROPERTY_CATALOG_READ_MODE", "off"),
+            environment_type=getattr(source, "ENV_TYPE", None),
+            cloud_deployment=getattr(source, "CLOUD_DEPLOYMENT", None),
+            dev_acknowledgement=getattr(source, "PROPERTY_CATALOG_DEV_READ_ACK", None),
+            prod_acknowledgement=getattr(
+                source, "PROPERTY_CATALOG_PROD_READ_ACK", None
+            ),
             qualifier_database=getattr(source, "PROPERTY_CATALOG_DATABASE", None),
-            source_users={
-                str(
-                    (getattr(source, "CLICKHOUSE_V2", {}) or {}).get("CH25_USER") or ""
-                ).strip(),
-                str(
-                    (getattr(source, "CLICKHOUSE", {}) or {}).get("CH_USERNAME") or ""
-                ).strip(),
-            }
-            - {""},
+            connection_database=config.database,
+            host=config.host,
+            port=config.port,
+            api_read_user=config.user,
+            password=config.password,
+            source_users=source_users,
+            workspace_allowlist=getattr(
+                source, "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST", None
+            ),
         )
+        if deployment is None:
+            raise ValueError("property catalog reads are disabled")
         return config
 
-    def validate(self, *, qualifier_database: Any, source_users: set[str]) -> None:
-        if (
-            not isinstance(self.host, str)
-            or not self.host.strip()
-            or type(self.port) is not int
-            or not 1 <= self.port <= 65_535
-            or not isinstance(self.user, str)
-            or not self.user.strip()
-            or not isinstance(self.password, str)
-            or not self.password
-        ):
-            raise ValueError(
-                "complete dedicated property catalog ClickHouse settings are required"
-            )
-        if (
-            not isinstance(self.database, str)
-            or _DATABASE_RE.fullmatch(self.database) is None
-            or len(self.database.encode("utf-8")) > 128
-        ):
-            raise ValueError(
-                "property catalog database must be an isolated TH-7247 DEV identifier"
-            )
-        if qualifier_database != self.database:
-            raise ValueError(
-                "property catalog qualifier and connection databases must match"
-            )
-        if self.user in source_users:
-            raise ValueError(
-                "property catalog reads require a dedicated identity distinct "
-                "from source application users"
-            )
+    def validate(
+        self,
+        *,
+        qualifier_database: Any,
+        source_users: set[str],
+        deployment: str = "dev",
+    ) -> None:
+        validate_property_catalog_read_connection(
+            host=self.host,
+            port=self.port,
+            database=self.database,
+            qualifier_database=qualifier_database,
+            api_read_user=self.user,
+            password=self.password,
+            source_users=source_users,
+            deployment=deployment,
+        )
 
 
 _client: ClickHouseClient | None = None
@@ -245,4 +251,6 @@ __all__ = [
     "PropertyCatalogReadExecutor",
     "get_property_catalog_read_client",
     "reset_property_catalog_read_client",
+    "validate_property_catalog_database",
+    "validate_property_catalog_read_admission",
 ]

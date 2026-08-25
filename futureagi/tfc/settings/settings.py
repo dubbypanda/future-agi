@@ -64,6 +64,7 @@ EVAL_USAGE_CLICKHOUSE_ENABLED = os.getenv(
     "true",
 ).lower() in ("true", "1", "t", "yes", "y")
 
+
 def _split_env(name: str, default: str = "") -> list[str]:
     """Parse a comma-separated env var into a list."""
     raw = os.getenv(name, default)
@@ -1142,16 +1143,205 @@ if SPAN_ATTRIBUTE_CATALOG_READ_MODE == "read":
             "read identity distinct from source application users"
         )
 
-# Unified property-definition catalog. This is a separate, clean pre-release
-# path from the frozen span-attribute snapshot above. It resolves its immutable
+# Unified property-definition catalog. This is a separate read-only path from
+# the frozen span-attribute snapshot above. It resolves its immutable
 # epoch/revision from the activation ledger and therefore has no process-wide
-# epoch/window setting. Public admission remains DEV-only until the later,
-# separately approved production rollout.
+# epoch/window setting. Production reads remain off by default and require a
+# separate, exact acknowledgement; this admission policy does not enable any
+# writer, backfill, schema, or reconciliation path.
+PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT = (
+    "I_ACKNOWLEDGE_DEV_ONLY_UNIFIED_PROPERTY_CATALOG"
+)
+PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
+    "I_ACKNOWLEDGE_PROD_READ_ONLY_UNIFIED_PROPERTY_CATALOG"
+)
+PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
+_PROPERTY_CATALOG_DATABASE_PATTERNS = {
+    "dev": re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z"),
+    "prod": re.compile(r"\Ath7247_catalog_prod_[a-z0-9_]+\Z"),
+}
+
+
+def property_catalog_read_deployment(
+    environment_type: object,
+    cloud_deployment: object,
+) -> str:
+    """Classify one explicitly supported catalog read deployment."""
+
+    normalized_environment = (
+        environment_type.strip().lower() if isinstance(environment_type, str) else ""
+    )
+    normalized_cloud = (
+        cloud_deployment.strip().upper() if isinstance(cloud_deployment, str) else ""
+    )
+    if normalized_environment in {"dev", "development"} or (
+        normalized_environment == "staging" and normalized_cloud == "DEV"
+    ):
+        return "dev"
+    if normalized_environment == "production" and normalized_cloud != "DEV":
+        return "prod"
+    raise ValueError(
+        "unified property catalog reads require an explicitly supported DEV "
+        "or production deployment"
+    )
+
+
+def validate_property_catalog_database(
+    database: object,
+    *,
+    deployment: str | None = None,
+) -> str:
+    """Validate an isolated catalog identifier and optional deployment binding."""
+
+    if (
+        not isinstance(database, str)
+        or not database
+        or len(database.encode("utf-8")) > 128
+    ):
+        raise ValueError(
+            "property catalog database must be an isolated TH-7247 identifier"
+        )
+    matches = {
+        candidate
+        for candidate, pattern in _PROPERTY_CATALOG_DATABASE_PATTERNS.items()
+        if pattern.fullmatch(database) is not None
+    }
+    if len(matches) != 1:
+        raise ValueError(
+            "property catalog database must be an isolated TH-7247 identifier"
+        )
+    resolved_deployment = next(iter(matches))
+    if deployment is not None and deployment != resolved_deployment:
+        raise ValueError(
+            "property catalog database namespace does not match the deployment"
+        )
+    return database
+
+
+def validate_property_catalog_read_connection(
+    *,
+    host: object,
+    port: object,
+    database: object,
+    qualifier_database: object,
+    api_read_user: object,
+    password: object,
+    source_users: object,
+    deployment: str,
+) -> None:
+    """Validate the bounded, dedicated API connection for one deployment."""
+
+    validate_property_catalog_database(database, deployment=deployment)
+    if qualifier_database != database:
+        raise ValueError(
+            "property catalog qualifier and connection databases must match"
+        )
+    if (
+        not isinstance(host, str)
+        or not host.strip()
+        or type(port) is not int
+        or not 1 <= port <= 65_535
+        or not isinstance(api_read_user, str)
+        or not api_read_user.strip()
+        or not isinstance(password, str)
+        or not password
+    ):
+        raise ValueError(
+            "complete dedicated property catalog ClickHouse settings are required"
+        )
+    try:
+        normalized_source_users = {
+            str(user).strip() for user in source_users if str(user).strip()
+        }
+    except TypeError as exc:
+        raise ValueError("property catalog source users must be iterable") from exc
+    if api_read_user.strip() in normalized_source_users:
+        raise ValueError(
+            "property catalog reads require a dedicated API identity distinct "
+            "from source application users"
+        )
+
+
+def validate_property_catalog_read_admission(
+    *,
+    read_mode: object,
+    environment_type: object,
+    cloud_deployment: object,
+    dev_acknowledgement: object,
+    prod_acknowledgement: object,
+    qualifier_database: object,
+    connection_database: object,
+    host: object,
+    port: object,
+    api_read_user: object,
+    password: object,
+    source_users: object,
+    workspace_allowlist: object,
+) -> str | None:
+    """Fail closed unless one bounded DEV or production read is admitted."""
+
+    if read_mode not in {"off", "shadow", "read"}:
+        raise ValueError("PROPERTY_CATALOG_READ_MODE must be off, shadow, or read")
+    if read_mode == "off":
+        return None
+
+    deployment = property_catalog_read_deployment(
+        environment_type,
+        cloud_deployment,
+    )
+    if deployment == "dev":
+        acknowledgement = dev_acknowledgement
+        expected_acknowledgement = PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT
+        cross_wired_acknowledgement = prod_acknowledgement
+    else:
+        acknowledgement = prod_acknowledgement
+        expected_acknowledgement = PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT
+        cross_wired_acknowledgement = dev_acknowledgement
+    if (
+        acknowledgement != expected_acknowledgement
+        or cross_wired_acknowledgement not in {None, ""}
+    ):
+        raise ValueError(
+            "unified property catalog reads require the exact deployment-specific "
+            "acknowledgement"
+        )
+
+    validate_property_catalog_read_connection(
+        host=host,
+        port=port,
+        database=connection_database,
+        qualifier_database=qualifier_database,
+        api_read_user=api_read_user,
+        password=password,
+        source_users=source_users,
+        deployment=deployment,
+    )
+    if isinstance(workspace_allowlist, (str, bytes)):
+        raise ValueError(
+            "property catalog workspace allowlist must contain 1 to 256 entries"
+        )
+    try:
+        workspaces = tuple(workspace_allowlist)
+    except TypeError as exc:
+        raise ValueError(
+            "property catalog workspace allowlist must contain 1 to 256 entries"
+        ) from exc
+    if not 1 <= len(workspaces) <= PROPERTY_CATALOG_MAX_READ_WORKSPACES or any(
+        not isinstance(workspace, str) or not workspace.strip()
+        for workspace in workspaces
+    ):
+        raise ValueError(
+            "property catalog workspace allowlist must contain 1 to 256 entries"
+        )
+    return deployment
+
+
 PROPERTY_CATALOG_READ_MODE = (
     os.getenv("PROPERTY_CATALOG_READ_MODE", "off").strip().lower()
 )
 PROPERTY_CATALOG_DATABASE = os.getenv("PROPERTY_CATALOG_DATABASE", "").strip()
 PROPERTY_CATALOG_DEV_READ_ACK = os.getenv("PROPERTY_CATALOG_DEV_READ_ACK", "").strip()
+PROPERTY_CATALOG_PROD_READ_ACK = os.getenv("PROPERTY_CATALOG_PROD_READ_ACK", "").strip()
 PROPERTY_CATALOG_CH_HOST = os.getenv("PROPERTY_CATALOG_CH_HOST", "").strip()
 _property_catalog_ch_port_raw = os.getenv("PROPERTY_CATALOG_CH_PORT", "").strip()
 PROPERTY_CATALOG_CH_DATABASE = os.getenv("PROPERTY_CATALOG_CH_DATABASE", "").strip()
@@ -1341,49 +1531,25 @@ PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS = _bounded_env_int(
     ),
 )
 del _runtime_numeric_settings
-if PROPERTY_CATALOG_READ_MODE not in {"off", "shadow", "read"}:
-    raise ValueError("PROPERTY_CATALOG_READ_MODE must be off, shadow, or read")
-if PROPERTY_CATALOG_READ_MODE != "off":
-    if (
-        not _span_attribute_catalog_is_dev_deployment
-        or PROPERTY_CATALOG_DEV_READ_ACK
-        != "I_ACKNOWLEDGE_DEV_ONLY_UNIFIED_PROPERTY_CATALOG"
-    ):
-        raise ValueError(
-            "unified property catalog reads require DEV and explicit acknowledgement"
-        )
-    if (
-        not PROPERTY_CATALOG_DATABASE
-        or PROPERTY_CATALOG_DATABASE != PROPERTY_CATALOG_CH_DATABASE
-        or len(PROPERTY_CATALOG_DATABASE.encode("utf-8")) > 128
-        or re.fullmatch(
-            r"th7247_catalog_dev_[a-z0-9][a-z0-9_]*",
-            PROPERTY_CATALOG_DATABASE,
-        )
-        is None
-    ):
-        raise ValueError(
-            "unified property catalog reads require one isolated DEV database"
-        )
-    if (
-        not PROPERTY_CATALOG_CH_HOST
-        or not 1 <= PROPERTY_CATALOG_CH_PORT <= 65_535
-        or not PROPERTY_CATALOG_CH_USER
-        or not PROPERTY_CATALOG_CH_PASSWORD
-        or not PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST
-    ):
-        raise ValueError(
-            "unified property catalog reads require a dedicated connection and "
-            "workspace allowlist"
-        )
-    _property_catalog_source_users = {
+PROPERTY_CATALOG_READ_DEPLOYMENT = validate_property_catalog_read_admission(
+    read_mode=PROPERTY_CATALOG_READ_MODE,
+    environment_type=ENV_TYPE,
+    cloud_deployment=CLOUD_DEPLOYMENT,
+    dev_acknowledgement=PROPERTY_CATALOG_DEV_READ_ACK,
+    prod_acknowledgement=PROPERTY_CATALOG_PROD_READ_ACK,
+    qualifier_database=PROPERTY_CATALOG_DATABASE,
+    connection_database=PROPERTY_CATALOG_CH_DATABASE,
+    host=PROPERTY_CATALOG_CH_HOST,
+    port=PROPERTY_CATALOG_CH_PORT,
+    api_read_user=PROPERTY_CATALOG_CH_USER,
+    password=PROPERTY_CATALOG_CH_PASSWORD,
+    source_users={
         str(CLICKHOUSE_V2.get("CH25_USER") or "").strip(),
         str(CLICKHOUSE.get("CH_USERNAME") or "").strip(),
-    } - {""}
-    if PROPERTY_CATALOG_CH_USER in _property_catalog_source_users:
-        raise ValueError(
-            "unified property catalog reads require a dedicated ClickHouse identity"
-        )
+    }
+    - {""},
+    workspace_allowlist=PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST,
+)
 
 # Fail-closed: rollup routing requires both flag=on and window >= coverage date.
 # Set COVERED_SINCE (ISO-8601) after running rebuild_dashboard_attr_rollup.

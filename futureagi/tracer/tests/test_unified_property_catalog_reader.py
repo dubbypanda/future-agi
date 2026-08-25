@@ -77,6 +77,16 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "any(property_id) AS property_id" not in definitions_sql
 
 
+def test_property_reader_accepts_isolated_production_database_namespace() -> None:
+    reader = PropertyCatalogReader(
+        FakeExecutor([]),
+        catalog_database="th7247_catalog_prod_reader",
+    )
+
+    assert "`th7247_catalog_prod_reader`" in reader._activation_sql
+    assert "`th7247_catalog_prod_reader`" in reader._page_sql
+
+
 def _scope(*, project_ids=(PROJECT_ID,), workspace_scope=False):
     scope = {
         "principal_id": "user-1",

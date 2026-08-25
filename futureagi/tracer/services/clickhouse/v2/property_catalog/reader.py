@@ -21,6 +21,9 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     combine_search_text,
     like_contains_pattern,
 )
+from tracer.services.clickhouse.v2.property_catalog.connection import (
+    validate_property_catalog_database,
+)
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     PropertyCatalogCursor,
     decode_property_catalog_cursor,
@@ -53,7 +56,6 @@ PROPERTY_CATALOG_NOT_READY_REASONS = frozenset(
     }
 )
 
-_DATABASE_RE = re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z")
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 _API_DETAIL_KEYS = frozenset(
     {
@@ -920,13 +922,7 @@ GROUP BY
 
 
 def _database(value: str) -> str:
-    if (
-        not isinstance(value, str)
-        or _DATABASE_RE.fullmatch(value) is None
-        or len(value.encode("utf-8")) > 128
-    ):
-        raise ValueError("catalog database must be an isolated TH-7247 DEV identifier")
-    return value
+    return validate_property_catalog_database(value)
 
 
 def _qualified_activation_sql(database: str) -> str:

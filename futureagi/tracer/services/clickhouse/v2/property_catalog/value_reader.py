@@ -30,6 +30,9 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_json_sha256,
     like_contains_pattern,
 )
+from tracer.services.clickhouse.v2.property_catalog.connection import (
+    validate_property_catalog_database,
+)
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_scope,
 )
@@ -63,7 +66,6 @@ PROPERTY_CATALOG_VALUE_MAX_KEY_BYTES = MAX_IDENTITY_COMPONENT_BYTES
 PROPERTY_CATALOG_VALUE_MAX_JSON_BYTES = MAX_DEFINITION_JSON_BYTES
 PROPERTY_CATALOG_VALUE_QUERY_WALL_MS = RUNTIME_LIMITS.query_wall_ms
 
-_DATABASE_RE = re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z")
 _SHA256_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 _ATTRIBUTE_TYPE_RANK = {
     "string": 1,
@@ -596,13 +598,7 @@ LIMIT %(catalog_result_limit)s
 
 
 def _database(value: str) -> str:
-    if (
-        not isinstance(value, str)
-        or _DATABASE_RE.fullmatch(value) is None
-        or len(value.encode("utf-8")) > 128
-    ):
-        raise ValueError("catalog database must be an isolated TH-7247 DEV identifier")
-    return value
+    return validate_property_catalog_database(value)
 
 
 def _qualify(sql: str, database: str) -> str:

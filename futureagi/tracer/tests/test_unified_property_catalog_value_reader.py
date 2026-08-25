@@ -71,6 +71,16 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "any(property_id) AS property_id" not in definitions_sql
 
 
+def test_property_value_reader_accepts_isolated_production_database_namespace() -> None:
+    reader = PropertyCatalogValueReader(
+        FakeExecutor([]),
+        catalog_database="th7247_catalog_prod_values",
+    )
+
+    assert "`th7247_catalog_prod_values`" in reader._activation_sql
+    assert "`th7247_catalog_prod_values`" in reader._value_page_sql
+
+
 def test_value_rank_casts_qualified_raw_enum8_before_string_alias_rewrite() -> None:
     schema_sql = (
         Path(__file__).resolve().parents[1]

@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+from tfc.settings.settings import (
+    PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT,
+    PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT,
+)
 from tracer.services.clickhouse.v2.attribute_catalog_connection import (
     _validate_catalog_query,
 )
@@ -9,6 +15,8 @@ from tracer.services.clickhouse.v2.property_catalog.connection import (
     PROPERTY_CATALOG_TABLES,
     PropertyCatalogConnectionConfig,
     PropertyCatalogReadExecutor,
+    validate_property_catalog_database,
+    validate_property_catalog_read_admission,
 )
 from tracer.services.clickhouse.v2.property_catalog.reader import PropertyCatalogReader
 
@@ -19,6 +27,40 @@ CONFIG = PropertyCatalogConnectionConfig(
     user="property_catalog_reader",
     password="not-logged",
 )
+
+
+def _read_settings(**overrides):
+    values = {
+        "PROPERTY_CATALOG_READ_MODE": "read",
+        "ENV_TYPE": "development",
+        "CLOUD_DEPLOYMENT": "DEV",
+        "PROPERTY_CATALOG_DEV_READ_ACK": (PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT),
+        "PROPERTY_CATALOG_PROD_READ_ACK": "",
+        "PROPERTY_CATALOG_DATABASE": "th7247_catalog_dev_clean",
+        "PROPERTY_CATALOG_CH_HOST": "catalog.internal",
+        "PROPERTY_CATALOG_CH_PORT": 9440,
+        "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_dev_clean",
+        "PROPERTY_CATALOG_CH_USER": "property_catalog_reader",
+        "PROPERTY_CATALOG_CH_PASSWORD": "not-logged",
+        "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ("workspace-1",),
+        "CLICKHOUSE_V2": {"CH25_USER": "source_v2"},
+        "CLICKHOUSE": {"CH_USERNAME": "source_v1"},
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def _prod_settings(**overrides):
+    values = {
+        "ENV_TYPE": "production",
+        "CLOUD_DEPLOYMENT": "US",
+        "PROPERTY_CATALOG_DEV_READ_ACK": "",
+        "PROPERTY_CATALOG_PROD_READ_ACK": (PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT),
+        "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_clean",
+        "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_prod_clean",
+    }
+    values.update(overrides)
+    return _read_settings(**values)
 
 
 class FakeClient:
@@ -79,6 +121,185 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
                 qualifier_database=unsafe_database,
                 source_users=set(),
             )
+
+
+def test_property_catalog_connection_preserves_acknowledged_dev_admission():
+    assert PropertyCatalogConnectionConfig.from_settings(_read_settings()) == CONFIG
+
+
+@pytest.mark.parametrize("read_mode", ["read", "shadow"])
+def test_property_catalog_connection_admits_bounded_production_reads(read_mode):
+    config = PropertyCatalogConnectionConfig.from_settings(
+        _prod_settings(PROPERTY_CATALOG_READ_MODE=read_mode)
+    )
+
+    assert config.database == "th7247_catalog_prod_clean"
+    config.validate(
+        qualifier_database="th7247_catalog_prod_clean",
+        source_users={"source_v1", "source_v2"},
+        deployment="prod",
+    )
+
+
+def test_property_catalog_connection_accepts_maximum_production_allowlist():
+    source = _prod_settings(
+        PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST=tuple(
+            f"workspace-{index}" for index in range(256)
+        )
+    )
+
+    assert PropertyCatalogConnectionConfig.from_settings(source).database == (
+        "th7247_catalog_prod_clean"
+    )
+
+
+def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
+    source = _read_settings(
+        PROPERTY_CATALOG_READ_MODE="off",
+        PROPERTY_CATALOG_DEV_READ_ACK="",
+        PROPERTY_CATALOG_CH_HOST="",
+        PROPERTY_CATALOG_CH_PORT=0,
+        PROPERTY_CATALOG_CH_DATABASE="",
+        PROPERTY_CATALOG_DATABASE="",
+        PROPERTY_CATALOG_CH_USER="",
+        PROPERTY_CATALOG_CH_PASSWORD="",
+        PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST=(),
+    )
+
+    with pytest.raises(ValueError, match="disabled"):
+        PropertyCatalogConnectionConfig.from_settings(source)
+
+    assert (
+        validate_property_catalog_read_admission(
+            read_mode="off",
+            environment_type="production",
+            cloud_deployment="US",
+            dev_acknowledgement="wrong",
+            prod_acknowledgement="wrong",
+            qualifier_database="unsafe",
+            connection_database="unsafe",
+            host="",
+            port=0,
+            api_read_user="",
+            password="",
+            source_users=None,
+            workspace_allowlist=None,
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"ENV_TYPE": "prod"}, "supported DEV or production"),
+        ({"ENV_TYPE": "staging", "CLOUD_DEPLOYMENT": "US"}, "supported DEV"),
+        ({"CLOUD_DEPLOYMENT": "DEV"}, "supported DEV or production"),
+        (
+            {
+                "PROPERTY_CATALOG_PROD_READ_ACK": "wrong",
+            },
+            "deployment-specific acknowledgement",
+        ),
+        (
+            {
+                "PROPERTY_CATALOG_DEV_READ_ACK": (
+                    PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT
+                ),
+            },
+            "deployment-specific acknowledgement",
+        ),
+        (
+            {
+                "PROPERTY_CATALOG_DATABASE": "th7247_catalog_dev_clean",
+                "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_dev_clean",
+            },
+            "namespace does not match",
+        ),
+        (
+            {
+                "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_qualifier",
+            },
+            "qualifier and connection databases must match",
+        ),
+        (
+            {"PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ()},
+            "allowlist must contain 1 to 256",
+        ),
+        (
+            {
+                "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": tuple(
+                    f"workspace-{index}" for index in range(257)
+                )
+            },
+            "allowlist must contain 1 to 256",
+        ),
+        (
+            {"PROPERTY_CATALOG_CH_USER": "source_v2"},
+            "dedicated API identity",
+        ),
+        (
+            {"PROPERTY_CATALOG_CH_USER": "source_v1"},
+            "dedicated API identity",
+        ),
+    ],
+)
+def test_property_catalog_production_admission_fails_closed(overrides, message):
+    with pytest.raises(ValueError, match=message):
+        PropertyCatalogConnectionConfig.from_settings(_prod_settings(**overrides))
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {
+            "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_clean",
+            "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_prod_clean",
+        },
+        {
+            "PROPERTY_CATALOG_DEV_READ_ACK": "",
+            "PROPERTY_CATALOG_PROD_READ_ACK": (
+                PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT
+            ),
+        },
+    ],
+)
+def test_property_catalog_dev_admission_rejects_production_cross_wiring(overrides):
+    with pytest.raises(ValueError):
+        PropertyCatalogConnectionConfig.from_settings(_read_settings(**overrides))
+
+
+@pytest.mark.parametrize(
+    ("database", "deployment"),
+    [
+        ("th7247_catalog_dev_clean", "dev"),
+        ("th7247_catalog_prod_clean", "prod"),
+        ("th7247_catalog_prod__", "prod"),
+    ],
+)
+def test_property_catalog_database_validator_accepts_exact_namespaces(
+    database, deployment
+):
+    assert (
+        validate_property_catalog_database(database, deployment=deployment) == database
+    )
+
+
+@pytest.mark.parametrize(
+    ("database", "deployment"),
+    [
+        ("th7247_catalog_prod_clean", "dev"),
+        ("th7247_catalog_dev_clean", "prod"),
+        ("th7247_catalog_prod_", "prod"),
+        ("th7247_catalog_prod_BAD", "prod"),
+        ("th7247_catalog_prod_bad-name", "prod"),
+    ],
+)
+def test_property_catalog_database_validator_rejects_cross_wiring_and_unsafe_names(
+    database, deployment
+):
+    with pytest.raises(ValueError):
+        validate_property_catalog_database(database, deployment=deployment)
 
 
 def test_property_catalog_executor_reads_only_allowlisted_qualified_tables():
