@@ -377,7 +377,7 @@ type hotSubmission struct {
 	streams     []streamKey
 }
 
-// HotRuntime is the isolated, development-only collector-side producer. The
+// HotRuntime is the isolated, explicitly environment-gated collector-side producer. The
 // server transfers a bounded copy of canonical spans to it only after the span
 // insert succeeds. A separate fsync spool and synchronous Kafka ACK chain mean
 // catalog failure cannot enter the canonical span dead-letter path.

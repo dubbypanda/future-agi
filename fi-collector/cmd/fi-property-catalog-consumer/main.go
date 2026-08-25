@@ -1,5 +1,5 @@
-// Command fi-property-catalog-consumer is the default-off, development-only
-// Kafka delivery side of the unified property catalog v1. Its sink is closed
+// Command fi-property-catalog-consumer is the default-off Kafka delivery side
+// of the unified property catalog v1. Its sink is closed
 // over property_definition_catalog, span_attribute_value_catalog, and
 // property_catalog_deliveries; it has no canonical-span table API.
 package main
@@ -25,6 +25,7 @@ const (
 	envConsumerMode = "FI_PROPERTY_CATALOG_CONSUMER_MODE"
 	envEnvironment  = "FI_PROPERTY_CATALOG_ENVIRONMENT"
 	envDevAck       = "FI_PROPERTY_CATALOG_DEV_ACK"
+	envProdAck      = "FI_PROPERTY_CATALOG_PROD_ACK"
 
 	envClickHouseURL      = "FI_PROPERTY_CATALOG_CH_URL"
 	envClickHouseDatabase = "FI_PROPERTY_CATALOG_CH_DATABASE"
@@ -39,6 +40,7 @@ const (
 	envKafkaBrokers = "FI_PROPERTY_CATALOG_KAFKA_BROKERS"
 	envKafkaTopic   = "FI_PROPERTY_CATALOG_KAFKA_TOPIC"
 	envKafkaGroup   = "FI_PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP"
+	envKafkaClient  = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
 	envDeliveryWall = "FI_PROPERTY_CATALOG_DELIVERY_TIMEOUT"
 
 	consumerModeKafka      = "kafka"
@@ -191,13 +193,12 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 	if value, _ := lookup(envConsumerMode); value != consumerModeKafka {
 		return commandConfig{}, fmt.Errorf("%s must equal %q exactly", envConsumerMode, consumerModeKafka)
 	}
-	if value, _ := lookup(envEnvironment); value != propertycatalog.DevelopmentEnvironment {
-		return commandConfig{}, fmt.Errorf(
-			"%s must equal %q exactly", envEnvironment, propertycatalog.DevelopmentEnvironment,
-		)
+	environment, err := validatedEnvironment(lookup)
+	if err != nil {
+		return commandConfig{}, err
 	}
-	if value, _ := lookup(envDevAck); value != propertycatalog.DevelopmentAcknowledgement {
-		return commandConfig{}, fmt.Errorf("%s does not contain the exact development-only acknowledgement", envDevAck)
+	if environment == propertycatalog.ProductionEnvironment && *sequenceOne {
+		return commandConfig{}, errors.New("production requires --seed-from-delivery-ledger")
 	}
 	deliveryTimeout, err := boundedDeliveryTimeout(lookup)
 	if err != nil {
@@ -210,6 +211,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 		envClickHouseDatabase,
 		envClickHouseUsername,
 		envClickHousePassword,
+		environment,
 		deliveryTimeout,
 	)
 	if err != nil {
@@ -228,7 +230,14 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 		return commandConfig{}, err
 	}
 	brokers := strings.Split(brokersText, ",")
-	if err := validateKafkaConfig(brokers, topic, group); err != nil {
+	clientID := map[string]string{
+		propertycatalog.DevelopmentEnvironment: "fi-property-catalog-consumer-v1-dev",
+		propertycatalog.ProductionEnvironment:  "fi-property-catalog-consumer-v1-prod",
+	}[environment]
+	if value, present := lookup(envKafkaClient); present {
+		clientID = value
+	}
+	if err := validateKafkaConfig(brokers, topic, group, clientID); err != nil {
 		return commandConfig{}, err
 	}
 
@@ -238,6 +247,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 		envLedgerDatabase,
 		envLedgerUsername,
 		envLedgerPassword,
+		environment,
 		deliveryTimeout,
 	)
 	if err != nil {
@@ -253,7 +263,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 		write:  write,
 		ledger: ledgerConfig,
 		kafka: propertycatalog.FranzConsumerConfig{
-			Brokers: brokers, Topic: topic, GroupID: group,
+			Brokers: brokers, Topic: topic, GroupID: group, ClientID: clientID,
 		},
 		seed: seedSequenceOne, delivery: deliveryTimeout,
 	}
@@ -266,6 +276,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 func clickHouseConfig(
 	lookup lookupEnvFunc,
 	urlName, databaseName, usernameName, passwordName string,
+	environment string,
 	requestTimeout time.Duration,
 ) (propertycatalog.ClickHouseSinkConfig, error) {
 	urlValue, err := requireEnv(lookup, urlName, false)
@@ -286,14 +297,36 @@ func clickHouseConfig(
 	}
 	cfg := propertycatalog.ClickHouseSinkConfig{
 		URL: urlValue, Database: database, Username: username, Password: password,
-		RequestTimeout: requestTimeout,
+		Environment: environment, RequestTimeout: requestTimeout,
 	}
-	// Constructor validation is local-only and makes the isolated DEV database
-	// prefix part of configuration parsing, before a ledger read or Kafka client.
+	// Constructor validation is local-only and binds the isolated database
+	// prefix to the exact environment before a ledger read or Kafka client.
 	if _, err := propertycatalog.NewClickHouseSink(cfg); err != nil {
 		return propertycatalog.ClickHouseSinkConfig{}, fmt.Errorf("%s: %w", databaseName, err)
 	}
 	return cfg, nil
+}
+
+func validatedEnvironment(lookup lookupEnvFunc) (string, error) {
+	environment, err := requireEnv(lookup, envEnvironment, false)
+	if err != nil {
+		return "", err
+	}
+	devAck, _ := lookup(envDevAck)
+	prodAck, _ := lookup(envProdAck)
+	switch environment {
+	case propertycatalog.DevelopmentEnvironment:
+		if devAck != propertycatalog.DevelopmentAcknowledgement || prodAck != "" {
+			return "", errors.New("development consumer requires only the exact development acknowledgement")
+		}
+	case propertycatalog.ProductionEnvironment:
+		if prodAck != propertycatalog.ProductionAcknowledgement || devAck != "" {
+			return "", errors.New("production consumer requires only the exact production acknowledgement")
+		}
+	default:
+		return "", fmt.Errorf("%s must be an exact supported environment", envEnvironment)
+	}
+	return environment, nil
 }
 
 func boundedDeliveryTimeout(lookup lookupEnvFunc) (time.Duration, error) {
@@ -326,7 +359,7 @@ func requireEnv(lookup lookupEnvFunc, name string, allowEmpty bool) (string, err
 	return value, nil
 }
 
-func validateKafkaConfig(brokers []string, topic, group string) error {
+func validateKafkaConfig(brokers []string, topic, group, clientID string) error {
 	if len(brokers) == 0 || len(brokers) > propertycatalog.MaxKafkaBrokers {
 		return errors.New("property catalog Kafka requires 1..16 brokers")
 	}
@@ -349,8 +382,9 @@ func validateKafkaConfig(brokers []string, topic, group string) error {
 			return errors.New("property catalog Kafka topic contains an invalid character")
 		}
 	}
-	if !safeKafkaText(group, propertycatalog.MaxKafkaIdentityBytes) {
-		return errors.New("property catalog Kafka consumer group is invalid")
+	if !safeKafkaText(group, propertycatalog.MaxKafkaIdentityBytes) ||
+		!safeKafkaText(clientID, propertycatalog.MaxKafkaIdentityBytes) {
+		return errors.New("property catalog Kafka consumer group/client identity is invalid")
 	}
 	return nil
 }

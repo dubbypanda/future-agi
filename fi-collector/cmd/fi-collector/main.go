@@ -64,6 +64,7 @@ const (
 	envPropertyCatalogMaxSpoolFiles          = "FI_PROPERTY_CATALOG_MAX_SPOOL_FILES"
 	envPropertyCatalogMaxSpoolBytes          = "FI_PROPERTY_CATALOG_MAX_SPOOL_BYTES"
 	envPropertyCatalogKafkaDeliveryTimeout   = "FI_PROPERTY_CATALOG_KAFKA_DELIVERY_TIMEOUT"
+	envPropertyCatalogKafkaClientID          = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
 )
 
 func main() {
@@ -207,6 +208,7 @@ func main() {
 		propertyProducer, err = propertycatalog.NewFranzProducer(propertycatalog.FranzProducerConfig{
 			Brokers:         cfg.PropertyCatalog.Kafka.Brokers,
 			Topic:           cfg.PropertyCatalog.Kafka.Topic,
+			ClientID:        cfg.PropertyCatalog.Kafka.ClientID,
 			DeliveryTimeout: cfg.PropertyCatalog.Kafka.DeliveryTimeout,
 		})
 		if err != nil {
@@ -509,6 +511,9 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	if v := os.Getenv("FI_PROPERTY_CATALOG_DEV_ACK"); v != "" {
 		c.PropertyCatalog.DevelopmentAcknowledgement = v
 	}
+	if v := os.Getenv("FI_PROPERTY_CATALOG_PROD_ACK"); v != "" {
+		c.PropertyCatalog.ProductionAcknowledgement = v
+	}
 	if v := os.Getenv("FI_PROPERTY_CATALOG_EPOCH"); v != "" {
 		epoch, err := strconv.ParseUint(v, 10, 16)
 		if err != nil || epoch == 0 {
@@ -579,6 +584,9 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	}
 	if v := os.Getenv("FI_PROPERTY_CATALOG_KAFKA_TOPIC"); v != "" {
 		c.PropertyCatalog.Kafka.Topic = v
+	}
+	if v := os.Getenv(envPropertyCatalogKafkaClientID); v != "" {
+		c.PropertyCatalog.Kafka.ClientID = v
 	}
 	if err := c.Catalog.ValidateMode(); err != nil {
 		return err

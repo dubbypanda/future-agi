@@ -19,9 +19,13 @@ const (
 	RuntimeKafka    RuntimeMode = "kafka"
 
 	DevelopmentEnvironment = "development"
+	ProductionEnvironment  = "production"
 	// DevelopmentAcknowledgement is deliberately long and version-specific so
 	// copying only FI_PROPERTY_CATALOG_MODE cannot activate the writer.
 	DevelopmentAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY"
+	// ProductionAcknowledgement is deliberately distinct from the DEV gate. A
+	// copied DEV deployment cannot target the production-only catalog prefix.
+	ProductionAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_PRODUCTION"
 
 	defaultReplayInterval               = time.Second
 	defaultShutdownTimeout              = 10 * time.Second
@@ -58,6 +62,7 @@ const (
 type KafkaRuntimeConfig struct {
 	Brokers         []string      `yaml:"brokers"`
 	Topic           string        `yaml:"topic"`
+	ClientID        string        `yaml:"client_id"`
 	DeliveryTimeout time.Duration `yaml:"delivery_timeout"`
 }
 
@@ -67,6 +72,7 @@ type RuntimeConfig struct {
 	Mode                       RuntimeMode        `yaml:"mode"`
 	Environment                string             `yaml:"environment"`
 	DevelopmentAcknowledgement string             `yaml:"development_acknowledgement"`
+	ProductionAcknowledgement  string             `yaml:"production_acknowledgement"`
 	CatalogEpoch               uint16             `yaml:"catalog_epoch"`
 	ProjectionVersion          uint16             `yaml:"projection_version"`
 	ProducerStreamID           string             `yaml:"producer_stream_id"`
@@ -131,6 +137,14 @@ func (c RuntimeConfig) WithDefaults() RuntimeConfig {
 	if c.Kafka.DeliveryTimeout == 0 {
 		c.Kafka.DeliveryTimeout = DefaultDeliveryTransportTimeout
 	}
+	if c.Kafka.ClientID == "" {
+		switch c.Environment {
+		case DevelopmentEnvironment:
+			c.Kafka.ClientID = "fi-collector-property-catalog-v1-dev"
+		case ProductionEnvironment:
+			c.Kafka.ClientID = "fi-collector-property-catalog-v1-prod"
+		}
+	}
 	return c
 }
 
@@ -144,9 +158,8 @@ func (c RuntimeConfig) Validate() error {
 		return fmt.Errorf("propertycatalog: invalid runtime mode %q", c.Mode)
 	}
 	c = c.WithDefaults()
-	if c.Environment != DevelopmentEnvironment ||
-		c.DevelopmentAcknowledgement != DevelopmentAcknowledgement {
-		return errors.New("propertycatalog: unified ingestion is development-only and requires the exact acknowledgement")
+	if err := c.validateEnvironmentAcknowledgement(); err != nil {
+		return err
 	}
 	if c.CatalogEpoch == 0 || c.ProjectionVersion == 0 {
 		return errors.New("propertycatalog: enabled runtime requires positive epoch and projection version")
@@ -218,8 +231,30 @@ func (c RuntimeConfig) Validate() error {
 			return errors.New("propertycatalog: Kafka broker is empty, padded, or too long")
 		}
 	}
+	if c.Kafka.ClientID == "" || strings.TrimSpace(c.Kafka.ClientID) != c.Kafka.ClientID ||
+		len(c.Kafka.ClientID) > MaxKafkaIdentityBytes {
+		return errors.New("propertycatalog: Kafka client ID is empty, padded, or too long")
+	}
 	if err := validateTopic(c.Kafka.Topic); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (c RuntimeConfig) validateEnvironmentAcknowledgement() error {
+	switch c.Environment {
+	case DevelopmentEnvironment:
+		if c.DevelopmentAcknowledgement != DevelopmentAcknowledgement ||
+			c.ProductionAcknowledgement != "" {
+			return errors.New("propertycatalog: development ingestion requires only the exact development acknowledgement")
+		}
+	case ProductionEnvironment:
+		if c.ProductionAcknowledgement != ProductionAcknowledgement ||
+			c.DevelopmentAcknowledgement != "" {
+			return errors.New("propertycatalog: production ingestion requires only the exact production acknowledgement")
+		}
+	default:
+		return errors.New("propertycatalog: enabled runtime requires an exact supported environment")
 	}
 	return nil
 }

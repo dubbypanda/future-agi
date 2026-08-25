@@ -24,7 +24,7 @@ func validRuntimeConfig(t *testing.T, workspaces ...string) RuntimeConfig {
 	}
 }
 
-func TestRuntimeConfigDefaultsDisabledAndEnabledModeIsDevKafkaOnly(t *testing.T) {
+func TestRuntimeConfigDefaultsDisabledAndEnabledModesRequireEnvironmentSpecificAcknowledgement(t *testing.T) {
 	if mode, err := (RuntimeConfig{}).SelectedMode(); err != nil || mode != RuntimeDisabled {
 		t.Fatalf("zero mode=%q err=%v", mode, err)
 	}
@@ -36,12 +36,27 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModeIsDevKafkaOnly(t *testing.T)
 	if defaults.QueueDepth != defaultQueueDepth ||
 		defaults.ShutdownTimeout != defaultShutdownTimeout ||
 		defaults.MaxChunkRows != defaultMaxChunkRows ||
-		defaults.Kafka.DeliveryTimeout != DefaultDeliveryTransportTimeout {
+		defaults.Kafka.DeliveryTimeout != DefaultDeliveryTransportTimeout ||
+		defaults.Kafka.ClientID != "fi-collector-property-catalog-v1-dev" {
 		t.Fatalf("defaults=%+v", defaults)
+	}
+	production := cfg
+	production.Environment = ProductionEnvironment
+	production.DevelopmentAcknowledgement = ""
+	production.ProductionAcknowledgement = ProductionAcknowledgement
+	if mode, err := production.SelectedMode(); err != nil || mode != RuntimeKafka {
+		t.Fatalf("production mode=%q err=%v", mode, err)
+	}
+	if clientID := production.WithDefaults().Kafka.ClientID; clientID != "fi-collector-property-catalog-v1-prod" {
+		t.Fatalf("production client ID=%q", clientID)
 	}
 
 	for name, mutate := range map[string]func(*RuntimeConfig){
-		"production":              func(c *RuntimeConfig) { c.Environment = "production" },
+		"production with dev acknowledgement": func(c *RuntimeConfig) { c.Environment = ProductionEnvironment },
+		"both acknowledgements": func(c *RuntimeConfig) {
+			c.ProductionAcknowledgement = ProductionAcknowledgement
+		},
+		"unknown environment":     func(c *RuntimeConfig) { c.Environment = "staging" },
 		"missing acknowledgement": func(c *RuntimeConfig) { c.DevelopmentAcknowledgement = "" },
 		"missing fence":           func(c *RuntimeConfig) { c.RevisionFenceFile = "" },
 		"direct-like destination": func(c *RuntimeConfig) { c.Kafka.Brokers = nil },

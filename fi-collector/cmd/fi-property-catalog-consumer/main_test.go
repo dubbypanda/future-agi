@@ -40,6 +40,18 @@ func ledgerEnvironment() map[string]string {
 	return validEnvironment()
 }
 
+func productionEnvironment() map[string]string {
+	values := validEnvironment()
+	values[envEnvironment] = propertycatalog.ProductionEnvironment
+	delete(values, envDevAck)
+	values[envProdAck] = propertycatalog.ProductionAcknowledgement
+	values[envClickHouseDatabase] = "th7247_catalog_prod_20260823a"
+	values[envLedgerDatabase] = "th7247_catalog_prod_20260823a"
+	values[envKafkaTopic] = "futureagi.prod.property-catalog.v1"
+	values[envKafkaGroup] = "futureagi.prod.property-catalog.consumer.v1"
+	return values
+}
+
 func mapLookup(values map[string]string) lookupEnvFunc {
 	return func(name string) (string, bool) {
 		value, present := values[name]
@@ -91,6 +103,48 @@ func TestUnifiedConsumerSeedModeIsExplicitAndExclusive(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "exactly one") {
 			t.Fatalf("args=%v error=%v", args, err)
 		}
+	}
+}
+
+func TestProductionConsumerRequiresExactGateMatchingDatabaseAndLedgerSeed(t *testing.T) {
+	cfg, err := loadConfig(
+		[]string{"--seed-from-delivery-ledger"}, mapLookup(productionEnvironment()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.write.Environment != propertycatalog.ProductionEnvironment ||
+		cfg.write.Database != "th7247_catalog_prod_20260823a" ||
+		cfg.kafka.ClientID != "fi-property-catalog-consumer-v1-prod" ||
+		cfg.seed != seedDeliveryLedger {
+		t.Fatalf("production config=%+v", cfg)
+	}
+	if _, err := loadConfig(
+		[]string{"--start-sequence-one-only"}, mapLookup(productionEnvironment()),
+	); err == nil || !strings.Contains(err.Error(), "seed-from-delivery-ledger") {
+		t.Fatalf("production sequence-one error=%v", err)
+	}
+
+	for name, mutate := range map[string]func(map[string]string){
+		"dev database": func(values map[string]string) {
+			values[envClickHouseDatabase] = "th7247_catalog_dev_wrong"
+		},
+		"dev acknowledgement": func(values map[string]string) {
+			values[envDevAck] = propertycatalog.DevelopmentAcknowledgement
+		},
+		"empty client ID": func(values map[string]string) {
+			values[envKafkaClient] = ""
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := productionEnvironment()
+			mutate(values)
+			if _, err := loadConfig(
+				[]string{"--seed-from-delivery-ledger"}, mapLookup(values),
+			); err == nil {
+				t.Fatal("unsafe production configuration was accepted")
+			}
+		})
 	}
 }
 

@@ -33,7 +33,8 @@ func TestClickHouseSinkPinsOnlyNewCatalogTablesAndExactColumns(t *testing.T) {
 	})
 	sink, err := NewClickHouseSink(ClickHouseSinkConfig{
 		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test",
-		Username: "property_writer", Password: "secret", RequestTimeout: time.Second,
+		Environment: DevelopmentEnvironment,
+		Username:    "property_writer", Password: "secret", RequestTimeout: time.Second,
 		RoundTripper: transport,
 	})
 	if err != nil {
@@ -73,15 +74,18 @@ func TestClickHouseSinkPinsOnlyNewCatalogTablesAndExactColumns(t *testing.T) {
 
 func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T) {
 	for _, cfg := range []ClickHouseSinkConfig{
-		{URL: "http://clickhouse:8123/?query=DROP", Database: "th7247_catalog_dev_sink_test", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "catalog;DROP", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test", Username: ""},
-		{URL: "http://clickhouse:8123", Database: "futureagi", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "default", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "system", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_Bad", Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "TH7247_catalog_dev_bad", Username: "writer"},
+		{URL: "http://clickhouse:8123/?query=DROP", Database: "th7247_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "catalog;DROP", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: ""},
+		{URL: "http://clickhouse:8123", Database: "futureagi", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "default", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "system", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_prod_real", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_real", Environment: ProductionEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_prod_real", Environment: "staging", Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_Bad", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "TH7247_catalog_dev_bad", Environment: DevelopmentEnvironment, Username: "writer"},
 	} {
 		if _, err := NewClickHouseSink(cfg); err == nil {
 			t.Fatalf("unsafe sink config accepted: %+v", cfg)
@@ -90,6 +94,7 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 	called := false
 	sink, err := NewClickHouseSink(ClickHouseSinkConfig{
 		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test", Username: "writer",
+		Environment: DevelopmentEnvironment,
 		RoundTripper: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			called = true
 			return nil, nil
@@ -103,5 +108,14 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 	}
 	if called {
 		t.Fatal("unsafe row reached HTTP transport")
+	}
+}
+
+func TestClickHouseSinkAcceptsOnlyMatchingProductionCatalogPrefix(t *testing.T) {
+	if _, err := NewClickHouseSink(ClickHouseSinkConfig{
+		URL: "https://clickhouse:8443", Database: "th7247_catalog_prod_20260823a",
+		Environment: ProductionEnvironment, Username: "property_writer",
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

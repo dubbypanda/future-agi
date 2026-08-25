@@ -4,6 +4,15 @@ Status: implemented and qualified on DEV on 2026-08-18. All 90 eligible DEV
 workspaces are activated in the isolated catalog and the authenticated read
 path is enabled for those workspaces. No production rollout is authorized.
 
+The runtime also carries a dormant production deployment contract. It requires
+a production-only acknowledgement, rejects DEV catalog database names, and
+keeps the 1..256 workspace allowlist/revision-fence bound. This is a canary
+mechanism, not authorization for a production activation or an all-workspace
+hot-ingestion claim. In particular, it must not be enabled inside the
+autoscaled collector deployment: the current local sequence/spool ownership
+does not provide distributed single-writer failover for the one ordered hot
+stream.
+
 ## 1. Objective
 
 All property definitions must be searched and paginated from one ClickHouse

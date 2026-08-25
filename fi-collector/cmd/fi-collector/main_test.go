@@ -216,7 +216,7 @@ func setUnifiedPropertyCatalogEnv(t *testing.T) {
 	t.Setenv("FI_PROPERTY_CATALOG_KAFKA_TOPIC", "property-catalog-v1-dev")
 }
 
-func TestUnifiedPropertyCatalogEnvironmentIsExplicitDevKafkaOnly(t *testing.T) {
+func TestUnifiedPropertyCatalogEnvironmentIsExplicitAndDefaultsToDevClientIdentity(t *testing.T) {
 	setUnifiedPropertyCatalogEnv(t)
 	var cfg rootConfig
 	if err := applyEnvOverrides(slog.Default(), &cfg); err != nil {
@@ -224,8 +224,26 @@ func TestUnifiedPropertyCatalogEnvironmentIsExplicitDevKafkaOnly(t *testing.T) {
 	}
 	if cfg.PropertyCatalog.Mode != propertycatalog.RuntimeKafka ||
 		cfg.PropertyCatalog.Environment != propertycatalog.DevelopmentEnvironment ||
-		cfg.PropertyCatalog.ProjectionVersion != 1 || len(cfg.PropertyCatalog.WorkspaceAllowlist) != 1 {
+		cfg.PropertyCatalog.ProjectionVersion != 1 || len(cfg.PropertyCatalog.WorkspaceAllowlist) != 1 ||
+		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-catalog-v1-dev" {
 		t.Fatalf("property catalog config=%+v", cfg.PropertyCatalog)
+	}
+}
+
+func TestUnifiedPropertyCatalogAcceptsOnlyExactProductionGate(t *testing.T) {
+	setUnifiedPropertyCatalogEnv(t)
+	t.Setenv("FI_PROPERTY_CATALOG_ENVIRONMENT", propertycatalog.ProductionEnvironment)
+	t.Setenv("FI_PROPERTY_CATALOG_DEV_ACK", "")
+	t.Setenv("FI_PROPERTY_CATALOG_PROD_ACK", propertycatalog.ProductionAcknowledgement)
+	t.Setenv("FI_PROPERTY_CATALOG_KAFKA_TOPIC", "futureagi.prod.property-catalog.v1")
+	var cfg rootConfig
+	if err := applyEnvOverrides(slog.Default(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PropertyCatalog.Environment != propertycatalog.ProductionEnvironment ||
+		cfg.PropertyCatalog.ProductionAcknowledgement != propertycatalog.ProductionAcknowledgement ||
+		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-catalog-v1-prod" {
+		t.Fatalf("production property catalog config=%+v", cfg.PropertyCatalog)
 	}
 }
 
@@ -280,15 +298,17 @@ func TestUnifiedPropertyCatalogOperationalLimitsRejectInvalidEnvironment(t *test
 	}
 }
 
-func TestUnifiedPropertyCatalogRejectsProductionAndLegacyCoactivation(t *testing.T) {
+func TestUnifiedPropertyCatalogRejectsMismatchedProductionGateAndLegacyCoactivation(t *testing.T) {
 	setUnifiedPropertyCatalogEnv(t)
 	t.Setenv("FI_PROPERTY_CATALOG_ENVIRONMENT", "production")
 	if err := applyEnvOverrides(slog.Default(), &rootConfig{}); err == nil ||
-		!strings.Contains(err.Error(), "development-only") {
+		!strings.Contains(err.Error(), "production acknowledgement") {
 		t.Fatalf("production error=%v", err)
 	}
 
 	t.Setenv("FI_PROPERTY_CATALOG_ENVIRONMENT", "development")
+	t.Setenv("FI_PROPERTY_CATALOG_DEV_ACK", propertycatalog.DevelopmentAcknowledgement)
+	t.Setenv("FI_PROPERTY_CATALOG_PROD_ACK", "")
 	t.Setenv("FI_CATALOG_MODE", "kafka")
 	t.Setenv("FI_CATALOG_ENVIRONMENT", "development")
 	t.Setenv("FI_CATALOG_EPOCH", "102")

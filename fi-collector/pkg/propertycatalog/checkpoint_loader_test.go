@@ -172,7 +172,8 @@ func checkpointLoaderForResponse(t *testing.T, body string, inspect func(*http.R
 	})
 	loader, err := NewClickHouseCheckpointLoader(ClickHouseSinkConfig{
 		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_checkpoint_test",
-		Username: "ledger_reader", Password: "secret", RequestTimeout: time.Second,
+		Environment: DevelopmentEnvironment,
+		Username:    "ledger_reader", Password: "secret", RequestTimeout: time.Second,
 		RoundTripper: transport,
 	})
 	if err != nil {
@@ -187,7 +188,8 @@ func checkpointLoaderForTransport(
 	t.Helper()
 	loader, err := NewClickHouseCheckpointLoader(ClickHouseSinkConfig{
 		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_checkpoint_test",
-		Username: "ledger_reader", Password: "secret", RequestTimeout: time.Second,
+		Environment: DevelopmentEnvironment,
+		Username:    "ledger_reader", Password: "secret", RequestTimeout: time.Second,
 		RoundTripper: roundTripFunc(transport),
 	})
 	if err != nil {

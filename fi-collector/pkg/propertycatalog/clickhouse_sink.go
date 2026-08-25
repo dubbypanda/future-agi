@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	maxCatalogInsertBytes    = 16 << 20
-	devCatalogDatabasePrefix = "th7247_catalog_dev_"
+	maxCatalogInsertBytes     = 16 << 20
+	devCatalogDatabasePrefix  = "th7247_catalog_dev_"
+	prodCatalogDatabasePrefix = "th7247_catalog_prod_"
 )
 
 var definitionColumns = []string{
@@ -46,6 +47,7 @@ var deliveryColumns = []string{
 type ClickHouseSinkConfig struct {
 	URL            string
 	Database       string
+	Environment    string
 	Username       string
 	Password       string
 	RequestTimeout time.Duration
@@ -70,9 +72,9 @@ func NewClickHouseSink(cfg ClickHouseSinkConfig) (*ClickHouseSink, error) {
 		(parsed.Path != "" && parsed.Path != "/") {
 		return nil, errors.New("propertycatalog: ClickHouse URL must be a bare http(s) origin")
 	}
-	if !safeDevClickHouseDatabase(cfg.Database) {
+	if !safeClickHouseDatabase(cfg.Environment, cfg.Database) {
 		return nil, errors.New(
-			"propertycatalog: ClickHouse database must be an isolated lowercase th7247_catalog_dev_<suffix> target",
+			"propertycatalog: ClickHouse database must match the exact environment-specific isolated catalog prefix",
 		)
 	}
 	if cfg.Username == "" || strings.TrimSpace(cfg.Username) != cfg.Username || len(cfg.Username) > 255 {
@@ -178,12 +180,20 @@ func (s *ClickHouseSink) insert(ctx context.Context, table string, columns []str
 	return nil
 }
 
-func safeDevClickHouseDatabase(value string) bool {
-	if len(value) <= len(devCatalogDatabasePrefix) || len(value) > 128 ||
-		!strings.HasPrefix(value, devCatalogDatabasePrefix) {
+func safeClickHouseDatabase(environment, value string) bool {
+	prefix := ""
+	switch environment {
+	case DevelopmentEnvironment:
+		prefix = devCatalogDatabasePrefix
+	case ProductionEnvironment:
+		prefix = prodCatalogDatabasePrefix
+	default:
 		return false
 	}
-	for index, char := range value[len(devCatalogDatabasePrefix):] {
+	if len(value) <= len(prefix) || len(value) > 128 || !strings.HasPrefix(value, prefix) {
+		return false
+	}
+	for index, char := range value[len(prefix):] {
 		if char > unicode.MaxASCII || (!(char >= 'a' && char <= 'z') &&
 			!(char >= '0' && char <= '9') && char != '_') || (index == 0 && char == '_') {
 			return false
