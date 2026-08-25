@@ -814,6 +814,43 @@ describe("catalog search global property supplements", () => {
     ).toBe(serverCounts);
   });
 
+  it("keeps a same-key raw Attribute separate from canonical System Tokens", () => {
+    const rawAttribute = {
+      id: "gen_ai.usage.total_tokens",
+      registryId: "custom_attribute:gen_ai.usage.total_tokens",
+      name: "gen_ai.usage.total_tokens",
+      category: "attribute",
+      rawCategory: "custom_attribute",
+      apiColType: "SPAN_ATTRIBUTE",
+      type: "number",
+    };
+    const attributeCounts = {
+      ...emptySearchCounts,
+      all: 1,
+      custom_attribute: 1,
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [tokensProperty],
+        catalogProperties: [rawAttribute],
+        search: "Tokens",
+      }),
+    ).toEqual([tokensProperty, rawAttribute]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: attributeCounts,
+        baseProperties: [tokensProperty],
+        catalogProperties: [rawAttribute],
+        search: "Tokens",
+      }),
+    ).toEqual({
+      ...attributeCounts,
+      all: 2,
+      system_metric: 1,
+    });
+  });
+
   it("does not restore project-specific System fields that authoritative search omitted", () => {
     const projectMetric = {
       id: "project_specific_metric",

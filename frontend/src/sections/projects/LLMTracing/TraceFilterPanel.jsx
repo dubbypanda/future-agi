@@ -1034,6 +1034,17 @@ const representsGlobalProperty = (candidate, globalProperty) => {
     return true;
   }
   if (!isCatalogSearchFallbackProperty(globalProperty)) return false;
+  // Alias ownership never crosses picker families. A raw attribute can use
+  // the same backend key as a canonical System field (for example
+  // `gen_ai.usage.total_tokens`), but it must remain a separate Attribute
+  // result rather than suppressing the local System definition.
+  if (
+    candidate?.category &&
+    globalProperty?.category &&
+    candidate.category !== globalProperty.category
+  ) {
+    return false;
+  }
   const candidateIds = ownedGlobalPropertyIds(candidate);
   return [...ownedGlobalPropertyIds(globalProperty)].some((id) =>
     candidateIds.has(id),
