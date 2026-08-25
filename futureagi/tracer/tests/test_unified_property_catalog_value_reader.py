@@ -42,6 +42,7 @@ OTHER_PROJECT_ID = "33333333-3333-4333-8333-333333333334"
 ACTIVATION_SHA = "a" * 64
 MANIFEST_SHA = "b" * 64
 BUILD_TOKEN = "44444444-4444-4444-8444-444444444444"
+ANCHOR_BUILD_TOKEN = "44444444-4444-4444-8444-444444444443"
 WINDOW_START = datetime(2026, 8, 1, tzinfo=UTC)
 WINDOW_END = datetime(2026, 8, 14, tzinfo=UTC)
 WINDOW_START_US = 1_785_542_400_000_000
@@ -58,6 +59,9 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "argMax(projection_version, _version)" not in _ACTIVATION_SQL
     assert "property_catalog_source_streams" in _ACTIVATION_SQL
     assert "reservation_states.build_plan_json" in _ACTIVATION_SQL
+    assert "anchor_reservations.build_plan_json AS anchor_build_plan_json" in (
+        _ACTIVATION_SQL
+    )
 
     definitions_sql = _definition_ctes("th7247_catalog_dev_test")
     assert "FROM lineage_versioned AS versioned_rows" in definitions_sql
@@ -177,6 +181,8 @@ def _activation_row(
     build_plan_workspace_id=WORKSPACE_ID,
     source_span_since_us=WINDOW_START_US,
     source_span_until_us=WINDOW_END_US,
+    anchor_span_since_us=None,
+    anchor_span_until_us=None,
     **overrides,
 ):
     row = {
@@ -207,6 +213,58 @@ def _activation_row(
     row.setdefault("build_plan_json", plan.canonical_json)
     row.setdefault("build_lease_sha256", plan.sha256)
     row.setdefault("latest_reservation_variants", 1)
+    anchor_revision = row["lineage_anchor_revision"]
+    plan_anchor_revision = (
+        anchor_revision
+        if type(anchor_revision) is int
+        and 1 <= anchor_revision <= row["catalog_revision"]
+        else 1
+    )
+    anchor_build_token = (
+        row["build_token"]
+        if plan_anchor_revision == row["catalog_revision"]
+        else ANCHOR_BUILD_TOKEN
+    )
+    anchor_row = {
+        "catalog_epoch": row["catalog_epoch"],
+        "catalog_revision": plan_anchor_revision,
+        "build_token": anchor_build_token,
+        "projection_version": row["projection_version"],
+    }
+    anchor_plan = _build_plan(
+        anchor_row,
+        covered_project_ids=covered_project_ids,
+        workspace_id=build_plan_workspace_id,
+        span_since_us=(
+            source_span_since_us
+            if anchor_span_since_us is None
+            else anchor_span_since_us
+        ),
+        span_until_us=(
+            source_span_until_us
+            if anchor_span_until_us is None
+            else anchor_span_until_us
+        ),
+    )
+    row.setdefault("anchor_catalog_revision", anchor_revision)
+    row.setdefault("anchor_build_token", anchor_build_token)
+    row.setdefault("anchor_projection_version", row["projection_version"])
+    row.setdefault(
+        "anchor_lifecycle_mode",
+        (
+            row["lifecycle_mode"]
+            if anchor_revision == row["catalog_revision"]
+            else "initial_backfill"
+        ),
+    )
+    row.setdefault("anchor_lineage_anchor_revision", anchor_revision)
+    row.setdefault("anchor_latest_state_variants", 1)
+    row.setdefault("anchor_latest_active_states", 1)
+    row.setdefault("anchor_active_builds", 1)
+    row.setdefault("anchor_reservation_projection_version", row["projection_version"])
+    row.setdefault("anchor_build_plan_json", anchor_plan.canonical_json)
+    row.setdefault("anchor_build_lease_sha256", anchor_plan.sha256)
+    row.setdefault("anchor_latest_reservation_variants", 1)
     return row
 
 
@@ -572,6 +630,102 @@ def test_value_reader_pins_first_page_to_activation_time_coverage(settings):
     value_params = executor.calls[-1]["params"]
     assert value_params["catalog_window_start_us"] == WINDOW_START_US
     assert value_params["catalog_window_end_us"] == WINDOW_END_US
+
+
+def test_value_reader_retains_anchor_window_across_incremental_lineage(settings):
+    settings.SECRET_KEY = "property-value-reader-secret"
+    anchor_start = WINDOW_START - timedelta(days=30)
+    anchor_start_us = WINDOW_START_US - (30 * 24 * 60 * 60 * 1_000_000)
+    property_name = "conversation.transcript.45.message.role"
+    property_id = f"custom_attribute:{property_name}"
+    query = _query(property_id=property_id)
+    rows = sorted(
+        [
+            _value_row(
+                "assistant",
+                first_seen=(anchor_start + timedelta(days=1)).isoformat(),
+                last_seen=(anchor_start + timedelta(days=2)).isoformat(),
+            ),
+            _value_row(
+                "user",
+                first_seen=(anchor_start + timedelta(days=3)).isoformat(),
+                last_seen=(anchor_start + timedelta(days=4)).isoformat(),
+            ),
+        ],
+        key=lambda row: (row["attribute_type_rank"], row["value_fingerprint"]),
+    )
+    first_executor = FakeExecutor(
+        [
+            [
+                _activation_row(
+                    anchor_span_since_us=anchor_start_us,
+                    anchor_span_until_us=WINDOW_START_US,
+                )
+            ],
+            [
+                _definition_row(
+                    property_id=property_id,
+                    name=property_name,
+                    attribute_types=("string",),
+                )
+            ],
+            [{"value_conflicts": 0}],
+            rows,
+        ]
+    )
+
+    first = _read(
+        _reader(first_executor),
+        query=query,
+        window_start=anchor_start - timedelta(days=1),
+        window_end=WINDOW_END + timedelta(days=1),
+        page_size=1,
+    )
+
+    assert first.window_start == anchor_start
+    assert first.window_end == WINDOW_END
+    assert first.has_more is True
+    assert first.next_cursor
+    first_params = first_executor.calls[-1]["params"]
+    assert first_params["catalog_window_start_us"] == anchor_start_us
+    assert first_params["catalog_window_end_us"] == WINDOW_END_US
+
+    second_executor = FakeExecutor(
+        [
+            [
+                _activation_row(
+                    anchor_span_since_us=anchor_start_us,
+                    anchor_span_until_us=WINDOW_START_US,
+                )
+            ],
+            [
+                _definition_row(
+                    property_id=property_id,
+                    name=property_name,
+                    attribute_types=("string",),
+                )
+            ],
+            [{"value_conflicts": 0}],
+            [rows[-1]],
+        ]
+    )
+    second = _reader(second_executor).read_page(
+        scope=_scope(),
+        query=query,
+        page_size=1,
+        cursor_token=first.next_cursor,
+    )
+
+    assert {first.values[0].value, second.values[0].value} == {"assistant", "user"}
+    assert second.window_start == anchor_start
+    assert second.window_end == WINDOW_END
+    second_params = second_executor.calls[-1]["params"]
+    assert second_params["catalog_window_start_us"] == anchor_start_us
+    assert second_params["catalog_window_end_us"] == WINDOW_END_US
+    assert (
+        second_params["catalog_after_value_fingerprint"]
+        == first.values[0].value_fingerprint
+    )
 
 
 def test_value_reader_rejects_cursor_window_outside_activation_coverage(settings):

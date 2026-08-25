@@ -115,6 +115,8 @@ class PropertyCatalogActivation:
     source_manifest_sha256: str
     activation_sha256: str
     source_scope: BuildPlanSourceScope | None = None
+    retained_span_since_us: int | None = None
+    retained_span_until_us: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,7 +274,21 @@ SELECT
     reservation_states.reservation_projection_version,
     reservation_states.build_plan_json,
     reservation_states.build_lease_sha256,
-    reservation_states.latest_reservation_variants
+    reservation_states.latest_reservation_variants,
+    anchor_candidates.catalog_revision AS anchor_catalog_revision,
+    anchor_candidates.build_token AS anchor_build_token,
+    anchor_candidates.projection_version AS anchor_projection_version,
+    anchor_candidates.lifecycle_mode AS anchor_lifecycle_mode,
+    anchor_candidates.lineage_anchor_revision AS anchor_lineage_anchor_revision,
+    anchor_candidates.latest_state_variants AS anchor_latest_state_variants,
+    anchor_candidates.latest_active_states AS anchor_latest_active_states,
+    anchor_revision_counts.active_builds AS anchor_active_builds,
+    anchor_reservations.reservation_projection_version
+        AS anchor_reservation_projection_version,
+    anchor_reservations.build_plan_json AS anchor_build_plan_json,
+    anchor_reservations.build_lease_sha256 AS anchor_build_lease_sha256,
+    anchor_reservations.latest_reservation_variants
+        AS anchor_latest_reservation_variants
 FROM active_candidates
 INNER JOIN active_revision_counts
     ON active_candidates.catalog_epoch = active_revision_counts.catalog_epoch
@@ -281,6 +297,19 @@ LEFT JOIN reservation_states
     ON active_candidates.catalog_epoch = reservation_states.catalog_epoch
    AND active_candidates.catalog_revision = reservation_states.catalog_revision
    AND active_candidates.build_token = reservation_states.build_token
+LEFT JOIN active_candidates AS anchor_candidates
+    ON active_candidates.catalog_epoch = anchor_candidates.catalog_epoch
+   AND active_candidates.lineage_anchor_revision
+       = anchor_candidates.catalog_revision
+LEFT JOIN active_revision_counts AS anchor_revision_counts
+    ON anchor_candidates.catalog_epoch = anchor_revision_counts.catalog_epoch
+   AND anchor_candidates.catalog_revision
+       = anchor_revision_counts.catalog_revision
+LEFT JOIN reservation_states AS anchor_reservations
+    ON anchor_candidates.catalog_epoch = anchor_reservations.catalog_epoch
+   AND anchor_candidates.catalog_revision
+       = anchor_reservations.catalog_revision
+   AND anchor_candidates.build_token = anchor_reservations.build_token
 WHERE (
     %(catalog_exact_activation)s = 0
     OR (
@@ -1058,6 +1087,79 @@ def verify_property_catalog_activation(
         or build_plan.sha256 != build_lease_sha256
     ):
         unavailable("activation_scope_invalid")
+    retained_span_since_us = build_plan.source_scope.span_since_us
+    retained_span_until_us = build_plan.source_scope.span_until_us
+    if lineage_anchor_revision < catalog_revision:
+        if (
+            strict_uint(row.get("anchor_catalog_revision"), "anchor_revision")
+            != lineage_anchor_revision
+            or strict_uint(
+                row.get("anchor_projection_version"),
+                "anchor_projection_version",
+                65_535,
+            )
+            != projection_version
+            or row.get("anchor_lifecycle_mode")
+            not in {"initial_backfill", "full_repair"}
+            or strict_uint(
+                row.get("anchor_lineage_anchor_revision"),
+                "anchor_lineage_anchor_revision",
+            )
+            != lineage_anchor_revision
+            or strict_uint(
+                row.get("anchor_latest_state_variants"),
+                "anchor_state_variants",
+            )
+            != 1
+            or strict_uint(
+                row.get("anchor_latest_active_states"),
+                "anchor_active_states",
+            )
+            < 1
+            or strict_uint(row.get("anchor_active_builds"), "anchor_active_builds") != 1
+            or strict_uint(
+                row.get("anchor_latest_reservation_variants"),
+                "anchor_reservation_variants",
+            )
+            != 1
+            or strict_uint(
+                row.get("anchor_reservation_projection_version"),
+                "anchor_reservation_projection_version",
+                65_535,
+            )
+            != projection_version
+        ):
+            unavailable("activation_lineage_scope_invalid")
+        anchor_build_token = strict_uuid(
+            row.get("anchor_build_token"), "anchor_build_token"
+        )
+        anchor_build_lease_sha256 = strict_sha256(
+            row.get("anchor_build_lease_sha256"), "anchor_build_lease"
+        )
+        try:
+            anchor_build_plan = RevisionBuildPlan.from_json(
+                row.get("anchor_build_plan_json")
+            )
+        except (TypeError, ValueError) as exc:
+            raise unavailable_type("activation_lineage_scope_invalid") from exc
+        if (
+            anchor_build_plan.organization_id != scope["organization_id"]
+            or anchor_build_plan.workspace_id != scope["workspace_id"]
+            or anchor_build_plan.catalog_epoch != catalog_epoch
+            or anchor_build_plan.catalog_revision != lineage_anchor_revision
+            or anchor_build_plan.build_token != anchor_build_token
+            or anchor_build_plan.projection_version != projection_version
+            or anchor_build_plan.sha256 != anchor_build_lease_sha256
+        ):
+            unavailable("activation_lineage_scope_invalid")
+        retained_span_since_us = min(
+            retained_span_since_us,
+            anchor_build_plan.source_scope.span_since_us,
+        )
+        retained_span_until_us = max(
+            retained_span_until_us,
+            anchor_build_plan.source_scope.span_until_us,
+        )
     if projection_version < PROPERTY_CATALOG_REQUIRED_PROJECTION_VERSION:
         unavailable("projection_incompatible")
     return PropertyCatalogActivation(
@@ -1071,6 +1173,8 @@ def verify_property_catalog_activation(
         source_manifest_sha256=source_manifest_sha256,
         activation_sha256=activation_sha256,
         source_scope=build_plan.source_scope,
+        retained_span_since_us=retained_span_since_us,
+        retained_span_until_us=retained_span_until_us,
     )
 
 

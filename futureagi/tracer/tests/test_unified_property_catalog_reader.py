@@ -41,6 +41,7 @@ OTHER_PROJECT_ID = "33333333-3333-4333-8333-333333333334"
 ACTIVATION_SHA = "a" * 64
 MANIFEST_SHA = "b" * 64
 BUILD_TOKEN = "44444444-4444-4444-8444-444444444444"
+ANCHOR_BUILD_TOKEN = "44444444-4444-4444-8444-444444444443"
 
 
 def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
@@ -53,6 +54,9 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
     assert "argMax(projection_version, _version)" not in _ACTIVATION_SQL
     assert "property_catalog_source_streams" in _ACTIVATION_SQL
     assert "reservation_states.build_plan_json" in _ACTIVATION_SQL
+    assert "anchor_reservations.build_plan_json AS anchor_build_plan_json" in (
+        _ACTIVATION_SQL
+    )
     assert "active_candidates.*" not in _ACTIVATION_SQL
     for column in (
         "catalog_epoch",
@@ -162,6 +166,44 @@ def _activation_row(*, covered_project_ids=(PROJECT_ID,), **overrides):
     row.setdefault("build_plan_json", plan.canonical_json)
     row.setdefault("build_lease_sha256", plan.sha256)
     row.setdefault("latest_reservation_variants", 1)
+    anchor_revision = row["lineage_anchor_revision"]
+    plan_anchor_revision = (
+        anchor_revision
+        if type(anchor_revision) is int
+        and 1 <= anchor_revision <= row["catalog_revision"]
+        else 1
+    )
+    anchor_build_token = (
+        row["build_token"]
+        if plan_anchor_revision == row["catalog_revision"]
+        else ANCHOR_BUILD_TOKEN
+    )
+    anchor_row = {
+        "catalog_epoch": row["catalog_epoch"],
+        "catalog_revision": plan_anchor_revision,
+        "build_token": anchor_build_token,
+        "projection_version": row["projection_version"],
+    }
+    anchor_plan = _build_plan(anchor_row, covered_project_ids=covered_project_ids)
+    row.setdefault("anchor_catalog_revision", anchor_revision)
+    row.setdefault("anchor_build_token", anchor_build_token)
+    row.setdefault("anchor_projection_version", row["projection_version"])
+    row.setdefault(
+        "anchor_lifecycle_mode",
+        (
+            row["lifecycle_mode"]
+            if anchor_revision == row["catalog_revision"]
+            else "initial_backfill"
+        ),
+    )
+    row.setdefault("anchor_lineage_anchor_revision", anchor_revision)
+    row.setdefault("anchor_latest_state_variants", 1)
+    row.setdefault("anchor_latest_active_states", 1)
+    row.setdefault("anchor_active_builds", 1)
+    row.setdefault("anchor_reservation_projection_version", row["projection_version"])
+    row.setdefault("anchor_build_plan_json", anchor_plan.canonical_json)
+    row.setdefault("anchor_build_lease_sha256", anchor_plan.sha256)
+    row.setdefault("anchor_latest_reservation_variants", 1)
     return row
 
 

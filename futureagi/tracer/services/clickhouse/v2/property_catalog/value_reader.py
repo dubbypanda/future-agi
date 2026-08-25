@@ -747,19 +747,30 @@ class PropertyCatalogValueReader:
         source_scope = activation.source_scope
         if source_scope is None:
             raise PropertyCatalogValueUnavailable("activation_scope_invalid")
+        retained_span_since_us = activation.retained_span_since_us
+        retained_span_until_us = activation.retained_span_until_us
+        if (
+            type(retained_span_since_us) is not int
+            or type(retained_span_until_us) is not int
+            or retained_span_since_us < 0
+            or retained_span_since_us >= retained_span_until_us
+        ):
+            raise PropertyCatalogValueUnavailable("activation_lineage_scope_invalid")
         covered_window_start_us = _unix_microseconds(checked_window_start)
         covered_window_end_us = _unix_microseconds(checked_window_end)
         if cursor is None:
-            # A first page may request the full retained horizon while an
-            # immutable activation proves a narrower snapshot. Publish only
-            # the intersection and bind that exact window into its cursor.
+            # A first page may request the full retained horizon. Incremental
+            # activations contribute only their new source window, while the
+            # admitted lineage still contains values from the immutable
+            # initial/full-repair anchor. Publish the intersection with that
+            # cumulative lineage window, never just the newest revision.
             covered_window_start_us = max(
                 covered_window_start_us,
-                source_scope.span_since_us,
+                retained_span_since_us,
             )
             covered_window_end_us = min(
                 covered_window_end_us,
-                source_scope.span_until_us,
+                retained_span_until_us,
             )
             if covered_window_start_us >= covered_window_end_us:
                 raise PropertyCatalogValueUnavailable("activation_scope_incomplete")
@@ -771,9 +782,12 @@ class PropertyCatalogValueReader:
             scope=checked_scope,
             activation=activation,
             unavailable_type=PropertyCatalogValueUnavailable,
-            requested_span_since_us=covered_window_start_us,
-            requested_span_until_us=covered_window_end_us,
         )
+        if (
+            covered_window_start_us < retained_span_since_us
+            or covered_window_end_us > retained_span_until_us
+        ):
+            raise PropertyCatalogValueUnavailable("activation_scope_incomplete")
 
         base_params = self._base_params(
             scope=checked_scope,
