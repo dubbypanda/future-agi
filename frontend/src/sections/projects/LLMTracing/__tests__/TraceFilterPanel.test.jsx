@@ -214,6 +214,7 @@ function renderPanel({
   attributeSource,
   tab,
   allowWorkspaceScope = false,
+  propertyFilter,
 }) {
   let panelProps = {
     currentFilters,
@@ -228,6 +229,7 @@ function renderPanel({
     attributeSource,
     tab,
     allowWorkspaceScope,
+    propertyFilter,
   };
   const anchorEl = document.createElement("button");
   document.body.appendChild(anchorEl);
@@ -250,6 +252,7 @@ function renderPanel({
         attributeSource={panelProps.attributeSource}
         tab={panelProps.tab}
         allowWorkspaceScope={panelProps.allowWorkspaceScope}
+        propertyFilter={panelProps.propertyFilter}
       />
     </QueryClientProvider>
   );
@@ -688,14 +691,14 @@ describe("voice-call property search aliases", () => {
 
   it("finds the displayed cost field by its Live Preview response key", () => {
     expect(
-      filterPropertiesForPicker({ properties, search: "cost_cents" }),
-    ).toEqual([
+      filterPropertiesForPicker({ properties, search: "cost_cents" })[0],
+    ).toEqual(
       expect.objectContaining({
         id: "cost_cents",
         name: "Cost (cents)",
         apiColType: "SYSTEM_METRIC",
       }),
-    ]);
+    );
   });
 
   it("finds status and uses the normalized voice-list system metric", () => {
@@ -710,7 +713,7 @@ describe("voice-call property search aliases", () => {
     );
   });
 
-  it("finds the provider Call ID globally even after browsing Attributes", () => {
+  it("keeps a searched category isolated after browsing Attributes", () => {
     const nestedAttribute = {
       id: "conversation.transcript.0.tool_calls.0.tool_call.id",
       name: "conversation.transcript.0.tool_calls.0.tool_call.id",
@@ -727,12 +730,56 @@ describe("voice-call property search aliases", () => {
       }),
     ).toEqual([
       expect.objectContaining({
-        id: "call_id",
-        name: "Call ID",
-        category: "system",
-        apiColType: "SYSTEM_METRIC",
+        id: "conversation.transcript.0.tool_calls.0.tool_call.id",
+        category: "attribute",
+        apiColType: "SPAN_ATTRIBUTE",
       }),
     ]);
+  });
+
+  it("keeps all cost attribute matches beside an exact System Cost result", () => {
+    const costProperties = [
+      {
+        id: "cost",
+        name: "Cost",
+        category: "system",
+        type: "number",
+        apiColType: "SYSTEM_METRIC",
+      },
+      {
+        id: "cost_breakdown.analysisCost",
+        name: "cost_breakdown.analysisCost",
+        category: "attribute",
+        type: "number",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+      {
+        id: "cost_breakdown.ttsCost",
+        name: "cost_breakdown.ttsCost",
+        category: "attribute",
+        type: "number",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+    ];
+
+    expect(
+      filterPropertiesForPicker({
+        properties: costProperties,
+        category: "all",
+        search: "cost",
+      }).map(({ id }) => id),
+    ).toEqual([
+      "cost",
+      "cost_breakdown.analysisCost",
+      "cost_breakdown.ttsCost",
+    ]);
+    expect(
+      filterPropertiesForPicker({
+        properties: costProperties,
+        category: "attribute",
+        search: "cost",
+      }).map(({ id }) => id),
+    ).toEqual(["cost_breakdown.analysisCost", "cost_breakdown.ttsCost"]);
   });
 
   it("treats the exact Call ID display label as the canonical call_id field", () => {
@@ -748,7 +795,7 @@ describe("voice-call property search aliases", () => {
     ]);
   });
 
-  it("keeps raw call_id discovery reachable beside the canonical system id", () => {
+  it("keeps loaded call_id attribute matches beside the canonical system id", () => {
     const fetchNextPage = vi.fn();
     exactAttributePropertiesMock.mockReturnValue({
       data: [
@@ -786,7 +833,7 @@ describe("voice-call property search aliases", () => {
       document.querySelector(
         '[data-filter-property-option="conversation.transcript.0.tool_calls.0.tool_call.id"]',
       ),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
     triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
@@ -1399,6 +1446,222 @@ describe("voice-call property search aliases", () => {
     document.body.removeChild(anchorEl);
   });
 
+  it("keeps exact All search counts and category isolation for voice-call cost fields", async () => {
+    const systemCost = {
+      property_id: "system_metric:cost_cents",
+      name: "cost_cents",
+      display_name: "Cost",
+      category: "system_metric",
+      source: "voice_calls",
+      sources: ["voice_calls"],
+      type: "number",
+    };
+    const costAttributes = [
+      "cost_breakdown.analysisCost",
+      "cost_breakdown.ttsCost",
+    ].map((name) => ({
+      property_id: `custom_attribute:${name}`,
+      name,
+      display_name: name,
+      category: "custom_attribute",
+      source: "voice_calls",
+      sources: ["voice_calls"],
+      type: "number",
+    }));
+    propertyCatalogMock.mockImplementation(({ category = "", search = "" }) => {
+      const searching = search === "cost";
+      const attributePage = category === "custom_attribute";
+      return {
+        metrics: searching
+          ? attributePage
+            ? costAttributes
+            : [systemCost, ...costAttributes]
+          : [],
+        categoryCounts: searching
+          ? attributePage
+            ? {
+                all: 30,
+                system_metric: 1,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 29,
+                custom_column: 0,
+              }
+            : {
+                all: 35,
+                system_metric: 6,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 29,
+                custom_column: 0,
+              }
+          : {
+              all: 35,
+              system_metric: 6,
+              eval_metric: 0,
+              annotation_metric: 0,
+              custom_attribute: 29,
+              custom_column: 0,
+            },
+        categoryCountsExact: true,
+        legacyFallbackRequired: false,
+        error: null,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        isSuccess: true,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        isFetchNextPageError: false,
+        cursorChainStopped: false,
+        fetchNextPage: vi.fn(),
+        data: { pages: [] },
+      };
+    });
+    const { anchorEl } = renderPanel({
+      projectId: "00000000-0000-4000-8000-000000000035",
+      source: "voice_calls",
+      tab: "voiceCalls",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "cost" },
+    });
+    // Select a category before the debounced All-search response can be
+    // retained in component state. The independent All-search request must
+    // still own the global breakdown.
+    fireEvent.click(screen.getByText("Attributes"));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector(
+          '[data-filter-property-option="cost_breakdown.analysisCost"]',
+        ),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByLabelText("Property search result count"),
+    ).toHaveTextContent("29");
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("All property count")).toHaveTextContent("35");
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "6",
+    );
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("29");
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("All"));
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("35"),
+    );
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      ),
+    ).toBeInTheDocument();
+    document.body.removeChild(anchorEl);
+  });
+
+  it("applies propertyFilter to authoritative Basic and Query catalog searches", async () => {
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics: search
+        ? [
+            {
+              property_id: "system_metric:voice_calls:cost_cents",
+              name: "cost_cents",
+              display_name: "Cost",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+            {
+              property_id: "custom_attribute:cost_breakdown.analysisCost",
+              name: "cost_breakdown.analysisCost",
+              display_name: "cost_breakdown.analysisCost",
+              category: "custom_attribute",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+          ]
+        : [],
+      categoryCounts: {
+        all: search ? 2 : 0,
+        system_metric: search ? 1 : 0,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: search ? 1 : 0,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-property-filter-search",
+      source: "voice_calls",
+      tab: "voiceCalls",
+      showQueryTab: true,
+      propertyFilter: (property) => property.category === "attribute",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "cost" },
+    });
+    const attributeOption = await waitFor(() => {
+      const option = document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      );
+      expect(option).toBeInTheDocument();
+      return option;
+    });
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(attributeOption);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const queryInput = screen.getByRole("combobox");
+    fireEvent.focus(queryInput);
+    fireEvent.change(queryInput, { target: { value: "cost" } });
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("cost_breakdown.analysisCost").length,
+      ).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText("Cost")).not.toBeInTheDocument();
+    document.body.removeChild(anchorEl);
+  });
+
   it("resets a browsed category when property search starts", () => {
     const { anchorEl } = renderPanel({
       properties: [
@@ -1421,6 +1684,16 @@ describe("voice-call property search aliases", () => {
 
     expect(
       document.querySelector('[data-filter-property-option="call_id"]'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Attributes"));
+    expect(
+      document.querySelector('[data-filter-property-option="call_id"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="conversation.transcript.0.tool_calls.0.tool_call.id"]',
+      ),
     ).toBeInTheDocument();
     document.body.removeChild(anchorEl);
   });
@@ -3013,7 +3286,11 @@ describe("exact manual attribute fallback", () => {
     const search = screen.getByPlaceholderText("Search properties...");
     fireEvent.change(search, { target: { value: "model" } });
 
-    expect(await screen.findByText("Model")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-filter-property-option="model"]'),
+      ).toBeInTheDocument(),
+    );
     expect(
       screen.queryByRole("button", {
         name: /eval and annotation properties/i,
@@ -4301,6 +4578,83 @@ describe("filter-value picker bounded-read UX", () => {
     expect(fetchNextSearchPage).toHaveBeenCalledOnce();
     expect(fetchNextBasePage).not.toHaveBeenCalled();
 
+    document.body.removeChild(anchorEl);
+  });
+
+  it("lets an authoritative Query search replace stale base fields without collapsing exact matches", async () => {
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics: search
+        ? [
+            {
+              property_id: "system_attribute:voice_calls:cost_cents",
+              name: "cost_cents",
+              display_name: "Cost",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+            {
+              property_id: "custom_attribute:cost_breakdown.analysisCost",
+              name: "cost_breakdown.analysisCost",
+              display_name: "cost_breakdown.analysisCost",
+              category: "custom_attribute",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+          ]
+        : [
+            {
+              property_id: "system_attribute:voice_calls:model",
+              name: "model",
+              display_name: "Model",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "string",
+            },
+          ],
+      categoryCounts: {
+        all: search ? 2 : 1,
+        system_metric: 1,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: search ? 1 : 0,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-query-authoritative-search",
+      source: "voice_calls",
+      tab: "voiceCalls",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    expect(await screen.findByText("Model")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "cost" } });
+
+    expect(await screen.findByText("Cost")).toBeInTheDocument();
+    expect(
+      await screen.findByText("cost_breakdown.analysisCost"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Model")).not.toBeInTheDocument();
     document.body.removeChild(anchorEl);
   });
 

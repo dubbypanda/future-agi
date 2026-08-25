@@ -320,6 +320,198 @@ export function getWidgetMetricDataType(metric) {
   return metric?.type || "number";
 }
 
+const WIDGET_OPTION_TYPE_BY_CATALOG_CATEGORY = {
+  system_metric: "system",
+  eval_metric: "eval_metric",
+  annotation_metric: "annotation",
+  custom_attribute: "custom_attribute",
+  custom_column: "custom_column",
+};
+
+const normalizeWidgetCatalogSearchText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const widgetOptionSources = (option) =>
+  new Set(
+    [option?.source, ...(option?.sources || [])].filter(Boolean).map(String),
+  );
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isWidgetPickerOptionInCategory(option, pickerCategory) {
+  if (!option || !pickerCategory || pickerCategory === "all") return true;
+  const sources = widgetOptionSources(option);
+  const targetsSource = (source) =>
+    sources.has(source) || sources.has("all") || sources.has("both");
+  const searchableIdentity = normalizeWidgetCatalogSearchText(
+    `${option.id || ""} ${option.name || ""}`,
+  );
+
+  switch (pickerCategory) {
+    case "trace":
+      return option.type === "system" && targetsSource("traces");
+    case "eval_metric":
+      return option.type === "eval_metric";
+    case "prompt":
+      return (
+        option.type === "system" &&
+        targetsSource("traces") &&
+        searchableIdentity.includes("prompt")
+      );
+    case "dataset":
+      return targetsSource("datasets");
+    case "simulation":
+      return targetsSource("simulation");
+    case "user":
+      return (
+        option.type === "system" &&
+        targetsSource("traces") &&
+        searchableIdentity.includes("user")
+      );
+    case "annotation":
+      return option.type === "annotation";
+    case "custom_attribute":
+      return option.type === "custom_attribute";
+    default:
+      return false;
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveWidgetCatalogResultMetrics({
+  baseMetrics,
+  scopedMetrics,
+  scopedRequestActive,
+  requestSettled,
+}) {
+  if (!requestSettled) return [];
+  return scopedRequestActive ? scopedMetrics || [] : baseMetrics || [];
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildWidgetCatalogPickerOptions({
+  metrics: catalogMetrics,
+  pickerMode,
+  pickerCategory = "all",
+  search = "",
+  requestSettled = true,
+  selectedMetricSources = [],
+  targetMetricSource = null,
+}) {
+  if (!requestSettled) return [];
+
+  const mappedOptions = (catalogMetrics || [])
+    .filter((metric) => pickerMode !== "metric" || metric.role !== "dimension")
+    .filter((metric) =>
+      isWidgetCatalogOptionAllowed(metric, pickerMode, {
+        selectedMetricSources,
+        targetMetricSource,
+      }),
+    )
+    .map((metric) => ({
+      id: metric.name,
+      registryId: metric.propertyId || metric.property_id,
+      name: metric.displayName || metric.display_name || metric.name,
+      type:
+        WIDGET_OPTION_TYPE_BY_CATALOG_CATEGORY[metric.category] ||
+        metric.category,
+      source: metric.source,
+      sources: metric.sources,
+      dataType: getWidgetMetricDataType(metric),
+      outputType: metric.outputType || metric.output_type,
+      columnDataType: metric.dataType || metric.data_type,
+      configIds: metric.configIds || metric.config_ids,
+      evalKey: metric.evalKey || metric.eval_key,
+      unit: metric.unit,
+      choices: metric.choices,
+      choiceOptions: metric.choiceOptions || metric.choice_options,
+      allowedAggregations:
+        metric.allowedAggregations || metric.allowed_aggregations,
+    }))
+    // The server category is authoritative, and this local guard prevents a
+    // cached or compatibility response from leaking System rows into Trace
+    // Attributes (or vice versa) after an explicit category selection.
+    .filter((option) => isWidgetPickerOptionInCategory(option, pickerCategory));
+
+  const seen = new Set();
+  const uniqueOptions = mappedOptions.filter((option) => {
+    const identity = `${option.registryId || `${option.source || "all"}:${option.type}:${option.id}`}:${option.dataType || ""}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+
+  const normalizedSearch = normalizeWidgetCatalogSearchText(search);
+  if (!normalizedSearch) return uniqueOptions;
+
+  // Exact matches stay first, but never suppress fuzzy server matches from
+  // other categories. `cost` under All must retain both Cost and matching
+  // cost_breakdown.* custom attributes.
+  const exactMatches = uniqueOptions.filter((option) =>
+    [option.id, option.name].some(
+      (candidate) =>
+        normalizeWidgetCatalogSearchText(candidate) === normalizedSearch,
+    ),
+  );
+  const exactSet = new Set(exactMatches);
+  return [
+    ...exactMatches,
+    ...uniqueOptions.filter((option) => !exactSet.has(option)),
+  ];
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getWidgetCatalogExactResultCount({
+  request,
+  categoryCounts,
+  categoryCountsExact,
+  requestSettled,
+}) {
+  if (!requestSettled || !categoryCountsExact || !categoryCounts) return null;
+  const countKey = request?.category || "all";
+  const count = categoryCounts[countKey];
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+const WIDGET_SIDEBAR_COUNT_KEY = {
+  all: "all",
+  eval_metric: "eval_metric",
+  annotation: "annotation_metric",
+  custom_attribute: "custom_attribute",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getWidgetCatalogSidebarCategoryCount({
+  pickerCategory,
+  categoryCounts,
+  categoryCountsExact,
+}) {
+  if (!categoryCountsExact || !categoryCounts) return null;
+  const countKey = WIDGET_SIDEBAR_COUNT_KEY[pickerCategory];
+  if (!countKey) return null;
+  const count = categoryCounts[countKey];
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveWidgetCatalogSidebarCounts({
+  requestSettled,
+  search,
+  baseCategoryCounts,
+  baseCategoryCountsExact,
+  allSearchCategoryCounts,
+  allSearchCategoryCountsExact,
+}) {
+  if (!requestSettled) return null;
+  if (!String(search || "").trim()) {
+    return baseCategoryCountsExact ? baseCategoryCounts || null : null;
+  }
+  return allSearchCategoryCountsExact ? allSearchCategoryCounts || null : null;
+}
+
 export function buildWidgetCursorAttributeOptions(
   cursorAttributes,
   pickerMode,
@@ -2039,100 +2231,220 @@ export default function WidgetEditorView() {
     cacheScopeKey: `widget-picker:${pickerCatalogSession}`,
   });
 
-  const widgetCatalogRequest = useMemo(
+  const trimmedPickerSearch = pickerSearch.trim();
+  const trimmedDebouncedPickerSearch = debouncedPickerSearch.trim();
+  const pickerSearchSettled =
+    trimmedPickerSearch === trimmedDebouncedPickerSearch;
+  const baseWidgetCatalogRequest = useMemo(
     () =>
       getWidgetMetricCatalogRequest({
-        pickerCategory,
-        search: debouncedPickerSearch,
+        pickerCategory: "all",
+        search: "",
         pickerOpen,
         pickerMode,
       }),
-    [pickerCategory, debouncedPickerSearch, pickerOpen, pickerMode],
+    [pickerOpen, pickerMode],
   );
-  const propertyCatalog = usePropertyCatalog({
-    category: widgetCatalogRequest.category,
-    source: widgetCatalogRequest.source,
-    search: widgetCatalogRequest.search,
-    role: widgetCatalogRequest.role,
-    pageSize: widgetCatalogRequest.pageSize,
-    enabled: widgetCatalogRequest.enabled,
-    allowLegacyNotReadyFallback: true,
-    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}`,
-    cacheScopeKey: `widget-picker:${pickerCatalogSession}`,
-  });
-  const legacyMetricCatalog = useLegacyDashboardMetricsPaginated({
-    ...widgetCatalogRequest,
-    enabled:
-      widgetCatalogRequest.enabled && propertyCatalog.legacyFallbackRequired,
-  });
-  const useLegacyMetricCatalog = propertyCatalog.legacyFallbackRequired;
-  const paginatedMetrics = useLegacyMetricCatalog
-    ? legacyMetricCatalog.metrics
-    : propertyCatalog.metrics;
-  const catalogCountKey = widgetCatalogRequest.category || "all";
-  const paginatedTotal = useLegacyMetricCatalog
-    ? legacyMetricCatalog.total
-    : propertyCatalog.categoryCountsExact
-      ? propertyCatalog.categoryCounts?.[catalogCountKey]
-      : null;
-  const fetchNextPage = useLegacyMetricCatalog
-    ? legacyMetricCatalog.fetchNextPage
-    : propertyCatalog.fetchNextPage;
-  const hasNextPage = useLegacyMetricCatalog
-    ? legacyMetricCatalog.hasNextPage
-    : Boolean(propertyCatalog.hasNextPage);
-  const catalogContinuationKey = useLegacyMetricCatalog
-    ? legacyMetricCatalog.continuationKey
-    : propertyCatalog.continuationKey;
-  const isFetchingNextPage = useLegacyMetricCatalog
-    ? legacyMetricCatalog.isFetchingNextPage
-    : propertyCatalog.isFetchingNextPage;
-  const isFetchNextPageError = useLegacyMetricCatalog
-    ? legacyMetricCatalog.isFetchNextPageError
-    : propertyCatalog.isFetchNextPageError;
-  const isPaginatedLoading = useLegacyMetricCatalog
-    ? legacyMetricCatalog.isLoading
-    : propertyCatalog.isLoading ||
-      isPropertyCatalogNotReadyError(propertyCatalog.error);
+  const scopedWidgetCatalogRequest = useMemo(
+    () =>
+      getWidgetMetricCatalogRequest({
+        pickerCategory,
+        search: trimmedDebouncedPickerSearch,
+        pickerOpen,
+        pickerMode,
+      }),
+    [pickerCategory, trimmedDebouncedPickerSearch, pickerOpen, pickerMode],
+  );
+  const allSearchWidgetCatalogRequest = useMemo(
+    () =>
+      getWidgetMetricCatalogRequest({
+        pickerCategory: "all",
+        search: trimmedDebouncedPickerSearch,
+        pickerOpen,
+        pickerMode,
+      }),
+    [trimmedDebouncedPickerSearch, pickerOpen, pickerMode],
+  );
+  const scopedWidgetCatalogActive = Boolean(
+    pickerCategory !== "all" || trimmedDebouncedPickerSearch,
+  );
 
-  // Map paginated backend metrics to frontend option shape
-  const catalogMetricOptions = useMemo(() => {
-    // Map backend category to frontend type key (used for icons, already-used checks, etc.)
-    const categoryMap = {
-      system_metric: "system",
-      eval_metric: "eval_metric",
-      annotation_metric: "annotation",
-      custom_attribute: "custom_attribute",
-      custom_column: "custom_column",
-    };
-    return paginatedMetrics
-      .filter((m) => pickerMode !== "metric" || m.role !== "dimension")
-      .filter((m) =>
-        isWidgetCatalogOptionAllowed(m, pickerMode, {
-          selectedMetricSources: metrics.map(getWidgetMetricAdapterSource),
-          targetMetricSource:
-            pickerMetricIndex == null
-              ? null
-              : getWidgetMetricAdapterSource(metrics[pickerMetricIndex] || {}),
-        }),
-      )
-      .map((m) => ({
-        id: m.name,
-        registryId: m.propertyId || m.property_id,
-        name: m.displayName || m.display_name || m.name,
-        type: categoryMap[m.category] || m.category,
-        source: m.source,
-        sources: m.sources,
-        dataType: getWidgetMetricDataType(m),
-        outputType: m.outputType || m.output_type,
-        columnDataType: m.dataType || m.data_type,
-        configIds: m.configIds || m.config_ids,
-        evalKey: m.evalKey || m.eval_key,
-        unit: m.unit,
-        choices: m.choices,
-        choiceOptions: m.choiceOptions || m.choice_options,
-      }));
-  }, [paginatedMetrics, pickerMode, metrics, pickerMetricIndex]);
+  // Keep the unsearched All lane mounted as the stable exact-count baseline.
+  // Search/category requests use an independent cache lane; once settled,
+  // only that lane may own rows and cursor state.
+  const basePropertyCatalog = usePropertyCatalog({
+    category: baseWidgetCatalogRequest.category,
+    source: baseWidgetCatalogRequest.source,
+    search: baseWidgetCatalogRequest.search,
+    role: baseWidgetCatalogRequest.role,
+    pageSize: baseWidgetCatalogRequest.pageSize,
+    enabled: baseWidgetCatalogRequest.enabled,
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}:base`,
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:base`,
+  });
+  const scopedPropertyCatalog = usePropertyCatalog({
+    category: scopedWidgetCatalogRequest.category,
+    source: scopedWidgetCatalogRequest.source,
+    search: scopedWidgetCatalogRequest.search,
+    role: scopedWidgetCatalogRequest.role,
+    pageSize: scopedWidgetCatalogRequest.pageSize,
+    enabled: scopedWidgetCatalogRequest.enabled && scopedWidgetCatalogActive,
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}:scoped`,
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:scoped`,
+  });
+  // Keep search-wide counts mounted independently from the selected category.
+  // While All is selected this shares the scoped query key and is deduplicated;
+  // after a category click it prevents scoped counts from replacing the All
+  // breakdown shown in the sidebar.
+  const allSearchPropertyCatalog = usePropertyCatalog({
+    category: allSearchWidgetCatalogRequest.category,
+    source: allSearchWidgetCatalogRequest.source,
+    search: allSearchWidgetCatalogRequest.search,
+    role: allSearchWidgetCatalogRequest.role,
+    pageSize: allSearchWidgetCatalogRequest.pageSize,
+    enabled: Boolean(
+      allSearchWidgetCatalogRequest.enabled && trimmedDebouncedPickerSearch,
+    ),
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:scoped`,
+  });
+  const baseLegacyMetricCatalog = useLegacyDashboardMetricsPaginated({
+    ...baseWidgetCatalogRequest,
+    enabled:
+      baseWidgetCatalogRequest.enabled &&
+      basePropertyCatalog.legacyFallbackRequired,
+  });
+  const scopedLegacyMetricCatalog = useLegacyDashboardMetricsPaginated({
+    ...scopedWidgetCatalogRequest,
+    enabled:
+      scopedWidgetCatalogRequest.enabled &&
+      scopedWidgetCatalogActive &&
+      scopedPropertyCatalog.legacyFallbackRequired,
+  });
+  const baseUsesLegacyCatalog = basePropertyCatalog.legacyFallbackRequired;
+  const scopedUsesLegacyCatalog = scopedPropertyCatalog.legacyFallbackRequired;
+  const scopedRequestOwnsResults = Boolean(
+    scopedWidgetCatalogActive && pickerSearchSettled,
+  );
+  const activeCatalogRequest = scopedRequestOwnsResults
+    ? scopedWidgetCatalogRequest
+    : baseWidgetCatalogRequest;
+  const activePropertyCatalog = scopedRequestOwnsResults
+    ? scopedPropertyCatalog
+    : basePropertyCatalog;
+  const activeLegacyMetricCatalog = scopedRequestOwnsResults
+    ? scopedLegacyMetricCatalog
+    : baseLegacyMetricCatalog;
+  const activeUsesLegacyCatalog = scopedRequestOwnsResults
+    ? scopedUsesLegacyCatalog
+    : baseUsesLegacyCatalog;
+  const activeRequestSettled = Boolean(
+    pickerSearchSettled &&
+      !activePropertyCatalog.isPlaceholderData &&
+      (!activeUsesLegacyCatalog ||
+        !activeLegacyMetricCatalog.isPlaceholderData),
+  );
+  const baseMetrics = baseUsesLegacyCatalog
+    ? baseLegacyMetricCatalog.metrics
+    : basePropertyCatalog.metrics;
+  const scopedMetrics = scopedUsesLegacyCatalog
+    ? scopedLegacyMetricCatalog.metrics
+    : scopedPropertyCatalog.metrics;
+  const paginatedMetrics = resolveWidgetCatalogResultMetrics({
+    baseMetrics,
+    scopedMetrics,
+    scopedRequestActive: scopedRequestOwnsResults,
+    requestSettled: activeRequestSettled,
+  });
+  const activeCategoryCounts = activeUsesLegacyCatalog
+    ? null
+    : activePropertyCatalog.categoryCounts;
+  const activeCategoryCountsExact = Boolean(
+    !activeUsesLegacyCatalog && activePropertyCatalog.categoryCountsExact,
+  );
+  const pickerSidebarCategoryCounts = resolveWidgetCatalogSidebarCounts({
+    requestSettled: activeRequestSettled,
+    search: trimmedDebouncedPickerSearch,
+    baseCategoryCounts: basePropertyCatalog.categoryCounts,
+    baseCategoryCountsExact: basePropertyCatalog.categoryCountsExact,
+    allSearchCategoryCounts: allSearchPropertyCatalog.categoryCounts,
+    allSearchCategoryCountsExact: allSearchPropertyCatalog.categoryCountsExact,
+  });
+  const pickerSidebarCategoryCountsExact = Boolean(pickerSidebarCategoryCounts);
+  const activeCatalogLoading = activeUsesLegacyCatalog
+    ? activeLegacyMetricCatalog.isLoading
+    : activePropertyCatalog.isLoading ||
+      isPropertyCatalogNotReadyError(activePropertyCatalog.error);
+  const paginatedTotal =
+    !activeRequestSettled || activeCatalogLoading
+      ? null
+      : activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.total
+        : getWidgetCatalogExactResultCount({
+            request: activeCatalogRequest,
+            categoryCounts: activeCategoryCounts,
+            categoryCountsExact: activeCategoryCountsExact,
+            requestSettled: activeRequestSettled,
+          });
+  const fetchNextPage = activeUsesLegacyCatalog
+    ? activeLegacyMetricCatalog.fetchNextPage
+    : activePropertyCatalog.fetchNextPage;
+  const hasNextPage = activeRequestSettled
+    ? activeUsesLegacyCatalog
+      ? activeLegacyMetricCatalog.hasNextPage
+      : Boolean(activePropertyCatalog.hasNextPage)
+    : false;
+  const catalogContinuationKey = activeRequestSettled
+    ? activeUsesLegacyCatalog
+      ? activeLegacyMetricCatalog.continuationKey
+      : activePropertyCatalog.continuationKey
+    : null;
+  const isFetchingNextPage = Boolean(
+    activeRequestSettled &&
+      (activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.isFetchingNextPage
+        : activePropertyCatalog.isFetchingNextPage),
+  );
+  const isFetchNextPageError = Boolean(
+    activeRequestSettled &&
+      (activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.isFetchNextPageError
+        : activePropertyCatalog.isFetchNextPageError),
+  );
+  const isPaginatedLoading = Boolean(
+    !activeRequestSettled || activeCatalogLoading,
+  );
+
+  const selectedMetricSources = useMemo(
+    () => metrics.map(getWidgetMetricAdapterSource),
+    [metrics],
+  );
+  const targetMetricSource =
+    pickerMetricIndex == null
+      ? null
+      : getWidgetMetricAdapterSource(metrics[pickerMetricIndex] || {});
+  const catalogMetricOptions = useMemo(
+    () =>
+      buildWidgetCatalogPickerOptions({
+        metrics: paginatedMetrics,
+        pickerMode,
+        pickerCategory,
+        search: trimmedDebouncedPickerSearch,
+        requestSettled: activeRequestSettled,
+        selectedMetricSources,
+        targetMetricSource,
+      }),
+    [
+      activeRequestSettled,
+      paginatedMetrics,
+      pickerCategory,
+      pickerMode,
+      selectedMetricSources,
+      targetMetricSource,
+      trimmedDebouncedPickerSearch,
+    ],
+  );
 
   const cursorAttributeOptions = useMemo(
     () => buildWidgetCursorAttributeOptions(cursorAttributes, pickerMode),
@@ -7216,7 +7528,12 @@ export default function WidgetEditorView() {
                 fullWidth
                 placeholder={`Search ${pickerMode === "metric" ? "metrics" : pickerMode === "metric_filter" ? "filter attributes" : pickerMode === "filter" ? "filter attributes" : "breakdown attributes"}...`}
                 value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
+                onChange={(e) => {
+                  setPickerSearch(e.target.value);
+                  // A new text scope starts in All. An explicit category click
+                  // after typing remains authoritative until the text changes.
+                  setPickerCategory("all");
+                }}
                 autoFocus
                 InputProps={{
                   startAdornment: (
@@ -7255,56 +7572,72 @@ export default function WidgetEditorView() {
                   py: 0.5,
                 }}
               >
-                {METRIC_CATEGORIES.map((cat) => (
-                  <Box
-                    key={cat.key}
-                    onClick={() => setPickerCategory(cat.key)}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      px: 1.5,
-                      py: 0.75,
-                      cursor: "pointer",
-                      borderRadius: 1,
-                      mx: 0.5,
-                      bgcolor:
-                        pickerCategory === cat.key
-                          ? "action.selected"
-                          : "transparent",
-                      "&:hover": {
+                {METRIC_CATEGORIES.map((cat) => {
+                  const categoryCount = getWidgetCatalogSidebarCategoryCount({
+                    pickerCategory: cat.key,
+                    categoryCounts: pickerSidebarCategoryCounts,
+                    categoryCountsExact: pickerSidebarCategoryCountsExact,
+                  });
+                  return (
+                    <Box
+                      key={cat.key}
+                      onClick={() => setPickerCategory(cat.key)}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        px: 1.5,
+                        py: 0.75,
+                        cursor: "pointer",
+                        borderRadius: 1,
+                        mx: 0.5,
                         bgcolor:
                           pickerCategory === cat.key
                             ? "action.selected"
-                            : "action.hover",
-                      },
-                    }}
-                  >
-                    <Iconify
-                      icon={cat.icon}
-                      width={16}
-                      sx={{
-                        color:
-                          pickerCategory === cat.key
-                            ? "primary.main"
-                            : "text.secondary",
-                      }}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: "12px",
-                        fontWeight: pickerCategory === cat.key ? 600 : 400,
-                        color:
-                          pickerCategory === cat.key
-                            ? "text.primary"
-                            : "text.secondary",
+                            : "transparent",
+                        "&:hover": {
+                          bgcolor:
+                            pickerCategory === cat.key
+                              ? "action.selected"
+                              : "action.hover",
+                        },
                       }}
                     >
-                      {cat.label}
-                    </Typography>
-                  </Box>
-                ))}
+                      <Iconify
+                        icon={cat.icon}
+                        width={16}
+                        sx={{
+                          color:
+                            pickerCategory === cat.key
+                              ? "primary.main"
+                              : "text.secondary",
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "12px",
+                          fontWeight: pickerCategory === cat.key ? 600 : 400,
+                          color:
+                            pickerCategory === cat.key
+                              ? "text.primary"
+                              : "text.secondary",
+                          flex: 1,
+                        }}
+                      >
+                        {cat.label}
+                      </Typography>
+                      {Number.isSafeInteger(categoryCount) && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.disabled", fontSize: 10 }}
+                        >
+                          {categoryCount}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
               </Box>
               {/* Right: items — the end sentinel advances one cursor page. */}
               <Box sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}>

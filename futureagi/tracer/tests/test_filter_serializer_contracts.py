@@ -297,20 +297,35 @@ class TestFilterSerializerContracts:
         assert "source" in serializer.errors
 
     def test_dashboard_filter_values_query_parses_project_ids(self):
+        project_a = "00000000-0000-4000-8000-000000000001"
+        project_b = "00000000-0000-4000-8000-000000000002"
         serializer = DashboardFilterValuesQuerySerializer(
             data={
                 "metric_name": "latency_ms",
                 "metric_type": "system_metric",
                 "source": "traces",
-                "project_ids": "project-a, project-b,,",
+                "project_ids": f"{project_a}, {project_b},{project_a},,",
             }
         )
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["project_ids"] == [
-            "project-a",
-            "project-b",
+            project_a,
+            project_b,
         ]
+
+    def test_dashboard_filter_values_query_rejects_non_uuid_project_ids(self):
+        serializer = DashboardFilterValuesQuerySerializer(
+            data={
+                "metric_name": "latency_ms",
+                "metric_type": "system_metric",
+                "source": "traces",
+                "project_ids": "project-a",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "project_ids" in serializer.errors
 
     def test_dashboard_filter_values_project_ids_preserves_csv_wire_and_list_runtime(
         self,

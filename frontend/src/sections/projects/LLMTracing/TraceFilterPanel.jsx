@@ -865,31 +865,20 @@ export function filterPropertiesForPicker({
   const rawQuery = String(search || "").trim();
   const query = normalizePropertySearchText(search);
   let list = properties || [];
-  // Text search is global.  A category selected during an earlier browse must
-  // not hide an exact system field (for example the Voice Calls `call_id`)
-  // while showing unrelated nested attributes with the same leaf name.
-  if (!query && hasCategorySidebar && category !== "all") {
+  // Typing a new search resets the picker to All. If the user then chooses a
+  // category, that explicit choice must remain authoritative while the text
+  // is present; otherwise System rows leak into Attributes (and vice versa).
+  if (hasCategorySidebar && category !== "all") {
     list = list.filter((property) => property.category === category);
   }
   if (!query) return list;
   const rawIdMatches = list.filter((property) =>
     propertyMatchesRawId(property, rawQuery),
   );
-  const hasRawAttributeMatch = rawIdMatches.some(
-    (property) => property.category === "attribute",
-  );
-  // Preserve canonical System-field selection. The merge below is for raw
-  // retained attribute identities; a system response key such as `call_id`
-  // must not suddenly expose unrelated nested aliases.
-  if (rawIdMatches.length > 0 && !hasRawAttributeMatch) return rawIdMatches;
   const canonicalSystemMatches = getUnambiguousCanonicalSystemMatches(
     list,
     rawQuery,
   );
-  // Friendly system labels remain exact selections (`call_id` / `Call ID`).
-  // Aliases and fuzzy punctuation matches stay discoverable below but cannot
-  // claim identity or terminate backend attribute discovery.
-  if (canonicalSystemMatches.length > 0) return canonicalSystemMatches;
   const fuzzyMatches = list.filter((property) => {
     const name = normalizePropertySearchText(property.name);
     const id = normalizePropertySearchText(property.id);
@@ -898,14 +887,16 @@ export function filterPropertiesForPicker({
     );
     return name.includes(query) || id.includes(query) || aliases;
   });
-  // Show an exact backend key first, but keep locally retained substring
-  // matches beside it. Exact identity and fuzzy visibility are separate: a
-  // search for `foo` must not conceal `foo_archive` or `foo.bar` that are
-  // already loaded (or arrive on a later explicit catalog page).
-  if (rawIdMatches.length === 0) return fuzzyMatches;
-  const exactMatches = new Set(rawIdMatches);
+  // Exact ids and canonical System labels stay first, but All must retain all
+  // fuzzy category matches. For example, `cost` must show Cost plus every
+  // matching cost_breakdown attribute instead of collapsing to one System
+  // row merely because its id is exact.
+  const preferredMatches = [
+    ...new Set([...rawIdMatches, ...canonicalSystemMatches]),
+  ];
+  const exactMatches = new Set(preferredMatches);
   return [
-    ...rawIdMatches,
+    ...preferredMatches,
     ...fuzzyMatches.filter((property) => !exactMatches.has(property)),
   ];
 }
@@ -1421,6 +1412,7 @@ function PropertyPicker({
   loadNextCatalogPage,
   catalogCategoryCounts = null,
   catalogCategoryCountsExact = false,
+  propertyFilter,
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -1458,13 +1450,37 @@ function PropertyPicker({
     pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: unifiedCatalogScopeActive,
   });
-  const searchedCatalogProperties = useMemo(
-    () =>
-      buildTraceFilterProperties(searchedCatalog.metrics || [], {
+  // Keep the All-search definition/count request mounted independently from
+  // category navigation. React Query deduplicates this request while All is
+  // selected; after a category click it prevents the scoped response from
+  // replacing the search-wide sidebar totals.
+  const allSearchCatalog = usePropertyCatalog({
+    projectIds: projectId ? [projectId] : [],
+    source,
+    search: debouncedCatalogSearch,
+    perEvalConfig: true,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+    enabled: Boolean(
+      unifiedCatalogActive &&
+        open &&
+        (projectId || allowWorkspaceScope) &&
+        debouncedCatalogSearch,
+    ),
+  });
+  const searchedCatalogProperties = useMemo(() => {
+    const catalogProperties = buildTraceFilterProperties(
+      searchedCatalog.metrics || [],
+      {
         isSimulator,
         sourceScope: source,
-      }),
-    [isSimulator, searchedCatalog.metrics, source],
+      },
+    );
+    return propertyFilter
+      ? catalogProperties.filter(propertyFilter)
+      : catalogProperties;
+  }, [isSimulator, propertyFilter, searchedCatalog.metrics, source]);
+  const allSearchCatalogHasExactCounts = Boolean(
+    allSearchCatalog.categoryCountsExact && allSearchCatalog.categoryCounts,
   );
   const searchedCatalogOwnsResults = Boolean(
     unifiedCatalogScopeActive && catalogSearchSettled,
@@ -1477,32 +1493,35 @@ function PropertyPicker({
       !catalogSearchSettled,
   );
   const effectiveCatalogProperties = useMemo(
-    () =>
-      searchedCatalogOwnsResults
-        ? mergeCatalogPropertyPages(properties, searchedCatalogProperties)
-        : properties,
+    () => (searchedCatalogOwnsResults ? searchedCatalogProperties : properties),
     [properties, searchedCatalogOwnsResults, searchedCatalogProperties],
   );
-  const searchedCatalogHasExactCounts = Boolean(
-    searchedCatalog.categoryCountsExact && searchedCatalog.categoryCounts,
-  );
-  const searchedCatalogCountsOwnSidebar = Boolean(
+  const searchCountsOwnSidebar = Boolean(
     trimmedSearch &&
       catalogSearchSettled &&
       searchedCatalogOwnsResults &&
-      searchedCatalogHasExactCounts,
+      allSearchCatalogHasExactCounts,
   );
-  // Category navigation only changes the visible result page. Its response
-  // must never replace the base scope's exact sidebar totals; doing so makes
-  // the counts change merely because System, Evals, Annotations, or Attributes
-  // was selected. A settled text search is the only narrower request that owns
-  // the breakdown because those counts intentionally describe search matches.
-  const effectiveCatalogCategoryCounts = searchedCatalogCountsOwnSidebar
-    ? searchedCatalog.categoryCounts
-    : catalogCategoryCounts;
-  const effectiveCatalogCategoryCountsExact = searchedCatalogCountsOwnSidebar
+  const searchCountsPending = Boolean(
+    trimmedSearch &&
+      catalogSearchSettled &&
+      searchedCatalogOwnsResults &&
+      !allSearchCatalogHasExactCounts,
+  );
+  // Category navigation only changes the visible result page. Search-wide
+  // counts always come from the independent All-search request; until that
+  // exact response arrives, hide the counts instead of displaying a scoped
+  // category breakdown that would visibly drift.
+  const effectiveCatalogCategoryCounts = searchCountsOwnSidebar
+    ? allSearchCatalog.categoryCounts
+    : searchCountsPending
+      ? null
+      : catalogCategoryCounts;
+  const effectiveCatalogCategoryCountsExact = searchCountsOwnSidebar
     ? true
-    : catalogCategoryCountsExact;
+    : searchCountsPending
+      ? false
+      : catalogCategoryCountsExact;
   const effectiveCatalogError = searchedCatalogOwnsResults
     ? Boolean(searchedCatalog.isError || searchedCatalog.cursorChainStopped)
     : catalogError;
@@ -1667,6 +1686,11 @@ function PropertyPicker({
   ]);
   const visibleProperties = filtered.slice(0, visiblePropertyLimit);
   const hiddenCount = Math.max(filtered.length - visiblePropertyLimit, 0);
+  const displayedPropertyCount = search.trim()
+    ? Number.isSafeInteger(counts[category])
+      ? counts[category]
+      : filtered.length
+    : counts.all;
   const catalogCategoryCanContinue = (
     unifiedCatalogActive
       ? ["all", "system", "eval", "annotation", "attribute"]
@@ -1855,15 +1879,14 @@ function PropertyPicker({
                     />
                   </InputAdornment>
                 ),
-                endAdornment: Number.isSafeInteger(
-                  search.trim() ? filtered.length : counts.all,
-                ) && (
+                endAdornment: Number.isSafeInteger(displayedPropertyCount) && (
                   <InputAdornment position="end">
                     <Typography
                       variant="caption"
+                      aria-label="Property search result count"
                       sx={{ color: "text.disabled", fontSize: 11 }}
                     >
-                      {search.trim() ? filtered.length : counts.all}
+                      {displayedPropertyCount}
                     </Typography>
                   </InputAdornment>
                 ),
@@ -2935,6 +2958,7 @@ function FilterRow({
   catalogCategoryCounts,
   catalogCategoryCountsExact,
   attributeSource,
+  propertyFilter,
 }) {
   const [pickerAnchor, setPickerAnchor] = useState(null);
   const selectedProp = findTraceFilterProperty(properties, filter);
@@ -3414,6 +3438,7 @@ function FilterRow({
         loadNextCatalogPage={loadNextCatalogPage}
         catalogCategoryCounts={catalogCategoryCounts}
         catalogCategoryCountsExact={catalogCategoryCountsExact}
+        propertyFilter={propertyFilter}
       />
 
       <Select
@@ -3633,14 +3658,23 @@ const TraceFilterPanel = ({
         debouncedQueryCatalogSearch,
     ),
   });
-  const queryCatalogProperties = useMemo(
-    () =>
-      buildTraceFilterProperties(queryPropertyCatalog.metrics || [], {
+  const queryCatalogProperties = useMemo(() => {
+    const catalogProperties = buildTraceFilterProperties(
+      queryPropertyCatalog.metrics || [],
+      {
         isSimulator,
         sourceScope: unifiedCatalogSource,
-      }),
-    [isSimulator, queryPropertyCatalog.metrics, unifiedCatalogSource],
-  );
+      },
+    );
+    return propertyFilter
+      ? catalogProperties.filter(propertyFilter)
+      : catalogProperties;
+  }, [
+    isSimulator,
+    propertyFilter,
+    queryPropertyCatalog.metrics,
+    unifiedCatalogSource,
+  ]);
   const queryCatalogSearchOwnsResults = Boolean(
     unifiedPropertyCatalogActive &&
       trimmedQueryFieldSearch &&
@@ -3723,7 +3757,7 @@ const TraceFilterPanel = ({
   );
   const queryProperties = useMemo(() => {
     const catalogProperties = queryCatalogSearchOwnsResults
-      ? mergeCatalogPropertyPages(properties, queryCatalogProperties)
+      ? queryCatalogProperties
       : properties;
     const discovered = mergeRetainedAttributeProperties(
       catalogProperties,
@@ -4442,6 +4476,7 @@ const TraceFilterPanel = ({
                       ? unifiedCatalogSource
                       : exactAttributeSource
                   }
+                  propertyFilter={propertyFilter}
                 />
               ))}
             </Stack>

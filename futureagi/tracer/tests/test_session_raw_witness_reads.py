@@ -255,13 +255,17 @@ def test_session_match_applies_exact_all_span_filters_before_session_page() -> N
     scalar_spans = sql.split("latest_candidate_scalar_spans AS (", 1)[1].split(
         "resolved_candidate_scalar_spans AS (", 1
     )[0]
+    matching_traces = sql.split("matching_scalar_traces AS (", 1)[1].split(
+        "matching_scalar_sessions AS (", 1
+    )[0]
     matching_sessions = sql.split("matching_scalar_sessions AS (", 1)[1].split(
         "sessions AS (", 1
     )[0]
     sessions = sql.split("sessions AS (", 1)[1]
     assert "latest_attr_exists_0" not in resolved_roots
     assert "latest_attr_exists_0" in scalar_spans
-    assert "lowerUTF8(toString(latest_attr_value_0)) IN" in matching_sessions
-    assert "HAVING countIf(" in matching_sessions
+    assert "lowerUTF8(toString(latest_attr_value_0)) IN" in matching_traces
+    assert "HAVING countIf(" in matching_traces
+    assert "FROM matching_scalar_traces" in matching_sessions
     assert "FROM resolved_root_sessions" in sessions
     assert "session_id IN (SELECT session_id FROM matching_scalar_sessions)" in sessions

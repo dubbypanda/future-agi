@@ -15,9 +15,12 @@ vi.mock("react-apexcharts", () => ({ default: () => null }));
 
 import {
   buildLinkedProjectFilter,
+  buildWidgetCatalogPickerOptions,
   buildWidgetFilterConfig,
   buildWidgetCursorAttributeOptions,
   FilterValuePickerPopup,
+  getWidgetCatalogExactResultCount,
+  getWidgetCatalogSidebarCategoryCount,
   getWidgetFilterDefaults,
   getWidgetFilterOperators,
   getWidgetMetricCatalogRequest,
@@ -25,6 +28,8 @@ import {
   hasWidgetFilterValue,
   isWidgetCatalogOptionAllowed,
   mergeWidgetCursorAttributeOptions,
+  resolveWidgetCatalogResultMetrics,
+  resolveWidgetCatalogSidebarCounts,
   restoreWidgetFilterConfig,
   WidgetCatalogPaginationControl,
 } from "../WidgetEditorView";
@@ -760,6 +765,210 @@ describe("WidgetEditor filter-value picker", () => {
     expect(
       hasWidgetFilterValue({ id: "tags", operator: "str_contains", value: [] }),
     ).toBe(false);
+  });
+
+  it.each([
+    ["metric", { selectedMetricSources: [], targetMetricSource: null }],
+    ["filter", { selectedMetricSources: ["traces"], targetMetricSource: null }],
+    [
+      "metric_filter",
+      { selectedMetricSources: [], targetMetricSource: "traces" },
+    ],
+    [
+      "breakdown",
+      { selectedMetricSources: ["traces"], targetMetricSource: null },
+    ],
+  ])(
+    "keeps System and custom cost matches without stale base rows in %s mode",
+    (pickerMode, adapterContext) => {
+      const baseMetrics = [
+        {
+          name: "latency",
+          display_name: "Latency",
+          property_id: "system_metric:traces:latency",
+          category: "system_metric",
+          source: "traces",
+          sources: ["traces"],
+          type: "number",
+          role: "metric",
+        },
+      ];
+      const scopedMetrics = [
+        {
+          name: "cost",
+          display_name: "Cost",
+          property_id: "system_metric:traces:cost",
+          category: "system_metric",
+          source: "traces",
+          sources: ["traces"],
+          type: "number",
+          role: "metric",
+        },
+        {
+          name: "cost_breakdown.analysisCost.total",
+          display_name: "cost_breakdown.analysisCost.total",
+          property_id:
+            "custom_attribute:traces:cost_breakdown.analysisCost.total",
+          category: "custom_attribute",
+          source: "traces",
+          sources: ["traces"],
+          type: "number",
+          role: "metric",
+        },
+      ];
+      const activeMetrics = resolveWidgetCatalogResultMetrics({
+        baseMetrics,
+        scopedMetrics,
+        scopedRequestActive: true,
+        requestSettled: true,
+      });
+      const options = buildWidgetCatalogPickerOptions({
+        metrics: activeMetrics,
+        pickerMode,
+        pickerCategory: "all",
+        search: "cost",
+        requestSettled: true,
+        ...adapterContext,
+      });
+
+      expect(options.map(({ id }) => id)).toEqual([
+        "cost",
+        "cost_breakdown.analysisCost.total",
+      ]);
+      expect(options.map(({ type }) => type)).toEqual([
+        "system",
+        "custom_attribute",
+      ]);
+      expect(options.some(({ id }) => id === "latency")).toBe(false);
+      expect(
+        resolveWidgetCatalogResultMetrics({
+          baseMetrics,
+          scopedMetrics,
+          scopedRequestActive: true,
+          requestSettled: false,
+        }),
+      ).toEqual([]);
+    },
+  );
+
+  it.each(["metric", "filter", "metric_filter", "breakdown"])(
+    "strictly isolates an explicit Dashboard category in %s mode",
+    (pickerMode) => {
+      const metrics = [
+        {
+          name: "cost",
+          display_name: "Cost",
+          property_id: "system_metric:traces:cost",
+          category: "system_metric",
+          source: "traces",
+          sources: ["traces"],
+          type: "number",
+          role: "metric",
+        },
+        {
+          name: "cost_breakdown.total",
+          property_id: "custom_attribute:traces:cost_breakdown.total",
+          category: "custom_attribute",
+          source: "traces",
+          sources: ["traces"],
+          type: "number",
+          role: "metric",
+        },
+      ];
+      const adapterContext =
+        pickerMode === "metric_filter"
+          ? { targetMetricSource: "traces" }
+          : pickerMode === "metric"
+            ? {}
+            : { selectedMetricSources: ["traces"] };
+
+      expect(
+        buildWidgetCatalogPickerOptions({
+          metrics,
+          pickerMode,
+          pickerCategory: "custom_attribute",
+          search: "cost",
+          ...adapterContext,
+        }).map(({ id }) => id),
+      ).toEqual(["cost_breakdown.total"]);
+      expect(
+        buildWidgetCatalogPickerOptions({
+          metrics,
+          pickerMode,
+          pickerCategory: "trace",
+          search: "cost",
+          ...adapterContext,
+        }).map(({ id }) => id),
+      ).toEqual(["cost"]);
+    },
+  );
+
+  it("keeps exact search counts stable while category result counts stay scoped", () => {
+    const allSearchCounts = {
+      all: 35,
+      system_metric: 6,
+      eval_metric: 0,
+      annotation_metric: 0,
+      custom_attribute: 29,
+      custom_column: 0,
+    };
+    const customResponseCounts = {
+      all: 29,
+      system_metric: 0,
+      eval_metric: 0,
+      annotation_metric: 0,
+      custom_attribute: 29,
+      custom_column: 0,
+    };
+    const sidebarCounts = resolveWidgetCatalogSidebarCounts({
+      requestSettled: true,
+      search: "cost",
+      baseCategoryCounts: null,
+      baseCategoryCountsExact: false,
+      allSearchCategoryCounts: allSearchCounts,
+      allSearchCategoryCountsExact: true,
+    });
+
+    expect(
+      getWidgetCatalogSidebarCategoryCount({
+        pickerCategory: "all",
+        categoryCounts: sidebarCounts,
+        categoryCountsExact: true,
+      }),
+    ).toBe(35);
+    expect(
+      getWidgetCatalogSidebarCategoryCount({
+        pickerCategory: "custom_attribute",
+        categoryCounts: sidebarCounts,
+        categoryCountsExact: true,
+      }),
+    ).toBe(29);
+    expect(
+      getWidgetCatalogExactResultCount({
+        request: { category: "custom_attribute" },
+        categoryCounts: customResponseCounts,
+        categoryCountsExact: true,
+        requestSettled: true,
+      }),
+    ).toBe(29);
+    expect(
+      getWidgetCatalogExactResultCount({
+        request: { category: "" },
+        categoryCounts: allSearchCounts,
+        categoryCountsExact: true,
+        requestSettled: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolveWidgetCatalogSidebarCounts({
+        requestSettled: true,
+        search: "cost",
+        baseCategoryCounts: allSearchCounts,
+        baseCategoryCountsExact: true,
+        allSearchCategoryCounts: null,
+        allSearchCategoryCountsExact: false,
+      }),
+    ).toBeNull();
   });
 
   it("uses one 20-item unified catalog for every property category", () => {

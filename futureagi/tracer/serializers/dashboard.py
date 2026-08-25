@@ -957,7 +957,10 @@ class DashboardFilterValuesQuerySerializer(serializers.Serializer):
         required=False,
         default="traces",
     )
-    project_ids = CommaSeparatedListField(required=False, default=list)
+    # Keep the established comma-separated query-string/OpenAPI default while
+    # ``CommaSeparatedListField.run_validation`` normalizes an omitted value to
+    # the runtime list contract consumed by the scoped readers.
+    project_ids = CommaSeparatedListField(required=False, default="")
     dataset_id = serializers.UUIDField(required=False)
     search = serializers.CharField(
         required=False,
