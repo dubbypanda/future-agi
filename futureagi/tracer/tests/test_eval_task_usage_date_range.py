@@ -9,8 +9,8 @@ staring at an empty chart. That fallback resets *both* bounds: leaving
 make ``start_date > end_date``, and the zero-fill loop would emit nothing.
 """
 
-import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as utc
+from unittest import mock
 
 import pytest  # noqa: E402
 from django.utils import timezone
@@ -18,88 +18,22 @@ from django.utils import timezone
 # Break the import cycle (see test_eval_logger_schema.py for the
 # canonical comment).
 import model_hub.tasks  # noqa: F401
-from model_hub.models.evals_metric import EvalTemplate  # noqa: E402
-from tracer.models.custom_eval_config import CustomEvalConfig  # noqa: E402
-from tracer.models.eval_task import (  # noqa: E402
-    EvalTask,
-    EvalTaskStatus,
-    RunType,
+from tracer.constants.eval_task_usage import (  # noqa: E402
+    MAX_USAGE_CHART_BUCKETS,
 )
-from tracer.models.observation_span import (  # noqa: E402
-    EvalLogger,
-    EvalTargetType,
-    ObservationSpan,
+
+from tracer.tests.eval_task_factories import (  # noqa: E402
+    make_config as _config,
+    make_fresh_span as _fresh_span,
+    make_row as _row,
+    make_task as _task,
+    make_template as _template,
 )
 
 USAGE_URL = "/tracer/eval-task/get_usage/"
 
 
 # ── Test scaffolding ───────────────────────────────────────────────────
-
-
-def _template(*, organization, workspace, name=None):
-    return EvalTemplate.objects.create(
-        name=name or "Template (pass_fail)",
-        description="",
-        organization=organization,
-        workspace=workspace,
-        output_type_normalized="pass_fail",
-        config={"output": "Pass/Fail"},
-    )
-
-
-def _config(*, project, template, name):
-    return CustomEvalConfig.objects.create(
-        name=name,
-        project=project,
-        eval_template=template,
-        config={},
-        mapping={},
-        filters={},
-    )
-
-
-def _task(*, project, name="Usage task"):
-    return EvalTask.objects.create(
-        project=project,
-        name=name,
-        filters={},
-        sampling_rate=100,
-        run_type=RunType.CONTINUOUS,
-        status=EvalTaskStatus.PENDING,
-        spans_limit=100,
-    )
-
-
-def _fresh_span(base):
-    """A new span sharing base's trace/project — one eval row per span, so
-    live rows don't collide on the eval_logger_live_span_uniq
-    (task, span, cfg) partial unique constraint."""
-    return ObservationSpan.objects.create(
-        id=f"span_{uuid.uuid4().hex[:16]}",
-        project=base.project,
-        trace=base.trace,
-        name="usage span",
-        observation_type="llm",
-        start_time=base.start_time,
-        end_time=base.end_time,
-    )
-
-
-def _row(*, span, cfg, task, created_at, **kwargs):
-    """One eval run, backdated to ``created_at`` (created_at is auto_now_add,
-    so it can only be set after the fact via .update())."""
-    row = EvalLogger.objects.create(
-        target_type=EvalTargetType.SPAN,
-        observation_span=span,
-        trace=span.trace,
-        custom_eval_config=cfg,
-        eval_task_id=str(task.id),
-        **kwargs,
-    )
-    EvalLogger.objects.filter(id=row.id).update(created_at=created_at)
-    row.refresh_from_db()
-    return row
 
 
 def _iso(delta_days):
@@ -355,3 +289,94 @@ class TestUsageQueryContract:
         )
         assert response.status_code == 200
         assert "eval_aggregation" in response.json()["result"]
+
+
+# ── Bucket alignment ───────────────────────────────────────────────────
+
+
+@pytest.mark.integration
+@pytest.mark.api
+@pytest.mark.django_db
+class TestBucketAlignment:
+    """The chart's zero-fill keys must land on the same instants as the data.
+
+    TH-4805 itself: 7d buckets the data at hours {0, 6, 12, 18}, but the
+    zero-fill loop used to step 6h from ``now - 7d`` with only the minute
+    floored, so the two sets only intersected when ``now.hour % 6 == 0``. The
+    clock is frozen at an hour where it is not, because unfrozen the old bug
+    reproduced 20 hours a day and the test would be flaky-green.
+    """
+
+    @pytest.mark.parametrize("frozen_hour", [1, 13])
+    def test_seven_day_chart_counts_every_run(
+        self,
+        auth_client,
+        project,
+        organization,
+        workspace,
+        observation_span,
+        frozen_hour,
+    ):
+        frozen = datetime(2026, 1, 15, frozen_hour, 37, 11, tzinfo=utc.utc)
+        assert frozen.hour % 6 != 0, "an aligned hour would hide the bug"
+
+        template = _template(organization=organization, workspace=workspace)
+        cfg = _config(project=project, template=template, name="Toxicity")
+        task = _task(project=project)
+
+        with mock.patch("django.utils.timezone.now", return_value=frozen):
+            _row(
+                span=observation_span,
+                cfg=cfg,
+                task=task,
+                created_at=frozen - timedelta(days=1),
+                output_bool=True,
+            )
+            _row(
+                span=_fresh_span(observation_span),
+                cfg=cfg,
+                task=task,
+                created_at=frozen - timedelta(days=3),
+                output_bool=False,
+            )
+            result = _result(_get(auth_client, task, period="7d"))
+
+        assert result["period_used"] == "7d"
+        assert _chart_calls(result) == 2
+
+    def test_wide_custom_range_counts_every_run(
+        self, auth_client, project, organization, workspace, observation_span
+    ):
+        """A range wide enough to trip the bucket cap.
+
+        ~2400 days over MAX_USAGE_CHART_BUCKETS derives a 2305-minute width,
+        which is not a divisor of a day. Flooring the data to midnight while
+        stepping the zero-fill by 2305 minutes would leave only the first
+        bucket matching, so the chart would drop both runs while the stats
+        still counted them.
+        """
+        template = _template(organization=organization, workspace=workspace)
+        cfg = _config(project=project, template=template, name="Toxicity")
+        task = _task(project=project)
+        now = timezone.now()
+        for age in (100, 900):
+            _row(
+                span=_fresh_span(observation_span),
+                cfg=cfg,
+                task=task,
+                created_at=now - timedelta(days=age),
+                output_bool=True,
+            )
+
+        result = _result(
+            _get(
+                auth_client,
+                task,
+                start_date=(now - timedelta(days=2400)).isoformat(),
+                end_date=now.isoformat(),
+            )
+        )
+
+        assert result["stats"]["runs_period"] == 2
+        assert _chart_calls(result) == 2
+        assert len(result["chart"]) <= MAX_USAGE_CHART_BUCKETS + 1
