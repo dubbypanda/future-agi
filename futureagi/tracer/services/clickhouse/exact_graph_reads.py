@@ -82,12 +82,15 @@ from tracer.utils.helper import get_annotation_labels_for_project
 logger = structlog.get_logger(__name__)
 
 # Exact graphs run only in a deduplicated background refresh and publish
-# atomically. Every database statement and the final publication fence consume
-# one action-owned wall deadline; no nested query receives a fresh grant. Match
-# the interactive session-graph contract so an exact trace/span action cannot
-# outlive its bounded wait. Source-row volume is not capped; byte,
-# memory, result, partition, and admission limits remain independent boundaries.
-EXACT_GRAPH_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+# atomically; the latency-critical HTTP request returns a pending envelope and
+# never waits for this work. Every database statement and the final publication
+# fence consume one action-owned wall deadline, so no nested query receives a
+# fresh grant. Use the reviewed background wall rather than the interactive
+# request wall: production-size exact system graphs can legitimately need more
+# than 9.5 seconds while still remaining bounded. Source-row volume is not
+# capped; byte, memory, result, partition, and admission limits remain
+# independent boundaries.
+EXACT_GRAPH_WALL_DEADLINE_MS = settings.GRAPH_BACKGROUND_WALL_MS
 # Keep one canonical alias for refresh-budget arithmetic and qualification
 # overrides.
 EXACT_GRAPH_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
@@ -389,9 +392,10 @@ def _remaining_exact_graph_timeout_ms(
 ) -> int:
     """Return the time left on one authoritative exact-refresh wall.
 
-    Direct readers do builder, relation, database, formatting, and publication
-    work under one 9.5-second budget. A later statement may consume only the
-    remaining portion; it never receives a fresh per-statement grant.
+    Background readers do builder, relation, database, formatting, and
+    publication work under one reviewed graph budget. A later statement may
+    consume only the remaining portion; it never receives a fresh
+    per-statement grant.
     """
 
     elapsed_ms = max(monotonic() - started, 0.0) * 1000

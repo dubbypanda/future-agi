@@ -7,8 +7,8 @@ from tracer.services.clickhouse import exact_graph_reads as exact_reads
 
 
 @pytest.mark.unit
-def test_exact_graph_action_deadline_is_nine_and_a_half_seconds():
-    assert exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS == 9_500
+def test_exact_graph_action_deadline_uses_reviewed_background_wall():
+    assert exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS == 30_000
     assert (
         exact_reads.EXACT_GRAPH_QUERY_TIMEOUT_MS
         == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
@@ -37,12 +37,12 @@ def test_exact_graph_action_deadline_is_nine_and_a_half_seconds():
 
 @pytest.mark.unit
 def test_remaining_exact_graph_budget_shrinks_and_rounds_down(monkeypatch):
-    clock = iter((0.0, 0.2504, 9.4751))
+    clock = iter((0.0, 0.2504, 29.9751))
     monkeypatch.setattr(exact_reads, "monotonic", lambda: next(clock))
 
-    assert exact_reads._remaining_exact_graph_timeout_ms(0.0, 30_000) == 9_500
+    assert exact_reads._remaining_exact_graph_timeout_ms(0.0, 30_000) == 30_000
     # The fractional millisecond is never rounded into a grant past the wall.
-    assert exact_reads._remaining_exact_graph_timeout_ms(0.0, 30_000) == 9_249
+    assert exact_reads._remaining_exact_graph_timeout_ms(0.0, 30_000) == 29_749
     with pytest.raises(exact_reads.ExactGraphReadError, match="bounded deadline"):
         exact_reads._remaining_exact_graph_timeout_ms(0.0, 30_000)
 
@@ -90,7 +90,7 @@ def test_trace_contribution_subqueries_share_one_shrinking_budget(monkeypatch):
     )
 
     assert query_count == 2
-    assert timeouts == [9_250, 7_000]
+    assert timeouts == [29_750, 27_500]
     assert all(
         timeout <= exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS for timeout in timeouts
     )
@@ -99,7 +99,7 @@ def test_trace_contribution_subqueries_share_one_shrinking_budget(monkeypatch):
 @pytest.mark.unit
 def test_span_partition_deadline_stops_before_an_over_budget_subquery(monkeypatch):
     timeouts: list[int] = []
-    clock = iter((0.25, 2.5, 9.476))
+    clock = iter((0.25, 2.5, 29.976))
     start = datetime(2026, 8, 1)
 
     class Builder:
@@ -130,5 +130,5 @@ def test_span_partition_deadline_stops_before_an_over_budget_subquery(monkeypatc
             started=0.0,
         )
 
-    assert timeouts == [9_250, 7_000]
+    assert timeouts == [29_750, 27_500]
     assert timeouts == sorted(timeouts, reverse=True)

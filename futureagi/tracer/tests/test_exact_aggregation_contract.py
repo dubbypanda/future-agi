@@ -6777,11 +6777,12 @@ def test_annotation_reader_sets_postgres_readonly_snapshot_and_remaining_timeout
         observe_type="trace",
     )
 
+    remaining_timeout_ms = exact_module.EXACT_GRAPH_WALL_DEADLINE_MS - 1_250
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '8250ms'",
+        f"SET LOCAL statement_timeout = '{remaining_timeout_ms}ms'",
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '8250ms'",
+        f"SET LOCAL statement_timeout = '{remaining_timeout_ms}ms'",
     ]
     assert transaction_state["active"] is False
     assert result["query_complete"] is True
@@ -6848,9 +6849,15 @@ def test_annotation_slow_empty_postgres_partition_exhausts_shared_deadline(
 
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '9500ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '9500ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
     ]
     assert analytics.main_calls == []
 
@@ -6918,7 +6925,10 @@ def test_annotation_slow_label_discovery_exhausts_deadline_before_score_work(
 
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '9500ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
     ]
     assert score_filters == []
     assert analytics.main_calls == []
