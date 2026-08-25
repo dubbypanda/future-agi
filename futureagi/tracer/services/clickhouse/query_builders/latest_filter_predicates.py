@@ -245,6 +245,7 @@ def _missing_typed_map_default_can_match(
     operation: str,
     params: dict[str, Any],
     index: int,
+    value_param: str | None = None,
 ) -> bool:
     """Return whether a missing key's Map lookup default can pass the value test.
 
@@ -272,7 +273,8 @@ def _missing_typed_map_default_can_match(
     if map_column not in {"span_attr_num", "span_attr_bool"}:
         return True
 
-    value = params.get(f"latest_filter_param_{index}")
+    bound_value_param = value_param or f"latest_filter_param_{index}"
+    value = params.get(bound_value_param)
     default: object = 0.0 if map_column == "span_attr_num" else False
     try:
         if operation == "equals":
@@ -280,8 +282,8 @@ def _missing_typed_map_default_can_match(
         if operation == "in":
             return default in value
         if operation == "between":
-            low = params[f"latest_filter_param_{index}_low"]
-            high = params[f"latest_filter_param_{index}_high"]
+            low = params[f"{bound_value_param}_low"]
+            high = params[f"{bound_value_param}_high"]
             return low <= default <= high
         if operation == "greater_than":
             return default > value
@@ -654,6 +656,7 @@ def _mixed_typed_attribute_plan(
     seed_matches: list[str] = []
     key_witnesses: list[str] = []
     typed_raw_witnesses: list[str] = []
+    typed_graph_witnesses: list[str] = []
     storage_metadata: dict[str, tuple[str, Callable[[object], object], bool]] = {
         "string": ("span_attr_str", _strict_text, True),
         "number": ("span_attr_num", _strict_finite_number, False),
@@ -701,6 +704,18 @@ def _mixed_typed_attribute_plan(
             f"AND has({map_column}.keys, {bound_key}))"
         )
         typed_raw_witnesses.append(f"(({key_witnesses[-1]}) AND ({seed_matches[-1]}))")
+        if operation == "in":
+            typed_graph_witnesses.append(
+                key_witnesses[-1]
+                if _missing_typed_map_default_can_match(
+                    map_column=map_column,
+                    operation=operation,
+                    params=params,
+                    index=index,
+                    value_param=value_param,
+                )
+                else typed_raw_witnesses[-1]
+            )
 
     if not latest_matches:
         raise UnsupportedFilterShapeError(
@@ -721,6 +736,13 @@ def _mixed_typed_attribute_plan(
         # semantics.
         raw_witness_predicate = f"({' OR '.join(typed_raw_witnesses)})"
         raw_key_witness_predicate = f"({' OR '.join(key_witnesses)})"
+        # The picker adds storage provenance and suffixed parameters, but its
+        # positive membership semantics are otherwise identical to scalar IN.
+        # Narrow each storage branch by value unless a missing Map key's
+        # physical default (numeric zero or false) could satisfy it. Unsafe
+        # branches retain key presence, so a mixed picker stays exhaustive
+        # without forcing every safe long-string branch back to key-only.
+        raw_graph_value_witness_predicate = f"({' OR '.join(typed_graph_witnesses)})"
         raw_witness_rank = 0
     else:
         predicate = f"(({' OR '.join(latest_exists)}) AND NOT ({latest_positive}))"
@@ -729,6 +751,7 @@ def _mixed_typed_attribute_plan(
         # use a raw-row witness without risking an incomplete latest replay.
         raw_witness_predicate = None
         raw_key_witness_predicate = None
+        raw_graph_value_witness_predicate = None
         raw_witness_rank = None
 
     return LatestFilterPredicate(
@@ -739,6 +762,7 @@ def _mixed_typed_attribute_plan(
         scope=scope,
         raw_witness_predicate=raw_witness_predicate,
         raw_key_witness_predicate=raw_key_witness_predicate,
+        raw_graph_value_witness_predicate=raw_graph_value_witness_predicate,
         raw_witness_rank=raw_witness_rank,
     )
 

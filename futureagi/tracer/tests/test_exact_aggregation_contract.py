@@ -3044,6 +3044,64 @@ def test_exact_trace_candidate_probe_uses_value_superset_for_positive_comparison
 
 
 @pytest.mark.unit
+def test_exact_trace_candidate_probe_keeps_long_typed_picker_value():
+    """A retained prompt must narrow the graph by key and value, not key alone."""
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    long_prompt = (
+        "Metadata-backed prompt: this retained conversation value is intentionally "
+        "long enough to exercise the production picker path without truncating the "
+        "bound comparison. It must remain an exact, case-insensitive value witness "
+        "for the graph candidate query even across a twelve-month request window. "
+        "The latest-state classifier remains authoritative."
+    )
+    assert len(long_prompt) > 256
+    attribute_key = "metadata.conversation.transcript.0.message.content"
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=[
+            _time_filter(start, end),
+            {
+                "column_id": attribute_key,
+                "filter_config": {
+                    "col_type": "SPAN_ATTRIBUTE",
+                    "filter_type": "text",
+                    "filter_op": "in",
+                    "filter_value": [long_prompt],
+                    "attribute_value_types": ["string"],
+                },
+            },
+        ],
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+
+    assert "has(attrs_string.keys, %(latest_filter_key_0)s)" in compact_probe_sql
+    assert (
+        "lowerUTF8(toString(attrs_string[%(latest_filter_key_0)s])) "
+        "IN %(latest_filter_param_0_string)s" in compact_probe_sql
+    )
+    assert probe_params["latest_filter_key_0"] == attribute_key
+    assert probe_params["latest_filter_param_0_string"] == (long_prompt.lower(),)
+    assert probe_params["exact_graph_candidate_limit"] == 1_001
+
+
+@pytest.mark.unit
 def test_exact_trace_value_superset_candidate_probe_rejects_sampling():
     from tracer.services.clickhouse.v2.query_builders.trace_list import (
         TraceListQueryBuilderV2,

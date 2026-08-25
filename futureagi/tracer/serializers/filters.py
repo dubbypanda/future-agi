@@ -10,6 +10,9 @@ from tfc.utils.api_serializers import (
     StrictInputSerializer,
 )
 from tfc.utils.serializer_fields import JSON_VALUE_SCHEMA, JsonValueField  # noqa: F401
+from tracer.utils.attribute_suggestion_contract import (
+    TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES,
+)
 from tracer.utils.filter_operators import (
     FILTER_TYPE_ALLOWED_OPS,
     JSON_ARRAY_FILTER_MAX_MEMBERS,
@@ -343,16 +346,21 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
 
     total_string_bytes = 0
 
-    def check_string(value: str, *, field: str) -> None:
+    def check_string(
+        value: str,
+        *,
+        field: str,
+        max_utf8_bytes: int = FILTER_STRING_MAX_UTF8_BYTES,
+    ) -> None:
         nonlocal total_string_bytes
         try:
             encoded = value.encode("utf-8", errors="strict")
         except UnicodeEncodeError as exc:
             raise serializers.ValidationError(f"{field} must be valid UTF-8.") from exc
-        if len(encoded) > FILTER_STRING_MAX_UTF8_BYTES:
+        if len(encoded) > max_utf8_bytes:
             raise serializers.ValidationError(
-                f"{field} must be at most {FILTER_STRING_MAX_UTF8_BYTES} "
-                f"UTF-8 bytes ({FILTER_STRING_MAX_UTF8_BYTES} UTF-8 byte limit)."
+                f"{field} must be at most {max_utf8_bytes} "
+                f"UTF-8 bytes ({max_utf8_bytes} UTF-8 byte limit)."
             )
         total_string_bytes += len(encoded)
         if total_string_bytes > FILTER_LIST_MAX_TOTAL_STRING_UTF8_BYTES:
@@ -361,13 +369,23 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                 f"{FILTER_LIST_MAX_TOTAL_STRING_UTF8_BYTES} UTF-8 byte request limit."
             )
 
-    def check_value(value: Any, *, field: str, depth: int = 0) -> None:
+    def check_value(
+        value: Any,
+        *,
+        field: str,
+        depth: int = 0,
+        max_string_utf8_bytes: int = FILTER_STRING_MAX_UTF8_BYTES,
+    ) -> None:
         if depth > FILTER_VALUE_MAX_DEPTH:
             raise serializers.ValidationError(
                 f"{field} supports at most {FILTER_VALUE_MAX_DEPTH} nested levels."
             )
         if isinstance(value, str):
-            check_string(value, field=field)
+            check_string(
+                value,
+                field=field,
+                max_utf8_bytes=max_string_utf8_bytes,
+            )
             return
         if isinstance(value, list):
             if len(value) > FILTER_LIST_MAX_VALUES:
@@ -375,7 +393,12 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                     f"{field} supports at most {FILTER_LIST_MAX_VALUES} values."
                 )
             for item in value:
-                check_value(item, field=field, depth=depth + 1)
+                check_value(
+                    item,
+                    field=field,
+                    depth=depth + 1,
+                    max_string_utf8_bytes=max_string_utf8_bytes,
+                )
             return
         if isinstance(value, dict):
             if len(value) > FILTER_LIST_MAX_VALUES:
@@ -385,7 +408,12 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
             for key, item in value.items():
                 if isinstance(key, str):
                     check_string(key, field=f"{field} key")
-                check_value(item, field=field, depth=depth + 1)
+                check_value(
+                    item,
+                    field=field,
+                    depth=depth + 1,
+                    max_string_utf8_bytes=max_string_utf8_bytes,
+                )
 
     for index, item in enumerate(filters):
         if not isinstance(item, dict):
@@ -436,10 +464,39 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                     field=f"Filter {index + 1} {config_key}",
                 )
         if "filter_value" in config:
-            check_value(
-                config["filter_value"],
-                field=f"Filter {index + 1} value",
+            filter_value = config["filter_value"]
+            attribute_value_types = config.get("attribute_value_types")
+            has_aligned_picker_provenance = bool(
+                config.get("col_type") == "SPAN_ATTRIBUTE"
+                and config.get("filter_op") in LIST_FILTER_OPS
+                and isinstance(filter_value, list)
+                and isinstance(attribute_value_types, list)
+                and len(filter_value) == len(attribute_value_types)
             )
+            if has_aligned_picker_provenance:
+                if len(filter_value) > FILTER_LIST_MAX_VALUES:
+                    raise serializers.ValidationError(
+                        f"Filter {index + 1} value supports at most "
+                        f"{FILTER_LIST_MAX_VALUES} values."
+                    )
+                for selected_value, selected_type in zip(
+                    filter_value, attribute_value_types, strict=True
+                ):
+                    check_value(
+                        selected_value,
+                        field=f"Filter {index + 1} value",
+                        depth=1,
+                        max_string_utf8_bytes=(
+                            TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES
+                            if selected_type == "string"
+                            else FILTER_STRING_MAX_UTF8_BYTES
+                        ),
+                    )
+            else:
+                check_value(
+                    filter_value,
+                    field=f"Filter {index + 1} value",
+                )
         if "attribute_value_types" in config:
             check_value(
                 config["attribute_value_types"],

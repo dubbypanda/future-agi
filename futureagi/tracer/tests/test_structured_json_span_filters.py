@@ -141,6 +141,7 @@ def test_bounded_latest_compiler_preserves_mixed_typed_membership(
     assert plan.params["latest_filter_param_0_boolean"] == (1,)
     assert plan.raw_witness_predicate is not None
     assert plan.raw_key_witness_predicate is not None
+    assert plan.raw_graph_value_witness_predicate == plan.raw_witness_predicate
     assert plan.scope == expected_scope
 
 
@@ -162,6 +163,53 @@ def test_bounded_latest_mixed_not_in_requires_key_and_negates_all_types() -> Non
     assert "AND NOT" in plan.predicate
     assert plan.raw_witness_predicate is None
     assert plan.raw_key_witness_predicate is None
+    assert plan.raw_graph_value_witness_predicate is None
+
+
+@pytest.mark.parametrize(
+    ("selected_value", "storage_type"),
+    [(0, "number"), (False, "boolean")],
+)
+def test_bounded_latest_mixed_picker_keeps_key_only_graph_branch_when_default_matches(
+    selected_value: object, storage_type: str
+) -> None:
+    payload = _attribute_filter(
+        "attempt",
+        filter_type="text",
+        filter_op="in",
+        filter_value=[selected_value],
+    )
+    payload["filter_config"]["attribute_value_types"] = [storage_type]
+    validated = FilterListField().run_validation([payload])
+
+    plan = compile_span_filter_plans(validated)[0]
+
+    assert plan.raw_witness_predicate is not None
+    assert plan.raw_key_witness_predicate is not None
+    assert plan.raw_graph_value_witness_predicate == plan.raw_key_witness_predicate
+    assert "latest_filter_param_0" not in plan.raw_graph_value_witness_predicate
+
+
+def test_bounded_latest_mixed_picker_narrows_safe_branch_beside_default_branch() -> (
+    None
+):
+    payload = _attribute_filter(
+        "attempt",
+        filter_type="text",
+        filter_op="in",
+        filter_value=["selected prompt", 0],
+    )
+    payload["filter_config"]["attribute_value_types"] = ["string", "number"]
+    validated = FilterListField().run_validation([payload])
+
+    plan = compile_span_filter_plans(validated)[0]
+    graph_witness = plan.raw_graph_value_witness_predicate
+
+    assert graph_witness is not None
+    assert "latest_filter_param_0_string" in graph_witness
+    assert "span_attr_str[%(latest_filter_key_0)s]" in graph_witness
+    assert "has(span_attr_num.keys, %(latest_filter_key_0)s)" in graph_witness
+    assert "latest_filter_param_0_number" not in graph_witness
 
 
 @pytest.mark.parametrize(
