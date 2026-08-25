@@ -90,6 +90,58 @@ class AllDevScopeTests(unittest.TestCase):
         ):
             backfill._active_scopes(SimpleNamespace())
 
+    def test_stale_active_scope_uses_full_repair_not_initial_backfill(self) -> None:
+        args = SimpleNamespace(
+            dev_identity="dev:property-catalog/test",
+            initial_backfill_wall_ms=1_740_000,
+            operator_service="operator",
+            scheduled_reconcile_wall_ms=1_200_000,
+            span_since="2025-08-25T00:00:00Z",
+            span_until="2026-08-25T00:00:00Z",
+            target_database="th7247_catalog_dev_test",
+        )
+        lane = backfill.Lane(
+            0,
+            Path("/tmp/runtime"),
+            (backfill.Scope(ORGANIZATION_ID, WORKSPACE_ID, (PROJECT_A, PROJECT_B)),),
+        )
+        scope = lane.scopes[0]
+
+        active = backfill._operator_command(args, lane, scope, has_active_revision=True)
+        initial = backfill._operator_command(
+            args, lane, scope, has_active_revision=False
+        )
+
+        self.assertIn("--scheduled-reconcile", active)
+        self.assertIn("full_repair", active)
+        self.assertNotIn("--execute", active)
+        self.assertIn("--execute", initial)
+        self.assertIn("--initial-backfill-wall-ms", initial)
+
+    def test_scheduled_repair_result_requires_activation_and_qualification(
+        self,
+    ) -> None:
+        scope = backfill.Scope(ORGANIZATION_ID, WORKSPACE_ID, (PROJECT_A, PROJECT_B))
+        result = {
+            "mode": "full_repair",
+            "schema": {"verified": True},
+            "workspace_id": WORKSPACE_ID,
+            "reconcile": {
+                "activated": True,
+                "authoritative_source_count": 12,
+                "catalog_revision": 2,
+                "live_definition_rows": 7,
+                "qualified": True,
+                "value_rows": 20,
+            },
+        }
+
+        summary = backfill._validate_result(scope, result, scheduled=True)
+
+        self.assertTrue(summary["activated"])
+        self.assertEqual(summary["catalog_revision"], 2)
+        self.assertEqual(summary["project_count"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

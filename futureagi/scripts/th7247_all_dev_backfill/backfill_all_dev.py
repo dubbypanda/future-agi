@@ -470,6 +470,8 @@ def _operator_command(
     args: argparse.Namespace,
     lane: Lane,
     scope: Scope,
+    *,
+    has_active_revision: bool,
 ) -> list[str]:
     environment = {
         "PROPERTY_CATALOG_DEV_ORGANIZATION_ID": scope.organization_id,
@@ -494,12 +496,26 @@ def _operator_command(
     ]
     for name, value in environment.items():
         command.extend(("-e", f"{name}={value}"))
+    command.append(args.operator_service)
+    if has_active_revision:
+        command.extend(
+            (
+                "--scheduled-reconcile",
+                "full_repair",
+                "--scheduled-reconcile-wall-ms",
+                str(args.scheduled_reconcile_wall_ms),
+            )
+        )
+    else:
+        command.extend(
+            (
+                "--execute",
+                "--initial-backfill-wall-ms",
+                str(args.initial_backfill_wall_ms),
+            )
+        )
     command.extend(
         (
-            args.operator_service,
-            "--execute",
-            "--initial-backfill-wall-ms",
-            str(args.initial_backfill_wall_ms),
             "--organization-id",
             scope.organization_id,
             "--workspace-id",
@@ -509,7 +525,7 @@ def _operator_command(
     return command
 
 
-def _result_from_log(path: Path) -> dict[str, Any]:
+def _result_from_log(path: Path, *, scheduled: bool) -> dict[str, Any]:
     with path.open("r", encoding="utf-8", errors="replace") as handle:
         lines = handle.readlines()
     for raw in reversed(lines):
@@ -520,16 +536,50 @@ def _result_from_log(path: Path) -> dict[str, Any]:
             decoded = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if (
-            isinstance(decoded, dict)
-            and "completed" in decoded
-            and "evidence" in decoded
-        ):
+        if not isinstance(decoded, dict):
+            continue
+        if scheduled:
+            if "mode" in decoded and "reconcile" in decoded:
+                return decoded
+        elif "completed" in decoded and "evidence" in decoded:
             return decoded
     raise BackfillError(f"operator result JSON is absent from {path}")
 
 
-def _validate_result(scope: Scope, result: dict[str, Any]) -> dict[str, Any]:
+def _validate_result(
+    scope: Scope,
+    result: dict[str, Any],
+    *,
+    scheduled: bool,
+) -> dict[str, Any]:
+    if scheduled:
+        reconcile = result.get("reconcile")
+        if (
+            result.get("mode") != "full_repair"
+            or result.get("workspace_id") != scope.workspace_id
+            or not isinstance(result.get("schema"), dict)
+            or not isinstance(reconcile, dict)
+            or reconcile.get("activated") is not True
+            or reconcile.get("qualified") is not True
+            or type(reconcile.get("authoritative_source_count")) is not int
+            or reconcile["authoritative_source_count"] < 0
+            or type(reconcile.get("catalog_revision")) is not int
+            or type(reconcile.get("live_definition_rows")) is not int
+            or type(reconcile.get("value_rows")) is not int
+        ):
+            raise BackfillError(
+                f"workspace {scope.workspace_id} scheduled repair evidence is incomplete"
+            )
+        return {
+            "activated": True,
+            "catalog_revision": reconcile["catalog_revision"],
+            "live_definition_rows": reconcile["live_definition_rows"],
+            "organization_id": scope.organization_id,
+            "project_count": len(scope.project_ids),
+            "source_span_rows": reconcile["authoritative_source_count"],
+            "value_rows": reconcile["value_rows"],
+            "workspace_id": scope.workspace_id,
+        }
     if result.get("completed") != COMPLETED_STAGES:
         raise BackfillError(
             f"workspace {scope.workspace_id} did not complete all stages"
@@ -591,16 +641,26 @@ def _run_lane(
             }
         else:
             log_path = lane_logs / f"{ordinal:03d}-{scope.workspace_id}.log"
+            has_active_revision = key in active_before
             try:
                 with log_path.open("w", encoding="utf-8") as log:
                     _run(
-                        _operator_command(args, lane, scope),
+                        _operator_command(
+                            args,
+                            lane,
+                            scope,
+                            has_active_revision=has_active_revision,
+                        ),
                         cwd=args.compose_directory,
                         timeout=args.operator_timeout_seconds,
                         stdout=log,
                         stderr=subprocess.STDOUT,
                     )
-                summary = _validate_result(scope, _result_from_log(log_path))
+                summary = _validate_result(
+                    scope,
+                    _result_from_log(log_path, scheduled=has_active_revision),
+                    scheduled=has_active_revision,
+                )
                 summary["status"] = "activated"
                 summary["log"] = str(log_path)
             except Exception:
@@ -642,6 +702,7 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--operator-service", default="property-catalog-operator")
     parser.add_argument("--producer-name-prefix", default="th7247-all-dev-producer")
     parser.add_argument("--initial-backfill-wall-ms", type=int, default=1_740_000)
+    parser.add_argument("--scheduled-reconcile-wall-ms", type=int, default=1_200_000)
     parser.add_argument("--operator-timeout-seconds", type=int, default=1_800)
     args = parser.parse_args()
     args.runtime_root = args.runtime_root.resolve(strict=True)
@@ -657,6 +718,8 @@ def _arguments() -> argparse.Namespace:
         raise BackfillError("the exact all-DEV execute acknowledgement is required")
     if not 100_001 <= args.initial_backfill_wall_ms <= 1_740_000:
         raise BackfillError("initial backfill wall is outside [100001, 1740000] ms")
+    if not 100_001 <= args.scheduled_reconcile_wall_ms <= 1_200_000:
+        raise BackfillError("scheduled reconcile wall is outside [100001, 1200000] ms")
     if not 1 <= args.operator_timeout_seconds <= 1_860:
         raise BackfillError("operator timeout must be in [1, 1860] seconds")
     return args
