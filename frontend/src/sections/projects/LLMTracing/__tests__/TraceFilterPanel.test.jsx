@@ -325,6 +325,17 @@ const selectQueryPhaseOption = async (typed, nextPlaceholder) => {
   return input;
 };
 
+const scrollQueryOptionsToEnd = async () => {
+  const listbox = await screen.findByRole("listbox");
+  Object.defineProperties(listbox, {
+    scrollTop: { configurable: true, value: 180 },
+    clientHeight: { configurable: true, value: 220 },
+    scrollHeight: { configurable: true, value: 400 },
+  });
+  fireEvent.scroll(listbox);
+  return listbox;
+};
+
 describe("TraceFilterPanel AI apply (#577)", () => {
   beforeEach(() => {
     parseQueryMock.mockReset();
@@ -4284,7 +4295,7 @@ describe("filter-value picker bounded-read UX", () => {
         ([request]) => request.enabled === true,
       ),
     ).toBe(false);
-    fireEvent.click(screen.getByText("Load more fields"));
+    await scrollQueryOptionsToEnd();
     expect(fetchNextSearchPage).toHaveBeenCalledOnce();
     expect(fetchNextBasePage).not.toHaveBeenCalled();
 
@@ -4337,7 +4348,8 @@ describe("filter-value picker bounded-read UX", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Query" }));
     fireEvent.focus(screen.getByRole("combobox"));
-    fireEvent.click(await screen.findByText("Load more fields"));
+    await screen.findByText("Model");
+    await scrollQueryOptionsToEnd();
 
     expect(fetchNextBasePage).toHaveBeenCalledOnce();
     expect(
@@ -4521,7 +4533,7 @@ describe("filter-value picker bounded-read UX", () => {
     ["tracing", undefined, "traces"],
     ["voice", "voiceCalls", "spans"],
   ])(
-    "keeps %s Query-field pagination explicit after an exact-prefix match",
+    "keeps %s Query-field pagination scroll-driven after an exact-prefix match",
     async (surface, tab, expectedAttributeSource) => {
       let hasNextPage = true;
       let data = [
@@ -4599,7 +4611,7 @@ describe("filter-value picker bounded-read UX", () => {
           source: expectedAttributeSource,
         }),
       );
-      fireEvent.click(screen.getByText("Load more fields"));
+      await scrollQueryOptionsToEnd();
       expect(fetchNextPage).toHaveBeenCalledOnce();
       rerenderPanel();
 
@@ -4758,8 +4770,9 @@ describe("filter-value picker bounded-read UX", () => {
 
     fireEvent.focus(input);
     expect(
-      await screen.findByText("Loading more fields..."),
-    ).toBeInTheDocument();
+      screen.queryByText("Loading more fields..."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
   });
@@ -4809,7 +4822,9 @@ describe("filter-value picker bounded-read UX", () => {
         "More fields could not be loaded. Retained matches remain available.",
       ),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Retry loading fields"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading fields" }),
+    );
     expect(retryFieldSearch).toHaveBeenCalledOnce();
     expect(screen.queryByText("hidden backend detail")).not.toBeInTheDocument();
 
