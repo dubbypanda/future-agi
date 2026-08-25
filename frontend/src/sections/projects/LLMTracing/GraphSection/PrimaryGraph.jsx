@@ -1238,7 +1238,12 @@ const PrimaryGraph = ({
               )}
               {!staticMetrics && (
                 <BoundedCursorPaginationControl
-                  resetKey={`primary-graph-metrics:${effectiveObserveId || ""}`}
+                  resetKey={JSON.stringify([
+                    "primary-graph-metrics",
+                    effectiveObserveId || "",
+                    graphPropertyNamespace,
+                    graphTransportSource,
+                  ])}
                   channels={[
                     {
                       channelKey: "primary-graph-metrics",
