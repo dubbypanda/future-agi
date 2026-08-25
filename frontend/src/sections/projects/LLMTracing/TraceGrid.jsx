@@ -94,6 +94,7 @@ const TraceGrid = React.forwardRef(
       canonicalColumnsRef,
       enabled = true,
       showErrors = false,
+      compareType,
     },
     gridRef,
   ) => {
@@ -161,7 +162,7 @@ const TraceGrid = React.forwardRef(
         setContinuationNotice(null);
       }
     }, [continuationNotice, gridRef]);
-    const filterRequestKey = useMemo(
+    const selectionQueryKey = useMemo(
       () =>
         JSON.stringify({
           filters,
@@ -170,8 +171,9 @@ const TraceGrid = React.forwardRef(
           hasEvalFilter,
           dateInterval,
           projectId,
-          requestedAttributeKeys: requestedAttributeKeysKey,
           enabled,
+          showErrors,
+          compareType,
         }),
       [
         filters,
@@ -180,10 +182,39 @@ const TraceGrid = React.forwardRef(
         hasEvalFilter,
         dateInterval,
         projectId,
-        requestedAttributeKeysKey,
         enabled,
+        showErrors,
+        compareType,
       ],
     );
+    const filterRequestKey = useMemo(
+      () =>
+        JSON.stringify({
+          selectionQueryKey,
+          requestedAttributeKeys: requestedAttributeKeysKey,
+        }),
+      [selectionQueryKey, requestedAttributeKeysKey],
+    );
+    const clearSelection = useCallback(() => {
+      const api = gridRef?.current?.api;
+      api?.deselectAll?.();
+      api?.setServerSideSelectionState?.({
+        selectAll: false,
+        toggledNodes: [],
+      });
+      setSelectedAll(false);
+      useTraceGridStore.setState({
+        selectAll: false,
+        toggledNodes: [],
+      });
+    }, [gridRef]);
+    const previousSelectionQueryKeyRef = useRef(selectionQueryKey);
+    useEffect(() => {
+      if (previousSelectionQueryKeyRef.current !== selectionQueryKey) {
+        clearSelection();
+      }
+      previousSelectionQueryKeyRef.current = selectionQueryKey;
+    }, [clearSelection, selectionQueryKey]);
     // Listen for refresh events from the header reload button
     useEffect(() => {
       // A same-query manual refresh keeps the last exact rows visible until
@@ -195,21 +226,13 @@ const TraceGrid = React.forwardRef(
       return () => window.removeEventListener("observe-refresh", handler);
     }, [refreshGrid]);
 
-    // Clear AG Grid's internal selection when the project changes — the
-    // zustand reset handled in the header only clears our mirror, not AG
-    // Grid's server-side selection model. Also reset the local
-    // `selectedAll` flag so the header checkbox's next click re-triggers
-    // selectAll (otherwise the stale `true` makes the first click a
-    // deselect no-op).
+    // Keep the explicit reset event aligned with query-bound invalidation: both
+    // paths clear AG Grid, the mirrored store, and the local header state.
     useEffect(() => {
-      const handler = () => {
-        gridRef?.current?.api?.deselectAll?.();
-        setSelectedAll(false);
-      };
-      window.addEventListener("observe-reset-selection", handler);
+      window.addEventListener("observe-reset-selection", clearSelection);
       return () =>
-        window.removeEventListener("observe-reset-selection", handler);
-    }, [gridRef]);
+        window.removeEventListener("observe-reset-selection", clearSelection);
+    }, [clearSelection]);
 
     const defaultColDef = useMemo(
       () => ({

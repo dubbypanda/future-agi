@@ -2,10 +2,18 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, userEvent, waitFor } from "src/utils/test-utils";
 
-const { getMock, gridState, resetMetricIds } = vi.hoisted(() => ({
+const {
+  getMock,
+  gridState,
+  resetMetricIds,
+  traceGridSetState,
+  spanGridSetState,
+} = vi.hoisted(() => ({
   getMock: vi.fn(),
   gridState: { api: null, props: null },
   resetMetricIds: vi.fn(),
+  traceGridSetState: vi.fn(),
+  spanGridSetState: vi.fn(),
 }));
 
 vi.mock("ag-grid-react", async () => {
@@ -106,8 +114,8 @@ vi.mock("../states", () => {
   };
   return {
     useLLMTracingStoreShallow: (selector) => selector(traceState),
-    useTraceGridStore: { setState: vi.fn() },
-    useSpanGridStore: { setState: vi.fn() },
+    useTraceGridStore: { setState: traceGridSetState },
+    useSpanGridStore: { setState: spanGridSetState },
   };
 });
 vi.mock("../common", () => ({
@@ -211,6 +219,175 @@ const getRows = async (params) => {
     await gridState.props.serverSideDatasource.getRows(params);
   });
 };
+
+const selectionApi = () => ({
+  deselectAll: vi.fn(),
+  forEachNode: vi.fn(),
+  getSelectedNodes: vi.fn(() => []),
+  getServerSideSelectionState: vi.fn(() => ({
+    selectAll: true,
+    toggledNodes: ["excluded-row"],
+  })),
+  hideOverlay: vi.fn(),
+  refreshServerSide: vi.fn(),
+  retryServerSideLoads: vi.fn(),
+  selectAll: vi.fn(),
+  setServerSideSelectionState: vi.fn(),
+  showNoRowsOverlay: vi.fn(),
+});
+
+const renderGridSubject = ({ kind, ref, props, filters }) =>
+  kind === "trace" ? (
+    <TraceGrid
+      ref={ref}
+      {...props}
+      filters={filters}
+      projectId="project-1"
+      compareType="primary"
+    />
+  ) : (
+    <SpanGrid ref={ref} {...props} filters={filters} compareType="primary" />
+  );
+
+describe.each([
+  { kind: "trace", storeSetState: traceGridSetState },
+  { kind: "span", storeSetState: spanGridSetState },
+])("$kind grid query-bound selection", ({ kind, storeSetState }) => {
+  beforeEach(() => {
+    getMock.mockReset();
+    gridState.api = null;
+    gridState.props = null;
+    resetMetricIds.mockReset();
+    traceGridSetState.mockReset();
+    spanGridSetState.mockReset();
+  });
+
+  it("clears select-all exclusions when the list query changes", async () => {
+    const ref = React.createRef();
+    const props = baseProps();
+    const filtersA = [
+      {
+        column_id: "status",
+        filter_config: { filter_op: "equals", filter_value: "error" },
+      },
+    ];
+    const filtersB = [
+      {
+        column_id: "status",
+        filter_config: { filter_op: "equals", filter_value: "ok" },
+      },
+    ];
+    const api = selectionApi();
+    const view = render(
+      renderGridSubject({ kind, ref, props, filters: filtersA }),
+    );
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+    gridState.api = api;
+
+    act(() => {
+      gridState.props.onColumnHeaderClicked({
+        api,
+        column: { colId: "ag-Grid-SelectionColumn" },
+      });
+      gridState.props.onSelectionChanged({ api });
+    });
+    expect(api.selectAll).toHaveBeenCalledOnce();
+    expect(storeSetState).toHaveBeenLastCalledWith({
+      toggledNodes: ["excluded-row"],
+      selectAll: true,
+    });
+
+    storeSetState.mockClear();
+    view.rerender(renderGridSubject({ kind, ref, props, filters: filtersB }));
+
+    await waitFor(() => expect(api.deselectAll).toHaveBeenCalledOnce());
+    expect(api.setServerSideSelectionState).toHaveBeenCalledWith({
+      selectAll: false,
+      toggledNodes: [],
+    });
+    expect(storeSetState).toHaveBeenCalledWith({
+      selectAll: false,
+      toggledNodes: [],
+    });
+
+    api.selectAll.mockClear();
+    act(() => {
+      gridState.props.onColumnHeaderClicked({
+        api,
+        column: { colId: "ag-Grid-SelectionColumn" },
+      });
+    });
+    expect(api.selectAll).toHaveBeenCalledOnce();
+  });
+
+  it("preserves selection while the same query advances its cursor", async () => {
+    const rows = Array.from({ length: 25 }, (_, index) =>
+      kind === "trace"
+        ? {
+            trace_id: `trace-${index}`,
+            project_id: "project-1",
+          }
+        : {
+            span_id: `span-${index}`,
+            trace_id: `trace-${index}`,
+            project_id: "project-1",
+            start_time: `2026-08-08T00:00:${String(index).padStart(2, "0")}Z`,
+          },
+    );
+    const nextRow =
+      kind === "trace"
+        ? { trace_id: "trace-25", project_id: "project-1" }
+        : {
+            span_id: "span-25",
+            trace_id: "trace-25",
+            project_id: "project-1",
+            start_time: "2026-08-08T00:00:25Z",
+          };
+    getMock
+      .mockResolvedValueOnce(
+        listResponse({
+          rows,
+          hasMore: true,
+          nextCursor: "same-query-page-2",
+          totalRows: 26,
+          lowerBound: true,
+        }),
+      )
+      .mockResolvedValueOnce(listResponse({ rows: [nextRow], totalRows: 26 }));
+
+    const ref = React.createRef();
+    const props = baseProps();
+    render(renderGridSubject({ kind, ref, props, filters: props.filters }));
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    const api = selectionApi();
+    gridState.api = api;
+    act(() => gridState.props.onSelectionChanged({ api }));
+    storeSetState.mockClear();
+
+    const firstPage = makeParams(0, 25);
+    firstPage.api = api;
+    await getRows(firstPage);
+    await waitFor(() => expect(getMock).toHaveBeenCalledTimes(2));
+
+    const secondPage = makeParams(25, 50);
+    secondPage.api = api;
+    await getRows(secondPage);
+
+    expect(getMock.mock.calls[1][1].params).toEqual(
+      expect.objectContaining({
+        cursor: "same-query-page-2",
+        cursor_mode: true,
+      }),
+    );
+    expect(api.deselectAll).not.toHaveBeenCalled();
+    expect(api.setServerSideSelectionState).not.toHaveBeenCalled();
+    expect(storeSetState).not.toHaveBeenCalledWith({
+      selectAll: false,
+      toggledNodes: [],
+    });
+  });
+});
 
 describe.each([
   {

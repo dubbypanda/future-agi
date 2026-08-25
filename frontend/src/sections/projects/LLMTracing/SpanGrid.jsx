@@ -220,6 +220,7 @@ const SpanGrid = React.forwardRef(
       canonicalOrderRef,
       canonicalColumnsRef,
       enabled = true,
+      compareType,
     },
     gridRef,
   ) => {
@@ -272,7 +273,7 @@ const SpanGrid = React.forwardRef(
         setContinuationNotice(null);
       }
     }, [continuationNotice, gridRef]);
-    const filterRequestKey = useMemo(
+    const selectionQueryKey = useMemo(
       () =>
         JSON.stringify({
           filters,
@@ -281,9 +282,39 @@ const SpanGrid = React.forwardRef(
           hasEvalFilter,
           observeId,
           enabled,
+          compareType,
         }),
-      [filters, extraFilters, metricFilters, hasEvalFilter, observeId, enabled],
+      [
+        filters,
+        extraFilters,
+        metricFilters,
+        hasEvalFilter,
+        observeId,
+        enabled,
+        compareType,
+      ],
     );
+    const filterRequestKey = selectionQueryKey;
+    const clearSelection = useCallback(() => {
+      const api = gridRef?.current?.api;
+      api?.deselectAll?.();
+      api?.setServerSideSelectionState?.({
+        selectAll: false,
+        toggledNodes: [],
+      });
+      setSelectedAll(false);
+      useSpanGridStore.setState({
+        selectAll: false,
+        toggledNodes: [],
+      });
+    }, [gridRef]);
+    const previousSelectionQueryKeyRef = useRef(selectionQueryKey);
+    useEffect(() => {
+      if (previousSelectionQueryKeyRef.current !== selectionQueryKey) {
+        clearSelection();
+      }
+      previousSelectionQueryKeyRef.current = selectionQueryKey;
+    }, [clearSelection, selectionQueryKey]);
     // Keep the last exact same-query rows during a manual refresh. A query-key
     // change replaces the datasource and shows a neutral loading state.
     useEffect(() => {
@@ -292,21 +323,13 @@ const SpanGrid = React.forwardRef(
       return () => window.removeEventListener("observe-refresh", handler);
     }, [refreshGrid]);
 
-    // Clear AG Grid's internal selection when the project changes — the
-    // zustand reset handled in the header only clears our mirror, not AG
-    // Grid's server-side selection model. Also reset the local
-    // `selectedAll` flag so the header checkbox's next click re-triggers
-    // selectAll (otherwise the stale `true` makes the first click a
-    // deselect no-op).
+    // Keep the explicit reset event aligned with query-bound invalidation: both
+    // paths clear AG Grid, the mirrored store, and the local header state.
     useEffect(() => {
-      const handler = () => {
-        gridRef?.current?.api?.deselectAll?.();
-        setSelectedAll(false);
-      };
-      window.addEventListener("observe-reset-selection", handler);
+      window.addEventListener("observe-reset-selection", clearSelection);
       return () =>
-        window.removeEventListener("observe-reset-selection", handler);
-    }, [gridRef]);
+        window.removeEventListener("observe-reset-selection", clearSelection);
+    }, [clearSelection]);
 
     // Grid Options
     const defaultColDef = useMemo(
