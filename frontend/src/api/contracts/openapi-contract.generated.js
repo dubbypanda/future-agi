@@ -31351,6 +31351,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "type": "integer"
             }
           },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 25
+            }
+          },
           "eval_task_id": {
             "required": true,
             "schema": {
@@ -31408,14 +31416,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "schema": {
               "type": "boolean",
               "default": false
-            }
-          },
-          "page_size": {
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 25
             }
           }
         },

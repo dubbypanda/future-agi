@@ -26531,6 +26531,10 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minimum 1
+ */
+page_size?: number;
 eval_task_id: string;
 period?: TracerEvalTaskGetUsagePeriod;
 eval_id?: string;
@@ -26538,10 +26542,6 @@ start_date?: string;
 end_date?: string;
 eval_aggregation?: boolean;
 span_aggregation?: boolean;
-/**
- * @minimum 1
- */
-page_size?: number;
 };
 
 export type TracerEvalTaskGetUsagePeriod = typeof TracerEvalTaskGetUsagePeriod[keyof typeof TracerEvalTaskGetUsagePeriod];

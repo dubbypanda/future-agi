@@ -56287,6 +56287,14 @@
                         "type": "integer"
                     },
                     {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 25,
+                        "minimum": 1
+                    },
+                    {
                         "name": "eval_task_id",
                         "in": "query",
                         "required": true,
@@ -56344,14 +56352,6 @@
                         "required": false,
                         "type": "boolean",
                         "default": false
-                    },
-                    {
-                        "name": "page_size",
-                        "in": "query",
-                        "required": false,
-                        "type": "integer",
-                        "default": 25,
-                        "minimum": 1
                     }
                 ],
                 "responses": {
