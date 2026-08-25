@@ -3545,7 +3545,9 @@ describe("filter-value picker bounded-read UX", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Query" }));
     await selectQueryPhaseOption("Status", "pick operator...");
     await selectQueryPhaseOption("Contains", "type or pick value...");
-    fireEvent.click(await screen.findByText("Retry loading values"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
 
     expect(retryFreshPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
@@ -4857,7 +4859,9 @@ describe("filter-value picker bounded-read UX", () => {
     await selectQueryPhaseOption("Provider", "pick operator...");
     await selectQueryPhaseOption("contains", "type or pick value...");
 
-    fireEvent.click(await screen.findByText("Retry loading values"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
     expect(refetch).toHaveBeenCalledOnce();
     expect(
       screen.getByText(
