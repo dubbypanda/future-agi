@@ -9,6 +9,7 @@ from tracer.models.project import Project
 from tracer.services.clickhouse.read_budget import ReadDeadline
 from tracer.services.clickhouse.v2.property_catalog.runtime_limits import RUNTIME_LIMITS
 from tracer.services.dashboard_metrics_catalog import (
+    _resolve_metrics_catalog_project_scope,
     resolve_property_catalog_project_scope,
 )
 
@@ -40,12 +41,13 @@ def test_property_catalog_project_scope_uses_explicit_workspace_manager():
     assert resolved == [project_id]
     explicit_manager.filter.assert_called_once_with(
         workspace=workspace,
+        trace_type="observe",
         id__in=[project_id],
     )
     ambient_manager.filter.assert_not_called()
 
 
-def test_property_catalog_workspace_scope_materializes_every_authorized_project():
+def test_property_catalog_workspace_scope_materializes_every_eligible_observe_project():
     project_ids = [
         "11111111-1111-4111-8111-111111111111",
         "33333333-3333-4333-8333-333333333333",
@@ -69,6 +71,34 @@ def test_property_catalog_workspace_scope_materializes_every_authorized_project(
         )
 
     assert resolved == project_ids
+    explicit_manager.filter.assert_called_once_with(
+        workspace=workspace,
+        trace_type="observe",
+    )
+
+
+def test_legacy_metrics_scope_does_not_inherit_observe_only_eligibility():
+    project_ids = ["11111111-1111-4111-8111-111111111111"]
+    workspace = SimpleNamespace(id="22222222-2222-4222-8222-222222222222")
+    explicit_manager = MagicMock()
+    explicit_manager.filter.return_value.order_by.return_value.values_list.return_value = project_ids
+
+    with (
+        patch.object(Project, "no_workspace_objects", explicit_manager),
+        patch(
+            "tracer.services.dashboard_metrics_catalog._run_metrics_catalog_pg_read",
+            side_effect=lambda _deadline, _family, read: read(),
+        ),
+    ):
+        resolved, explicit = _resolve_metrics_catalog_project_scope(
+            workspace,
+            "",
+            include_workspace_projects=True,
+            deadline=ReadDeadline.start(8_500),
+        )
+
+    assert resolved == project_ids
+    assert explicit is False
     explicit_manager.filter.assert_called_once_with(workspace=workspace)
 
 

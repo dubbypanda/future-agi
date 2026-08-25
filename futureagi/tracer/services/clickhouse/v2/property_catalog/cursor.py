@@ -75,8 +75,8 @@ def normalize_property_catalog_scope(scope: dict[str, Any]) -> dict[str, Any]:
         "dataset_id": str(scope.get("dataset_id") or ""),
     }
     # Preserve existing explicit-project cursor digests. Workspace-wide reads
-    # opt into a stronger contract: ``project_ids`` is the complete authorized
-    # PG snapshot and the activation must prove exactly that set.
+    # opt into a stronger contract: ``project_ids`` is the complete eligible
+    # Observe-project PG snapshot and the activation must prove exactly that set.
     if scope.get("workspace_scope") is True:
         normalized["workspace_scope"] = True
     return normalized

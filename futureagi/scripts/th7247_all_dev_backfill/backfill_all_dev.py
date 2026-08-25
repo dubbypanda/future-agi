@@ -253,23 +253,111 @@ def _validate_target_schema(args: argparse.Namespace) -> None:
         )
 
 
-def _active_scopes(args: argparse.Namespace) -> set[tuple[str, str]]:
-    sql = (
-        "SELECT DISTINCT toString(organization_id),toString(workspace_id) "
-        "FROM property_catalog_activations FINAL WHERE status='active' "
-        "ORDER BY organization_id,workspace_id FORMAT TSV"
-    )
-    result: set[tuple[str, str]] = set()
+def _active_scopes(
+    args: argparse.Namespace,
+) -> dict[tuple[str, str], tuple[str, ...]]:
+    """Load the project set proven by each current active activation.
+
+    A workspace key alone is not enough for idempotence: projects can be
+    created, restored, moved, or deleted after an activation.  The reader
+    requires exact workspace coverage, so the rollout must rebuild when the
+    immutable build plan's project snapshot differs from PostgreSQL.
+    """
+
+    sql = """
+WITH activation_states AS (
+  SELECT
+    organization_id,
+    workspace_id,
+    catalog_epoch,
+    catalog_revision,
+    build_token,
+    argMax(status, _version) AS status,
+    argMax(qualified_at, _version) AS qualified_at,
+    argMax(activation_sequence, _version) AS activation_sequence
+  FROM property_catalog_activations
+  GROUP BY
+    organization_id,
+    workspace_id,
+    catalog_epoch,
+    catalog_revision,
+    build_token
+), current_active AS (
+  SELECT *
+  FROM activation_states
+  WHERE status = 'active' AND qualified_at IS NOT NULL
+  ORDER BY
+    organization_id,
+    workspace_id,
+    catalog_epoch DESC,
+    catalog_revision DESC,
+    activation_sequence DESC
+  LIMIT 1 BY organization_id, workspace_id
+), reservation_states AS (
+  SELECT
+    organization_id,
+    workspace_id,
+    catalog_epoch,
+    catalog_revision,
+    build_token,
+    argMax(build_plan_json, _version) AS build_plan_json
+  FROM property_catalog_source_streams
+  WHERE source_adapter = 'system_manifest' AND envelope_version = 0
+  GROUP BY
+    organization_id,
+    workspace_id,
+    catalog_epoch,
+    catalog_revision,
+    build_token
+)
+SELECT
+  toString(current_active.organization_id),
+  toString(current_active.workspace_id),
+  reservation_states.build_plan_json
+FROM current_active
+INNER JOIN reservation_states USING (
+  organization_id,
+  workspace_id,
+  catalog_epoch,
+  catalog_revision,
+  build_token
+)
+ORDER BY current_active.organization_id, current_active.workspace_id
+FORMAT TSVRaw
+""".strip()
+    result: dict[tuple[str, str], tuple[str, ...]] = {}
     for line in _clickhouse_query(args, sql).splitlines():
-        fields = line.split("\t")
-        if len(fields) != 2:
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
             raise BackfillError("active scope inventory is not exact TSV")
-        result.add(
-            (
-                _canonical_uuid(fields[0], field="active organization_id"),
-                _canonical_uuid(fields[1], field="active workspace_id"),
-            )
+        organization_id = _canonical_uuid(fields[0], field="active organization_id")
+        workspace_id = _canonical_uuid(fields[1], field="active workspace_id")
+        try:
+            build_plan = json.loads(fields[2])
+            source_scope = build_plan["source_scope"]
+            raw_project_ids = source_scope["project_ids"]
+        except (KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise BackfillError("active build plan is malformed") from exc
+        if (
+            build_plan.get("organization_id") != organization_id
+            or build_plan.get("workspace_id") != workspace_id
+            or not isinstance(raw_project_ids, list)
+        ):
+            raise BackfillError("active build plan scope is inconsistent")
+        project_ids = tuple(
+            _canonical_uuid(value, field="active project_id")
+            for value in raw_project_ids
         )
+        if (
+            not project_ids
+            or len(project_ids) > 256
+            or project_ids != tuple(sorted(set(project_ids)))
+        ):
+            raise BackfillError("active build plan project scope is invalid")
+        key = (organization_id, workspace_id)
+        if key in result:
+            raise BackfillError("active workspace appears more than once")
+        result[key] = project_ids
     return result
 
 
@@ -483,7 +571,7 @@ def _validate_result(scope: Scope, result: dict[str, Any]) -> dict[str, Any]:
 def _run_lane(
     args: argparse.Namespace,
     lane: Lane,
-    active_before: set[tuple[str, str]],
+    active_before: dict[tuple[str, str], tuple[str, ...]],
     output_lock: threading.Lock,
     stop: threading.Event,
 ) -> list[dict[str, Any]]:
@@ -494,7 +582,7 @@ def _run_lane(
         if stop.is_set():
             break
         key = (scope.organization_id, scope.workspace_id)
-        if key in active_before:
+        if active_before.get(key) == scope.project_ids:
             summary = {
                 "organization_id": scope.organization_id,
                 "project_count": len(scope.project_ids),
@@ -589,7 +677,7 @@ def main() -> int:
     lanes = _partition(scopes, args.runtime_root, args.lanes)
     active_before = _active_scopes(args)
     eligible = {(scope.organization_id, scope.workspace_id) for scope in scopes}
-    unexpected = active_before.difference(eligible)
+    unexpected = set(active_before).difference(eligible)
     if unexpected:
         raise BackfillError(
             f"catalog contains active scopes outside the eligible set: {unexpected}"
@@ -620,6 +708,20 @@ def main() -> int:
     missing = eligible.difference(active_after)
     if missing:
         raise BackfillError(f"eligible workspaces remain inactive: {sorted(missing)}")
+    scopes_by_key = {
+        (scope.organization_id, scope.workspace_id): scope.project_ids
+        for scope in scopes
+    }
+    stale = {
+        key: {
+            "expected": scopes_by_key[key],
+            "observed": active_after.get(key),
+        }
+        for key in sorted(eligible)
+        if active_after.get(key) != scopes_by_key[key]
+    }
+    if stale:
+        raise BackfillError(f"active project coverage remains stale: {stale}")
     final = {
         "active_workspace_count": len(eligible),
         "eligible_project_count": sum(len(scope.project_ids) for scope in scopes),

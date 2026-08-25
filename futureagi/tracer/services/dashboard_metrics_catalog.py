@@ -490,6 +490,7 @@ def _resolve_metrics_catalog_project_scope(
     *,
     include_workspace_projects: bool,
     deadline: ReadDeadline,
+    eligible_trace_type: str | None = None,
 ) -> tuple[list[str], bool]:
     """Resolve explicit project ids once without widening an empty match.
 
@@ -501,6 +502,9 @@ def _resolve_metrics_catalog_project_scope(
     requested_project_ids = [
         value.strip() for value in project_ids_param.split(",") if value.strip()
     ]
+    project_filters: dict[str, object] = {"workspace": workspace}
+    if eligible_trace_type:
+        project_filters["trace_type"] = eligible_trace_type
     if requested_project_ids:
         workspace_project_ids = set(
             _run_metrics_catalog_pg_read(
@@ -509,7 +513,7 @@ def _resolve_metrics_catalog_project_scope(
                 lambda: [
                     str(project_id)
                     for project_id in Project.no_workspace_objects.filter(
-                        workspace=workspace,
+                        **project_filters,
                         id__in=requested_project_ids,
                     )
                     .order_by("id")
@@ -534,7 +538,7 @@ def _resolve_metrics_catalog_project_scope(
                 lambda: [
                     str(project_id)
                     for project_id in Project.no_workspace_objects.filter(
-                        workspace=workspace
+                        **project_filters
                     )
                     .order_by("id")
                     .values_list("id", flat=True)
@@ -558,8 +562,9 @@ def resolve_property_catalog_project_scope(
     carried into its visibility predicate must first be proven to belong to
     the already-authorized workspace. Unlike the legacy catalog builder,
     malformed, oversized, and mixed valid/foreign scopes are rejected instead
-    of silently narrowed. Workspace reads materialize the complete authorized
-    PG project set so the activation can prove full coverage.
+    of silently narrowed. This rollout is qualified for Observe projects;
+    workspace reads materialize that complete eligible PG set so the
+    activation can prove full coverage.
     """
 
     raw_project_ids = list(project_ids)
@@ -581,6 +586,7 @@ def resolve_property_catalog_project_scope(
             "",
             include_workspace_projects=True,
             deadline=deadline,
+            eligible_trace_type="observe",
         )
         if explicit:
             raise MetricsCatalogUnavailable("project_scope")
@@ -590,6 +596,7 @@ def resolve_property_catalog_project_scope(
         ",".join(requested),
         include_workspace_projects=False,
         deadline=deadline,
+        eligible_trace_type="observe",
     )
     if not explicit or set(resolved) != set(requested):
         raise ValueError("Some project_ids are invalid")

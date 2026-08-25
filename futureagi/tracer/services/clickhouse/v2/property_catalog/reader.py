@@ -1091,8 +1091,8 @@ def require_property_catalog_activation_coverage(
     covered_projects = frozenset(source_scope.project_ids)
     workspace_scope = scope.get("workspace_scope") is True
     if workspace_scope:
-        # The API materializes the full currently-authorized PG project set for
-        # an all-project request. Equality prevents both stale extra projects
+        # The API materializes the full currently-eligible Observe-project set
+        # for a workspace request. Equality prevents both stale extra projects
         # and newly-created uncovered projects from producing a partial exact
         # response.
         if requested_projects != covered_projects:
