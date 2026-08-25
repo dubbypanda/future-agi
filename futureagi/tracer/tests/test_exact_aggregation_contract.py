@@ -2656,7 +2656,7 @@ def _exact_reported_sparse_filters(start: datetime, end: datetime) -> list[dict]
                 "col_type": "SPAN_ATTRIBUTE",
                 "filter_type": "number",
                 "filter_op": "greater_than",
-                "filter_value": 2,
+                "filter_value": 3,
             },
         },
     ]
@@ -2922,13 +2922,13 @@ def test_exact_trace_candidate_probe_is_all_time_but_classifier_stays_authoritat
 
 
 @pytest.mark.unit
-def test_exact_trace_candidate_probe_uses_key_superset_for_positive_comparison():
-    """Regress the DEV shape that spent 258 statements on a root walk.
+def test_exact_trace_candidate_probe_uses_value_superset_for_positive_comparison():
+    """Regress the DEV shape that hit the key-only 1,001-row sentinel.
 
-    The 2026-08-25 cold proof completed in 12.327s with 11,818.10ms summed CH
-    time, while its slowest statement was only 194.47ms. The optimization must
-    therefore reduce sequential fan-out without sampling or weakening the
-    unchanged exact classifier.
+    The post-deploy 2026-08-25 cold proof took 12.10s and 259 CH statements for
+    ``ai_interruption_count > 3``. The optimization must therefore retain the
+    positive raw-row comparison without sampling or weakening the unchanged
+    exact classifier.
     """
 
     from tracer.services.clickhouse.v2.query_builders.trace_list import (
@@ -2960,11 +2960,15 @@ def test_exact_trace_candidate_probe_uses_key_superset_for_positive_comparison()
     compact_probe_sql = " ".join(probe_sql.split())
     compact_classify_sql = " ".join(classify_sql.split())
 
-    # Discovery is an all-time, unsampled key-presence superset. It never
-    # compares the raw value and therefore cannot exclude a current >1 match.
+    # Discovery is an all-time, unsampled raw-row value superset. Every current
+    # >3 match necessarily has a physical live row satisfying this comparison;
+    # stale historical matches are removed by the classifier below.
     assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in compact_probe_sql
-    assert "latest_filter_param_1" not in compact_probe_sql
-    assert "latest_filter_param_1" not in probe_params
+    assert (
+        "attrs_number[%(latest_filter_key_1)s] > %(latest_filter_param_1)s"
+        in compact_probe_sql
+    )
+    assert probe_params["latest_filter_param_1"] == 3.0
     assert "start_time >=" not in compact_probe_sql
     assert "start_time <" not in compact_probe_sql
     assert "modulo(" not in compact_probe_sql
@@ -2980,14 +2984,14 @@ def test_exact_trace_candidate_probe_uses_key_superset_for_positive_comparison()
     assert "latest_column_value_0 > %(latest_filter_param_0)s" in compact_classify_sql
     assert "latest_attr_value_1 > %(latest_filter_param_1)s" in compact_classify_sql
     assert classify_params["latest_filter_param_0"] == 1.0
-    assert classify_params["latest_filter_param_1"] == 2.0
+    assert classify_params["latest_filter_param_1"] == 3.0
     assert classify_params["candidate_trace_ids"] == ("key-present-candidate",)
     assert classify_params["candidate_start_date"] == start
     assert classify_params["candidate_end_date"] == end
 
 
 @pytest.mark.unit
-def test_exact_trace_key_superset_candidate_probe_rejects_sampling():
+def test_exact_trace_value_superset_candidate_probe_rejects_sampling():
     from tracer.services.clickhouse.v2.query_builders.trace_list import (
         TraceListQueryBuilderV2,
     )
@@ -3025,17 +3029,22 @@ def test_exact_reported_sparse_shape_uses_two_statement_candidate_lane():
             calls.append((query, dict(params), dict(kwargs)))
             if "exact_graph_candidate_limit" in params:
                 assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in query
+                assert (
+                    "attrs_number[%(latest_filter_key_1)s]"
+                    " > %(latest_filter_param_1)s" in query
+                )
+                assert params["latest_filter_param_1"] == 3.0
                 return SimpleNamespace(
                     data=[
                         {"trace_id": "current-match"},
-                        {"trace_id": "stale-key-only"},
+                        {"trace_id": "stale-raw-value-only"},
                     ],
                     columns=["trace_id"],
                     query_time_ms=1,
                 )
             assert params["candidate_trace_ids"] == (
                 "current-match",
-                "stale-key-only",
+                "stale-raw-value-only",
             )
             assert "latest_column_value_0 > %(latest_filter_param_0)s" in query
             assert "latest_attr_value_1 > %(latest_filter_param_1)s" in query

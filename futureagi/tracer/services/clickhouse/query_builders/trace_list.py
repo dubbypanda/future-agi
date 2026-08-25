@@ -1051,10 +1051,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         Rank-zero equality/IN leaves keep their selective raw key/value
         witness. Other positive scalar operations (for example ``>`` or
-        ``is_not_null``) can still use all-time key presence as a necessary
-        superset. This helper is intentionally limited to the optional exact
-        graph candidate probe; authoritative partitioning continues to
-        require the narrower rank-zero plan above.
+        ``is_not_null``) can combine all-time key presence with their raw-row
+        seed predicate as a necessary superset. This helper is intentionally
+        limited to the optional exact graph candidate probe; authoritative
+        partitioning continues to require the narrower rank-zero plan above.
         """
 
         for plan in self._graph_key_witness_plans():
@@ -1911,13 +1911,14 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         """Return a finite necessary superset for a selective exact graph.
 
         Positive scalar typed-Map predicates have an exhaustive raw witness:
-        equality/IN can use the same key/value, while other positive
-        operations use key presence only. Every latest-live matching span
-        necessarily has a raw live version carrying that key. Historical rows
-        may also survive before ReplacingMergeTree merges, so this result is
-        deliberately *not* authoritative. The exact graph reader must replay
-        every returned trace through its ordinary latest-state classifier,
-        which also verifies the canonical root is inside the request window.
+        equality/IN use their existing rank-zero key/value witness, while other
+        positive operations combine key presence with the raw-row seed
+        predicate. Every latest-live matching span necessarily has a raw live
+        version satisfying that predicate. Historical matching rows may also
+        survive before ReplacingMergeTree merges, so this result is deliberately
+        *not* authoritative. The exact graph reader must replay every returned
+        trace through its ordinary latest-state classifier, which also verifies
+        the canonical root is inside the request window.
 
         Child spans have no maximum duration relative to their root, so raw
         span-attribute witnesses are intentionally all-time.  Positive
@@ -1963,11 +1964,14 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 limit=limit,
                 _positive_relation_candidate_first=True,
             )
-        raw_witness_predicate = str(
-            anchor.raw_witness_predicate
-            if anchor.raw_witness_rank == 0
-            else anchor.raw_key_witness_predicate or ""
-        )
+        if anchor.raw_witness_rank == 0:
+            raw_witness_predicate = str(anchor.raw_witness_predicate or "")
+        else:
+            raw_key_witness = str(anchor.raw_key_witness_predicate or "")
+            raw_seed_predicate = str(anchor.seed_predicate or "")
+            if not raw_key_witness or not raw_seed_predicate:
+                return "", {}
+            raw_witness_predicate = f"({raw_key_witness}) AND ({raw_seed_predicate})"
         if not raw_witness_predicate:
             return "", {}
 
