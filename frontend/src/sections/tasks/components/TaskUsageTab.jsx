@@ -1043,7 +1043,12 @@ const TaskUsageTab = ({ taskId }) => {
                 setDateOption(opt);
                 setPage(0);
               }}
-              setParentDateFilter={setDateFilter}
+              setParentDateFilter={(range) => {
+                // The custom range feeds the API query, so editing it while on
+                // page N can land past the end of the new result set.
+                setDateFilter(range);
+                setPage(0);
+              }}
               dateFilter={dateFilter}
             />
             {/* Eval filter — only show when the task has >1 configured eval */}
