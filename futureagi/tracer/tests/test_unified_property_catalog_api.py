@@ -184,6 +184,28 @@ def test_filter_values_normalizes_logical_definition_sources_to_native_transport
         assert serializer.validated_data["source"] == expected_transport
 
 
+@pytest.mark.parametrize(
+    ("property_id", "source"),
+    [
+        ("annotation:11111111-1111-4111-8111-111111111111", "both"),
+        ("annotation:11111111-1111-4111-8111-111111111111", "all"),
+        ("eval_config:22222222-2222-4222-8222-222222222222", "both"),
+        ("eval_template:33333333-3333-4333-8333-333333333333", "all"),
+    ],
+)
+def test_filter_values_accepts_shared_definition_sources(property_id, source):
+    serializer = DashboardFilterValuesQuerySerializer(
+        data={
+            "property_id": property_id,
+            "source": source,
+            "page_size": 25,
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["source"] == source
+
+
 def test_filter_values_rejects_unsupported_custom_attribute_source():
     serializer = DashboardFilterValuesQuerySerializer(
         data={

@@ -951,6 +951,8 @@ class DashboardFilterValuesQuerySerializer(serializers.Serializer):
             "datasets",
             "dataset_column",
             "simulation",
+            "both",
+            "all",
         ],
         required=False,
         default="traces",
