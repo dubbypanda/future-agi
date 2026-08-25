@@ -11,11 +11,13 @@ import TraceFilterPanel, {
   filterPropertiesForPicker,
   findTraceFilterProperty,
   getTraceFilterFields,
+  mergeCatalogSearchProperties,
   mergeTraceFilterProperties,
   mergeRetainedAttributeProperties,
   normalizeFilterRowOperator,
   PropertyPickerPaginationControl,
   shouldUseRetainedAttributePages,
+  supplementCatalogSearchCategoryCounts,
   toStaticFilterProperty,
 } from "../TraceFilterPanel";
 import {
@@ -89,6 +91,62 @@ const defaultExactAttributeProperties = () => ({
   debouncedSearch: "",
   refetch: vi.fn(),
 });
+
+const settledPropertyCatalog = ({ metrics = [], categoryCounts } = {}) => ({
+  metrics,
+  categoryCounts: categoryCounts || {
+    all: metrics.length,
+    system_metric: 0,
+    eval_metric: 0,
+    annotation_metric: 0,
+    custom_attribute: 0,
+    custom_column: 0,
+  },
+  categoryCountsExact: true,
+  legacyFallbackRequired: false,
+  error: null,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+  isSuccess: true,
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  isFetchNextPageError: false,
+  cursorChainStopped: false,
+  fetchNextPage: vi.fn(),
+  data: { pages: [] },
+});
+
+const GLOBAL_CATALOG_SEARCH_CASES = [
+  {
+    search: "Tokens",
+    source: "voice_calls",
+    tab: "voiceCalls",
+    initialMetrics: [],
+    optionId: "gen_ai.usage.total_tokens",
+    categoryName: "System",
+    categoryCountLabel: "System property count",
+  },
+  {
+    search: "Annotator",
+    source: "traces",
+    tab: "trace",
+    initialMetrics: [
+      {
+        property_id: "annotation:quality",
+        name: "quality",
+        display_name: "Quality",
+        category: "annotation_metric",
+        source: "traces",
+        sources: ["traces"],
+        output_type: "numeric",
+      },
+    ],
+    optionId: "annotator",
+    categoryName: "Annotations",
+    categoryCountLabel: "Annotations property count",
+  },
+];
 
 beforeEach(() => {
   intersectionObservers = [];
@@ -681,6 +739,123 @@ describe("getTraceFilterFields (TH-4571)", () => {
     expect(
       getTraceFilterFields("trace").some((field) => field.value === "status"),
     ).toBe(true);
+  });
+});
+
+describe("catalog search global property supplements", () => {
+  const tokensProperty = toStaticFilterProperty(
+    getTraceFilterFields("voiceCalls").find(
+      (field) => field.value === "gen_ai.usage.total_tokens",
+    ),
+    false,
+    "voice_calls",
+    "voice_calls",
+  );
+  const annotatorProperty = buildTraceFilterProperties([
+    {
+      property_id: "annotation:quality",
+      name: "quality",
+      display_name: "Quality",
+      category: "annotation_metric",
+      source: "traces",
+      sources: ["traces"],
+      output_type: "numeric",
+    },
+  ]).find((property) => property.id === "annotator");
+  const emptySearchCounts = {
+    all: 0,
+    system_metric: 0,
+    eval_metric: 0,
+    annotation_metric: 0,
+    custom_attribute: 0,
+    custom_column: 0,
+  };
+
+  it.each([
+    ["Tokens", tokensProperty, "system_metric"],
+    ["Annotator", annotatorProperty, "annotation_metric"],
+  ])(
+    "restores searched %s and its exact category count when the server omits it",
+    (search, property, categoryCountKey) => {
+      expect(
+        mergeCatalogSearchProperties({
+          baseProperties: [property],
+          catalogProperties: [],
+          search,
+        }),
+      ).toEqual([property]);
+      expect(
+        supplementCatalogSearchCategoryCounts({
+          categoryCounts: emptySearchCounts,
+          baseProperties: [property],
+          catalogProperties: [],
+          search,
+        }),
+      ).toEqual({
+        ...emptySearchCounts,
+        all: 1,
+        [categoryCountKey]: 1,
+      });
+    },
+  );
+
+  it("prefers the canonical local Tokens definition without double-counting a server alias", () => {
+    const serverAlias = {
+      id: "tokens",
+      registryId: "system_attribute:voice_calls:tokens",
+      name: "Tokens",
+      category: "system",
+      apiColType: "SYSTEM_METRIC",
+      type: "number",
+    };
+    const serverCounts = {
+      ...emptySearchCounts,
+      all: 1,
+      system_metric: 1,
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [tokensProperty],
+        catalogProperties: [serverAlias],
+        search: "Tokens",
+      }),
+    ).toEqual([tokensProperty]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: serverCounts,
+        baseProperties: [tokensProperty],
+        catalogProperties: [serverAlias],
+        search: "Tokens",
+      }),
+    ).toBe(serverCounts);
+  });
+
+  it("does not restore project-specific System fields that authoritative search omitted", () => {
+    const projectMetric = {
+      id: "project_specific_metric",
+      registryId: "system_attribute:traces:project_specific_metric",
+      name: "Project Specific Metric",
+      category: "system",
+      apiColType: "SYSTEM_METRIC",
+      type: "number",
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [projectMetric],
+        catalogProperties: [],
+        search: "Project Specific Metric",
+      }),
+    ).toEqual([]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: emptySearchCounts,
+        baseProperties: [projectMetric],
+        catalogProperties: [],
+        search: "Project Specific Metric",
+      }),
+    ).toBe(emptySearchCounts);
   });
 });
 
@@ -1354,6 +1529,74 @@ describe("voice-call property search aliases", () => {
     ).toHaveTextContent("222");
     document.body.removeChild(anchorEl);
   });
+
+  it.each(GLOBAL_CATALOG_SEARCH_CASES)(
+    "keeps omitted global $search visible in Basic search and category counts",
+    async ({
+      search,
+      source,
+      tab,
+      initialMetrics,
+      optionId,
+      categoryName,
+      categoryCountLabel,
+    }) => {
+      propertyCatalogMock.mockImplementation(({ search: catalogSearch = "" }) =>
+        settledPropertyCatalog({
+          metrics: catalogSearch ? [] : initialMetrics,
+          categoryCounts: catalogSearch
+            ? {
+                all: 0,
+                system_metric: 0,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 0,
+                custom_column: 0,
+              }
+            : undefined,
+        }),
+      );
+      const { anchorEl } = renderPanel({
+        projectId: `project-global-${search.toLowerCase()}`,
+        source,
+        tab,
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Property" }));
+      fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+        target: { value: search },
+      });
+
+      await waitFor(() =>
+        expect(propertyCatalogMock).toHaveBeenCalledWith(
+          expect.objectContaining({ search }),
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          document.querySelector(`[data-filter-property-option="${optionId}"]`),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("1");
+      expect(screen.getByLabelText("All property count")).toHaveTextContent(
+        "1",
+      );
+      expect(screen.getByLabelText(categoryCountLabel)).toHaveTextContent("1");
+
+      fireEvent.click(screen.getByText(categoryName));
+      await waitFor(() =>
+        expect(
+          document.querySelector(`[data-filter-property-option="${optionId}"]`),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("1");
+      document.body.removeChild(anchorEl);
+    },
+  );
 
   it("uses the activated catalog for trace attributes, text search, and pagination", async () => {
     const fetchNextSearchPage = vi.fn();
@@ -4580,6 +4823,37 @@ describe("filter-value picker bounded-read UX", () => {
 
     document.body.removeChild(anchorEl);
   });
+
+  it.each(GLOBAL_CATALOG_SEARCH_CASES)(
+    "keeps omitted global $search visible in Query search",
+    async ({ search, source, tab, initialMetrics }) => {
+      propertyCatalogMock.mockImplementation(({ search: catalogSearch = "" }) =>
+        settledPropertyCatalog({
+          metrics: catalogSearch ? [] : initialMetrics,
+        }),
+      );
+      const { anchorEl } = renderPanel({
+        projectId: `project-query-global-${search.toLowerCase()}`,
+        source,
+        tab,
+        showQueryTab: true,
+      });
+
+      fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+      const input = screen.getByRole("combobox");
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: search } });
+
+      await waitFor(() =>
+        expect(propertyCatalogMock).toHaveBeenCalledWith(
+          expect.objectContaining({ search }),
+        ),
+      );
+      expect(await screen.findByText(search)).toBeInTheDocument();
+
+      document.body.removeChild(anchorEl);
+    },
+  );
 
   it("lets an authoritative Query search replace stale base fields without collapsing exact matches", async () => {
     propertyCatalogMock.mockImplementation(({ search = "" }) => ({

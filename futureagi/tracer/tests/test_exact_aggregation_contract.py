@@ -2630,6 +2630,38 @@ def _exact_multi_filters(start: datetime, end: datetime) -> list[dict]:
     ]
 
 
+def _exact_reported_sparse_filters(start: datetime, end: datetime) -> list[dict]:
+    return [
+        _time_filter(start, end),
+        {
+            "column_id": "annotator",
+            "filter_config": {
+                "filter_type": "annotator",
+                "filter_op": "is_null",
+                "filter_value": None,
+            },
+        },
+        {
+            "column_id": "total_tokens",
+            "filter_config": {
+                "col_type": "SYSTEM_METRIC",
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 1,
+            },
+        },
+        {
+            "column_id": "ai_interruption_count",
+            "filter_config": {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 2,
+            },
+        },
+    ]
+
+
 @pytest.mark.unit
 def test_exact_span_partition_boundary_does_not_revive_a_winning_tombstone():
     start = datetime(2026, 8, 1)
@@ -2887,6 +2919,148 @@ def test_exact_trace_candidate_probe_is_all_time_but_classifier_stays_authoritat
     assert classify_params["candidate_end_date"] == end
     assert "candidate_witness_start_date_us" not in classify_params
     assert "candidate_witness_end_date_us" not in classify_params
+
+
+@pytest.mark.unit
+def test_exact_trace_candidate_probe_uses_key_superset_for_positive_comparison():
+    """Regress the DEV shape that spent 258 statements on a root walk.
+
+    The 2026-08-25 cold proof completed in 12.327s with 11,818.10ms summed CH
+    time, while its slowest statement was only 194.47ms. The optimization must
+    therefore reduce sequential fan-out without sampling or weakening the
+    unchanged exact classifier.
+    """
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    classify_sql, classify_params = (
+        builder.build_filter_identity_match_query_from_seed_rows(
+            [{"trace_id": "key-present-candidate"}]
+        )
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+    compact_classify_sql = " ".join(classify_sql.split())
+
+    # Discovery is an all-time, unsampled key-presence superset. It never
+    # compares the raw value and therefore cannot exclude a current >1 match.
+    assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in compact_probe_sql
+    assert "latest_filter_param_1" not in compact_probe_sql
+    assert "latest_filter_param_1" not in probe_params
+    assert "start_time >=" not in compact_probe_sql
+    assert "start_time <" not in compact_probe_sql
+    assert "modulo(" not in compact_probe_sql
+    assert "LIMIT 1 BY trace_id" in compact_probe_sql
+    assert "LIMIT %(exact_graph_candidate_limit)s" in compact_probe_sql
+    assert probe_params["latest_filter_key_1"] == "ai_interruption_count"
+    assert probe_params["exact_graph_candidate_limit"] == 1_001
+
+    # The existing classifier remains the sole authority for the annotation
+    # absence, root token comparison, latest attribute value, and root window.
+    assert "model_hub_score AS s FINAL" in compact_classify_sql
+    assert "trace_id NOT IN" in compact_classify_sql
+    assert "latest_column_value_0 > %(latest_filter_param_0)s" in compact_classify_sql
+    assert "latest_attr_value_1 > %(latest_filter_param_1)s" in compact_classify_sql
+    assert classify_params["latest_filter_param_0"] == 1.0
+    assert classify_params["latest_filter_param_1"] == 2.0
+    assert classify_params["candidate_trace_ids"] == ("key-present-candidate",)
+    assert classify_params["candidate_start_date"] == start
+    assert classify_params["candidate_end_date"] == end
+
+
+@pytest.mark.unit
+def test_exact_trace_key_superset_candidate_probe_rejects_sampling():
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+        bounded_sampling_salt="sampling-cannot-prove-exactness",
+        bounded_sampling_rate=50,
+    )
+
+    assert builder.build_exact_graph_candidate_witness_probe(limit=1_001) == ("", {})
+
+
+@pytest.mark.unit
+def test_exact_reported_sparse_shape_uses_two_statement_candidate_lane():
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    calls = []
+
+    class Analytics:
+        @staticmethod
+        def execute_ch_query(query, params, **kwargs):
+            calls.append((query, dict(params), dict(kwargs)))
+            if "exact_graph_candidate_limit" in params:
+                assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in query
+                return SimpleNamespace(
+                    data=[
+                        {"trace_id": "current-match"},
+                        {"trace_id": "stale-key-only"},
+                    ],
+                    columns=["trace_id"],
+                    query_time_ms=1,
+                )
+            assert params["candidate_trace_ids"] == (
+                "current-match",
+                "stale-key-only",
+            )
+            assert "latest_column_value_0 > %(latest_filter_param_0)s" in query
+            assert "latest_attr_value_1 > %(latest_filter_param_1)s" in query
+            assert "model_hub_score AS s FINAL" in query
+            assert "trace_id NOT IN" in query
+            # The key witness deliberately includes a stale/non-matching
+            # candidate; only latest-state replay may admit a graph member.
+            return SimpleNamespace(
+                data=[{"trace_id": "current-match"}],
+                columns=["trace_id"],
+                query_time_ms=1,
+            )
+
+    trace_ids, query_count, rows_returned = _enumerate_exact_trace_ids(
+        analytics=Analytics(),
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        annotation_label_ids=None,
+        started=exact_module.monotonic(),
+    )
+
+    assert trace_ids == ["current-match"]
+    assert query_count == 2
+    assert rows_returned == 3
+    assert len(calls) == 2
 
 
 @pytest.mark.unit

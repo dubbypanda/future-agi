@@ -218,6 +218,10 @@ export const toStaticFilterProperty = (
     id,
     name: isSpanName ? "Span Name" : field.label,
     category,
+    // Unified-catalog search cannot index definitions that exist only in the
+    // frontend registry. Keep those exact definitions eligible for the
+    // narrowly-scoped search fallback below.
+    catalogSearchFallback: true,
     // Pinned so the eval-task wire encoding doesn't have to guess
     // from `category` alone — without this every static field would
     // round-trip through the chain with apiColType=undefined and
@@ -308,6 +312,7 @@ export function mergeTraceFilterProperties({
         id,
         name: field.name || field.label,
         category,
+        catalogSearchFallback: true,
         rawCategory: field.rawCategory,
         apiColType: apiColTypeForFilterField(field, category),
         type: field.type || "string",
@@ -1007,6 +1012,154 @@ export function mergeCatalogPropertyPages(...propertyLists) {
   return [...propertiesByIdentity.values()];
 }
 
+const isCatalogSearchFallbackProperty = (property) =>
+  property?.catalogSearchFallback === true;
+
+const ownedGlobalPropertyIds = (property) =>
+  new Set(
+    [
+      property?.id,
+      property?.responseKey,
+      ...(property?.dynamicAliases || []),
+      ...(property?.legacyWireValues || []),
+    ]
+      .map(normalizeCanonicalPropertyIdentity)
+      .filter(Boolean),
+  );
+
+const representsGlobalProperty = (candidate, globalProperty) => {
+  if (
+    queryPropertyIdentity(candidate) === queryPropertyIdentity(globalProperty)
+  ) {
+    return true;
+  }
+  if (!isCatalogSearchFallbackProperty(globalProperty)) return false;
+  const candidateIds = ownedGlobalPropertyIds(candidate);
+  return [...ownedGlobalPropertyIds(globalProperty)].some((id) =>
+    candidateIds.has(id),
+  );
+};
+
+const matchingGlobalSearchProperties = ({
+  baseProperties,
+  search,
+  category = "all",
+  hasCategorySidebar = true,
+}) =>
+  filterPropertiesForPicker({
+    properties: (baseProperties || []).filter(isCatalogSearchFallbackProperty),
+    category,
+    search,
+    hasCategorySidebar,
+  });
+
+const supplementalGlobalSearchProperties = ({
+  baseProperties,
+  catalogProperties,
+  search,
+  category = "all",
+  hasCategorySidebar = true,
+}) =>
+  matchingGlobalSearchProperties({
+    baseProperties,
+    search,
+    category,
+    hasCategorySidebar,
+  }).filter(
+    (localProperty) =>
+      !(catalogProperties || []).some((catalogProperty) =>
+        representsGlobalProperty(catalogProperty, localProperty),
+      ),
+  );
+
+// Project catalog search intentionally owns project-specific results, but its
+// persisted index does not contain frontend-synthetic/global system fields.
+// Retain only matching global fields from the already-authoritative base
+// inventory; merging the whole base list would resurrect stale attributes and
+// evals that the server search correctly excluded.
+// eslint-disable-next-line react-refresh/only-export-components
+export function mergeCatalogSearchProperties({
+  baseProperties,
+  catalogProperties,
+  search,
+  category = "all",
+  hasCategorySidebar = true,
+}) {
+  const localMatches = matchingGlobalSearchProperties({
+    baseProperties,
+    search,
+    category,
+    hasCategorySidebar,
+  });
+  const catalogOwnedLocalMatches = new Set();
+  const authoritativeCatalogMatches = (catalogProperties || []).filter(
+    (catalogProperty) => {
+      const localProperty = localMatches.find((candidate) =>
+        representsGlobalProperty(catalogProperty, candidate),
+      );
+      if (!localProperty) return true;
+
+      // An exact catalog id remains authoritative for project naming/type
+      // metadata. Alias-only results (for example `tokens`) yield to the local
+      // canonical definition so filters still submit
+      // `gen_ai.usage.total_tokens` and retain local transport metadata.
+      if (
+        normalizeCanonicalPropertyIdentity(catalogProperty.id) ===
+        normalizeCanonicalPropertyIdentity(localProperty.id)
+      ) {
+        catalogOwnedLocalMatches.add(localProperty);
+        return true;
+      }
+      return false;
+    },
+  );
+  return mergeCatalogPropertyPages(
+    localMatches.filter((property) => !catalogOwnedLocalMatches.has(property)),
+    authoritativeCatalogMatches,
+  );
+}
+
+const PROPERTY_CATEGORY_COUNT_KEY = {
+  system: "system_metric",
+  eval: "eval_metric",
+  annotation: "annotation_metric",
+  attribute: "custom_attribute",
+  dataset: "custom_column",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function supplementCatalogSearchCategoryCounts({
+  categoryCounts,
+  baseProperties,
+  catalogProperties,
+  search,
+}) {
+  if (!categoryCounts) return categoryCounts;
+  const supplements = supplementalGlobalSearchProperties({
+    baseProperties,
+    catalogProperties,
+    search,
+    category: "all",
+    hasCategorySidebar: true,
+  });
+  if (supplements.length === 0) return categoryCounts;
+
+  const nextCounts = { ...categoryCounts };
+  for (const property of supplements) {
+    const categoryKey = PROPERTY_CATEGORY_COUNT_KEY[property.category];
+    if (
+      !categoryKey ||
+      !Number.isSafeInteger(nextCounts.all) ||
+      !Number.isSafeInteger(nextCounts[categoryKey])
+    ) {
+      return categoryCounts;
+    }
+    nextCounts.all += 1;
+    nextCounts[categoryKey] += 1;
+  }
+  return nextCounts;
+}
+
 export function buildQueryPropertyEntries(properties) {
   return {
     entries: (properties || []).map((property) => [
@@ -1027,6 +1180,7 @@ const ANNOTATOR_FILTER_PROPERTY = {
   // column_id=annotator as a global Score annotator filter, not a label column.
   apiColType: "SYSTEM_METRIC",
   allowCustomValue: false,
+  catalogSearchFallback: true,
 };
 
 function metricToTraceFilterProperty(m) {
@@ -1479,6 +1633,18 @@ function PropertyPicker({
       ? catalogProperties.filter(propertyFilter)
       : catalogProperties;
   }, [isSimulator, propertyFilter, searchedCatalog.metrics, source]);
+  const allSearchCatalogProperties = useMemo(() => {
+    const catalogProperties = buildTraceFilterProperties(
+      allSearchCatalog.metrics || [],
+      {
+        isSimulator,
+        sourceScope: source,
+      },
+    );
+    return propertyFilter
+      ? catalogProperties.filter(propertyFilter)
+      : catalogProperties;
+  }, [allSearchCatalog.metrics, isSimulator, propertyFilter, source]);
   const allSearchCatalogHasExactCounts = Boolean(
     allSearchCatalog.categoryCountsExact && allSearchCatalog.categoryCounts,
   );
@@ -1493,8 +1659,39 @@ function PropertyPicker({
       !catalogSearchSettled,
   );
   const effectiveCatalogProperties = useMemo(
-    () => (searchedCatalogOwnsResults ? searchedCatalogProperties : properties),
-    [properties, searchedCatalogOwnsResults, searchedCatalogProperties],
+    () =>
+      searchedCatalogOwnsResults
+        ? mergeCatalogSearchProperties({
+            baseProperties: properties,
+            catalogProperties: searchedCatalogProperties,
+            search: trimmedSearch,
+            category,
+            hasCategorySidebar,
+          })
+        : properties,
+    [
+      category,
+      hasCategorySidebar,
+      properties,
+      searchedCatalogOwnsResults,
+      searchedCatalogProperties,
+      trimmedSearch,
+    ],
+  );
+  const supplementedAllSearchCategoryCounts = useMemo(
+    () =>
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: allSearchCatalog.categoryCounts,
+        baseProperties: properties,
+        catalogProperties: allSearchCatalogProperties,
+        search: trimmedSearch,
+      }),
+    [
+      allSearchCatalog.categoryCounts,
+      allSearchCatalogProperties,
+      properties,
+      trimmedSearch,
+    ],
   );
   const searchCountsOwnSidebar = Boolean(
     trimmedSearch &&
@@ -1513,7 +1710,7 @@ function PropertyPicker({
   // exact response arrives, hide the counts instead of displaying a scoped
   // category breakdown that would visibly drift.
   const effectiveCatalogCategoryCounts = searchCountsOwnSidebar
-    ? allSearchCatalog.categoryCounts
+    ? supplementedAllSearchCategoryCounts
     : searchCountsPending
       ? null
       : catalogCategoryCounts;
@@ -3757,7 +3954,12 @@ const TraceFilterPanel = ({
   );
   const queryProperties = useMemo(() => {
     const catalogProperties = queryCatalogSearchOwnsResults
-      ? queryCatalogProperties
+      ? mergeCatalogSearchProperties({
+          baseProperties: properties,
+          catalogProperties: queryCatalogProperties,
+          search: trimmedQueryFieldSearch,
+          hasCategorySidebar: false,
+        })
       : properties;
     const discovered = mergeRetainedAttributeProperties(
       catalogProperties,
@@ -3782,6 +3984,7 @@ const TraceFilterPanel = ({
     queryCatalogSearchOwnsResults,
     queryUsesRetainedAttributePages,
     selectedQueryAttributeProperties,
+    trimmedQueryFieldSearch,
   ]);
 
   const queryPropertyRegistry = useMemo(

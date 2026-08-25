@@ -1112,6 +1112,13 @@ def _enumerate_exact_trace_ids(
 
         classify_rows(candidate_rows)
 
+    # TH-7247 cold DEV proof (2026-08-25) for a 12M trace graph with
+    # annotator IS NULL, tokens > 1, and ai_interruption_count > 2 completed in
+    # 12.327s but issued 258 sequential CH statements (11,818.10ms summed,
+    # 194.47ms max). This finite candidate lane targets that serial fan-out;
+    # increasing a per-statement timeout alone cannot address the measured
+    # mechanism.
+    #
     # A selective typed-Map leaf has an all-time raw witness, while a positive
     # relational condition can provide request-window canonical roots.  Both
     # are necessary supersets of exact latest-state membership. Prove that the

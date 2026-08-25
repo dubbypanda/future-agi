@@ -1044,6 +1044,28 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 return plan
         return None
 
+    def _positive_typed_map_candidate_plan(
+        self,
+    ) -> LatestFilterPredicate | None:
+        """Return one positive scalar Map leaf safe for finite discovery.
+
+        Rank-zero equality/IN leaves keep their selective raw key/value
+        witness. Other positive scalar operations (for example ``>`` or
+        ``is_not_null``) can still use all-time key presence as a necessary
+        superset. This helper is intentionally limited to the optional exact
+        graph candidate probe; authoritative partitioning continues to
+        require the narrower rank-zero plan above.
+        """
+
+        for plan in self._graph_key_witness_plans():
+            key_witness = str(plan.raw_key_witness_predicate or "")
+            if re.search(
+                r"\bhas\(span_attr_(?:str|num|bool)\.keys,",
+                key_witness,
+            ):
+                return plan
+        return None
+
     def _filter_exact_zero_probe_plans(
         self,
     ) -> list[LatestFilterPredicate] | None:
@@ -1888,11 +1910,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     ) -> tuple[str, dict[str, Any]]:
         """Return a finite necessary superset for a selective exact graph.
 
-        Positive scalar typed-Map equality/IN predicates have an exhaustive
-        raw witness: every latest-live matching span necessarily has a raw
-        live version carrying the same key/value.  Historical matching rows
+        Positive scalar typed-Map predicates have an exhaustive raw witness:
+        equality/IN can use the same key/value, while other positive
+        operations use key presence only. Every latest-live matching span
+        necessarily has a raw live version carrying that key. Historical rows
         may also survive before ReplacingMergeTree merges, so this result is
-        deliberately *not* authoritative.  The exact graph reader must replay
+        deliberately *not* authoritative. The exact graph reader must replay
         every returned trace through its ordinary latest-state classifier,
         which also verifies the canonical root is inside the request window.
 
@@ -1920,7 +1943,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             and self._bounded_sampling_rate is None
         ):
             return "", {}
-        anchor = self._positive_typed_map_anchor_plan()
+        anchor = self._positive_typed_map_candidate_plan()
         if anchor is None:
             # A global negative annotator filter is not a raw span-attribute
             # witness, but it does have an exact positive Score population:
@@ -1940,7 +1963,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 limit=limit,
                 _positive_relation_candidate_first=True,
             )
-        raw_witness_predicate = str(anchor.raw_witness_predicate or "")
+        raw_witness_predicate = str(
+            anchor.raw_witness_predicate
+            if anchor.raw_witness_rank == 0
+            else anchor.raw_key_witness_predicate or ""
+        )
         if not raw_witness_predicate:
             return "", {}
 
