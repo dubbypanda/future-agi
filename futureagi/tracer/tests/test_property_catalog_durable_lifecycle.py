@@ -763,6 +763,53 @@ def test_restart_rejects_project_inventory_drift_before_coordinator_replay() -> 
     assert len(freezer.calls) == 1
 
 
+def test_expired_project_inventory_drift_requires_and_honors_explicit_repair() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    state = _State()
+    freezer = _Freezer(clock)
+    lifecycle = _lifecycle(
+        state=state,
+        clock=clock,
+        freezer=freezer,
+        tokens=[TOKEN_A, TOKEN_B, TOKEN_C],
+    )
+    original_scope = replace(_scope(), project_ids=(PROJECT_A,))
+    initial = lifecycle.prepare(
+        scope=original_scope,
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=_bounds(),
+    )
+    state.activate(initial, at=clock.current)
+    clock.current += timedelta(minutes=2)
+    incomplete = lifecycle.prepare(
+        scope=original_scope,
+        mode=LifecycleRunMode.FULL_REPAIR,
+        configured_bounds=_bounds(),
+    )
+    clock.current = incomplete.lease.expires_at + timedelta(seconds=1)
+
+    with pytest.raises(DurableLifecycleError, match="explicit repair"):
+        lifecycle.prepare(
+            scope=_scope(),
+            mode=LifecycleRunMode.FULL_REPAIR,
+            configured_bounds=_bounds(),
+        )
+
+    repaired = lifecycle.prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.FULL_REPAIR,
+        configured_bounds=_bounds(),
+        allow_expired_repair=True,
+    )
+
+    assert repaired.resumed is False
+    assert repaired.mode is LifecycleRunMode.FULL_REPAIR
+    assert repaired.scope.project_ids == (PROJECT_A, PROJECT_B)
+    assert repaired.lease.catalog_revision == incomplete.lease.catalog_revision + 1
+    assert repaired.lease.build_token == TOKEN_C
+    assert all(value.resume is None for value in repaired.streams)
+
+
 def test_crash_restart_reuses_plan_cutoff_mode_token_and_checkpoint() -> None:
     clock = _Clock(INITIAL_UNTIL)
     state = _State()

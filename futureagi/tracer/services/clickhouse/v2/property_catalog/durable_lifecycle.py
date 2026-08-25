@@ -971,10 +971,6 @@ class DurableWorkspaceCatalogLifecycle:
         lease = reservation.lease
         _require_lease_scope(lease, scope)
         decoded = _decode_plan_scope(lease.build_plan)
-        if lease.build_plan.source_scope.project_ids != scope.project_ids:
-            raise DurableLifecycleError(
-                "open revision project inventory differs from the workspace scope"
-            )
         _validate_prior_marker(decoded.prior_active_revision, active)
         if active is not None and active.catalog_revision >= lease.catalog_revision:
             raise DurableLifecycleError(
@@ -1020,6 +1016,13 @@ class DurableWorkspaceCatalogLifecycle:
                 configured_bounds=configured_bounds,
                 active=active,
                 observed_at=observed_at,
+            )
+        # A live or fenced reservation remains immutable. An expired OPEN or
+        # DRAINING reservation may reach the explicit repair branch above and
+        # reserve a fresh revision against the current project inventory.
+        if lease.build_plan.source_scope.project_ids != scope.project_ids:
+            raise DurableLifecycleError(
+                "open revision project inventory differs from the workspace scope"
             )
         # Persisted mode always wins.  In particular, the next two-minute
         # incremental tick may safely finish a crashed full repair, but can
