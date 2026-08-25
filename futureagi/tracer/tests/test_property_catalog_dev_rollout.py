@@ -464,6 +464,16 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
 ) -> None:
     from tracer.services.clickhouse.v2.property_catalog import dev_runtime
 
+    monkeypatch.setattr(
+        dev_runtime,
+        "RUNTIME_LIMITS",
+        replace(
+            dev_runtime.RUNTIME_LIMITS,
+            canonical_span_query_timeout_ms=30_000,
+            state_store_timeout_ms=8_500,
+        ),
+    )
+
     statements = catalog_dev_schema._load_pinned_statements()
     tables = tuple(
         (
@@ -474,6 +484,8 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         )
         for statement in statements
     )
+
+    read_timeouts: list[tuple[str, int]] = []
 
     class Driver:
         def __init__(self, database: str, *, server_enforced_readonly: bool) -> None:
@@ -489,6 +501,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         ) -> tuple[list[tuple[Any, ...]], list[tuple[str, str]], float]:
             _ = params, settings
             assert timeout_ms is not None and timeout_ms > 0
+            read_timeouts.append((self.database, timeout_ms))
             if "SELECT version()" in query:
                 return [("25.3.8.23",)], [("version()", "String")], 0.1
             if "FROM system.tables" in query:
@@ -620,6 +633,54 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         "source_ch25",
         "th7247_catalog_dev_unit",
     }
+    catalog_timeouts = tuple(
+        timeout_ms
+        for database, timeout_ms in read_timeouts
+        if database != "source_ch25"
+    )
+    assert catalog_timeouts
+    assert set(catalog_timeouts) == {8_500}
+
+
+def test_native_catalog_client_uses_configured_state_store_timeout_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tracer.services.clickhouse.v2.property_catalog import dev_runtime
+
+    monkeypatch.setattr(
+        dev_runtime,
+        "RUNTIME_LIMITS",
+        replace(dev_runtime.RUNTIME_LIMITS, state_store_timeout_ms=7_500),
+    )
+
+    class Driver:
+        database = "th7247_catalog_dev_unit"
+        server_enforced_readonly = False
+
+        def execute_read(
+            self,
+            _query: str,
+            _params: Any,
+            *,
+            timeout_ms: int,
+            settings: Any,
+        ) -> tuple[list[tuple[int]], list[tuple[str, str]], float]:
+            assert settings == {"readonly": 2}
+            assert timeout_ms == 7_500
+            return [(1,)], [("rows", "UInt64")], 0.1
+
+    client = dev_runtime.NativeCatalogClient(
+        Driver(),  # type: ignore[arg-type]
+        database="th7247_catalog_dev_unit",
+    )
+    sql = "SELECT count() AS rows FROM `th7247_catalog_dev_unit`.`property_catalog_activations`"
+
+    assert client.query(sql, {}, timeout_ms=7_500) == ({"rows": 1},)
+    with pytest.raises(
+        PropertyCatalogDevRuntimeError,
+        match=r"catalog query timeout must be in \[1, 7500\] ms",
+    ):
+        client.query(sql, {}, timeout_ms=7_501)
 
 
 def test_remote_provenance_validation_freezes_exact_dev_evidence() -> None:

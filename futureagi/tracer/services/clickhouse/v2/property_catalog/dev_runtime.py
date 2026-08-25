@@ -1696,7 +1696,7 @@ class NativeCatalogClient:
         timeout_ms: int,
     ) -> Sequence[Mapping[str, Any]]:
         self._validate_identity()
-        _bounded_timeout(timeout_ms)
+        _bounded_catalog_timeout(timeout_ms)
         ensure_read_statement(sql)
         qualified = set(_QUALIFIED_SOURCE_RE.findall(sql))
         if not qualified or any(
@@ -1732,7 +1732,7 @@ class NativeCatalogClient:
         deduplication_token: str,
     ) -> None:
         self._validate_identity()
-        _bounded_timeout(timeout_ms)
+        _bounded_catalog_timeout(timeout_ms)
         match = _QUALIFIED_TABLE_RE.fullmatch(table)
         if (
             match is None
@@ -1896,7 +1896,7 @@ class NativeSchemaClient:
         rows, _, _ = driver.execute_read(
             sql,
             {},
-            timeout_ms=RUNTIME_LIMITS.canonical_span_query_timeout_ms,
+            timeout_ms=RUNTIME_LIMITS.state_store_timeout_ms,
             settings={"readonly": 2},
         )
         return rows
@@ -2230,7 +2230,7 @@ class CheckedInPropertyCatalogDevRuntime:
                 "organization_id": request.organization_id,
                 "workspace_id": request.workspace_id,
             },
-            timeout_ms=RUNTIME_LIMITS.canonical_span_query_timeout_ms,
+            timeout_ms=RUNTIME_LIMITS.state_store_timeout_ms,
         )
         if len(rows) != 1:
             raise PropertyCatalogDevRuntimeError(
@@ -3235,7 +3235,9 @@ class CheckedInPropertyCatalogDevRuntime:
                 "prior_revision": prior_revision,
                 "prior_build_token": prior_build_token,
             },
-            timeout_ms=self.deadline.remaining_ms(cap_ms=8_500),
+            timeout_ms=self.deadline.remaining_ms(
+                cap_ms=RUNTIME_LIMITS.state_store_timeout_ms
+            ),
         )
         if len(values) != 1:
             raise PropertyCatalogDevRuntimeError(
@@ -4431,9 +4433,12 @@ def _safe_runtime_file(value: str, name: str) -> None:
         )
 
 
-def _bounded_timeout(value: int) -> None:
-    if type(value) is not int or not 1 <= value <= 8_500:
-        raise PropertyCatalogDevRuntimeError("query timeout must be in [1, 8500] ms")
+def _bounded_catalog_timeout(value: int) -> None:
+    maximum_ms = RUNTIME_LIMITS.state_store_timeout_ms
+    if type(value) is not int or not 1 <= value <= maximum_ms:
+        raise PropertyCatalogDevRuntimeError(
+            f"catalog query timeout must be in [1, {maximum_ms}] ms"
+        )
 
 
 def _bounded_canonical_span_timeout(
