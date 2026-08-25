@@ -4,8 +4,8 @@ import {
   AGGREGATION_POLL_MAX_ATTEMPTS as CONFIGURED_AGGREGATION_POLL_MAX_ATTEMPTS,
   AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES as CONFIGURED_AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES,
   AGGREGATION_POLL_MAX_DELAY_MS,
+  AGGREGATION_POLL_TIMEOUT_MS as CONFIGURED_AGGREGATION_POLL_TIMEOUT_MS,
   AGGREGATION_REQUEST_TIMEOUT_MS as CONFIGURED_AGGREGATION_REQUEST_TIMEOUT_MS,
-  INTERACTIVE_REQUEST_TIMEOUT_MS,
 } from "src/config/runtime_limits";
 
 export const QUERY_READ_RETRY_MESSAGE =
@@ -290,10 +290,11 @@ export function getAggregationRefreshState(payload) {
 
 export const AGGREGATION_POLL_MAX_ATTEMPTS =
   CONFIGURED_AGGREGATION_POLL_MAX_ATTEMPTS;
-// One visible exact-read action uses the configured UX boundary. A
-// user-triggered Refresh/Retry resets the controller and begins a separate
-// action; background work may continue server-side without holding this UI.
-export const AGGREGATION_POLL_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
+// Polling has its own environment-backed wall. Individual requests remain
+// bounded by the shorter transport timeout, while a healthy server-owned job
+// can outlive one interactive HTTP window.
+export const AGGREGATION_POLL_TIMEOUT_MS =
+  CONFIGURED_AGGREGATION_POLL_TIMEOUT_MS;
 export const AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES =
   CONFIGURED_AGGREGATION_POLL_MAX_CONSECUTIVE_FAILURES;
 // The transport ceiling is independently configurable so deployments can
@@ -415,9 +416,9 @@ export function getAggregationPollDelay(attempt = 0) {
 }
 
 /**
- * Exact snapshot jobs are allowed to queue, but one browser action must settle
- * before the interactive deadline. The elapsed limit covers slow/failing
- * transports while the attempt limit also bounds unexpectedly fast loops.
+ * Exact snapshot jobs are allowed to queue beyond one HTTP request deadline.
+ * The elapsed polling limit covers slow jobs while the attempt limit also
+ * bounds unexpectedly fast loops.
  */
 export function isAggregationPollBudgetExhausted({
   attempt = 0,

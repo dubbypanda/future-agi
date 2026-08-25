@@ -11,12 +11,20 @@ vi.mock("src/api/project/agent-graph", () => ({
 }));
 
 vi.mock("../GraphSection/AgentGraph", () => ({
-  default: ({ data }) => (
-    <div data-testid="compare-agent-graph">{data?.nodes?.[0]?.id}</div>
+  default: ({ data, isLoading, isError, pollingPaused }) => (
+    <div
+      data-testid="compare-agent-graph"
+      data-loading={String(isLoading)}
+      data-error={String(isError)}
+      data-polling-paused={String(pollingPaused)}
+    >
+      {data?.nodes?.[0]?.id}
+    </div>
   ),
 }));
 
 import { CompareAgentGraph } from "../LLMTracingView";
+import { canonicalObserveViewMode } from "../viewMode";
 
 const renderCompareAgentGraph = (props) =>
   render(
@@ -103,6 +111,56 @@ describe("LLMTracingView compare Agent Graph project scope", () => {
       "compare-project",
       compareFilters,
       { enabled: true },
+    );
+  });
+
+  it("keeps pending and error states distinct while Agent Graph remains the active view mode", () => {
+    expect(
+      canonicalObserveViewMode({
+        viewMode: "agentGraph",
+        isSimulator: false,
+        agentGraphEnabled: true,
+      }),
+    ).toBe("agentGraph");
+    mockUseAgentGraph.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      pollingPaused: false,
+    });
+
+    const { rerender } = renderCompareAgentGraph({
+      projectId: "compare-project",
+      filters: [],
+    });
+    expect(screen.getByTestId("compare-agent-graph")).toHaveAttribute(
+      "data-loading",
+      "true",
+    );
+    expect(screen.getByTestId("compare-agent-graph")).toHaveAttribute(
+      "data-error",
+      "false",
+    );
+
+    mockUseAgentGraph.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      pollingPaused: false,
+    });
+    rerender(
+      <Suspense fallback={<div>Loading graph</div>}>
+        <CompareAgentGraph projectId="compare-project" filters={[]} />
+      </Suspense>,
+    );
+
+    expect(screen.getByTestId("compare-agent-graph")).toHaveAttribute(
+      "data-loading",
+      "false",
+    );
+    expect(screen.getByTestId("compare-agent-graph")).toHaveAttribute(
+      "data-error",
+      "true",
     );
   });
 });

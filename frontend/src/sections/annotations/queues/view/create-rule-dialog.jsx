@@ -567,8 +567,11 @@ function TraceRuleFilters({
         source={panelMode.source}
         tab={panelMode.tab}
         isSpansView={panelMode.isSpansView}
-        properties={sessionProperties}
-        categories={sessionProperties ? [] : undefined}
+        attributeSource={sourceType === "trace_session" ? "spans" : undefined}
+        // Session-specific system fields are additive. Passing them through
+        // `properties` would disable the shared dynamic catalog and hide Eval,
+        // Annotation, and Attribute properties from session rules.
+        filterFields={sessionProperties}
         isSimulator={isVoiceProject}
         key={`${projectId}-${panelMode.source}-${panelMode.tab || "none"}`}
         currentFilters={getSubmittableFilters(filters).map(apiFilterToPanel)}

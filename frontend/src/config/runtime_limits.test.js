@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   AGGREGATION_POLL_INITIAL_DELAY_MS,
   AGGREGATION_POLL_MAX_DELAY_MS,
+  AGGREGATION_POLL_TIMEOUT_MS,
+  AGGREGATION_REQUEST_TIMEOUT_MS,
   ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS,
   AUTOMATION_RULE_LIST_PAGE_SIZE,
   FILTER_VALUE_MIN_VISIBLE_RESULTS,
@@ -21,6 +23,9 @@ import {
   PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
   PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
   PROPERTY_CATALOG_STALE_TIME_MS,
+  PROPERTY_PICKER_PREFETCH_MARGIN_PX,
+  PROPERTY_PICKER_RENDER_BATCH_SIZE,
+  readAggregationPollTimeout,
   readBoundedRuntimeInteger,
 } from "./runtime_limits";
 
@@ -104,6 +109,24 @@ describe("formatRuntimeSeconds", () => {
 });
 
 describe("runtime limit relationships", () => {
+  it("rejects a polling override below the configured aggregation request wall", () => {
+    expect(
+      readAggregationPollTimeout({
+        requestTimeoutMs: 60_000,
+        runtimeConfig: { VITE_AGGREGATION_POLL_TIMEOUT_MS: "9000" },
+        envConfig: { VITE_AGGREGATION_POLL_TIMEOUT_MS: "180000" },
+      }),
+    ).toBe(180_000);
+
+    expect(
+      readAggregationPollTimeout({
+        requestTimeoutMs: 60_000,
+        runtimeConfig: { VITE_AGGREGATION_POLL_TIMEOUT_MS: "50000" },
+        envConfig: { VITE_AGGREGATION_POLL_TIMEOUT_MS: "59000" },
+      }),
+    ).toBe(120_000);
+  });
+
   it("keeps frontend request page defaults inside the shared maximum", () => {
     expect([
       PROPERTY_CATALOG_PAGE_SIZE,
@@ -141,6 +164,12 @@ describe("runtime limit relationships", () => {
     );
   });
 
+  it("keeps the exact-job observation wall above one transport attempt", () => {
+    expect(AGGREGATION_POLL_TIMEOUT_MS).toBeGreaterThan(
+      AGGREGATION_REQUEST_TIMEOUT_MS,
+    );
+  });
+
   it("keeps catalog cache and picker targets inside their parent bounds", () => {
     expect(PROPERTY_CATALOG_CACHE_TIME_MS).toBeGreaterThanOrEqual(
       PROPERTY_CATALOG_STALE_TIME_MS,
@@ -151,6 +180,8 @@ describe("runtime limit relationships", () => {
     expect(PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS).toBeGreaterThanOrEqual(0);
     expect(ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS).toBeGreaterThanOrEqual(0);
     expect(FILTER_AUTO_APPLY_DEBOUNCE_MS).toBeGreaterThanOrEqual(0);
+    expect(PROPERTY_PICKER_RENDER_BATCH_SIZE).toBeGreaterThan(0);
+    expect(PROPERTY_PICKER_PREFETCH_MARGIN_PX).toBeGreaterThanOrEqual(0);
     expect(PROPERTY_CATALOG_LEGACY_CACHE_TIME_MS).toBeGreaterThanOrEqual(
       PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
     );

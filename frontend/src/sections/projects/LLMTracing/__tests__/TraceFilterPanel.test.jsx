@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "src/utils/test-utils";
+import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
+import { FILTER_VALUE_PAGE_SIZE } from "src/config/runtime_limits";
 import axios, { endpoints } from "src/utils/axios";
 import TraceFilterPanel, {
   buildManualAttributeProperty,
@@ -27,6 +28,32 @@ const parseQueryMock = vi.fn();
 const dashboardFilterValuesMock = vi.hoisted(() => vi.fn());
 const exactAttributePropertiesMock = vi.hoisted(() => vi.fn());
 const propertyCatalogMock = vi.hoisted(() => vi.fn());
+let intersectionObservers = [];
+
+const triggerPropertyPageIntersection = () => {
+  const sentinel = document.querySelector(
+    "[data-filter-property-page-sentinel]",
+  );
+  expect(sentinel).toBeInTheDocument();
+  const observer = [...intersectionObservers]
+    .reverse()
+    .find((candidate) => candidate.targets.has(sentinel));
+  expect(observer).toBeDefined();
+  act(() => {
+    observer.callback([{ isIntersecting: true, target: sentinel }]);
+  });
+};
+
+const triggerValuePageIntersection = () => {
+  const sentinel = screen.getByTestId("filter-value-pagination-sentinel");
+  const observer = [...intersectionObservers]
+    .reverse()
+    .find((candidate) => candidate.targets.has(sentinel));
+  expect(observer).toBeDefined();
+  act(() => {
+    observer.callback([{ isIntersecting: true, target: sentinel }]);
+  });
+};
 
 const defaultDashboardFilterValues = () => ({
   data: [],
@@ -37,10 +64,53 @@ const defaultDashboardFilterValues = () => ({
   hasNextPage: false,
   isFetchingNextPage: false,
   isFetchNextPageError: false,
+  continuationKey: null,
+  refetch: vi.fn(),
+});
+
+const defaultExactAttributeProperties = () => ({
+  data: [],
+  isFetching: false,
+  fetchNextPage: vi.fn(),
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  fetchNextExactPage: vi.fn(),
+  hasNextExactPage: false,
+  isFetchingExactSearch: false,
+  isFetchingNextExactPage: false,
+  isFetchNextPageError: false,
+  queryReadState: "complete",
+  browseStatus: "exhausted",
+  totalCount: 0,
+  pageCount: 1,
+  exactSearchMatched: false,
+  cursorRetryExhausted: false,
+  continuationKey: null,
+  debouncedSearch: "",
   refetch: vi.fn(),
 });
 
 beforeEach(() => {
+  intersectionObservers = [];
+  globalThis.IntersectionObserver = class IntersectionObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.targets = new Set();
+      intersectionObservers.push(this);
+    }
+
+    disconnect() {
+      this.targets.clear();
+    }
+
+    observe(target) {
+      this.targets.add(target);
+    }
+
+    unobserve(target) {
+      this.targets.delete(target);
+    }
+  };
   dashboardFilterValuesMock.mockReturnValue(defaultDashboardFilterValues());
   propertyCatalogMock.mockReturnValue({
     error: {
@@ -52,26 +122,9 @@ beforeEach(() => {
     legacyFallbackRequired: true,
     metrics: [],
   });
-  exactAttributePropertiesMock.mockReturnValue({
-    data: [],
-    isFetching: false,
-    fetchNextPage: vi.fn(),
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    fetchNextExactPage: vi.fn(),
-    hasNextExactPage: false,
-    isFetchingExactSearch: false,
-    isFetchingNextExactPage: false,
-    isFetchNextPageError: false,
-    queryReadState: "complete",
-    browseStatus: "exhausted",
-    totalCount: 0,
-    pageCount: 1,
-    exactSearchMatched: false,
-    cursorRetryExhausted: false,
-    debouncedSearch: "",
-    refetch: vi.fn(),
-  });
+  exactAttributePropertiesMock.mockReturnValue(
+    defaultExactAttributeProperties(),
+  );
 });
 
 describe("JSON array picker value identity", () => {
@@ -98,32 +151,32 @@ describe("JSON array picker value identity", () => {
 });
 
 describe("PropertyPickerPaginationControl", () => {
-  it("advances both property inventories through one single-flight action", () => {
+  it("advances both property inventories through one single-flight intersection", () => {
     const loadAttributes = vi.fn(() => new Promise(() => {}));
     const loadCatalog = vi.fn(() => new Promise(() => {}));
+    const scrollRootRef = { current: document.createElement("div") };
 
     render(
       <PropertyPickerPaginationControl
-        search=""
+        scrollRootRef={scrollRootRef}
         attributePageAvailable
+        attributeContinuationKey="attribute-cursor-2"
         isFetchingAttributePage={false}
         attributePageError={false}
         onLoadMoreAttributes={loadAttributes}
         catalogPageAvailable
+        catalogContinuationKey="catalog-cursor-2"
         isFetchingCatalogPage={false}
         catalogPageError={false}
         onLoadMoreCatalog={loadCatalog}
       />,
     );
 
-    const loadMore = screen.getByRole("button", {
-      name: "Load more properties",
-    });
     expect(
-      screen.getAllByRole("button", { name: "Load more properties" }),
-    ).toHaveLength(1);
-    fireEvent.click(loadMore);
-    fireEvent.click(loadMore);
+      screen.queryByRole("button", { name: "Load more properties" }),
+    ).not.toBeInTheDocument();
+    triggerPropertyPageIntersection();
+    triggerPropertyPageIntersection();
 
     expect(loadAttributes).toHaveBeenCalledOnce();
     expect(loadCatalog).toHaveBeenCalledOnce();
@@ -162,6 +215,20 @@ function renderPanel({
   tab,
   allowWorkspaceScope = false,
 }) {
+  let panelProps = {
+    currentFilters,
+    properties,
+    onApply,
+    onClose,
+    open,
+    showQueryTab,
+    projectId,
+    source,
+    propertyNamespace,
+    attributeSource,
+    tab,
+    allowWorkspaceScope,
+  };
   const anchorEl = document.createElement("button");
   document.body.appendChild(anchorEl);
   const queryClient = new QueryClient({
@@ -171,18 +238,18 @@ function renderPanel({
     <QueryClientProvider client={queryClient}>
       <TraceFilterPanel
         anchorEl={anchorEl}
-        open={open}
-        onClose={onClose}
-        onApply={onApply}
-        currentFilters={[...currentFilters]}
-        properties={properties}
-        showQueryTab={showQueryTab}
-        projectId={projectId}
-        source={source}
-        propertyNamespace={propertyNamespace}
-        attributeSource={attributeSource}
-        tab={tab}
-        allowWorkspaceScope={allowWorkspaceScope}
+        open={panelProps.open}
+        onClose={panelProps.onClose}
+        onApply={panelProps.onApply}
+        currentFilters={[...panelProps.currentFilters]}
+        properties={panelProps.properties}
+        showQueryTab={panelProps.showQueryTab}
+        projectId={panelProps.projectId}
+        source={panelProps.source}
+        propertyNamespace={panelProps.propertyNamespace}
+        attributeSource={panelProps.attributeSource}
+        tab={panelProps.tab}
+        allowWorkspaceScope={panelProps.allowWorkspaceScope}
       />
     </QueryClientProvider>
   );
@@ -192,7 +259,10 @@ function renderPanel({
     onApply,
     onClose,
     ...utils,
-    rerenderPanel: () => utils.rerender(panel()),
+    rerenderPanel: (nextProps = {}) => {
+      panelProps = { ...panelProps, ...nextProps };
+      utils.rerender(panel());
+    },
   };
 }
 
@@ -682,6 +752,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:call-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -705,10 +776,7 @@ describe("voice-call property search aliases", () => {
         '[data-filter-property-option="conversation.transcript.0.tool_calls.0.tool_call.id"]',
       ),
     ).not.toBeInTheDocument();
-    const loadMore = screen.getByRole("button", {
-      name: "Load more attributes",
-    });
-    fireEvent.click(loadMore);
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -730,6 +798,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:call-id-sibling-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -749,9 +818,7 @@ describe("voice-call property search aliases", () => {
     expect(
       document.querySelector('[data-filter-property-option="call_id"]'),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
     data = [
@@ -773,7 +840,7 @@ describe("voice-call property search aliases", () => {
       document.querySelector('[data-filter-property-option="call_id"]'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
     document.body.removeChild(anchorEl);
   });
@@ -793,6 +860,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:trace-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -813,11 +881,9 @@ describe("voice-call property search aliases", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -839,6 +905,7 @@ describe("voice-call property search aliases", () => {
       // Exact certification stops the supplemental lookup, but this retained
       // continuation must remain independently reachable.
       hasNextPage: true,
+      continuationKey: "retained:trace-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -865,11 +932,9 @@ describe("voice-call property search aliases", () => {
       document.querySelector('[data-filter-property-option="trace_id"]'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -903,6 +968,7 @@ describe("voice-call property search aliases", () => {
         isFetching: false,
         fetchNextPage,
         hasNextPage,
+        continuationKey: hasNextPage ? `exact:${surface}:foo-cursor-2` : null,
         isFetchingNextPage: false,
         fetchNextExactPage: vi.fn(),
         hasNextExactPage: false,
@@ -953,9 +1019,7 @@ describe("voice-call property search aliases", () => {
           source: expectedAttributeSource,
         }),
       );
-      fireEvent.click(
-        screen.getByRole("button", { name: "Load more attributes" }),
-      );
+      triggerPropertyPageIntersection();
       expect(fetchNextPage).toHaveBeenCalledOnce();
 
       data = [
@@ -983,7 +1047,7 @@ describe("voice-call property search aliases", () => {
         exactAllCount,
       );
       expect(
-        screen.queryByRole("button", { name: "Load more attributes" }),
+        document.querySelector("[data-filter-property-page-sentinel]"),
       ).not.toBeInTheDocument();
       document.body.removeChild(anchorEl);
     },
@@ -1268,6 +1332,7 @@ describe("voice-call property search aliases", () => {
         isError: false,
         isSuccess: true,
         hasNextPage: searching,
+        continuationKey: searching ? "catalog:rare-attribute-cursor-2" : null,
         isFetchingNextPage: false,
         isFetchNextPageError: false,
         cursorChainStopped: false,
@@ -1312,9 +1377,7 @@ describe("voice-call property search aliases", () => {
       screen.getByLabelText("Attributes property count"),
     ).toHaveTextContent("1");
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue searching properties" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextSearchPage).toHaveBeenCalledOnce();
     expect(
       exactAttributePropertiesMock.mock.calls.some(
@@ -1383,7 +1446,7 @@ describe("voice-call property search aliases", () => {
         metricName: "call_status",
         metricType: "system_metric",
         source: "traces",
-        pageSize: 10,
+        pageSize: FILTER_VALUE_PAGE_SIZE,
         enabled: false,
       }),
     );
@@ -2378,6 +2441,7 @@ describe("exact manual attribute fallback", () => {
       isFetchingNextPage: false,
       fetchNextExactPage,
       hasNextExactPage: true,
+      continuationKey: "exact:prompt-slug-cursor-2",
       isFetchingExactSearch: false,
       isFetchingNextExactPage: false,
       isFetchNextPageError: false,
@@ -2407,11 +2471,11 @@ describe("exact manual attribute fallback", () => {
     expect(screen.queryByText("No properties found")).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "No matching attribute found yet. Continue searching older attributes.",
+        "No matching attribute found yet. Older attributes load automatically at the end of this list.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Continue searching attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
@@ -2471,7 +2535,7 @@ describe("exact manual attribute fallback", () => {
     },
   );
 
-  it("coalesces exact-search scroll and button gestures into one continuation", () => {
+  it("coalesces exact-search scroll and button gestures into one continuation", async () => {
     let resolveExactPage;
     const exactPage = new Promise((resolve) => {
       resolveExactPage = resolve;
@@ -2492,6 +2556,7 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:recent-cursor-2",
       isFetchingNextPage: false,
       fetchNextExactPage,
       hasNextExactPage: true,
@@ -2527,14 +2592,15 @@ describe("exact manual attribute fallback", () => {
 
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue searching attributes" }),
-    );
+    triggerPropertyPageIntersection();
 
     expect(fetchNextExactPage).toHaveBeenCalledOnce();
     expect(fetchNextPage).not.toHaveBeenCalled();
 
-    resolveExactPage();
+    await act(async () => {
+      resolveExactPage();
+      await exactPage;
+    });
     document.body.removeChild(anchorEl);
   });
 
@@ -2568,9 +2634,15 @@ describe("exact manual attribute fallback", () => {
       document.querySelector('[data-filter-property-option="retained_500"]'),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show 10 more properties" }),
+    const propertyList = document.querySelector(
+      "[data-filter-property-options-list]",
     );
+    Object.defineProperties(propertyList, {
+      scrollTop: { configurable: true, value: 280 },
+      clientHeight: { configurable: true, value: 220 },
+      scrollHeight: { configurable: true, value: 500 },
+    });
+    fireEvent.scroll(propertyList);
     const finalLoadedProperty = document.querySelector(
       '[data-filter-property-option="retained_509"]',
     );
@@ -2583,7 +2655,7 @@ describe("exact manual attribute fallback", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("keeps server cursor pagination behind one explicit action", () => {
+  it("advances one server cursor page when the list reaches its end", () => {
     const fetchNextPage = vi.fn();
     exactAttributePropertiesMock.mockImplementation(() => ({
       data: Array.from({ length: 20 }, (_, index) => ({
@@ -2597,6 +2669,7 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:short-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -2619,11 +2692,7 @@ describe("exact manual attribute fallback", () => {
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
-    expect(fetchNextPage).not.toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
     // Momentum/layout scroll events after the page request must remain inert.
@@ -2633,7 +2702,7 @@ describe("exact manual attribute fallback", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("offers an explicit fallback when attribute scrolling cannot advance", () => {
+  it("loads a short attribute page when its end sentinel is visible", () => {
     const fetchNextPage = vi.fn();
     exactAttributePropertiesMock.mockReturnValue({
       data: [
@@ -2649,6 +2718,7 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:short-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -2657,9 +2727,7 @@ describe("exact manual attribute fallback", () => {
     const { anchorEl } = renderPanel({ properties: [] });
 
     fireEvent.click(screen.getByRole("button", { name: "Property" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
 
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
@@ -2880,10 +2948,12 @@ describe("exact manual attribute fallback", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Property" }));
-    const loadMore = await screen.findByRole("button", {
-      name: "Load more properties",
-    });
-    fireEvent.click(loadMore);
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-filter-property-page-sentinel]"),
+      ).toBeInTheDocument(),
+    );
+    triggerPropertyPageIntersection();
 
     await waitFor(() =>
       expect(getSpy).toHaveBeenCalledWith(
@@ -2895,9 +2965,7 @@ describe("exact manual attribute fallback", () => {
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole("button", {
-          name: "Load more properties",
-        }),
+        document.querySelector("[data-filter-property-page-sentinel]"),
       ).not.toBeInTheDocument(),
     );
 
@@ -3039,13 +3107,14 @@ describe("filter-value picker bounded-read UX", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("keeps every empty prompt_slug value checkpoint behind an explicit gesture", async () => {
-    const fetchNextPage = vi.fn(() => Promise.resolve());
+  it("auto-advances an empty prompt_slug value checkpoint once", async () => {
+    const fetchNextPage = vi.fn();
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
       data: [],
       browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "prompt-empty-cursor-2",
       fetchNextPage,
     });
     const promptSlugProperty = {
@@ -3078,11 +3147,6 @@ describe("filter-value picker bounded-read UX", () => {
       document.querySelector('[data-filter-value-trigger="prompt_slug"]'),
     );
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Continue searching values" }),
-      ).toBeInTheDocument(),
-    );
     expect(fetchNextPage).not.toHaveBeenCalled();
     rerenderPanel();
     expect(fetchNextPage).not.toHaveBeenCalled();
@@ -3094,9 +3158,11 @@ describe("filter-value picker bounded-read UX", () => {
         "No values found yet. Continue searching or enter an exact value.",
       ),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue searching values" }),
-    );
+    expect(
+      screen.queryByRole("button", { name: /continue searching values/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
     document.body.removeChild(anchorEl);
@@ -3108,7 +3174,7 @@ describe("filter-value picker bounded-read UX", () => {
   ])(
     "lets %s repeat the same selected-property value search in one open picker",
     async (_surface, tab) => {
-      const fetchRejectedPage = vi.fn(() => Promise.resolve());
+      const fetchRejectedPage = vi.fn();
       dashboardFilterValuesMock.mockImplementation((request) => ({
         ...defaultDashboardFilterValues(),
         data: request.search
@@ -3116,6 +3182,9 @@ describe("filter-value picker bounded-read UX", () => {
           : [{ value: "recent", label: "recent", type: "string" }],
         browseStatus: request.search ? "continuation" : "exhausted",
         hasNextPage: Boolean(request.search),
+        continuationKey: request.search
+          ? `search:${request.search}:cursor-2`
+          : null,
         fetchNextPage:
           request.search === "rejected" ? fetchRejectedPage : vi.fn(),
       }));
@@ -3150,27 +3219,63 @@ describe("filter-value picker bounded-read UX", () => {
         document.querySelector('[data-filter-value-trigger="prompt_slug"]'),
       );
       const searchInput = screen.getByPlaceholderText("Search values...");
+      const callsBeforeSearch = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "rejected" } });
-      const firstContinue = await screen.findByRole(
-        "button",
-        { name: "Continue searching values" },
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeSearch)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" &&
+                  request.search === "rejected",
+              ),
+          ).toBe(true);
+        },
         { timeout: 1_500 },
       );
       expect(fetchRejectedPage).not.toHaveBeenCalled();
-      fireEvent.click(firstContinue);
+      triggerValuePageIntersection();
       await waitFor(() => expect(fetchRejectedPage).toHaveBeenCalledOnce());
 
-      // Clear and re-enter immediately, before the 500 ms value-search
-      // debounce can publish the intermediate empty query.
+      // Returning through the empty-search scope remounts the bounded cursor
+      // lane. The same backend cursor may then be attempted once in the new
+      // search session, but never twice inside either session.
+      const callsBeforeClear = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "" } });
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeClear)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" && request.search === "",
+              ),
+          ).toBe(true);
+        },
+        { timeout: 1_500 },
+      );
+      const callsBeforeReentry = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "rejected" } });
-      const secondContinue = await screen.findByRole(
-        "button",
-        { name: "Continue searching values" },
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeReentry)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" &&
+                  request.search === "rejected",
+              ),
+          ).toBe(true);
+        },
         { timeout: 1_500 },
       );
       expect(fetchRejectedPage).toHaveBeenCalledOnce();
-      fireEvent.click(secondContinue);
+      triggerValuePageIntersection();
+      triggerValuePageIntersection();
       await waitFor(() => expect(fetchRejectedPage).toHaveBeenCalledTimes(2));
 
       expect(fetchRejectedPage).toHaveBeenCalledTimes(2);
@@ -3279,7 +3384,7 @@ describe("filter-value picker bounded-read UX", () => {
               propertyId: expectedPropertyId,
               metricName: expectedMetricName,
               metricType: "system_metric",
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source,
@@ -3365,7 +3470,7 @@ describe("filter-value picker bounded-read UX", () => {
             expect.objectContaining({
               metricName: propertyId,
               metricType,
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source: "traces",
@@ -3384,6 +3489,7 @@ describe("filter-value picker bounded-read UX", () => {
       data: [],
       browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "failed-value-cursor",
       isFetchNextPageError: true,
       fetchNextPage,
     });
@@ -3397,7 +3503,7 @@ describe("filter-value picker bounded-read UX", () => {
     expect(fetchNextPage).not.toHaveBeenCalled();
     expect(
       screen.getByText(
-        "More values could not be loaded. Retry searching below.",
+        "More values could not be loaded. Loaded values remain available.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -3434,35 +3540,57 @@ describe("filter-value picker bounded-read UX", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("loads the next value page when the options list reaches the bottom", () => {
-    const fetchNextPage = vi.fn();
-    dashboardFilterValuesMock.mockReturnValue({
+  it("loads each new short-page value continuation once while the end stays visible", async () => {
+    const fetchNextPage = vi.fn().mockResolvedValue(undefined);
+    let currentResult = {
       ...defaultDashboardFilterValues(),
       data: [{ value: "completed", label: "completed" }],
+      browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "value-cursor-2",
       fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
+    };
+    dashboardFilterValuesMock.mockImplementation(() => currentResult);
+    const { anchorEl, rerenderPanel } = renderPanel({
       currentFilters,
       properties: [statusProperty],
     });
 
     openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-    fireEvent.scroll(optionsList);
-
+    expect(
+      screen.queryByRole("button", { name: /load more/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Searching more values…"),
+      ).not.toBeInTheDocument(),
+    );
+
+    currentResult = {
+      ...currentResult,
+      data: [
+        { value: "completed", label: "completed" },
+        { value: "failed", label: "failed" },
+      ],
+      continuationKey: "value-cursor-3",
+    };
+    rerenderPanel();
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalledTimes(2));
+
+    triggerValuePageIntersection();
+    rerenderPanel();
+    expect(fetchNextPage).toHaveBeenCalledTimes(2);
+
     document.body.removeChild(anchorEl);
   });
 
-  it("hides a stale Load more control after exhaustion proves no next value", () => {
+  it("does not paginate after terminal browse metadata proves exhaustion", () => {
     const fetchNextPage = vi.fn();
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
@@ -3472,6 +3600,7 @@ describe("filter-value picker bounded-read UX", () => {
       // metadata must win.
       browseStatus: "exhausted",
       hasNextPage: true,
+      continuationKey: "stale-value-cursor",
       fetchNextPage,
     });
     const { anchorEl } = renderPanel({
@@ -3482,30 +3611,21 @@ describe("filter-value picker bounded-read UX", () => {
     openValuePicker();
     expect(screen.getByText("CONVERSATION")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Load more" }),
+      screen.queryByTestId("filter-value-pagination-sentinel"),
     ).not.toBeInTheDocument();
-
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-    fireEvent.scroll(optionsList);
     expect(fetchNextPage).not.toHaveBeenCalled();
 
     document.body.removeChild(anchorEl);
   });
 
-  it("keeps Load more actionable at a resumable limit_reached checkpoint", () => {
-    const fetchNextPage = vi.fn();
+  it("auto-loads a resumable limit_reached continuation without manual UI", () => {
+    const fetchNextPage = vi.fn(() => new Promise(() => {}));
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
       data: [{ value: "CONVERSATION", label: "CONVERSATION" }],
       browseStatus: "limit_reached",
       hasNextPage: true,
+      continuationKey: "resume-value-cursor",
       fetchNextPage,
     });
     const { anchorEl } = renderPanel({
@@ -3514,92 +3634,13 @@ describe("filter-value picker bounded-read UX", () => {
     });
 
     openValuePicker();
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    expect(
+      screen.queryByRole("button", { name: /load more/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
-    document.body.removeChild(anchorEl);
-  });
-
-  it("does not drain every value cursor page from one bottom-scroll gesture", () => {
-    const fetchNextPage = vi.fn();
-    dashboardFilterValuesMock.mockReturnValue({
-      ...defaultDashboardFilterValues(),
-      data: [{ value: "completed", label: "completed" }],
-      hasNextPage: true,
-      fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
-      currentFilters,
-      properties: [statusProperty],
-    });
-
-    openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-
-    // Inertial scrolling can emit more bottom events after a fast page has
-    // resolved. Only the first event may auto-advance this open picker.
-    fireEvent.scroll(optionsList);
-    fireEvent.scroll(optionsList);
-    fireEvent.scroll(optionsList);
-    expect(fetchNextPage).toHaveBeenCalledOnce();
-
-    // Leaving the edge and deliberately returning is a new pagination
-    // gesture, so scroll-to-load continues to work page by page.
-    Object.defineProperty(optionsList, "scrollTop", {
-      configurable: true,
-      value: 80,
-    });
-    fireEvent.scroll(optionsList);
-    Object.defineProperty(optionsList, "scrollTop", {
-      configurable: true,
-      value: 180,
-    });
-    fireEvent.scroll(optionsList);
-    expect(fetchNextPage).toHaveBeenCalledTimes(2);
-
-    // Exact continuation remains explicitly available; this is not a result
-    // cap and does not hide later unique values.
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-    expect(fetchNextPage).toHaveBeenCalledTimes(3);
-
-    document.body.removeChild(anchorEl);
-  });
-
-  it("coalesces scroll and Load more while the same value page is in flight", () => {
-    const fetchNextPage = vi.fn(() => new Promise(() => {}));
-    dashboardFilterValuesMock.mockReturnValue({
-      ...defaultDashboardFilterValues(),
-      data: [{ value: "completed", label: "completed" }],
-      hasNextPage: true,
-      fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
-      currentFilters,
-      properties: [statusProperty],
-    });
-
-    openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-
-    fireEvent.scroll(optionsList);
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-
-    expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
 
@@ -3672,7 +3713,7 @@ describe("filter-value picker bounded-read UX", () => {
             metricName: "call.status",
             metricType: "custom_attribute",
             search: "number",
-            pageSize: 10,
+            pageSize: FILTER_VALUE_PAGE_SIZE,
           }),
         ),
       { timeout: 1_200 },
@@ -3854,6 +3895,144 @@ describe("filter-value picker bounded-read UX", () => {
         }),
       ]),
     );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("preserves system, eval, annotation, and attribute filters as one mixed query", async () => {
+    const onApply = vi.fn();
+    const { anchorEl } = renderPanel({
+      currentFilters: [
+        {
+          field: "status",
+          registryId: "system_attribute:traces:status",
+          fieldName: "Status",
+          fieldCategory: "system",
+          fieldType: "string",
+          apiColType: "SYSTEM_METRIC",
+          operator: "in",
+          value: ["OK"],
+        },
+        {
+          field: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          fieldName: "Quality eval",
+          fieldCategory: "eval",
+          fieldType: "categorical",
+          apiColType: "EVAL_METRIC",
+          operator: "in",
+          value: ["passed"],
+        },
+        {
+          field: "annotator",
+          registryId: "annotation:annotator",
+          fieldName: "Annotator",
+          fieldCategory: "annotation",
+          fieldType: "annotator",
+          apiColType: "ANNOTATION",
+          operator: "is_not_null",
+          value: [],
+        },
+        {
+          field: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          fieldName: "Customer plan",
+          fieldCategory: "attribute",
+          fieldType: "string",
+          apiColType: "SPAN_ATTRIBUTE",
+          operator: "contains",
+          value: ["enterprise"],
+          valueTypes: ["string"],
+        },
+      ],
+      properties: [
+        {
+          id: "status",
+          registryId: "system_attribute:traces:status",
+          name: "Status",
+          category: "system",
+          type: "string",
+          apiColType: "SYSTEM_METRIC",
+        },
+        {
+          id: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          name: "Quality eval",
+          category: "eval",
+          type: "categorical",
+          apiColType: "EVAL_METRIC",
+        },
+        {
+          id: "annotator",
+          registryId: "annotation:annotator",
+          name: "Annotator",
+          category: "annotation",
+          type: "annotator",
+          apiColType: "ANNOTATION",
+        },
+        {
+          id: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          name: "Customer plan",
+          category: "attribute",
+          type: "string",
+          apiColType: "SPAN_ATTRIBUTE",
+        },
+      ],
+      onApply,
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    expect(screen.getByText("Status equals OK")).toBeInTheDocument();
+    expect(screen.getByText("Quality eval is passed")).toBeInTheDocument();
+    expect(screen.getByText("Annotator is not null")).toBeInTheDocument();
+    const attributeToken = screen.getByText(
+      "Customer plan contains enterprise",
+    );
+
+    // Re-commit one row through the real Query editor. The panel must retain
+    // all four wire-qualified families in the single applied filter set.
+    fireEvent.click(attributeToken);
+    const input = screen.getByRole("combobox");
+    expect(input).toHaveValue("enterprise");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply.mock.calls.at(-1)[0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "status",
+          registryId: "system_attribute:traces:status",
+          fieldCategory: "system",
+          apiColType: "SYSTEM_METRIC",
+          value: ["OK"],
+        }),
+        expect.objectContaining({
+          field: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          fieldCategory: "eval",
+          apiColType: "EVAL_METRIC",
+          value: ["passed"],
+        }),
+        expect.objectContaining({
+          field: "annotator",
+          registryId: "annotation:annotator",
+          fieldCategory: "annotation",
+          apiColType: "ANNOTATION",
+          operator: "is_not_null",
+        }),
+        expect.objectContaining({
+          field: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          fieldCategory: "attribute",
+          apiColType: "SPAN_ATTRIBUTE",
+          value: ["enterprise"],
+          valueTypes: ["string"],
+        }),
+      ]),
+    );
+    expect(onApply.mock.calls.at(-1)[0]).toHaveLength(4);
 
     document.body.removeChild(anchorEl);
   });
@@ -4199,7 +4378,7 @@ describe("filter-value picker bounded-read UX", () => {
           propertyId: "system_attribute:voice_calls:ended_reason",
           metricName: "ended_reason",
           metricType: "system_metric",
-          pageSize: 10,
+          pageSize: FILTER_VALUE_PAGE_SIZE,
           source: "traces",
           enabled: true,
         }),
@@ -4214,7 +4393,7 @@ describe("filter-value picker bounded-read UX", () => {
           expect.objectContaining({
             metricName: "ended_reason",
             metricType: "system_metric",
-            pageSize: 10,
+            pageSize: FILTER_VALUE_PAGE_SIZE,
             search: "customer",
             searchGesture: "customer",
             source: "traces",
@@ -4250,7 +4429,7 @@ describe("filter-value picker bounded-read UX", () => {
           propertyId: "system_attribute:sessions:session",
           metricName: "session",
           metricType: "system_metric",
-          pageSize: 10,
+          pageSize: FILTER_VALUE_PAGE_SIZE,
           source: "sessions",
           enabled: true,
         }),
@@ -4325,7 +4504,7 @@ describe("filter-value picker bounded-read UX", () => {
             expect.objectContaining({
               metricName: propertyId,
               metricType,
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source: "traces",
@@ -4754,6 +4933,120 @@ describe("filter-value picker bounded-read UX", () => {
     expect(betaCalls.every(([request]) => request.search !== "needle")).toBe(
       true,
     );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("resets partial Query state when the project changes", async () => {
+    exactAttributePropertiesMock.mockImplementation(({ search = "" }) => ({
+      ...defaultExactAttributeProperties(),
+      data: [statusProperty],
+      totalCount: 1,
+      debouncedSearch: String(search).trim(),
+    }));
+    const { anchorEl, rerenderPanel } = renderPanel({
+      properties: [statusProperty],
+      projectId: "project-one",
+      source: "traces",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    let input = await selectQueryPhaseOption("Status", "pick operator...");
+    await selectQueryPhaseOption("contains", "type or pick value...");
+    fireEvent.change(input, { target: { value: "project-one-value" } });
+    await waitFor(
+      () =>
+        expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectIds: ["project-one"],
+            metricName: "call.status",
+            search: "project-one-value",
+            enabled: true,
+          }),
+        ),
+      { timeout: 1_500 },
+    );
+
+    const callsBeforeScopeChange = dashboardFilterValuesMock.mock.calls.length;
+    rerenderPanel({ projectId: "project-two" });
+    input = screen.getByRole("combobox");
+    await waitFor(() =>
+      expect(input).toHaveAttribute(
+        "placeholder",
+        "type to filter — e.g. field → operator → value",
+      ),
+    );
+    await waitFor(() => {
+      const projectTwoCalls = dashboardFilterValuesMock.mock.calls
+        .slice(callsBeforeScopeChange)
+        .map(([request]) => request)
+        .filter(({ projectIds }) => projectIds?.[0] === "project-two");
+      expect(projectTwoCalls.length).toBeGreaterThan(0);
+      expect(
+        projectTwoCalls.every(
+          ({ enabled, metricName, search }) =>
+            enabled === false && metricName === "" && search === "",
+        ),
+      ).toBe(true);
+    });
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("resets partial Query state when the catalog source changes", async () => {
+    exactAttributePropertiesMock.mockImplementation(({ search = "" }) => ({
+      ...defaultExactAttributeProperties(),
+      data: [statusProperty],
+      totalCount: 1,
+      debouncedSearch: String(search).trim(),
+    }));
+    const { anchorEl, rerenderPanel } = renderPanel({
+      properties: [statusProperty],
+      projectId: "project-source-scope",
+      source: "traces",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const input = await selectQueryPhaseOption("Status", "pick operator...");
+    await selectQueryPhaseOption("contains", "type or pick value...");
+    fireEvent.change(input, { target: { value: "trace-source-value" } });
+    await waitFor(
+      () =>
+        expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectIds: ["project-source-scope"],
+            source: "traces",
+            search: "trace-source-value",
+            enabled: true,
+          }),
+        ),
+      { timeout: 1_500 },
+    );
+
+    const callsBeforeScopeChange = dashboardFilterValuesMock.mock.calls.length;
+    rerenderPanel({ source: "sessions" });
+    const resetInput = screen.getByRole("combobox");
+    await waitFor(() =>
+      expect(resetInput).toHaveAttribute(
+        "placeholder",
+        "type to filter — e.g. field → operator → value",
+      ),
+    );
+    await waitFor(() => {
+      const sessionCalls = dashboardFilterValuesMock.mock.calls
+        .slice(callsBeforeScopeChange)
+        .map(([request]) => request)
+        .filter(({ source }) => source === "sessions");
+      expect(sessionCalls.length).toBeGreaterThan(0);
+      expect(
+        sessionCalls.every(
+          ({ enabled, metricName, search }) =>
+            enabled === false && metricName === "" && search === "",
+        ),
+      ).toBe(true);
+    });
 
     document.body.removeChild(anchorEl);
   });

@@ -86,6 +86,7 @@ describe("ObserveToolbar status filter registry", () => {
       expect.objectContaining({
         source: "sessions",
         propertyNamespace: "users",
+        attributeSource: "spans",
         projectId: "users-project",
       }),
     );
@@ -97,6 +98,7 @@ describe("ObserveToolbar status filter registry", () => {
     expect(traceFilterPanelPropsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         source: "sessions",
+        attributeSource: "spans",
         projectId: "sessions-project",
       }),
     );

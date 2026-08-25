@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import axios from "src/utils/axios";
 import {
+  AGGREGATION_POLL_MAX_ATTEMPTS,
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
@@ -635,6 +636,74 @@ describe("PrimaryGraph", () => {
     );
   });
 
+  it("keeps observing a healthy 12M exact job beyond one request window", async () => {
+    vi.useFakeTimers();
+    const pendingResponse = {
+      data: {
+        result: {
+          metric_name: "latency",
+          data: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: true,
+          query_refresh_failed: false,
+        },
+      },
+    };
+    axios.post
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            metric_name: "latency",
+            data: [
+              {
+                timestamp: "2026-08-03T00:00:00Z",
+                value: 42,
+                primary_traffic: 2,
+              },
+            ],
+            query_complete: true,
+            query_status: "complete",
+            query_sampled: false,
+            query_refreshing: false,
+          },
+        },
+      });
+
+    renderWithQueryClient(
+      <PrimaryGraph
+        observeIdOverride="project-override"
+        dateFilter={{ dateOption: "12M" }}
+        filters={[
+          {
+            column_id: "duration",
+            operator: "greater_than",
+            value: 30,
+          },
+          {
+            column_id: "annotator",
+            operator: "is_not_null",
+          },
+        ]}
+      />,
+    );
+
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+
+    expect(axios.post).toHaveBeenCalledTimes(4);
+    expect(
+      screen.queryByText(AGGREGATION_POLLING_PAUSED_MESSAGE),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("apex-chart")).toHaveAttribute(
+      "data-primary-first-y",
+      "42",
+    );
+  });
+
   it("stops a cold pending graph at the finite budget and resumes only after explicit refresh", async () => {
     vi.useFakeTimers();
     const pendingResponse = {
@@ -658,7 +727,9 @@ describe("PrimaryGraph", () => {
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
 
     const boundedRequestCount = axios.post.mock.calls.length;
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
     expect(screen.getByText(AGGREGATION_POLLING_PAUSED_MESSAGE)).toBeVisible();
     expect(
       screen.queryByText(

@@ -36,6 +36,7 @@ import React, {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import Iconify from "src/components/iconify";
+import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import axios, { endpoints } from "src/utils/axios";
 import { SpanTypes } from "src/utils/constant";
@@ -73,11 +74,13 @@ import {
 } from "./voiceCallFilterFields";
 import {
   FILTER_AUTO_APPLY_DEBOUNCE_MS,
+  FILTER_VALUE_PAGE_SIZE,
   FILTER_VALUE_SEARCH_DEBOUNCE_MS,
-  INTERACTIVE_TABLE_PAGE_SIZE,
   PROPERTY_CATALOG_LEGACY_CACHE_TIME_MS,
   PROPERTY_CATALOG_LEGACY_PAGE_SIZE,
   PROPERTY_CATALOG_LEGACY_STALE_TIME_MS,
+  PROPERTY_PICKER_PREFETCH_MARGIN_PX,
+  PROPERTY_PICKER_RENDER_BATCH_SIZE,
   PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
   PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
 } from "src/config/runtime_limits";
@@ -88,13 +91,13 @@ function useSingleFlightPageRequest({ identity, enabled, request }) {
   return useCallback(() => {
     const activeRequest = activeRequestRef.current;
     if (activeRequest?.identity === identity) return activeRequest.promise;
-    if (!enabled) return Promise.resolve();
+    if (!enabled) return undefined;
 
     const response = request();
-    const promise = Promise.resolve(response);
     // React Query returns a promise. Keep synchronous test/legacy callbacks
     // compatible without leaving a phantom request latched until a microtask.
-    if (!response || typeof response.then !== "function") return promise;
+    if (!response || typeof response.then !== "function") return response;
+    const promise = Promise.resolve(response);
     const nextRequest = { identity, promise };
     activeRequestRef.current = nextRequest;
     const clearRequest = () => {
@@ -809,8 +812,6 @@ const EXCLUDED_METRICS = new Set([
 // deliberate batches. This is a render batch, not a result ceiling: every
 // retained key remains reachable without forcing thousands of menu rows into
 // the first paint.
-const PROPERTY_PICKER_RENDER_BATCH_SIZE = 500;
-
 const normalizePropertySearchText = (value) =>
   String(value || "")
     .toLowerCase()
@@ -1231,6 +1232,10 @@ export function useLegacyTraceFilterProperties(
   return {
     ...query,
     data: buildTraceFilterProperties(metrics, { isSimulator, sourceScope }),
+    continuationKey: query.hasNextPage
+      ? `legacy-page:${Number(query.data?.pages?.at(-1)?.page || 1) + 1}`
+      : null,
+    pageCount: query.data?.pages?.length || 0,
   };
 }
 
@@ -1349,105 +1354,49 @@ export function shouldUseRetainedAttributePages({
 }
 
 export function PropertyPickerPaginationControl({
-  search,
+  scrollRootRef,
   attributePageAvailable,
-  attributeSearchContinuation,
+  attributeContinuationKey,
   isFetchingAttributePage,
   attributePageError,
   onLoadMoreAttributes,
   catalogPageAvailable,
+  catalogContinuationKey,
   isFetchingCatalogPage,
   catalogPageError,
   onLoadMoreCatalog,
 }) {
-  const activeRequestRef = useRef(null);
-  const loading = isFetchingAttributePage || isFetchingCatalogPage;
-
-  const handleLoadMore = useCallback(() => {
-    if (loading || activeRequestRef.current) return;
-
-    const actions = [];
-    if (attributePageAvailable && onLoadMoreAttributes) {
-      actions.push(onLoadMoreAttributes);
-    }
-    if (catalogPageAvailable && onLoadMoreCatalog) {
-      actions.push(onLoadMoreCatalog);
-    }
-    if (actions.length === 0) return;
-
-    const actionResults = actions.map((action) => {
-      try {
-        const result = action();
-        return Promise.resolve(result);
-      } catch (error) {
-        return Promise.reject(error);
-      }
-    });
-    const request = Promise.allSettled(actionResults);
-    activeRequestRef.current = request;
-    const clearRequest = () => {
-      if (activeRequestRef.current === request) {
-        activeRequestRef.current = null;
-      }
-    };
-    request.then(clearRequest, clearRequest);
-  }, [
-    attributePageAvailable,
-    catalogPageAvailable,
-    loading,
-    onLoadMoreAttributes,
-    onLoadMoreCatalog,
-  ]);
-
-  if (loading) {
-    return (
-      <Box
-        role="status"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 0.75,
-          py: 1,
-        }}
-      >
-        <CircularProgress size={14} />
-        <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-          Loading more properties…
-        </Typography>
-      </Box>
-    );
-  }
-  if (!attributePageAvailable && !catalogPageAvailable) return null;
-
-  const unifiedCatalogLabel = catalogPageAvailable;
-  const retrying = attributePageError || catalogPageError;
-  const searching = Boolean(
-    search.trim() && (catalogPageAvailable || attributeSearchContinuation),
-  );
-  const label = retrying
-    ? unifiedCatalogLabel
-      ? "Retry loading properties"
-      : "Retry loading attributes"
-    : searching
-      ? unifiedCatalogLabel
-        ? "Continue searching properties"
-        : "Continue searching attributes"
-      : unifiedCatalogLabel
-        ? "Load more properties"
-        : "Load more attributes";
-
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 0.5 }}>
-      <Button
-        data-filter-property-load-more
-        size="small"
-        onClick={handleLoadMore}
-        sx={{ fontSize: 11 }}
-      >
-        {label}
-      </Button>
-    </Box>
+    <BoundedCursorPaginationControl
+      rootRef={scrollRootRef}
+      channels={[
+        {
+          channelKey: "attributes",
+          hasNextPage: attributePageAvailable,
+          continuationKey: attributeContinuationKey,
+          isFetching: isFetchingAttributePage,
+          error: attributePageError,
+          loadNextPage: onLoadMoreAttributes,
+        },
+        {
+          channelKey: "catalog",
+          hasNextPage: catalogPageAvailable,
+          continuationKey: catalogContinuationKey,
+          isFetching: isFetchingCatalogPage,
+          error: catalogPageError,
+          loadNextPage: onLoadMoreCatalog,
+        },
+      ]}
+      loadingLabel="Loading more properties…"
+      retryLabel={
+        catalogPageError && !attributePageError
+          ? "Retry loading properties"
+          : "Retry loading attributes"
+      }
+      markerProps={{
+        "data-filter-property-page-sentinel": true,
+      }}
+    />
   );
 }
 
@@ -1466,6 +1415,7 @@ function PropertyPicker({
   isSimulator = false,
   catalogError = false,
   hasNextCatalogPage = false,
+  catalogContinuationKey = null,
   isFetchingNextCatalogPage = false,
   catalogNextPageError = false,
   loadNextCatalogPage,
@@ -1475,6 +1425,7 @@ function PropertyPicker({
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const autoExactSearchIdentityRef = useRef(null);
+  const propertyOptionsListRef = useRef(null);
   const [visiblePropertyLimit, setVisiblePropertyLimit] = useState(
     PROPERTY_PICKER_RENDER_BATCH_SIZE,
   );
@@ -1558,6 +1509,9 @@ function PropertyPicker({
   const effectiveHasNextCatalogPage = searchedCatalogOwnsResults
     ? Boolean(searchedCatalog.hasNextPage)
     : hasNextCatalogPage;
+  const effectiveCatalogContinuationKey = searchedCatalogOwnsResults
+    ? searchedCatalog.continuationKey
+    : catalogContinuationKey;
   const effectiveIsFetchingNextCatalogPage = searchedCatalogOwnsResults
     ? searchedCatalog.isFetchingNextPage
     : isFetchingNextCatalogPage;
@@ -1591,6 +1545,7 @@ function PropertyPicker({
     totalCount: exactAttributeTotalCount = null,
     exactSearchMatched: exactAttributeSearchMatched = false,
     cursorRetryExhausted: exactAttributeCursorRetryExhausted = false,
+    continuationKey: exactAttributeContinuationKey = null,
     debouncedSearch,
     refetch: refetchAttributePages,
   } = useExactTraceAttributeProperties({
@@ -1820,8 +1775,8 @@ function PropertyPicker({
     if (autoExactSearchIdentityRef.current === identity) return;
     autoExactSearchIdentityRef.current = identity;
     // One bounded automatic continuation makes an empty checkpoint feel like
-    // one search instead of requiring a scroll. Never loop: later pages stay
-    // behind the explicit Continue searching action.
+    // one search instead of requiring a scroll. Later pages are advanced by
+    // the list-end sentinel through the same single-flight request.
     void loadNextExactAttributePage();
   }, [
     debouncedSearch,
@@ -1847,12 +1802,12 @@ function PropertyPicker({
   const handlePropertyScroll = useCallback(
     (event) => {
       const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight <= 40;
-      // Scrolling may reveal rows that are already in memory, but server
-      // cursor advancement is always an explicit button action. Programmatic
-      // layout shifts and inertial scroll events can otherwise keep a list at
-      // its bottom and drain every remaining page without another user
-      // gesture.
+      const isNearBottom =
+        scrollHeight - scrollTop - clientHeight <=
+        PROPERTY_PICKER_PREFETCH_MARGIN_PX;
+      // Reveal rows already retained in memory. Once those rows are visible,
+      // the end sentinel owns server-cursor advancement through the same
+      // single-flight request path used by every picker surface.
       if (isNearBottom && hiddenCount > 0) revealNextPropertyBatch();
     },
     [hiddenCount, revealNextPropertyBatch],
@@ -2063,6 +2018,7 @@ function PropertyPicker({
               </Box>
             )}
             <Box
+              ref={propertyOptionsListRef}
               data-filter-property-options-list
               onScroll={handlePropertyScroll}
               sx={{ flex: 1, overflow: "auto", maxHeight: 280 }}
@@ -2098,8 +2054,8 @@ function PropertyPicker({
                       color: "text.secondary",
                     }}
                   >
-                    No matching attribute found yet. Continue searching older
-                    attributes.
+                    No matching attribute found yet. Older attributes load
+                    automatically at the end of this list.
                   </Typography>
                 )}
               {filtered.length === 0 &&
@@ -2238,33 +2194,17 @@ function PropertyPicker({
                   More attributes could not be loaded. Please retry.
                 </Typography>
               )}
-              {hiddenCount > 0 && (
-                <Box
-                  sx={{ display: "flex", justifyContent: "center", py: 0.5 }}
-                >
-                  <Button
-                    data-filter-property-show-more
-                    size="small"
-                    onClick={revealNextPropertyBatch}
-                    sx={{ fontSize: 11 }}
-                  >
-                    {`Show ${Math.min(hiddenCount, PROPERTY_PICKER_RENDER_BATCH_SIZE)} more properties`}
-                  </Button>
-                </Box>
-              )}
               {hiddenCount === 0 && (
                 <PropertyPickerPaginationControl
-                  search={search}
+                  key={`${source}:${category}:${debouncedSearch}`}
+                  scrollRootRef={propertyOptionsListRef}
                   attributePageAvailable={attributePageAvailable}
-                  attributeSearchContinuation={Boolean(
-                    search.trim() &&
-                      (hasNextExactAttributePage ||
-                        hasSettledExactAttributeError),
-                  )}
+                  attributeContinuationKey={exactAttributeContinuationKey}
                   isFetchingAttributePage={isFetchingVisibleAttributePage}
                   attributePageError={hasAttributePageError}
                   onLoadMoreAttributes={loadNextVisibleAttributePage}
                   catalogPageAvailable={catalogPageAvailable}
+                  catalogContinuationKey={effectiveCatalogContinuationKey}
                   isFetchingCatalogPage={
                     shouldShowCatalogContinuation &&
                     effectiveIsFetchingNextCatalogPage
@@ -2272,21 +2212,6 @@ function PropertyPicker({
                   catalogPageError={effectiveCatalogNextPageError}
                   onLoadMoreCatalog={effectiveLoadNextCatalogPage}
                 />
-              )}
-              {hiddenCount > 0 && (
-                <Typography
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    fontSize: 11,
-                    color: "text.secondary",
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  {hiddenCount} loaded properties remain. Continue scrolling or
-                  use the button above.
-                </Typography>
               )}
             </Box>
           </Box>
@@ -2325,23 +2250,7 @@ function ValuePicker({
   const [anchorEl, setAnchorEl] = useState(null);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, FILTER_VALUE_SEARCH_DEBOUNCE_MS);
-  // A touchpad/wheel gesture can keep the options list pinned at the bottom
-  // while a fast continuation response appends the next page. Without a
-  // per-open gate, the remaining inertial scroll events drain every cursor
-  // page and leave a high-cardinality attribute looking permanently busy.
-  // The existing Load more button advances each exact continuation only after
-  // an explicit gesture.
-  const autoScrollPageUsedRef = useRef(false);
-
-  useEffect(() => {
-    if (!anchorEl) {
-      autoScrollPageUsedRef.current = false;
-    }
-  }, [anchorEl]);
-
-  useEffect(() => {
-    autoScrollPageUsedRef.current = false;
-  }, [search, debouncedSearch, projectId, propertyId, source]);
+  const valueOptionsListRef = useRef(null);
 
   // If the property declares its own static choices (e.g. the Project filter
   // on the cross-project user-detail page), use them directly. Skips both
@@ -2401,6 +2310,7 @@ function ValuePicker({
     hasNextPage: hasNextDashboardPage,
     isFetchingNextPage: isFetchingNextDashboardPage,
     isFetchNextPageError: isNextDashboardPageError,
+    continuationKey: dashboardContinuationKey,
     retryFreshPage: retryDashboardOptions,
     isRetryingFreshPage: isRetryingDashboardOptions,
     refetch: refetchDashboardOptions,
@@ -2415,7 +2325,7 @@ function ValuePicker({
     // detect rapid clear/re-entry gestures that happen inside the debounce
     // interval and recover one cached failed continuation.
     searchGesture: usesBackendSearch ? search.trim() : "",
-    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
+    pageSize: FILTER_VALUE_PAGE_SIZE,
     attributeType:
       propertyCategory === "attribute"
         ? property?.attributeTypesExact === true &&
@@ -2487,34 +2397,6 @@ function ValuePicker({
         : dashboardReadState;
   const readMessage = getFilterValueReadMessage(readState);
   const refetchOptions = retryDashboardOptions || refetchDashboardOptions;
-
-  const handleOptionsScroll = useCallback(
-    (event) => {
-      const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight <= 40;
-      // Re-arm only after the user leaves the bottom edge. Appending a page
-      // can keep inertial scroll events pinned at the edge; those events must
-      // not drain the remaining cursor chain. A later deliberate scroll back
-      // to the bottom still auto-loads the next exact page.
-      if (!isNearBottom) {
-        autoScrollPageUsedRef.current = false;
-        return;
-      }
-      if (
-        !autoScrollPageUsedRef.current &&
-        hasMoreDashboardValues &&
-        !isFetchingNextDashboardPage
-      ) {
-        autoScrollPageUsedRef.current = true;
-        loadNextDashboardValues();
-      }
-    },
-    [
-      hasMoreDashboardValues,
-      isFetchingNextDashboardPage,
-      loadNextDashboardValues,
-    ],
-  );
 
   const filtered = useMemo(() => {
     if (!search || isSessionFreeTextField || isIdOnlyField) return options;
@@ -2773,8 +2655,8 @@ function ValuePicker({
         </Box>
         <Divider />
         <Box
+          ref={valueOptionsListRef}
           data-filter-value-options-list
-          onScroll={handleOptionsScroll}
           sx={{ maxHeight: 220, overflow: "auto" }}
         >
           {isLoading && (
@@ -2955,31 +2837,6 @@ function ValuePicker({
               </Box>
             </>
           )}
-          {isFetchingNextDashboardPage && (
-            <Box
-              role="status"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 0.75,
-                py: 1,
-              }}
-            >
-              <CircularProgress size={14} />
-              <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-                Searching more values…
-              </Typography>
-            </Box>
-          )}
-          {isNextDashboardPageError && !isFetchingNextDashboardPage && (
-            <Typography
-              role="status"
-              sx={{ px: 1.5, py: 0.75, fontSize: 11, color: "warning.main" }}
-            >
-              More values could not be loaded. Retry searching below.
-            </Typography>
-          )}
           {!isLoading &&
             dashboardBrowseLimitReached &&
             metricType === "custom_attribute" && (
@@ -2995,21 +2852,24 @@ function ValuePicker({
                 Recent value limit reached. Search or enter an exact value.
               </Typography>
             )}
-          {hasMoreDashboardValues && !isFetchingNextDashboardPage && (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 0.5 }}>
-              <Button
-                size="small"
-                onClick={loadNextDashboardValues}
-                sx={{ fontSize: 11 }}
-              >
-                {isNextDashboardPageError
-                  ? "Retry searching values"
-                  : options.length === 0
-                    ? "Continue searching values"
-                    : "Load more"}
-              </Button>
-            </Box>
-          )}
+          <BoundedCursorPaginationControl
+            key={`${projectId || "workspace"}:${filterValueSource}:${property?.registryId || propertyId}:${metricType}:${debouncedSearch}`}
+            rootRef={valueOptionsListRef}
+            channels={[
+              {
+                channelKey: "values",
+                hasNextPage: hasMoreDashboardValues,
+                continuationKey: dashboardContinuationKey,
+                isFetching: isFetchingNextDashboardPage,
+                error: isNextDashboardPageError,
+                loadNextPage: loadNextDashboardValues,
+              },
+            ]}
+            loadingLabel="Searching more values…"
+            retryLabel="Retry searching values"
+            errorMessage="More values could not be loaded. Loaded values remain available."
+            testId="filter-value-pagination-sentinel"
+          />
         </Box>
         {selectedValues.length > 0 && (
           <>
@@ -3068,6 +2928,7 @@ function FilterRow({
   isSimulator = false,
   catalogError = false,
   hasNextCatalogPage = false,
+  catalogContinuationKey = null,
   isFetchingNextCatalogPage = false,
   catalogNextPageError = false,
   loadNextCatalogPage,
@@ -3547,6 +3408,7 @@ function FilterRow({
         isSimulator={isSimulator}
         catalogError={catalogError}
         hasNextCatalogPage={hasNextCatalogPage}
+        catalogContinuationKey={catalogContinuationKey}
         isFetchingNextCatalogPage={isFetchingNextCatalogPage}
         catalogNextPageError={catalogNextPageError}
         loadNextCatalogPage={loadNextCatalogPage}
@@ -3654,6 +3516,7 @@ const TraceFilterPanel = ({
     isLoading: dynamicPropsLoading,
     isError: dynamicPropsError,
     hasNextPage: hasNextDynamicPropsPage,
+    continuationKey: dynamicPropsContinuationKey,
     fetchNextPage: fetchNextDynamicPropsPage,
     isFetchingNextPage: isFetchingNextDynamicPropsPage,
     isFetchNextPageError: isNextDynamicPropsPageError,
@@ -3814,11 +3677,6 @@ const TraceFilterPanel = ({
     source: exactAttributeSource,
     enabled: queryAttributeLookupEnabled,
   });
-
-  useEffect(() => {
-    setQueryFieldSearch("");
-    setPinnedQueryAttributeProperties([]);
-  }, [observeId, exactAttributeSource, unifiedCatalogSource]);
 
   const filteredQueryExactAttributeProperties = useMemo(
     () =>
@@ -3990,11 +3848,30 @@ const TraceFilterPanel = ({
     field: null,
     value: "",
   });
+  const queryScopeKey = JSON.stringify([
+    observeId || (allowWorkspaceScope ? "workspace" : ""),
+    source,
+    exactAttributeSource,
+    unifiedCatalogSource,
+  ]);
+  const [queryStateScopeKey, setQueryStateScopeKey] = useState(queryScopeKey);
+  const queryStateIsCurrent = queryStateScopeKey === queryScopeKey;
+  const activeQueryField = queryStateIsCurrent ? queryField : null;
+  const activeQueryValueSearch = queryStateIsCurrent
+    ? queryValueSearch
+    : { field: null, value: "" };
+  useEffect(() => {
+    setQueryFieldSearch("");
+    setPinnedQueryAttributeProperties([]);
+    setQueryField(null);
+    setQueryValueSearch({ field: null, value: "" });
+    setQueryStateScopeKey(queryScopeKey);
+  }, [queryScopeKey]);
   const debouncedQueryValueSearch = useDebounce(
-    queryValueSearch,
+    activeQueryValueSearch,
     FILTER_VALUE_SEARCH_DEBOUNCE_MS,
   );
-  const queryFieldProp = queryPropertyById[queryField];
+  const queryFieldProp = queryPropertyById[activeQueryField];
   const queryMetricType = (() => {
     const cat = queryFieldProp?.category || "system";
     if (source === "dataset") return "custom_column";
@@ -4010,11 +3887,11 @@ const TraceFilterPanel = ({
   );
   const queryValueMetricName = filterValueAdapterMetricName(
     queryValueSource,
-    queryFieldProp?.id || queryField || "",
+    queryFieldProp?.id || activeQueryField || "",
   );
   const isQuerySessionFreeTextField =
     queryValueSource === "sessions" &&
-    SESSION_FREE_TEXT_FIELDS.has(queryFieldProp?.id || queryField || "");
+    SESSION_FREE_TEXT_FIELDS.has(queryFieldProp?.id || activeQueryField || "");
   const queryValuePropertyId = buildPropertyRegistryId({
     propertyId: queryFieldProp?.registryId,
     metricName: queryValueMetricName,
@@ -4024,18 +3901,20 @@ const TraceFilterPanel = ({
   const shouldFetchQueryValues = Boolean(
     open &&
       activeTab === "query" &&
-      queryField &&
+      activeQueryField &&
       !isQuerySessionFreeTextField &&
       (!queryFieldProp?.choices?.length ||
         (queryFieldProp?.category === "annotation" &&
           queryFieldProp?.type === "categorical")),
   );
   const effectiveQueryValueSearch =
-    debouncedQueryValueSearch?.field === queryField
+    debouncedQueryValueSearch?.field === activeQueryField
       ? debouncedQueryValueSearch.value
       : "";
   const effectiveQueryValueSearchGesture =
-    queryValueSearch?.field === queryField ? queryValueSearch.value : "";
+    activeQueryValueSearch?.field === activeQueryField
+      ? activeQueryValueSearch.value
+      : "";
   const {
     data: queryValueOptions = [],
     isLoading: queryValuesLoading,
@@ -4075,7 +3954,7 @@ const TraceFilterPanel = ({
     // System, eval, and annotation values must use the same signed-cursor
     // contract as custom attributes. A missing page_size enters the legacy
     // non-pageable branch and can exceed the property picker's five-second SLA.
-    pageSize: INTERACTIVE_TABLE_PAGE_SIZE,
+    pageSize: FILTER_VALUE_PAGE_SIZE,
     attributeType:
       queryMetricType === "custom_attribute"
         ? queryFieldProp?.attributeTypesExact === true &&
@@ -4093,7 +3972,7 @@ const TraceFilterPanel = ({
     identity: JSON.stringify([
       observeId,
       source,
-      queryField,
+      activeQueryField,
       effectiveQueryValueSearch,
     ]),
     enabled:
@@ -4548,6 +4427,9 @@ const TraceFilterPanel = ({
                   hasNextCatalogPage={
                     !skipDynamicProperties && hasNextDynamicPropsPage
                   }
+                  catalogContinuationKey={
+                    !skipDynamicProperties ? dynamicPropsContinuationKey : null
+                  }
                   isFetchingNextCatalogPage={isFetchingNextDynamicPropsPage}
                   catalogNextPageError={isNextDynamicPropsPageError}
                   loadNextCatalogPage={fetchNextDynamicPropsPage}
@@ -4601,6 +4483,7 @@ const TraceFilterPanel = ({
         {showQueryTab && activeTab === "query" && (
           <Box sx={{ px: 0.5, pt: 0.25 }}>
             <QueryInput
+              key={queryScopeKey}
               ref={queryInputRef}
               filterFields={queryFilterFields}
               fieldMap={queryFieldMap}
@@ -4670,7 +4553,10 @@ const TraceFilterPanel = ({
               )}
               onLoadMoreValues={loadNextQueryValuesPage}
               onValueSearchChange={(value, field) =>
-                setQueryValueSearch({ field: field ?? queryField, value })
+                setQueryValueSearch({
+                  field: field ?? activeQueryField,
+                  value,
+                })
               }
               onFieldChange={(field) => {
                 setQueryValueSearch({ field, value: "" });

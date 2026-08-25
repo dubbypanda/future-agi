@@ -137,6 +137,12 @@ const ObserveToolbar = ({
           : "traces";
   const filterValueSource =
     mode === "sessions" || mode === "users" ? "sessions" : "traces";
+  // Session and user rows retain their native list/value transport, while
+  // their eval, annotation, and custom-attribute definitions are derived
+  // from the underlying spans. Keep those identities separate so requesting
+  // a session value never disables the span-backed property catalog.
+  const attributeSource =
+    mode === "sessions" || mode === "users" ? "spans" : undefined;
   const setFilterButtonNode = useCallback((node) => {
     filterButtonRef.current = node;
     setFilterButtonEl(node);
@@ -446,6 +452,7 @@ const ObserveToolbar = ({
             isSpansView={isSpansView}
             source={filterValueSource}
             propertyNamespace={propertyNamespace}
+            attributeSource={attributeSource}
             projectId={projectId}
             allowWorkspaceScope={allowWorkspaceScope}
             onApply={(newFilters) => {

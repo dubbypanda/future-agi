@@ -2,7 +2,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import PropTypes from "prop-types";
 import { render, screen, userEvent, waitFor } from "src/utils/test-utils";
+
+const traceFilterPanelPropsMock = vi.hoisted(() => vi.fn());
+
+vi.mock("src/sections/projects/LLMTracing/TraceFilterPanel", () => ({
+  default: (props) => {
+    traceFilterPanelPropsMock(props);
+    return <div data-testid="annotation-telemetry-filter-panel" />;
+  },
+}));
+
 import {
+  AnnotationTelemetryFilterPanel,
   buildAnnotatorFilterChipLabelMap,
   buildReadOnlyColumnDefs,
   buildSimulationSelectorColumnDefs,
@@ -62,6 +73,71 @@ const queryClientMock = vi.hoisted(() => ({
     data: { result: { table: [], metadata: { total_rows: 0 } } },
   })),
 }));
+
+describe("annotation telemetry filter adapters", () => {
+  beforeEach(() => {
+    traceFilterPanelPropsMock.mockClear();
+  });
+
+  it("uses the main Tracing voice namespace and span attribute inventory", () => {
+    render(
+      <AnnotationTelemetryFilterPanel
+        selectorType="trace"
+        isVoiceProject
+        anchorEl={document.body}
+        open
+        onClose={vi.fn()}
+        projectId="voice-project"
+        currentFilters={[]}
+        onApply={vi.fn()}
+      />,
+    );
+
+    expect(traceFilterPanelPropsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "voice-project",
+        source: "traces",
+        tab: "voiceCalls",
+        propertyNamespace: "voice_calls",
+        attributeSource: "spans",
+        isSimulator: true,
+        isSpansView: false,
+      }),
+    );
+  });
+
+  it("keeps session system fields additive to the dynamic catalog", () => {
+    const sessionFilterFields = [
+      { id: "session_id", name: "Session ID", category: "system" },
+    ];
+
+    render(
+      <AnnotationTelemetryFilterPanel
+        selectorType="session"
+        sessionFilterFields={sessionFilterFields}
+        anchorEl={document.body}
+        open
+        onClose={vi.fn()}
+        projectId="session-project"
+        currentFilters={[]}
+        onApply={vi.fn()}
+      />,
+    );
+
+    const props = traceFilterPanelPropsMock.mock.calls.at(-1)[0];
+    expect(props).toMatchObject({
+      projectId: "session-project",
+      source: "sessions",
+      propertyNamespace: "sessions",
+      attributeSource: "spans",
+      filterFields: sessionFilterFields,
+      isSimulator: false,
+      isSpansView: false,
+    });
+    expect(props).not.toHaveProperty("properties");
+    expect(props).not.toHaveProperty("categories");
+  });
+});
 
 vi.mock("src/hooks/use-debounce", () => ({
   useDebounce: (value) => value,

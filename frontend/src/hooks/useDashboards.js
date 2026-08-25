@@ -450,6 +450,10 @@ export function useLegacyDashboardMetricsPaginated({
     ...query,
     metrics,
     total,
+    continuationKey: query.hasNextPage
+      ? `legacy-page:${Number(query.data?.pages?.at(-1)?.data?.result?.page || 1) + 1}`
+      : null,
+    pageCount: query.data?.pages?.length || 0,
   };
 }
 
@@ -627,6 +631,11 @@ export function usePropertyCatalog({
 
   return {
     ...query,
+    continuationKey:
+      !cursorChainStopped && query.hasNextPage
+        ? checkedPages.at(-1)?.next_cursor || null
+        : null,
+    pageCount: checkedPages.length,
     hasNextPage: cursorChainStopped ? false : query.hasNextPage,
     metrics,
     total: null,
@@ -1124,6 +1133,11 @@ export function useDashboardFilterValues({
   return {
     ...query,
     data: values,
+    continuationKey:
+      !cursorChainStopped && query.hasNextPage
+        ? getFilterValueNextCursor(lastPage) || null
+        : null,
+    pageCount: pages.length,
     queryReadState,
     browseStatus,
     browseLimitReached: browseStatus === "limit_reached" && !query.hasNextPage,

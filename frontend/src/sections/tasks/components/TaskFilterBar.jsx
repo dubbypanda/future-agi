@@ -490,10 +490,28 @@ const TaskFilterBar = ({
     convertOldToNew(formFilters, { rowType }),
   );
   const suppressNextSync = useRef(false);
+  const filterPanelSources = taskFilterPanelSources(rowType);
+  const filterPanelTab = rowTypeToFilterTab(rowType);
+  // TraceFilterPanel resolves its unified catalog from the explicit attribute
+  // source, except voice calls which use their dedicated definition namespace.
+  // Label hydration must use that exact identity or a cached trace catalog can
+  // attach the wrong label to a span/session/voice property with the same id.
+  const labelCatalogSource =
+    filterPanelTab === "voiceCalls"
+      ? "voice_calls"
+      : filterPanelSources.attributeSource || filterPanelSources.source;
+  const needsPropertyLabelResolution = panelFilters.some(
+    (filter) =>
+      !filter.fieldName &&
+      (!filter.fieldLabel || filter.fieldLabel === filter.field),
+  );
 
-  // Resolve UUID column ids → display names. Shares cache with TraceFilterPanel.
+  // Resolve persisted ids only when a chip is missing its display label. Empty
+  // task forms no longer issue an eager catalog request.
   const { data: properties = [] } = useTraceFilterProperties(projectId, {
     isSimulator,
+    sourceScope: labelCatalogSource,
+    enabled: Boolean(projectId && needsPropertyLabelResolution),
   });
   // Resolve annotator user UUIDs → "Name (email)" for chip values.
   const hasAnnotatorFilter = panelFilters.some((f) => f.field === "annotator");
@@ -501,7 +519,7 @@ const TaskFilterBar = ({
     metricName: "annotator",
     metricType: "annotation_metric",
     projectIds: projectId ? [projectId] : [],
-    source: "traces",
+    source: filterPanelSources.source,
     pageSize: 10,
     enabled: hasAnnotatorFilter,
   });
@@ -603,7 +621,6 @@ const TaskFilterBar = ({
   }, [isPanelOpen, anchorToBar]);
 
   const hasFilters = panelFilters.length > 0;
-  const filterPanelSources = taskFilterPanelSources(rowType);
 
   return (
     <Box ref={barRef} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -705,7 +722,7 @@ const TaskFilterBar = ({
         currentFilters={panelFilters}
         projectId={projectId}
         isSimulator={isSimulator}
-        tab={rowTypeToFilterTab(rowType)}
+        tab={filterPanelTab}
         source={filterPanelSources.source}
         // Task custom attributes always live on the selected rows' spans.
         // Keep the semantic row source for value lookup (sessions must remain

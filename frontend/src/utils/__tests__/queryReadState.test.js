@@ -156,7 +156,9 @@ describe("queryReadState", () => {
   });
 
   it("bounds exact aggregation polling by both attempts and elapsed time", () => {
-    expect(AGGREGATION_POLL_TIMEOUT_MS).toBeLessThan(10_000);
+    expect(AGGREGATION_POLL_TIMEOUT_MS).toBeGreaterThan(
+      AGGREGATION_REQUEST_TIMEOUT_MS,
+    );
     expect(AGGREGATION_REQUEST_TIMEOUT_MS).toBeLessThan(10_000);
     expect(
       isAggregationPollBudgetExhausted({
@@ -188,11 +190,11 @@ describe("queryReadState", () => {
     expect(controller.start()).toBe(true);
     expect(controller.recordAttempt()).toBe(true);
     expect(controller.remainingMs(AGGREGATION_REQUEST_TIMEOUT_MS)).toBe(
-      AGGREGATION_POLL_TIMEOUT_MS,
+      AGGREGATION_REQUEST_TIMEOUT_MS,
     );
     now += 1_000;
     expect(controller.remainingMs(AGGREGATION_REQUEST_TIMEOUT_MS)).toBe(
-      AGGREGATION_POLL_TIMEOUT_MS - 1_000,
+      AGGREGATION_REQUEST_TIMEOUT_MS,
     );
     now += AGGREGATION_POLL_TIMEOUT_MS - 1_500;
 
@@ -205,7 +207,7 @@ describe("queryReadState", () => {
     controller.reset();
     expect(controller.start()).toBe(true);
     expect(controller.remainingMs(AGGREGATION_REQUEST_TIMEOUT_MS)).toBe(
-      AGGREGATION_POLL_TIMEOUT_MS,
+      AGGREGATION_REQUEST_TIMEOUT_MS,
     );
     expect(controller.nextDelay()).toBe(1_000);
   });

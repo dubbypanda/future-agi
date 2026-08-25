@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "src/utils/test-utils";
 import axios from "src/utils/axios";
 import { RuleFilterSection } from "../create-rule-dialog";
+import { SESSION_RULE_FILTER_FIELDS } from "../../constants";
+
+const traceFilterPanelPropsMock = vi.hoisted(() => vi.fn());
+const projectDetailsMock = vi.hoisted(() => vi.fn(() => ({ data: undefined })));
 
 vi.mock("src/utils/axios", () => ({
   default: { get: vi.fn() },
@@ -27,12 +31,19 @@ vi.mock("src/hooks/useDashboards", () => ({
   }),
 }));
 
+vi.mock("src/api/project/project-detail", () => ({
+  useGetProjectDetails: (...args) => projectDetailsMock(...args),
+}));
+
 vi.mock("src/sections/projects/LLMTracing/TraceFilterPanel", () => ({
-  default: ({ properties }) => (
-    <div data-testid="simulation-properties">
-      {properties.map((property) => property.name).join("|")}
-    </div>
-  ),
+  default: (props) => {
+    traceFilterPanelPropsMock(props);
+    return (
+      <div data-testid="simulation-properties">
+        {(props.properties || []).map((property) => property.name).join("|")}
+      </div>
+    );
+  },
   buildTraceFilterProperties: (metrics) =>
     metrics.map((metric) => ({
       id: metric.name,
@@ -42,19 +53,23 @@ vi.mock("src/sections/projects/LLMTracing/TraceFilterPanel", () => ({
     })),
 }));
 
-function renderSimulationRuleFilters() {
+function renderRuleFilters({
+  sourceType = "call_execution",
+  scope = { project_id: "agent-1" },
+  queue = {},
+} = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
       <RuleFilterSection
-        sourceType="call_execution"
+        sourceType={sourceType}
         filters={[]}
         setFilters={vi.fn()}
-        scope={{ project_id: "agent-1" }}
+        scope={scope}
         setScope={vi.fn()}
-        queue={{}}
+        queue={queue}
         onInteraction={vi.fn()}
       />
     </QueryClientProvider>,
@@ -83,7 +98,7 @@ describe("simulation automation metric pagination", () => {
       }),
     );
 
-    renderSimulationRuleFilters();
+    renderRuleFilters();
 
     expect(await screen.findByText(/First Eval/)).toBeVisible();
     expect(screen.queryByText(/Second Eval/)).not.toBeInTheDocument();
@@ -110,5 +125,28 @@ describe("simulation automation metric pagination", () => {
     expect(
       screen.queryByText("Load more eval properties"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("session automation filter adapter", () => {
+  it("retains static session fields without replacing dynamic catalog properties", () => {
+    traceFilterPanelPropsMock.mockClear();
+
+    renderRuleFilters({
+      sourceType: "trace_session",
+      scope: {},
+      queue: { project: { id: "session-project" } },
+    });
+
+    const props = traceFilterPanelPropsMock.mock.calls.at(-1)[0];
+    expect(props).toMatchObject({
+      projectId: "session-project",
+      source: "sessions",
+      attributeSource: "spans",
+      filterFields: SESSION_RULE_FILTER_FIELDS,
+    });
+    expect(props).not.toHaveProperty("properties");
+    expect(props).not.toHaveProperty("categories");
+    expect(projectDetailsMock).toHaveBeenCalledWith("session-project", false);
   });
 });

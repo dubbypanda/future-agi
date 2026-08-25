@@ -51,6 +51,28 @@ export const AGGREGATION_REQUEST_TIMEOUT_MS = readBoundedRuntimeInteger(
   { minimum: 1_000, maximum: 60_000 },
 );
 
+export function readAggregationPollTimeout({
+  requestTimeoutMs = AGGREGATION_REQUEST_TIMEOUT_MS,
+  runtimeConfig = browserConfig,
+  envConfig = buildConfig,
+} = {}) {
+  return readBoundedRuntimeInteger(
+    "VITE_AGGREGATION_POLL_TIMEOUT_MS",
+    120_000,
+    {
+      minimum: requestTimeoutMs,
+      maximum: 600_000,
+      runtimeConfig,
+      envConfig,
+    },
+  );
+}
+
+// Exact reads are server-owned jobs. Keep each HTTP attempt interactive while
+// allowing the browser to observe a healthy long-running job long enough for
+// wide-range (for example 12M) filters to finish without a manual refresh.
+export const AGGREGATION_POLL_TIMEOUT_MS = readAggregationPollTimeout();
+
 export const FILTER_VALUE_REQUEST_TIMEOUT_MS = readBoundedRuntimeInteger(
   "VITE_FILTER_VALUE_REQUEST_TIMEOUT_MS",
   4_800,
@@ -77,7 +99,7 @@ export const AGGREGATION_POLL_BACKOFF_FACTOR = readBoundedRuntimeInteger(
 
 export const AGGREGATION_POLL_MAX_ATTEMPTS = readBoundedRuntimeInteger(
   "VITE_AGGREGATION_POLL_MAX_ATTEMPTS",
-  12,
+  32,
   { minimum: 1, maximum: 100 },
 );
 
@@ -152,6 +174,18 @@ export const PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS = readBoundedRuntimeInteger(
   "VITE_PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS",
   300,
   { minimum: 0, maximum: 5_000 },
+);
+
+export const PROPERTY_PICKER_RENDER_BATCH_SIZE = readBoundedRuntimeInteger(
+  "VITE_PROPERTY_PICKER_RENDER_BATCH_SIZE",
+  500,
+  { minimum: 1, maximum: 5_000 },
+);
+
+export const PROPERTY_PICKER_PREFETCH_MARGIN_PX = readBoundedRuntimeInteger(
+  "VITE_PROPERTY_PICKER_PREFETCH_MARGIN_PX",
+  48,
+  { minimum: 0, maximum: 1_000 },
 );
 
 export const ATTRIBUTE_INVENTORY_SEARCH_DEBOUNCE_MS = readBoundedRuntimeInteger(

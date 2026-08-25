@@ -60,6 +60,7 @@ import {
 import { useDebounce } from "src/hooks/use-debounce";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
 import Iconify from "src/components/iconify";
+import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import FilterValueLabel, {
   shouldShowFilterValueContinuation,
   useResolvedFilterOptions,
@@ -409,96 +410,63 @@ export function getWidgetMetricCatalogRequest({
 export function WidgetCatalogPaginationControl({
   pickerCategory,
   hasNextPage,
+  continuationKey,
   isFetchingNextPage,
+  isFetchNextPageError = false,
   onLoadMore,
   attributeHasNextPage = false,
+  attributeContinuationKey,
   isFetchingAttributeNextPage = false,
+  isFetchNextAttributePageError = false,
   onLoadMoreAttributes,
 }) {
-  const activeRequestRef = useRef(null);
-  const [isRequestPending, setIsRequestPending] = useState(false);
-  const catalogPageAvailable = hasNextPage;
   const attributePageAvailable =
     (pickerCategory === "all" || pickerCategory === "custom_attribute") &&
-    attributeHasNextPage;
-  const loading =
-    isRequestPending || isFetchingNextPage || isFetchingAttributeNextPage;
-
-  const handleLoadMore = useCallback(() => {
-    if (loading || activeRequestRef.current) {
-      return;
-    }
-
-    const actions = [];
-    if (catalogPageAvailable && onLoadMore) actions.push(onLoadMore);
-    if (attributePageAvailable && onLoadMoreAttributes) {
-      actions.push(onLoadMoreAttributes);
-    }
-    if (actions.length === 0) return;
-
-    setIsRequestPending(true);
-    const request = Promise.allSettled(
-      actions.map((action) => {
-        try {
-          return Promise.resolve(action());
-        } catch (error) {
-          return Promise.reject(error);
-        }
-      }),
-    );
-    activeRequestRef.current = request;
-    const clearRequest = () => {
-      if (activeRequestRef.current === request) {
-        activeRequestRef.current = null;
-        setIsRequestPending(false);
-      }
-    };
-    request.then(clearRequest, clearRequest);
-  }, [
-    attributePageAvailable,
-    catalogPageAvailable,
-    loading,
-    onLoadMore,
-    onLoadMoreAttributes,
-  ]);
-
-  if (loading) {
-    return (
-      <Box
-        role="status"
-        sx={{
-          py: 1.5,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 0.75,
-        }}
-      >
-        <CircularProgress size={16} />
-        <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-          Loading more…
-        </Typography>
-      </Box>
-    );
-  }
-  if (!catalogPageAvailable && !attributePageAvailable) return null;
-
+    Boolean(attributeHasNextPage);
   return (
-    <Box sx={{ py: 0.75, textAlign: "center" }}>
-      <Button size="small" onClick={handleLoadMore} sx={{ fontSize: 11 }}>
-        Load more
-      </Button>
-    </Box>
+    <BoundedCursorPaginationControl
+      channels={[
+        {
+          channelKey: "catalog",
+          hasNextPage: Boolean(hasNextPage),
+          continuationKey,
+          isFetching: isFetchingNextPage,
+          error: isFetchNextPageError,
+          loadNextPage: onLoadMore,
+        },
+        {
+          channelKey: "attributes",
+          hasNextPage: attributePageAvailable,
+          continuationKey: attributeContinuationKey,
+          isFetching: isFetchingAttributeNextPage,
+          error:
+            (pickerCategory === "all" ||
+              pickerCategory === "custom_attribute") &&
+            isFetchNextAttributePageError,
+          loadNextPage: onLoadMoreAttributes,
+        },
+      ]}
+      testId="widget-catalog-pagination-sentinel"
+      errorMessage="The next page failed. Loaded attributes remain available."
+      retryLabel="Retry"
+    />
   );
 }
 
 WidgetCatalogPaginationControl.propTypes = {
   pickerCategory: PropTypes.string.isRequired,
   hasNextPage: PropTypes.bool,
+  continuationKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   isFetchingNextPage: PropTypes.bool,
+  isFetchNextPageError: PropTypes.bool,
   onLoadMore: PropTypes.func.isRequired,
   attributeHasNextPage: PropTypes.bool,
+  attributeContinuationKey: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number,
+  ]),
   isFetchingAttributeNextPage: PropTypes.bool,
+  isFetchNextAttributePageError: PropTypes.bool,
   onLoadMoreAttributes: PropTypes.func,
 };
 
@@ -1452,6 +1420,39 @@ AggregationPicker.propTypes = {
   allowedAggregations: PropTypes.arrayOf(PropTypes.string),
 };
 
+const inferFilterValueStorageType = (value, configuredType) => {
+  if (["string", "number", "boolean", "array"].includes(configuredType)) {
+    return configuredType;
+  }
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  return "string";
+};
+
+const selectedEntriesFromFilter = (filter) => {
+  const values = Array.isArray(filter?.value) ? filter.value : [];
+  const valueTypes = Array.isArray(filter?.valueTypes) ? filter.valueTypes : [];
+  return values.map((value, index) => ({
+    value,
+    type: inferFilterValueStorageType(value, valueTypes[index]),
+  }));
+};
+
+const filterValuePickerScopeKey = (filter, source) =>
+  JSON.stringify([
+    source,
+    filter?.property_id || filter?.propertyId || filter?.registryId || null,
+    filter?.metric_name ||
+      filter?.metricName ||
+      filter?.field ||
+      filter?.name ||
+      filter?.id ||
+      null,
+    filter?.metric_type || filter?.metricType || filter?.type || null,
+    filter?.value || [],
+    filter?.valueTypes || [],
+  ]);
+
 // Filter value picker popup — fetches distinct values for a given attribute
 export function FilterValuePickerPopup({
   anchorEl,
@@ -1462,30 +1463,21 @@ export function FilterValuePickerPopup({
 }) {
   const theme = useTheme();
   const [search, setSearch] = useState("");
-  const [selectedEntries, setSelectedEntries] = useState(() => {
-    const values = Array.isArray(filter?.value) ? filter.value : [];
-    const valueTypes = Array.isArray(filter?.valueTypes)
-      ? filter.valueTypes
-      : [];
-    return values.map((value, index) => ({
-      value,
-      type:
-        valueTypes[index] ||
-        (typeof value === "number"
-          ? "number"
-          : typeof value === "boolean"
-            ? "boolean"
-            : "string"),
-    }));
-  });
+  const [selectedEntries, setSelectedEntries] = useState(() =>
+    selectedEntriesFromFilter(filter),
+  );
+  const selectionScopeKey = filterValuePickerScopeKey(filter, source);
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+  useEffect(() => {
+    setSearch("");
+    setSelectedEntries(selectedEntriesFromFilter(filterRef.current));
+  }, [selectionScopeKey]);
   const optionStorageType = (option) => {
-    if (["string", "number", "boolean", "array"].includes(option?.type)) {
-      return option.type;
-    }
-    const value = option?.value;
-    if (typeof value === "number") return "number";
-    if (typeof value === "boolean") return "boolean";
-    return filter?.dataType === "array" ? "array" : "string";
+    return inferFilterValueStorageType(
+      option?.value,
+      option?.type || filter?.dataType,
+    );
   };
   const selectedIdentity = (value, valueType) =>
     `${valueType}:${typeof value}:${JSON.stringify(value)}`;
@@ -2030,7 +2022,7 @@ export default function WidgetEditorView() {
   // The activated property catalog now owns trace attributes as well as the
   // other property families. Keep the retained inventory hook mounted but
   // disabled for rollout compatibility; the picker must have one cursor and
-  // one Load more action.
+  // one bounded end-of-list continuation lane.
   const cursorAttributePickerActive = false;
   const {
     filteredAttributes: cursorAttributes,
@@ -2089,9 +2081,15 @@ export default function WidgetEditorView() {
   const hasNextPage = useLegacyMetricCatalog
     ? legacyMetricCatalog.hasNextPage
     : Boolean(propertyCatalog.hasNextPage);
+  const catalogContinuationKey = useLegacyMetricCatalog
+    ? legacyMetricCatalog.continuationKey
+    : propertyCatalog.continuationKey;
   const isFetchingNextPage = useLegacyMetricCatalog
     ? legacyMetricCatalog.isFetchingNextPage
     : propertyCatalog.isFetchingNextPage;
+  const isFetchNextPageError = useLegacyMetricCatalog
+    ? legacyMetricCatalog.isFetchNextPageError
+    : propertyCatalog.isFetchNextPageError;
   const isPaginatedLoading = useLegacyMetricCatalog
     ? legacyMetricCatalog.isLoading
     : propertyCatalog.isLoading ||
@@ -7308,7 +7306,7 @@ export default function WidgetEditorView() {
                   </Box>
                 ))}
               </Box>
-              {/* Right: items — each continuation requires an explicit click. */}
+              {/* Right: items — the end sentinel advances one cursor page. */}
               <Box sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}>
                 {isPickerInventoryLoading &&
                   pickerMetricOptions.length === 0 &&
@@ -7459,17 +7457,29 @@ export default function WidgetEditorView() {
                   );
                 })}
                 <WidgetCatalogPaginationControl
+                  key={`${pickerCatalogSession}:${pickerMode}:${pickerCategory}:${debouncedPickerSearch}`}
                   pickerCategory={pickerCategory}
                   hasNextPage={hasNextPage}
+                  continuationKey={catalogContinuationKey}
                   isFetchingNextPage={isFetchingNextPage}
+                  isFetchNextPageError={isFetchNextPageError}
                   onLoadMore={fetchNextPage}
                   attributeHasNextPage={
                     cursorAttributePickerActive &&
                     cursorAttributeControlProps.hasNextPage
                   }
+                  attributeContinuationKey={
+                    cursorAttributePickerActive
+                      ? cursorAttributeControlProps.continuationKey
+                      : null
+                  }
                   isFetchingAttributeNextPage={
                     cursorAttributePickerActive &&
                     cursorAttributeControlProps.isFetchingNextPage
+                  }
+                  isFetchNextAttributePageError={
+                    cursorAttributePickerActive &&
+                    cursorAttributeControlProps.isFetchNextPageError
                   }
                   onLoadMoreAttributes={cursorAttributeControlProps.onLoadMore}
                 />

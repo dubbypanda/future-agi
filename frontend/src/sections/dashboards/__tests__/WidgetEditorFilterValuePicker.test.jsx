@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "src/utils/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 
 const useResolvedFilterOptionsMock = vi.fn();
 
@@ -29,57 +29,117 @@ import {
   WidgetCatalogPaginationControl,
 } from "../WidgetEditorView";
 
+const installIntersectionObserver = () => {
+  const observers = [];
+  class IntersectionObserverMock {
+    constructor(callback, options) {
+      this.callback = callback;
+      this.options = options;
+      this.observe = vi.fn();
+      this.disconnect = vi.fn();
+      observers.push(this);
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+  const emit = (isIntersecting) => {
+    const observer = observers.at(-1);
+    if (!observer) throw new Error("No IntersectionObserver was created");
+    act(() => observer.callback([{ isIntersecting }]));
+  };
+  return { observers, emit };
+};
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("WidgetEditor filter-value picker", () => {
-  it("loads each property catalog page only through an explicit single-flight action", () => {
-    const fetchNextPage = vi.fn(() => new Promise(() => {}));
+  it("automatically loads each new cursor once while the end remains visible", async () => {
+    const intersection = installIntersectionObserver();
+    const firstPage = deferred();
+    const secondPage = deferred();
+    const fetchNextPage = vi
+      .fn()
+      .mockImplementationOnce(() => firstPage.promise)
+      .mockImplementationOnce(() => secondPage.promise);
     const { rerender } = render(
       <WidgetCatalogPaginationControl
         pickerCategory="all"
         hasNextPage
+        continuationKey="catalog-cursor-2"
         isFetchingNextPage={false}
         onLoadMore={fetchNextPage}
       />,
     );
 
-    const loadMore = screen.getByRole("button", {
-      name: "Load more",
+    const sentinel = screen.getByTestId("widget-catalog-pagination-sentinel");
+    expect(intersection.observers[0].options.root).toBe(sentinel.parentElement);
+    expect(
+      screen.queryByRole("button", { name: /load more/i }),
+    ).not.toBeInTheDocument();
+
+    intersection.emit(true);
+    intersection.emit(true);
+    expect(fetchNextPage).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading more");
+
+    await act(async () => {
+      firstPage.resolve();
+      await firstPage.promise;
     });
-    fireEvent.click(loadMore);
-    fireEvent.click(loadMore);
+    await waitFor(() =>
+      expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
+
+    // Repeated observer notifications for the same cursor are coalesced.
+    intersection.emit(true);
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
+    // A short appended page can leave the sentinel visible. Publishing a new
+    // cursor still advances exactly once without requiring an exit/re-entry.
     rerender(
       <WidgetCatalogPaginationControl
         pickerCategory="all"
         hasNextPage
-        isFetchingNextPage
+        continuationKey="catalog-cursor-3"
+        isFetchingNextPage={false}
         onLoadMore={fetchNextPage}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Loading more");
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalledTimes(2));
+
+    intersection.emit(true);
+    expect(fetchNextPage).toHaveBeenCalledTimes(2);
   });
 
-  it("advances both All-category cursors through one single-flight action", () => {
+  it("advances both All-category cursors through one end intersection", () => {
+    const intersection = installIntersectionObserver();
     const fetchNextPage = vi.fn(() => new Promise(() => {}));
     const fetchNextAttributePage = vi.fn(() => new Promise(() => {}));
     render(
       <WidgetCatalogPaginationControl
         pickerCategory="all"
         hasNextPage
+        continuationKey="catalog-cursor-2"
         isFetchingNextPage={false}
         onLoadMore={fetchNextPage}
         attributeHasNextPage
+        attributeContinuationKey="attribute-cursor-2"
         isFetchingAttributeNextPage={false}
         onLoadMoreAttributes={fetchNextAttributePage}
       />,
     );
 
-    const loadMore = screen.getByRole("button", { name: "Load more" });
-    expect(screen.getAllByRole("button", { name: "Load more" })).toHaveLength(
-      1,
-    );
-    fireEvent.click(loadMore);
-    fireEvent.click(loadMore);
+    intersection.emit(true);
+    intersection.emit(true);
 
     expect(fetchNextPage).toHaveBeenCalledOnce();
     expect(fetchNextAttributePage).toHaveBeenCalledOnce();
@@ -87,18 +147,52 @@ describe("WidgetEditor filter-value picker", () => {
   });
 
   it("advances the unified catalog cursor in the trace-attribute category", () => {
-    const fetchNextPage = vi.fn();
+    const intersection = installIntersectionObserver();
+    const fetchNextPage = vi.fn(() => new Promise(() => {}));
     render(
       <WidgetCatalogPaginationControl
         pickerCategory="custom_attribute"
         hasNextPage
+        continuationKey="catalog-cursor-2"
         isFetchingNextPage={false}
         onLoadMore={fetchNextPage}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    intersection.emit(true);
     expect(fetchNextPage).toHaveBeenCalledOnce();
+  });
+
+  it("offers Retry only for an actual failed cursor and retries only that cursor", async () => {
+    const intersection = installIntersectionObserver();
+    const fetchNextPage = vi.fn();
+    const retryAttributePage = vi.fn().mockResolvedValue(undefined);
+    render(
+      <WidgetCatalogPaginationControl
+        pickerCategory="all"
+        hasNextPage
+        continuationKey="catalog-cursor-2"
+        isFetchingNextPage={false}
+        onLoadMore={fetchNextPage}
+        attributeHasNextPage
+        attributeContinuationKey="attribute-cursor-2"
+        isFetchingAttributeNextPage={false}
+        isFetchNextAttributePageError
+        onLoadMoreAttributes={retryAttributePage}
+      />,
+    );
+
+    intersection.emit(true);
+    expect(fetchNextPage).not.toHaveBeenCalled();
+    expect(retryAttributePage).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("The next page failed");
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retryAttributePage).toHaveBeenCalledOnce();
+    expect(fetchNextPage).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
   });
 
   it("offers only properties supported by the selected widget adapters", () => {
@@ -333,6 +427,60 @@ describe("WidgetEditor filter-value picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(onApply).toHaveBeenCalledWith(["refund_code"], ["string"]);
+    document.body.removeChild(anchorEl);
+  });
+
+  it("resynchronizes selections and search when the active filter changes", () => {
+    useResolvedFilterOptionsMock.mockReturnValue({
+      options: [
+        { value: "alpha", label: "Alpha", type: "string" },
+        { value: "beta", label: "Beta", type: "string" },
+        { value: "gamma", label: "Gamma", type: "string" },
+      ],
+      isLoading: false,
+      isError: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      queryReadState: "complete",
+      refetch: vi.fn(),
+    });
+    const onApply = vi.fn();
+    const anchorEl = document.createElement("button");
+    document.body.appendChild(anchorEl);
+    const renderPicker = (filter) => (
+      <FilterValuePickerPopup
+        anchorEl={anchorEl}
+        filter={filter}
+        onClose={vi.fn()}
+        onApply={onApply}
+        source="traces"
+      />
+    );
+    const { rerender } = render(
+      renderPicker({
+        field: "first-property",
+        value: ["alpha"],
+        valueTypes: ["string"],
+      }),
+    );
+
+    fireEvent.click(screen.getByText("Beta"));
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "beta" },
+    });
+    rerender(
+      renderPicker({
+        field: "second-property",
+        value: ["gamma"],
+        valueTypes: ["string"],
+      }),
+    );
+
+    expect(screen.getByPlaceholderText("Search...")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onApply).toHaveBeenLastCalledWith(["gamma"], ["string"]);
     document.body.removeChild(anchorEl);
   });
 

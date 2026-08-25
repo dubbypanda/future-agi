@@ -14,6 +14,7 @@ vi.mock("src/utils/axios", () => ({
 }));
 
 import { useEvalUsageChart, useEvalUsageLogs } from "../useEvalUsage";
+import { AGGREGATION_POLL_MAX_ATTEMPTS } from "src/utils/queryReadState";
 
 function createQueryWrapper() {
   const queryClient = new QueryClient({
@@ -303,7 +304,9 @@ describe("useEvalUsage date params", () => {
     expect(result.current.isPollingPaused).toBe(true);
     expect(result.current.data?.queryPending).toBe(true);
     expect(result.current.data?.queryRefreshing).toBe(false);
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
 
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
     expect(mocks.get).toHaveBeenCalledTimes(boundedRequestCount);
@@ -569,7 +572,9 @@ describe("useEvalUsageLogs response mapping", () => {
     expect(result.current.isPollingPaused).toBe(true);
     expect(result.current.data?.queryPending).toBe(true);
     expect(result.current.data?.queryRefreshing).toBe(false);
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
 
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
     expect(mocks.get).toHaveBeenCalledTimes(boundedRequestCount);

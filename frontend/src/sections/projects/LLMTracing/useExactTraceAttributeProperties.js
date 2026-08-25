@@ -342,6 +342,19 @@ export function useLegacyExactTraceAttributeProperties({
   const shouldAdvanceRetained = !debouncedSearch || !exactHasNextPage;
   const hasNextPage =
     exactHasNextPage || (shouldAdvanceRetained && retainedHasNextPage);
+  const exactContinuationKey = exactStoppedRetryAvailable
+    ? `retry:${exactStopSignature}`
+    : exactInitialError || exactRefetchError
+      ? `fresh:${exactRetryIdentity}`
+      : getAttributeKeyNextCursor(exactPages.at(-1));
+  const retainedContinuationKey = retainedStoppedRetryAvailable
+    ? `retry:${retainedStopSignature}`
+    : getAttributeKeyNextCursor(retainedPages.at(-1));
+  const continuationKey = exactHasNextPage
+    ? `exact:${exactContinuationKey}`
+    : shouldAdvanceRetained && retainedHasNextPage
+      ? `retained:${retainedContinuationKey}`
+      : null;
 
   const fetchFreshChainPage = ({ lane, queryKey, exact }) => {
     if (freshChainRequestRef.current) return freshChainRequestRef.current;
@@ -521,6 +534,7 @@ export function useLegacyExactTraceAttributeProperties({
     // chain; the retained catalog may still contain distinct sibling keys.
     exactSearchMatched,
     debouncedSearch,
+    continuationKey,
     isFetching:
       retainedQuery.isFetching ||
       (Boolean(debouncedSearch) && exactQuery.isFetching) ||
@@ -684,6 +698,7 @@ export function useExactTraceAttributeProperties({
     isFetchingExactSearch: searchActive && catalog.isFetching,
     isFetchingNextExactPage: searchActive && catalog.isFetchingNextPage,
     fetchNextPage,
+    continuationKey: catalog.continuationKey,
     refetch: catalog.refetch,
     isFetchingNextPage: catalog.isFetchingNextPage,
     isFetchNextPageError: nextPageFailed,

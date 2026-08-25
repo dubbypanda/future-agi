@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import axios from "src/utils/axios";
 import {
+  AGGREGATION_POLL_MAX_ATTEMPTS,
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
@@ -448,7 +449,9 @@ describe("GraphSection exact graph boundary", () => {
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
 
     const boundedRequestCount = axios.post.mock.calls.length;
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
     expect(screen.getByText(AGGREGATION_POLLING_PAUSED_MESSAGE)).toBeVisible();
     expect(
       screen.queryByText(
