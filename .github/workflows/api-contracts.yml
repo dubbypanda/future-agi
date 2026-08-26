@@ -217,7 +217,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       REDIS_LOCK_URL: redis://localhost:6379/2
       TESTING: "false"
-      NLTK_DATA: ${{ runner.temp }}/nltk_data
+      NLTK_DATA: /tmp/futureagi-nltk-data
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN }}
       EE_CHECKOUT_PATH: .ee-cloud-source
       EE_PACKAGE_PATH: futureagi/ee/cloud

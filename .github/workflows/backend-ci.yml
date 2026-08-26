@@ -99,7 +99,7 @@ jobs:
       CH_DATABASE: test_tfc
       PYTHONHASHSEED: "0"
       FI_CH25_SCHEMA_APPLY_STRICT: "1"
-      NLTK_DATA: ${{ runner.temp }}/nltk_data
+      NLTK_DATA: /tmp/futureagi-nltk-data
       EE_CHECKOUT_PATH: .ee-cloud-source
       EE_PACKAGE_PATH: futureagi/ee/cloud
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
