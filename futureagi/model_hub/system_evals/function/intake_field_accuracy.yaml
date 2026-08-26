@@ -1,4 +1,4 @@
-eval_id: 225
+eval_id: 207
 name: intake_field_accuracy
 description: Scores a structured record an agent captured during a call against a gold record, field by field. Returns weighted
   per-field accuracy, with an optional critical-field gate that forces 0 when any must-get-right field is wrong or missing.
@@ -40,9 +40,9 @@ config:
     expected: The gold intake record for the same call, in the same shape. The fields present here define what is scored
     critical_fields: Field names that must be exactly right. If any is wrong or missing the eval returns 0 regardless of the
       other fields
-    field_weights: 'Optional per-field weights, e.g. {"policy_number": 3}. Fields default to a weight of 1'
+    field_weights: 'Optional per-field weights, e.g. {"account_number": 3}. Fields default to a weight of 1'
     normalize: Compare values format-insensitively. Case and surrounding whitespace are always ignored. Any value containing
-      a digit is treated as an identifier (phone, policy or account number, date, amount) and compared with all separators
+      a digit is treated as an identifier (phone, account or reference number, date, amount) and compared with all separators
       stripped, so "(555) 123-4567" and "555-123-4567" agree. Pure-text values keep their word boundaries. Dates are separator-insensitive
       only, so supply them in a consistent format. Set false for exact string comparison
   param_modalities:
@@ -68,7 +68,7 @@ config:
     \ = item.get(\"value\")\n            return rec\n        return {}\n\n    def _norm(val, normalize):\n        if val is\
     \ None:\n            return \"\"\n        s = str(val).strip()\n        if not normalize:\n            return s\n    \
     \    s = re.sub(r\"\\s+\", \" \", s.casefold())\n        if s in _EMPTY:\n            return \"\"\n        # Any value\
-    \ carrying a digit is treated as an identifier - phone, policy or\n        # account number, date, amount - and compared\
+    \ carrying a digit is treated as an identifier - phone, account or\n        # reference number, date, amount - and compared\
     \ with every separator removed,\n        # because the formatting comes from the transcriber, not the agent. Pure\n  \
     \      # text keeps its word boundaries so two distinct names stay distinct.\n        if re.search(r\"\\d\", s):\n   \
     \         return re.sub(r\"[^a-z0-9]\", \"\", s)\n        return re.sub(r\"\\s+\", \" \", re.sub(r\"[^a-z0-9]\", \" \"\

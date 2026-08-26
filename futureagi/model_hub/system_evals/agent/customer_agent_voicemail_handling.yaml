@@ -1,4 +1,4 @@
-eval_id: 224
+eval_id: 206
 name: customer_agent_voicemail_handling
 description: Evaluates how an outbound voice agent handles reaching a voicemail box or answering machine - whether it detects
   the machine and stops its interactive script, leaves one complete message with identity, reason and a callback path or disconnects
@@ -13,7 +13,7 @@ criteria: "You are evaluating how well an outbound agent handles reaching a voic
   \ happens next - in one pass, without needing a second attempt.\n   - Good: \"This is <agent> calling from <organization>\
   \ about <reason>. You can reach us at <number>, or we'll try again <when>.\"\n   - Bad: \"Hi, just calling to follow up\
   \ - call us back.\" (no identity, no reason, no callback path)\n4. No sensitive information left on a machine: The agent\
-  \ does not state account numbers, dates of birth, government identifiers, policy or claim numbers, balances, health details,\
+  \ does not state account or reference numbers, dates of birth, government identifiers, balances, health or financial details,\
   \ or other sensitive specifics. A voicemail can be heard by someone other than the intended recipient.\n   - Good: \"It's\
   \ about your recent enquiry - call us and we can confirm the details securely.\"\n   - Bad: Reads out an account number,\
   \ balance, or medical or financial specifics into the message.\n5. Clean termination: The agent ends the call after delivering\
@@ -73,7 +73,7 @@ config:
     \ or what happens next - in one pass, without needing a second attempt.\n   - Good: \"This is <agent> calling from <organization>\
     \ about <reason>. You can reach us at <number>, or we'll try again <when>.\"\n   - Bad: \"Hi, just calling to follow up\
     \ - call us back.\" (no identity, no reason, no callback path)\n4. No sensitive information left on a machine: The agent\
-    \ does not state account numbers, dates of birth, government identifiers, policy or claim numbers, balances, health details,\
+    \ does not state account or reference numbers, dates of birth, government identifiers, balances, health or financial details,\
     \ or other sensitive specifics. A voicemail can be heard by someone other than the intended recipient.\n   - Good: \"\
     It's about your recent enquiry - call us and we can confirm the details securely.\"\n   - Bad: Reads out an account number,\
     \ balance, or medical or financial specifics into the message.\n5. Clean termination: The agent ends the call after delivering\

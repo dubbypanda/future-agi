@@ -1,6 +1,6 @@
-eval_id: 223
-name: insurance_claim_intake_accuracy
-description: Evaluates whether the agent runs first-notice-of-loss / claim intake correctly across a multi-turn voice or chat
+eval_id: 205
+name: claim_intake_accuracy
+description: Evaluates whether an agent runs first-notice-of-loss / claim intake correctly across a multi-turn voice or chat
   conversation - captures and confirms required claim details, keeps them consistent and honours customer corrections, sets
   accurate expectations, and makes no coverage or settlement promises.
 criteria: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL) interaction\
@@ -52,7 +52,7 @@ config:
   eval_type_id: AgentEvaluator
   config: {}
   config_params_desc:
-    agent_prompt: The insurance agent's system prompt (claim intake / FNOL process)
+    agent_prompt: The agent's system prompt (claim intake / FNOL process)
     conversation: The conversation to be evaluated
   param_modalities:
     agent_prompt:
