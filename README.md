@@ -144,6 +144,12 @@ Open [http://localhost:3000](http://localhost:3000).
 </tr>
 </table>
 
+The experimental unified property catalog is intentionally disabled in the
+normal self-host stack. Contributors can use the
+[OSS/local compatibility and qualification guide](fi-collector/PROPERTY_CATALOG_OSS.md)
+to verify its producer, consumer, storage, and API paths without enabling the
+legacy span-attribute catalog or relying on EE modules.
+
 ### Instrument your first agent
 
 <table width="100%">

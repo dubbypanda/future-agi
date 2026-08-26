@@ -31,6 +31,11 @@ x-backend-env: &backend-env
   # multiply ClickHouse pressure or starve unrelated XL work.
   EXACT_AGGREGATION_TASK_QUEUE: ${EXACT_AGGREGATION_TASK_QUEUE:-exact_aggregation}
   OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  # Unified property-catalog reads and scheduled reconciliation are
+  # experimental, isolated qualification paths. Keep the normal OSS stack
+  # fail-closed even if an image changes an internal default.
+  PROPERTY_CATALOG_READ_MODE: ${PROPERTY_CATALOG_READ_MODE:-off}
+  PROPERTY_CATALOG_DEV_RECONCILE_ENABLED: ${PROPERTY_CATALOG_DEV_RECONCILE_ENABLED:-false}
   INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   FUTURE_AGI_VERSION: ${FUTURE_AGI_VERSION:-unknown}
   FUTURE_AGI_DEPLOYMENT_TYPE: ${FUTURE_AGI_DEPLOYMENT_TYPE:-docker}
@@ -439,6 +444,11 @@ services:
       - "127.0.0.1:${FI_COLLECTOR_OTLP_HTTP_PORT:-4318}:4318"
       - "127.0.0.1:${FI_COLLECTOR_ADMIN_PORT:-9464}:9464"
     environment:
+      # The legacy and unified catalog writers are separate opt-in paths. The
+      # root OSS stack runs neither Kafka nor a catalog consumer, so both stay
+      # explicitly disabled here. See fi-collector/PROPERTY_CATALOG_OSS.md.
+      FI_CATALOG_MODE: disabled
+      FI_PROPERTY_CATALOG_MODE: disabled
       # Point at the same ClickHouse the backend uses (HTTP port 8123).
       FI_CH_URL: http://clickhouse:8123
       FI_CH_DATABASE: ${FI_CH_DATABASE:-${CH25_DATABASE:-${CH_DATABASE:-default}}}
