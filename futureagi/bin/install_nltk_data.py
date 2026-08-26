@@ -25,6 +25,18 @@ PACKAGES = {
         "tokenizers/punkt_tab.zip",
         "e57f64187974277726a3417ca6f181ec5403676c717672eef6a748a7b20e0106",
     ),
+    "taggers/averaged_perceptron_tagger_eng": (
+        "taggers/averaged_perceptron_tagger_eng.zip",
+        "6025f530624335c67d6547d44757b357b4e79bae030a0383e9887a92c1718f0b",
+    ),
+    "corpora/wordnet": (
+        "corpora/wordnet.zip",
+        "cbda5ea6eef7f36a97a43d4a75f85e07fccbb4f23657d27b4ccbc93e2646ab59",
+    ),
+    "corpora/omw-1.4": (
+        "corpora/omw-1.4.zip",
+        "3b941e664852f3297b6040236626065796a2aaf7d7f9eec8779a3beaa1096c2d",
+    ),
 }
 
 
@@ -60,13 +72,21 @@ def install() -> None:
                 f"expected {expected_sha256}, got {actual_sha256}"
             )
 
+        archive_path = NLTK_DATA_ROOT / package_path
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        # NLTK's downloader status checks the original archive size/checksum.
+        # Keep the pinned archive alongside the extracted tree so a runtime
+        # ``nltk.download`` check cannot misclassify baked data as missing.
+        archive_path.write_bytes(payload)
+
         resource_group = resource_name.split("/", 1)[0]
         destination = NLTK_DATA_ROOT / resource_group
         destination.mkdir(parents=True, exist_ok=True)
         _safe_extract(payload, destination)
 
     import nltk
-    from nltk.corpus import stopwords
+    from nltk.corpus import stopwords, wordnet
+    from nltk.stem import WordNetLemmatizer
 
     # Verify exactly what the clean image will contain.  Do not allow a
     # developer/CI host's pre-existing NLTK directories to hide a missing
@@ -81,6 +101,12 @@ def install() -> None:
         "verification",
     ]:
         raise RuntimeError("NLTK punkt tokenizer verification failed")
+    if not nltk.pos_tag(["Future"])[0][1]:
+        raise RuntimeError("NLTK part-of-speech tagger verification failed")
+    if WordNetLemmatizer().lemmatize("cars", "n") != "car":
+        raise RuntimeError("NLTK WordNet verification failed")
+    if not wordnet.synsets("chien", lang="fra"):
+        raise RuntimeError("NLTK multilingual WordNet verification failed")
 
 
 if __name__ == "__main__":
