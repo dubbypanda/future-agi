@@ -161,28 +161,9 @@ jobs:
       - name: Normalize EE package layout
         if: env.IS_INTERNAL_RUN == 'true'
         run: |
-          set -Eeuo pipefail
-          checkout_root="${GITHUB_WORKSPACE}/${EE_CHECKOUT_PATH}"
-          package_target="${GITHUB_WORKSPACE}/${EE_PACKAGE_PATH}"
-          if [ -f "${checkout_root}/cloud/__init__.py" ]; then
-            package_source="${checkout_root}/cloud"
-            package_layout="legacy cloud subdirectory"
-          elif [ -f "${checkout_root}/__init__.py" ]; then
-            package_source="${checkout_root}"
-            package_layout="package root"
-          else
-            echo "::error::EE checkout has neither cloud/__init__.py nor __init__.py"
-            exit 1
-          fi
-          mkdir -p "${package_target}"
-          rsync -a --delete \
-            --exclude='.git' \
-            --exclude='__pycache__' \
-            "${package_source}/" "${package_target}/"
-          test -f "${package_target}/__init__.py"
-          test -f "${package_target}/telemetry/schema.py"
-          test ! -d "${package_target}/cloud"
-          echo "::notice::Normalized EE ${package_layout} into ${EE_PACKAGE_PATH}"
+          "${GITHUB_WORKSPACE}/.github/scripts/normalize-ee-cloud-package.sh" \
+            "${GITHUB_WORKSPACE}/${EE_CHECKOUT_PATH}" \
+            "${GITHUB_WORKSPACE}/${EE_PACKAGE_PATH}"
 
       - uses: astral-sh/setup-uv@v5
         with:

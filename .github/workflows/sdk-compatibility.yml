@@ -58,6 +58,7 @@ jobs:
       PG_PASSWORD: postgres
       TESTING: "false"
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN || secrets.ORG_READ_TOKEN }}
+      EE_PACKAGE_PATH: futureagi/ee/cloud
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
       EE_BASE_REF: ${{ github.base_ref || github.ref_name || 'dev' }}
       SDK_REPO_READ_TOKEN: ${{ secrets.SDK_REPO_READ_TOKEN || '' }}
@@ -100,9 +101,9 @@ jobs:
                 fetch --depth=1 origin "${candidate}"
               git checkout --detach FETCH_HEAD
               cd "${GITHUB_WORKSPACE}"
-              mkdir -p futureagi
-              rm -rf futureagi/ee
-              mv "${EE_TMP_DIR}" futureagi/ee
+              ./.github/scripts/normalize-ee-cloud-package.sh \
+                "${EE_TMP_DIR}" \
+                "${GITHUB_WORKSPACE}/${EE_PACKAGE_PATH}"
               echo "Using EE branch ${candidate}"
               echo "mode=ee" >> "$GITHUB_OUTPUT"
               exit 0
