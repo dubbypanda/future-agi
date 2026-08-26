@@ -18274,6 +18274,18 @@
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiTextErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiTextErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "",
                         "schema": {
@@ -29906,6 +29918,23 @@
                         "required": false,
                         "type": "boolean",
                         "default": false
+                    },
+                    {
+                        "name": "exact_snapshot",
+                        "in": "query",
+                        "description": "Start an exact MVCC-bound dataset read. Exact reads start at page 0 and return a signed next_cursor when more rows remain.",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "Signed next_cursor from the preceding exact dataset page. Keep the same page_size and current_page_index sequence.",
+                        "required": false,
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -29940,6 +29969,18 @@
                         }
                     },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -29986,6 +30027,18 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/DatasetRowDataResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -30853,12 +30906,48 @@
             "get": {
                 "operationId": "model-hub_develops_get-experiment-dataset-table_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/DatasetTableResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -30900,7 +30989,9 @@
                 },
                 "tags": [
                     "model-hub"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -35103,12 +35194,70 @@
             "get": {
                 "operationId": "model-hub_experiments_v2_rows_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "column_config_only",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "get_diff",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 512
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -35150,7 +35299,9 @@
                 },
                 "tags": [
                     "model-hub"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -35165,12 +35316,70 @@
             "get": {
                 "operationId": "model-hub_experiments_v2_rows_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "column_config_only",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "get_diff",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 512
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -35212,7 +35421,9 @@
                 },
                 "tags": [
                     "model-hub"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -35369,12 +35580,70 @@
             "get": {
                 "operationId": "model-hub_experiments_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "column_config_only",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "get_diff",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 512
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -35416,7 +35685,9 @@
                 },
                 "tags": [
                     "model-hub"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -35905,12 +36176,70 @@
             "get": {
                 "operationId": "model-hub_experiments_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "column_config_only",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "get_diff",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 512
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
                     "400": {
@@ -35952,7 +36281,9 @@
                 },
                 "tags": [
                     "model-hub"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -36673,6 +37004,7 @@
                         "required": false,
                         "type": "integer",
                         "default": 10,
+                        "maximum": 100,
                         "minimum": 1
                     },
                     {
@@ -36756,6 +37088,18 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "default": {
                         "description": "Default error response",
                         "schema": {
@@ -36786,6 +37130,7 @@
                     {
                         "name": "filters",
                         "in": "query",
+                        "description": "Optional created_at datetime filters. The default window is 30 days; the maximum supported window is 365 days.",
                         "required": false,
                         "type": "string",
                         "default": "[]",
@@ -36824,6 +37169,18 @@
                         }
                     },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -36887,6 +37244,18 @@
                         }
                     },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -44102,13 +44471,6 @@
                         "minLength": 1
                     },
                     {
-                        "name": "search_term",
-                        "in": "query",
-                        "required": false,
-                        "type": "string",
-                        "default": ""
-                    },
-                    {
                         "name": "page_number",
                         "in": "query",
                         "required": false,
@@ -44158,6 +44520,18 @@
                         }
                     },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -44254,13 +44628,6 @@
                         "minLength": 1
                     },
                     {
-                        "name": "search_term",
-                        "in": "query",
-                        "required": false,
-                        "type": "string",
-                        "default": ""
-                    },
-                    {
                         "name": "page_number",
                         "in": "query",
                         "required": false,
@@ -44276,6 +44643,13 @@
                         "default": 10,
                         "maximum": 100,
                         "minimum": 1
+                    },
+                    {
+                        "name": "search_term",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": ""
                     }
                 ],
                 "responses": {
@@ -44310,6 +44684,18 @@
                         }
                     },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -50508,7 +50894,7 @@
         "/simulate/api/run-tests/": {
             "get": {
                 "operationId": "simulate_api_run-tests_list",
-                "description": "Get paginated list of run tests for the user's organization\nQuery Parameters:\n- search: search string to filter run tests by name\n- limit: number of items per page (default: 10)\n- page: page number (default: 1)",
+                "description": "Get paginated list of run tests for the user's organization\nQuery Parameters:\n- search: search string to filter run tests by name\n- limit: number of items per page (default: 10)\n- page: page number (default: 1)\n- summary: return the bounded list-card representation",
                 "parameters": [
                     {
                         "name": "search",
@@ -50542,6 +50928,7 @@
                         "required": false,
                         "type": "integer",
                         "default": 1,
+                        "maximum": 100,
                         "minimum": 1
                     },
                     {
@@ -50549,7 +50936,16 @@
                         "in": "query",
                         "required": false,
                         "type": "integer",
+                        "maximum": 100,
                         "minimum": 1
+                    },
+                    {
+                        "name": "summary",
+                        "in": "query",
+                        "description": "Return the bounded list-card representation instead of the full nested run-test detail payload.",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     }
                 ],
                 "responses": {
@@ -50563,6 +50959,12 @@
                         }
                     },
                     "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
@@ -51207,7 +51609,33 @@
                 "operationId": "simulate_prompt-templates_simulations_list",
                 "summary": "Get paginated list of simulation runs for a specific prompt template.",
                 "description": "Query Parameters:\n- limit: number of items per page (default: 10)\n- page: page number (default: 1)\n- version_id: filter by specific prompt version",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "version_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 1,
+                        "maximum": 100,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -51222,6 +51650,12 @@
                         }
                     },
                     "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiTextErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -51242,7 +51676,9 @@
                 },
                 "tags": [
                     "simulate"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "post": {
                 "operationId": "simulate_prompt-templates_simulations_create",
@@ -51318,6 +51754,12 @@
                         }
                     },
                     "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiTextErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -51508,7 +51950,7 @@
         "/simulate/run-tests/": {
             "get": {
                 "operationId": "simulate_run-tests_list",
-                "description": "Get paginated list of run tests for the user's organization\nQuery Parameters:\n- search: search string to filter run tests by name\n- limit: number of items per page (default: 10)\n- page: page number (default: 1)\n- simulation_type: filter by source type (RunTest.SourceTypes values:\n    'agent_definition' or 'prompt')\n- prompt_template_id: filter by prompt template ID (used when\n    simulation_type is 'prompt')",
+                "description": "Get paginated list of run tests for the user's organization\nQuery Parameters:\n- search: search string to filter run tests by name\n- limit: number of items per page (default: 10)\n- page: page number (default: 1)\n- simulation_type: filter by source type (RunTest.SourceTypes values:\n    'agent_definition' or 'prompt')\n- prompt_template_id: filter by prompt template ID (used when\n    simulation_type is 'prompt')\n- summary: return the bounded list-card representation",
                 "parameters": [
                     {
                         "name": "search",
@@ -51542,6 +51984,7 @@
                         "required": false,
                         "type": "integer",
                         "default": 1,
+                        "maximum": 100,
                         "minimum": 1
                     },
                     {
@@ -51549,7 +51992,16 @@
                         "in": "query",
                         "required": false,
                         "type": "integer",
+                        "maximum": 100,
                         "minimum": 1
+                    },
+                    {
+                        "name": "summary",
+                        "in": "query",
+                        "description": "Return the bounded list-card representation instead of the full nested run-test detail payload.",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     }
                 ],
                 "responses": {
@@ -51557,6 +52009,12 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestListPaginatedResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
                     "500": {
@@ -51728,6 +52186,12 @@
                         }
                     },
                     "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
@@ -52628,6 +53092,82 @@
                 "tags": [
                     "simulate"
                 ]
+            },
+            "parameters": [
+                {
+                    "name": "run_test_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "string"
+                }
+            ]
+        },
+        "/simulate/run-tests/{run_test_id}/preview-executions/": {
+            "get": {
+                "operationId": "simulate_run-tests_preview-executions_list",
+                "description": "",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 50,
+                        "maximum": 50,
+                        "minimum": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewPage"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "default": {
+                        "description": "Default error response",
+                        "schema": {
+                            "$ref": "#/definitions/ManagementAPIErrorResponse"
+                        }
+                    }
+                },
+                "tags": [
+                    "simulate"
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -54315,6 +54855,90 @@
                 }
             ]
         },
+        "/simulate/test-executions/{test_execution_id}/preview-calls/": {
+            "get": {
+                "operationId": "simulate_test-executions_preview-calls_list",
+                "description": "",
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 50,
+                        "maximum": 50,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "run_test_id",
+                        "in": "query",
+                        "description": "Run-test scope selected by the preview. The execution and every signed continuation must belong to this run test.",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewPage"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SimulationPreviewError"
+                        }
+                    },
+                    "default": {
+                        "description": "Default error response",
+                        "schema": {
+                            "$ref": "#/definitions/ManagementAPIErrorResponse"
+                        }
+                    }
+                },
+                "tags": [
+                    "simulate"
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
+            },
+            "parameters": [
+                {
+                    "name": "test_execution_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "string"
+                }
+            ]
+        },
         "/simulate/test-executions/{test_execution_id}/rerun-calls/": {
             "post": {
                 "operationId": "simulate_test-executions_rerun-calls_create",
@@ -54543,50 +55167,80 @@
                 "description": "Handles 1M+ datapoints efficiently with:\n- Database-level time bucketing and aggregation\n- Subquery-based filtering (no large IN clauses)\n- Query result caching\n- Minimal memory footprint\n\nPerformance targets:\n- 20-30k datapoints: <100ms\n- 100k datapoints: <500ms\n- 1M datapoints: 2-3s\n\nQuery parameters same as fetch_graph.",
                 "parameters": [
                     {
-                        "name": "page",
+                        "name": "interval",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
-                        "required": false,
-                        "type": "integer"
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
                     },
                     {
-                        "name": "limit",
+                        "name": "filters",
                         "in": "query",
-                        "description": "Number of results to return per page.",
                         "required": false,
-                        "type": "integer"
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "property",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "average"
+                    },
+                    {
+                        "name": "req_data_config",
+                        "in": "query",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "allow_sampled",
+                        "in": "query",
+                        "description": "Deprecated compatibility parameter; accepted but ignored. Aggregate graph results are always exact.",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "refresh",
+                        "in": "query",
+                        "description": "Recompute and atomically replace the last complete exact result.",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
-                            "required": [
-                                "count",
-                                "results"
-                            ],
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "next": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "previous": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "results": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/FetchGraph"
-                                    }
-                                }
-                            }
+                            "$ref": "#/definitions/FetchGraphResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "default": {
@@ -54598,7 +55252,9 @@
                 },
                 "tags": [
                     "tracer"
-                ]
+                ],
+                "x-runtime-request-validation": true,
+                "x-runtime-response-validation": true
             },
             "parameters": []
         },
@@ -55080,23 +55736,18 @@
                 "description": "Return distinct values for a given metric/attribute, for filter value picker.",
                 "parameters": [
                     {
-                        "name": "page",
+                        "name": "property_id",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
+                        "description": "Stable namespaced property identity returned by the metrics catalog. Legacy metric_name/metric_type remain accepted during migration.",
                         "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Number of results to return per page.",
-                        "required": false,
-                        "type": "integer"
+                        "type": "string",
+                        "maxLength": 1024,
+                        "minLength": 1
                     },
                     {
                         "name": "metric_name",
                         "in": "query",
-                        "required": true,
+                        "required": false,
                         "type": "string",
                         "minLength": 1
                     },
@@ -55111,8 +55762,7 @@
                             "annotation_metric",
                             "custom_attribute",
                             "custom_column"
-                        ],
-                        "default": "system_metric"
+                        ]
                     },
                     {
                         "name": "source",
@@ -55121,10 +55771,16 @@
                         "type": "string",
                         "enum": [
                             "traces",
+                            "spans",
                             "sessions",
+                            "users",
+                            "voice_calls",
+                            "prompts",
                             "datasets",
                             "dataset_column",
-                            "simulation"
+                            "simulation",
+                            "both",
+                            "all"
                         ],
                         "default": "traces"
                     },
@@ -55194,6 +55850,12 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "",
                         "schema": {
@@ -55228,18 +55890,125 @@
                 "description": "Backward compat: if ``workflow`` param is provided, return only\nthat source's metrics in the old grouped format.",
                 "parameters": [
                     {
-                        "name": "page",
+                        "name": "workflow",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
                         "required": false,
-                        "type": "integer"
+                        "type": "string",
+                        "enum": [
+                            "observability",
+                            "dataset",
+                            "simulation"
+                        ]
                     },
                     {
-                        "name": "limit",
+                        "name": "project_ids",
                         "in": "query",
-                        "description": "Number of results to return per page.",
                         "required": false,
-                        "type": "integer"
+                        "type": "string",
+                        "default": []
+                    },
+                    {
+                        "name": "agent_definition_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "per_eval_config",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "exclude_custom_attributes",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 256
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "system_metric",
+                            "eval_metric",
+                            "annotation_metric",
+                            "custom_attribute",
+                            "custom_column"
+                        ],
+                        "default": ""
+                    },
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "metric",
+                            "dimension"
+                        ],
+                        "default": ""
+                    },
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "traces",
+                            "spans",
+                            "sessions",
+                            "users",
+                            "voice_calls",
+                            "prompts",
+                            "datasets",
+                            "simulation",
+                            "both",
+                            "all"
+                        ],
+                        "default": ""
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "maximum": 200,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "cursor_mode",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "maxLength": 16384,
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -55255,6 +56024,18 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
                     "default": {
                         "description": "Default error response",
                         "schema": {
@@ -55265,6 +56046,7 @@
                 "tags": [
                     "tracer"
                 ],
+                "x-runtime-request-validation": true,
                 "x-runtime-response-validation": true
             },
             "parameters": []
@@ -56241,21 +57023,25 @@
         "/tracer/eval-task/": {
             "get": {
                 "operationId": "tracer_eval-task_list",
-                "description": "",
+                "description": "Return one finite page without per-task progress queries.",
                 "parameters": [
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
+                        "description": "A one-based page number. Deep pages whose offset exceeds 50000 are rejected.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "minimum": 1
                     },
                     {
                         "name": "limit",
                         "in": "query",
                         "description": "Number of results to return per page.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
                     }
                 ],
                 "responses": {
@@ -56288,6 +57074,24 @@
                                     }
                                 }
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "default": {
@@ -56356,16 +57160,20 @@
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
+                        "description": "A one-based page number. Deep pages whose offset exceeds 50000 are rejected.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "minimum": 1
                     },
                     {
                         "name": "limit",
                         "in": "query",
                         "description": "Number of results to return per page.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
                     }
                 ],
                 "responses": {
@@ -56412,6 +57220,18 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "",
                         "schema": {
@@ -56440,16 +57260,20 @@
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "A page number within the paginated result set.",
+                        "description": "A one-based page number. Deep pages whose offset exceeds 50000 are rejected.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "minimum": 1
                     },
                     {
                         "name": "limit",
                         "in": "query",
                         "description": "Number of results to return per page.",
                         "required": false,
-                        "type": "integer"
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
                     }
                 ],
                 "responses": {
@@ -56485,6 +57309,18 @@
                         }
                     },
                     "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -56529,6 +57365,7 @@
                         "type": "string",
                         "enum": [
                             "30m",
+                            "1h",
                             "6h",
                             "1d",
                             "7d",
@@ -56622,6 +57459,18 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "",
                         "schema": {
@@ -56691,7 +57540,7 @@
                         "required": false,
                         "type": "integer",
                         "default": 30,
-                        "maximum": 500,
+                        "maximum": 100,
                         "minimum": 1
                     }
                 ],
@@ -56699,13 +57548,22 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/EvalTask"
-                            }
+                            "$ref": "#/definitions/_EvalTaskListResponse"
                         }
                     },
                     "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -56780,7 +57638,7 @@
                         "required": false,
                         "type": "integer",
                         "default": 10,
-                        "maximum": 500,
+                        "maximum": 100,
                         "minimum": 1
                     }
                 ],
@@ -56788,13 +57646,22 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/EvalTask"
-                            }
+                            "$ref": "#/definitions/_EvalTaskListResponse"
                         }
                     },
                     "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57031,13 +57898,31 @@
         "/tracer/eval-task/{id}/": {
             "get": {
                 "operationId": "tracer_eval-task_read",
-                "description": "",
+                "description": "Return one task without unbounded JSON or relation hydration.",
                 "parameters": [],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/EvalTask"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "default": {
@@ -65223,10 +66108,22 @@
                     }
                 ],
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/UserAlertMonitorPreviewGraph"
+                            "$ref": "#/definitions/UserAlertMonitorGraphResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "default": {
@@ -65239,7 +66136,7 @@
                 "tags": [
                     "tracer"
                 ],
-                "x-runtime-request-validation": true
+                "x-runtime-response-validation": true
             },
             "parameters": []
         },
@@ -65400,7 +66297,25 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/UserAlertMonitor"
+                            "$ref": "#/definitions/UserAlertMonitorGraphResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "default": {
@@ -65412,7 +66327,8 @@
                 },
                 "tags": [
                     "tracer"
-                ]
+                ],
+                "x-runtime-response-validation": true
             },
             "parameters": [
                 {
@@ -84883,6 +85799,11 @@
                         "$ref": "#/definitions/SpanAttributeKey"
                     }
                 },
+                "total_count": {
+                    "title": "Total count",
+                    "type": "integer",
+                    "minimum": 0
+                },
                 "query_complete": {
                     "title": "Query complete",
                     "type": "boolean"
@@ -84914,6 +85835,18 @@
                     "title": "Query window end",
                     "type": "string",
                     "format": "date-time"
+                },
+                "query_window_mode": {
+                    "title": "Query window mode",
+                    "type": "string",
+                    "enum": [
+                        "frozen_snapshot"
+                    ]
+                },
+                "query_count": {
+                    "title": "Query count",
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "has_more": {
                     "title": "Has more",
@@ -88421,40 +89354,54 @@
                 "field": {
                     "title": "Field",
                     "type": "string",
+                    "maxLength": 512,
+                    "minLength": 1
+                },
+                "property_id": {
+                    "title": "Property id",
+                    "type": "string",
+                    "maxLength": 512,
                     "minLength": 1
                 },
                 "label": {
                     "title": "Label",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 512
                 },
                 "type": {
                     "title": "Type",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "category": {
                     "title": "Category",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "operators": {
                     "type": "array",
                     "items": {
                         "type": "string",
+                        "maxLength": 64,
                         "minLength": 1
                     },
-                    "default": []
+                    "default": [],
+                    "maxItems": 32
                 },
                 "choices": {
                     "type": "array",
                     "items": {
                         "type": "object"
                     },
-                    "default": []
+                    "default": [],
+                    "maxItems": 256
                 },
                 "choice_labels": {
                     "title": "Choice labels",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string",
+                        "maxLength": 512,
                         "minLength": 1
                     },
                     "default": {}
@@ -88481,6 +89428,7 @@
                 "query": {
                     "title": "Query",
                     "type": "string",
+                    "maxLength": 4096,
                     "minLength": 1
                 },
                 "schema": {
@@ -88494,6 +89442,8 @@
                     "type": "string",
                     "enum": [
                         "traces",
+                        "sessions",
+                        "simulation",
                         "dataset"
                     ],
                     "default": "traces"
@@ -88509,6 +89459,24 @@
                     "type": "string",
                     "format": "uuid",
                     "x-nullable": true
+                },
+                "agent_definition_id": {
+                    "title": "Agent definition id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "run_test_id": {
+                    "title": "Run test id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "test_execution_id": {
+                    "title": "Test execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
                 }
             }
         },
@@ -88521,6 +89489,11 @@
             "properties": {
                 "field": {
                     "title": "Field",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "property_id": {
+                    "title": "Property id",
                     "type": "string",
                     "minLength": 1
                 },
@@ -90037,6 +91010,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -90547,6 +91524,10 @@
                             "column_id": {
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
+                            },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
                             },
                             "display_name": {
                                 "type": "string",
@@ -98491,6 +99472,44 @@
                     "title": "Total pages",
                     "type": "integer"
                 },
+                "page_size": {
+                    "title": "Page size",
+                    "description": "Row limit used for this page.",
+                    "type": "integer"
+                },
+                "current_page_index": {
+                    "title": "Current page index",
+                    "description": "Zero-based page index returned by the server.",
+                    "type": "integer"
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "description": "Whether an exact continuation page remains.",
+                    "type": "boolean"
+                },
+                "next_page_index": {
+                    "title": "Next page index",
+                    "description": "Next zero-based page index, or null at exact exhaustion.",
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "next_cursor": {
+                    "title": "Next cursor",
+                    "description": "Signed exact continuation cursor, or null at exhaustion.",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "is_exact": {
+                    "title": "Is exact",
+                    "description": "True only for a successful exact, revision-bound page.",
+                    "type": "boolean"
+                },
+                "snapshot_bound": {
+                    "title": "Snapshot bound",
+                    "description": "Whether this page is bound to the signed MVCC revision.",
+                    "type": "boolean"
+                },
                 "error_messages": {
                     "type": "array",
                     "items": {
@@ -98700,6 +99719,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -98780,7 +99803,8 @@
                         ],
                         "additionalProperties": false
                     },
-                    "default": []
+                    "default": [],
+                    "maxItems": 1
                 },
                 "row_id": {
                     "title": "Row id",
@@ -99691,6 +100715,12 @@
                 },
                 "call_id": {
                     "title": "Call id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "run_test_id": {
+                    "title": "Run test id",
                     "type": "string",
                     "format": "uuid",
                     "x-nullable": true
@@ -105536,7 +106566,12 @@
         "EvalApiLogTableMetadata": {
             "required": [
                 "total_rows",
-                "total_pages"
+                "total_pages",
+                "current_page_index",
+                "page_size",
+                "query_complete",
+                "query_status",
+                "query_sampled"
             ],
             "type": "object",
             "properties": {
@@ -105547,6 +106582,32 @@
                 "total_pages": {
                     "title": "Total pages",
                     "type": "integer"
+                },
+                "current_page_index": {
+                    "title": "Current page index",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "page_size": {
+                    "title": "Page size",
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "query_complete": {
+                    "title": "Query complete",
+                    "type": "boolean"
+                },
+                "query_status": {
+                    "title": "Query status",
+                    "type": "string",
+                    "enum": [
+                        "complete"
+                    ]
+                },
+                "query_sampled": {
+                    "title": "Query sampled",
+                    "type": "boolean"
                 }
             }
         },
@@ -105624,11 +106685,86 @@
                 }
             }
         },
+        "EvalMetricMetadata": {
+            "required": [
+                "window_start",
+                "window_end",
+                "interval",
+                "bucket_count",
+                "valid_output_count",
+                "invalid_output_count",
+                "output_type",
+                "query_complete",
+                "query_sampled",
+                "has_more",
+                "max_window_days"
+            ],
+            "type": "object",
+            "properties": {
+                "window_start": {
+                    "title": "Window start",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "window_end": {
+                    "title": "Window end",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "enum": [
+                        "day"
+                    ]
+                },
+                "bucket_count": {
+                    "title": "Bucket count",
+                    "type": "integer",
+                    "maximum": 366,
+                    "minimum": 0
+                },
+                "valid_output_count": {
+                    "title": "Valid output count",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "invalid_output_count": {
+                    "title": "Invalid output count",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "output_type": {
+                    "title": "Output type",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "query_complete": {
+                    "title": "Query complete",
+                    "type": "boolean"
+                },
+                "query_sampled": {
+                    "title": "Query sampled",
+                    "type": "boolean"
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "type": "boolean"
+                },
+                "max_window_days": {
+                    "title": "Max window days",
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 1
+                }
+            }
+        },
         "EvalMetricResponseResult": {
             "required": [
                 "base_eval_template_id",
                 "api_call_count",
-                "average"
+                "average",
+                "metadata"
             ],
             "type": "object",
             "properties": {
@@ -105647,6 +106783,9 @@
                     "title": "Error rate",
                     "type": "object",
                     "x-nullable": true
+                },
+                "metadata": {
+                    "$ref": "#/definitions/EvalMetricMetadata"
                 }
             }
         },
@@ -105678,6 +106817,7 @@
                     "format": "uuid"
                 },
                 "filters": {
+                    "description": "Optional created_at datetime filters. The default window is 30 days; the maximum supported window is 365 days.",
                     "type": "array",
                     "items": {
                         "type": "object",
@@ -105685,6 +106825,10 @@
                             "column_id": {
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
+                            },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
                             },
                             "display_name": {
                                 "type": "string",
@@ -109322,6 +110466,133 @@
                 }
             }
         },
+        "PromptMetricFieldConfig": {
+            "required": [
+                "id",
+                "name",
+                "is_visible",
+                "property_id",
+                "property_kind",
+                "property_source"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "is_visible": {
+                    "title": "Is visible",
+                    "type": "boolean"
+                },
+                "group_by": {
+                    "title": "Group by",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "output_type": {
+                    "title": "Output type",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "reverse_output": {
+                    "title": "Reverse output",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "annotation_label_type": {
+                    "title": "Annotation label type",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "x-nullable": true
+                    },
+                    "x-nullable": true
+                },
+                "settings": {
+                    "title": "Settings",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "choices_map": {
+                    "title": "Choices map",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "eval_template_id": {
+                    "title": "Eval template id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "annotators": {
+                    "title": "Annotators",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "source_field": {
+                    "title": "Source field",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "parent_eval_id": {
+                    "title": "Parent eval id",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_id": {
+                    "title": "Property id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "property_kind": {
+                    "title": "Property kind",
+                    "type": "string",
+                    "enum": [
+                        "system_attribute",
+                        "eval_config"
+                    ]
+                },
+                "property_source": {
+                    "title": "Property source",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "filter_type": {
+                    "title": "Filter type",
+                    "type": "string",
+                    "enum": [
+                        "number",
+                        "text",
+                        "datetime",
+                        "boolean",
+                        "array"
+                    ]
+                },
+                "supported_filter_ops": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                }
+            }
+        },
         "PromptMetricsMetadata": {
             "required": [
                 "total_rows"
@@ -109359,8 +110630,10 @@
                     }
                 },
                 "config": {
-                    "title": "Config",
-                    "type": "object"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PromptMetricFieldConfig"
+                    }
                 },
                 "metadata": {
                     "$ref": "#/definitions/PromptMetricsMetadata"
@@ -116817,6 +118090,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -118709,6 +119986,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -119830,6 +121111,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -120180,6 +121465,108 @@
                         "$ref": "#/definitions/TestExecutionItemResponse"
                     },
                     "readOnly": true
+                }
+            }
+        },
+        "SimulationPreviewItem": {
+            "required": [
+                "id",
+                "status",
+                "created_at"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "SimulationPreviewPage": {
+            "required": [
+                "results",
+                "next_cursor",
+                "has_more",
+                "snapshot_total",
+                "loaded_through",
+                "complete",
+                "exact",
+                "snapshot_at"
+            ],
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SimulationPreviewItem"
+                    }
+                },
+                "next_cursor": {
+                    "title": "Next cursor",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "type": "boolean"
+                },
+                "snapshot_total": {
+                    "title": "Snapshot total",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "loaded_through": {
+                    "title": "Loaded through",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "complete": {
+                    "title": "Complete",
+                    "type": "boolean"
+                },
+                "exact": {
+                    "title": "Exact",
+                    "type": "boolean"
+                },
+                "snapshot_at": {
+                    "title": "Snapshot at",
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "SimulationPreviewError": {
+            "required": [
+                "code",
+                "detail"
+            ],
+            "type": "object",
+            "properties": {
+                "code": {
+                    "title": "Code",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "detail": {
+                    "title": "Detail",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "restart_required": {
+                    "title": "Restart required",
+                    "type": "boolean"
                 }
             }
         },
@@ -122896,112 +124283,384 @@
                 }
             }
         },
-        "FetchGraph": {
+        "FetchGraphResponse": {
             "required": [
-                "interval",
-                "req_data_config",
-                "project_id"
+                "result"
             ],
             "type": "object",
             "properties": {
-                "interval": {
-                    "title": "Interval",
-                    "type": "string",
-                    "minLength": 1
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
                 },
-                "filters": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "column_id": {
-                                "type": "string",
-                                "description": "Column or attribute id to filter on."
-                            },
-                            "display_name": {
-                                "type": "string",
-                                "description": "Optional UI label for chips and saved views."
-                            },
-                            "source": {
-                                "type": "string",
-                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
-                            },
-                            "output_type": {
-                                "type": "string",
-                                "description": "Optional metric output type metadata used by eval and annotation filters."
-                            },
-                            "filter_config": {
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "required": [
+                        "data",
+                        "query_complete",
+                        "query_status",
+                        "query_sampled"
+                    ],
+                    "properties": {
+                        "metric_name": {
+                            "type": "string"
+                        },
+                        "id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "data": {
+                            "type": "array",
+                            "items": {
                                 "type": "object",
+                                "required": [
+                                    "timestamp",
+                                    "value"
+                                ],
                                 "properties": {
-                                    "filter_type": {
-                                        "type": "string",
-                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, array, or map. Legacy json is value-sensitive for SPAN_ATTRIBUTE filters: list values become array and object values become map."
+                                    "timestamp": {
+                                        "type": "string"
                                     },
-                                    "filter_op": {
-                                        "type": "string",
-                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    "value": {
+                                        "type": "number"
                                     },
-                                    "filter_value": {
-                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
-                                    },
-                                    "col_type": {
-                                        "type": "string",
-                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
-                                    },
-                                    "attribute_value_types": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "enum": [
-                                                "string",
-                                                "number",
-                                                "boolean"
-                                            ],
-                                            "x-nullable": true
-                                        },
-                                        "description": "Optional storage-family provenance aligned one-for-one with filter_value for mixed SPAN_ATTRIBUTE in/not_in filters. Null entries retain filter_type semantics for manually entered values."
+                                    "primary_traffic": {
+                                        "type": "number"
                                     }
                                 },
-                                "required": [
-                                    "filter_type",
-                                    "filter_op"
-                                ],
-                                "additionalProperties": false
+                                "additionalProperties": true
                             }
                         },
-                        "required": [
-                            "column_id",
-                            "filter_config"
-                        ],
-                        "additionalProperties": false
+                        "query_complete": {
+                            "type": "boolean"
+                        },
+                        "query_status": {
+                            "type": "string",
+                            "enum": [
+                                "complete",
+                                "pending",
+                                "sampled",
+                                "degraded"
+                            ]
+                        },
+                        "query_sampled": {
+                            "type": "boolean"
+                        },
+                        "query_refreshing": {
+                            "type": "boolean"
+                        },
+                        "query_exact": {
+                            "type": "boolean"
+                        },
+                        "query_provenance": {
+                            "type": "string"
+                        },
+                        "query_count": {
+                            "type": "integer"
+                        },
+                        "query_elapsed_ms": {
+                            "type": "number"
+                        },
+                        "query_rows_returned": {
+                            "type": "integer"
+                        }
                     },
-                    "default": []
-                },
-                "property": {
-                    "title": "Property",
-                    "type": "string",
-                    "default": "average"
-                },
-                "req_data_config": {
-                    "title": "Req data config",
-                    "type": "string"
-                },
-                "project_id": {
-                    "title": "Project id",
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "allow_sampled": {
-                    "title": "Allow sampled",
-                    "description": "Deprecated compatibility parameter; accepted but ignored. Aggregate graph results are always exact.",
-                    "type": "boolean",
-                    "default": false
-                },
-                "refresh": {
-                    "title": "Refresh",
-                    "description": "Recompute and atomically replace the last complete exact result.",
-                    "type": "boolean",
-                    "default": false
+                    "description": "A single system-metric series, an all-system-metrics bundle, or an array of evaluation series.",
+                    "x-one-of": [
+                        {
+                            "type": "object",
+                            "required": [
+                                "data",
+                                "query_complete",
+                                "query_status",
+                                "query_sampled"
+                            ],
+                            "properties": {
+                                "metric_name": {
+                                    "type": "string"
+                                },
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "primary_traffic": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "query_complete": {
+                                    "type": "boolean"
+                                },
+                                "query_status": {
+                                    "type": "string",
+                                    "enum": [
+                                        "complete",
+                                        "pending",
+                                        "sampled",
+                                        "degraded"
+                                    ]
+                                },
+                                "query_sampled": {
+                                    "type": "boolean"
+                                },
+                                "query_refreshing": {
+                                    "type": "boolean"
+                                },
+                                "query_exact": {
+                                    "type": "boolean"
+                                },
+                                "query_provenance": {
+                                    "type": "string"
+                                },
+                                "query_count": {
+                                    "type": "integer"
+                                },
+                                "query_elapsed_ms": {
+                                    "type": "number"
+                                },
+                                "query_rows_returned": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "required": [
+                                "latency",
+                                "tokens",
+                                "cost",
+                                "traffic",
+                                "query_complete",
+                                "query_status",
+                                "query_sampled"
+                            ],
+                            "properties": {
+                                "latency": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "primary_traffic": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "tokens": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "primary_traffic": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "cost": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "primary_traffic": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "traffic": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "primary_traffic": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    }
+                                },
+                                "query_complete": {
+                                    "type": "boolean"
+                                },
+                                "query_status": {
+                                    "type": "string",
+                                    "enum": [
+                                        "complete",
+                                        "pending",
+                                        "sampled",
+                                        "degraded"
+                                    ]
+                                },
+                                "query_sampled": {
+                                    "type": "boolean"
+                                },
+                                "query_refreshing": {
+                                    "type": "boolean"
+                                },
+                                "query_exact": {
+                                    "type": "boolean"
+                                },
+                                "query_provenance": {
+                                    "type": "string"
+                                },
+                                "query_count": {
+                                    "type": "integer"
+                                },
+                                "query_elapsed_ms": {
+                                    "type": "number"
+                                },
+                                "query_rows_returned": {
+                                    "type": "integer"
+                                }
+                            },
+                            "additionalProperties": true
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "data",
+                                    "query_complete",
+                                    "query_status",
+                                    "query_sampled"
+                                ],
+                                "properties": {
+                                    "metric_name": {
+                                        "type": "string"
+                                    },
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "data": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "timestamp",
+                                                "value"
+                                            ],
+                                            "properties": {
+                                                "timestamp": {
+                                                    "type": "string"
+                                                },
+                                                "value": {
+                                                    "type": "number"
+                                                },
+                                                "primary_traffic": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "additionalProperties": true
+                                        }
+                                    },
+                                    "query_complete": {
+                                        "type": "boolean"
+                                    },
+                                    "query_status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "complete",
+                                            "pending",
+                                            "sampled",
+                                            "degraded"
+                                        ]
+                                    },
+                                    "query_sampled": {
+                                        "type": "boolean"
+                                    },
+                                    "query_refreshing": {
+                                        "type": "boolean"
+                                    },
+                                    "query_exact": {
+                                        "type": "boolean"
+                                    },
+                                    "query_provenance": {
+                                        "type": "string"
+                                    },
+                                    "query_count": {
+                                        "type": "integer"
+                                    },
+                                    "query_elapsed_ms": {
+                                        "type": "number"
+                                    },
+                                    "query_rows_returned": {
+                                        "type": "integer"
+                                    }
+                                }
+                            }
+                        }
+                    ]
                 }
             }
         },
@@ -123235,6 +124894,18 @@
                     "type": "string",
                     "format": "date-time"
                 },
+                "query_window_mode": {
+                    "title": "Query window mode",
+                    "type": "string",
+                    "enum": [
+                        "frozen_snapshot"
+                    ]
+                },
+                "query_count": {
+                    "title": "Query count",
+                    "type": "integer",
+                    "minimum": 0
+                },
                 "has_more": {
                     "title": "Has more",
                     "type": "boolean"
@@ -123265,6 +124936,48 @@
                         "map",
                         "json"
                     ]
+                },
+                "attribute_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "array",
+                            "map",
+                            "json"
+                        ]
+                    }
+                },
+                "attribute_types_exact": {
+                    "title": "Attribute types exact",
+                    "type": "boolean"
+                },
+                "catalog_epoch": {
+                    "title": "Catalog epoch",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 1
+                },
+                "catalog_revision": {
+                    "title": "Catalog revision",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "activation_fingerprint": {
+                    "title": "Activation fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_provenance": {
+                    "title": "Query provenance",
+                    "type": "string",
+                    "enum": [
+                        "activated_property_catalog"
+                    ]
                 }
             }
         },
@@ -123286,7 +124999,9 @@
         },
         "DashboardMetricCatalogItem": {
             "required": [
-                "name"
+                "name",
+                "property_id",
+                "property_kind"
             ],
             "type": "object",
             "properties": {
@@ -123294,6 +125009,23 @@
                     "title": "Name",
                     "type": "string",
                     "minLength": 1
+                },
+                "property_id": {
+                    "title": "Property id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "property_kind": {
+                    "title": "Property kind",
+                    "type": "string",
+                    "enum": [
+                        "system_attribute",
+                        "custom_attribute",
+                        "eval_config",
+                        "eval_template",
+                        "annotation",
+                        "dataset_column"
+                    ]
                 },
                 "display_name": {
                     "title": "Display name",
@@ -123326,6 +125058,19 @@
                     "title": "Output type",
                     "type": "string"
                 },
+                "eval_template_id": {
+                    "title": "Eval template id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "role": {
+                    "title": "Role",
+                    "type": "string",
+                    "enum": [
+                        "metric",
+                        "dimension"
+                    ]
+                },
                 "choices": {
                     "type": "array",
                     "items": {
@@ -123352,6 +125097,24 @@
                 "data_type": {
                     "title": "Data type",
                     "type": "string"
+                },
+                "attribute_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "array",
+                            "map",
+                            "json"
+                        ]
+                    }
+                },
+                "attribute_types_exact": {
+                    "title": "Attribute types exact",
+                    "type": "boolean"
                 }
             }
         },
@@ -123366,6 +125129,89 @@
                     "items": {
                         "$ref": "#/definitions/DashboardMetricCatalogItem"
                     }
+                },
+                "total": {
+                    "title": "Total",
+                    "type": "integer",
+                    "minimum": 0,
+                    "x-nullable": true
+                },
+                "total_is_exact": {
+                    "title": "Total is exact",
+                    "type": "boolean"
+                },
+                "category_counts": {
+                    "title": "Category counts",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "category_counts_exact": {
+                    "title": "Category counts exact",
+                    "type": "boolean"
+                },
+                "page": {
+                    "title": "Page",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "page_size": {
+                    "title": "Page size",
+                    "type": "integer",
+                    "maximum": 200,
+                    "minimum": 1
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "type": "boolean"
+                },
+                "next_cursor": {
+                    "title": "Next cursor",
+                    "type": "string",
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "catalog_epoch": {
+                    "title": "Catalog epoch",
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 1
+                },
+                "catalog_revision": {
+                    "title": "Catalog revision",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "activation_fingerprint": {
+                    "title": "Activation fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_complete": {
+                    "title": "Query complete",
+                    "type": "boolean"
+                },
+                "query_exact": {
+                    "title": "Query exact",
+                    "type": "boolean"
+                },
+                "query_status": {
+                    "title": "Query status",
+                    "type": "string",
+                    "enum": [
+                        "complete"
+                    ]
+                },
+                "query_provenance": {
+                    "title": "Query provenance",
+                    "type": "string",
+                    "enum": [
+                        "activated_property_catalog"
+                    ]
                 }
             }
         },
@@ -123429,6 +125275,11 @@
                 },
                 "name": {
                     "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "property_id": {
+                    "title": "Property id",
                     "type": "string",
                     "minLength": 1
                 },
@@ -123550,6 +125401,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -123620,6 +125475,11 @@
             "properties": {
                 "name": {
                     "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "property_id": {
+                    "title": "Property id",
                     "type": "string",
                     "minLength": 1
                 },
@@ -123762,6 +125622,10 @@
                             "column_id": {
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
+                            },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
                             },
                             "display_name": {
                                 "type": "string",
@@ -124472,6 +126336,10 @@
                                         "type": "string",
                                         "description": "Column or attribute id to filter on."
                                     },
+                                    "property_id": {
+                                        "type": "string",
+                                        "description": "Optional stable namespaced Property Registry identity."
+                                    },
                                     "display_name": {
                                         "type": "string",
                                         "description": "Optional UI label for chips and saved views."
@@ -124538,6 +126406,10 @@
                                     "column_id": {
                                         "type": "string",
                                         "description": "Column or attribute id to filter on."
+                                    },
+                                    "property_id": {
+                                        "type": "string",
+                                        "description": "Optional stable namespaced Property Registry identity."
                                     },
                                     "display_name": {
                                         "type": "string",
@@ -125287,6 +127159,125 @@
                 }
             }
         },
+        "_EvalTaskListRowResponse": {
+            "required": [
+                "id",
+                "name",
+                "status",
+                "run_type",
+                "filters_applied",
+                "created_at",
+                "evals_applied",
+                "sampling_rate",
+                "last_run"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "project_name": {
+                    "title": "Project name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "run_type": {
+                    "title": "Run type",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "filters_applied": {
+                    "title": "Filters applied",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "evals_applied": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "x-nullable": true
+                    }
+                },
+                "sampling_rate": {
+                    "title": "Sampling rate",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "last_run": {
+                    "title": "Last run",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                }
+            }
+        },
+        "_EvalTaskListResultResponse": {
+            "required": [
+                "metadata",
+                "table",
+                "config"
+            ],
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "title": "Metadata",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "table": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/_EvalTaskListRowResponse"
+                    }
+                },
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            }
+        },
+        "_EvalTaskListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/_EvalTaskListResultResponse"
+                }
+            }
+        },
         "EvalTaskDeleteRequest": {
             "required": [
                 "eval_task_ids"
@@ -125420,6 +127411,10 @@
                                         "type": "string",
                                         "description": "Column or attribute id to filter on."
                                     },
+                                    "property_id": {
+                                        "type": "string",
+                                        "description": "Optional stable namespaced Property Registry identity."
+                                    },
                                     "display_name": {
                                         "type": "string",
                                         "description": "Optional UI label for chips and saved views."
@@ -125486,6 +127481,10 @@
                                     "column_id": {
                                         "type": "string",
                                         "description": "Column or attribute id to filter on."
+                                    },
+                                    "property_id": {
+                                        "type": "string",
+                                        "description": "Optional stable namespaced Property Registry identity."
                                     },
                                     "display_name": {
                                         "type": "string",
@@ -128020,6 +130019,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -128139,7 +130142,18 @@
                         "filter_op": {
                             "type": "string"
                         },
-                        "filter_value": {}
+                        "filter_value": {},
+                        "property_id": {
+                            "type": "string",
+                            "description": "Stable Property Registry identity."
+                        },
+                        "source": {
+                            "type": "string",
+                            "enum": [
+                                "traces",
+                                "sessions"
+                            ]
+                        }
                     },
                     "required": [
                         "id",
@@ -128241,6 +130255,24 @@
                     "title": "Query window end",
                     "type": "string",
                     "minLength": 1
+                },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "query_sample_size": {
                     "title": "Query sample size",
@@ -128427,6 +130459,24 @@
                     "type": "string",
                     "minLength": 1,
                     "x-nullable": true
+                },
+                "property_id": {
+                    "title": "Property id",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_kind": {
+                    "title": "Property kind",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_source": {
+                    "title": "Property source",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
                 }
             }
         },
@@ -128496,6 +130546,24 @@
                 },
                 "query_result_payload_bytes": {
                     "title": "Query result payload bytes",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
                     "type": "integer",
                     "minimum": 0
                 }
@@ -128926,6 +130994,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -129107,6 +131179,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -129193,6 +131269,10 @@
                             "column_id": {
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
+                            },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
                             },
                             "display_name": {
                                 "type": "string",
@@ -129291,7 +131371,18 @@
                         "filter_op": {
                             "type": "string"
                         },
-                        "filter_value": {}
+                        "filter_value": {},
+                        "property_id": {
+                            "type": "string",
+                            "description": "Stable Property Registry identity."
+                        },
+                        "source": {
+                            "type": "string",
+                            "enum": [
+                                "traces",
+                                "sessions"
+                            ]
+                        }
                     },
                     "required": [
                         "id",
@@ -131288,6 +133379,10 @@
                                 "type": "string",
                                 "description": "Column or attribute id to filter on."
                             },
+                            "property_id": {
+                                "type": "string",
+                                "description": "Optional stable namespaced Property Registry identity."
+                            },
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
@@ -131407,7 +133502,18 @@
                         "filter_op": {
                             "type": "string"
                         },
-                        "filter_value": {}
+                        "filter_value": {},
+                        "property_id": {
+                            "type": "string",
+                            "description": "Stable Property Registry identity."
+                        },
+                        "source": {
+                            "type": "string",
+                            "enum": [
+                                "traces",
+                                "sessions"
+                            ]
+                        }
                     },
                     "required": [
                         "id",
@@ -131485,6 +133591,24 @@
                     "title": "Query window end",
                     "type": "string",
                     "minLength": 1
+                },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "query_sample_size": {
                     "title": "Query sample size",
@@ -131706,6 +133830,24 @@
                     "type": "integer",
                     "minimum": 0
                 },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
+                    "type": "integer",
+                    "minimum": 0
+                },
                 "query_exact": {
                     "title": "Query exact",
                     "type": "boolean"
@@ -131812,6 +133954,24 @@
                 },
                 "parent_eval_id": {
                     "title": "Parent eval id",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_id": {
+                    "title": "Property id",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_kind": {
+                    "title": "Property kind",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "property_source": {
+                    "title": "Property source",
                     "type": "string",
                     "minLength": 1,
                     "x-nullable": true
@@ -132267,6 +134427,24 @@
                     "title": "Query result payload bytes",
                     "type": "integer",
                     "minimum": 0
+                },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
+                    "type": "integer",
+                    "minimum": 0
                 }
             }
         },
@@ -132455,6 +134633,24 @@
                     "title": "Query error code",
                     "type": "string",
                     "minLength": 1
+                },
+                "query_applied_filter_version": {
+                    "title": "Query applied filter version",
+                    "type": "string",
+                    "enum": [
+                        "canonical-json-sha256-v1"
+                    ]
+                },
+                "query_applied_filter_sha256": {
+                    "title": "Query applied filter sha256",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1
+                },
+                "query_applied_filter_count": {
+                    "title": "Query applied filter count",
+                    "type": "integer",
+                    "minimum": 0
                 }
             }
         },
@@ -133621,6 +135817,158 @@
                     "type": "string",
                     "format": "uuid",
                     "x-nullable": true
+                }
+            }
+        },
+        "UserAlertMonitorGraphResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "required": [
+                        "graph_data",
+                        "alert_bar_data"
+                    ],
+                    "properties": {
+                        "graph_data": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "timestamp",
+                                    "value"
+                                ],
+                                "properties": {
+                                    "timestamp": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "number"
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        },
+                        "alert_bar_data": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "start_timestamp",
+                                    "end_timestamp",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "start_timestamp": {
+                                        "type": "string"
+                                    },
+                                    "end_timestamp": {
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "healthy",
+                                            "warning",
+                                            "critical",
+                                            "insufficient_data"
+                                        ]
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        }
+                    },
+                    "additionalProperties": false,
+                    "description": "Static monitors return an array of graph points; percentage-change monitors return graph_data and alert_bar_data arrays.",
+                    "x-one-of": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "timestamp",
+                                    "value"
+                                ],
+                                "properties": {
+                                    "timestamp": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "number"
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "required": [
+                                "graph_data",
+                                "alert_bar_data"
+                            ],
+                            "properties": {
+                                "graph_data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "timestamp",
+                                            "value"
+                                        ],
+                                        "properties": {
+                                            "timestamp": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                },
+                                "alert_bar_data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": [
+                                            "start_timestamp",
+                                            "end_timestamp",
+                                            "status"
+                                        ],
+                                        "properties": {
+                                            "start_timestamp": {
+                                                "type": "string"
+                                            },
+                                            "end_timestamp": {
+                                                "type": "string"
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "healthy",
+                                                    "warning",
+                                                    "critical",
+                                                    "insufficient_data"
+                                                ]
+                                            }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    ]
                 }
             }
         },

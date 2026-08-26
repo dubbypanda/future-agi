@@ -220,6 +220,7 @@ const SpanGrid = React.forwardRef(
       canonicalOrderRef,
       canonicalColumnsRef,
       enabled = true,
+      compareType,
     },
     gridRef,
   ) => {
@@ -272,7 +273,7 @@ const SpanGrid = React.forwardRef(
         setContinuationNotice(null);
       }
     }, [continuationNotice, gridRef]);
-    const filterRequestKey = useMemo(
+    const selectionQueryKey = useMemo(
       () =>
         JSON.stringify({
           filters,
@@ -281,43 +282,54 @@ const SpanGrid = React.forwardRef(
           hasEvalFilter,
           observeId,
           enabled,
+          compareType,
         }),
-      [filters, extraFilters, metricFilters, hasEvalFilter, observeId, enabled],
+      [
+        filters,
+        extraFilters,
+        metricFilters,
+        hasEvalFilter,
+        observeId,
+        enabled,
+        compareType,
+      ],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-
+    const filterRequestKey = selectionQueryKey;
+    const clearSelection = useCallback(() => {
+      const api = gridRef?.current?.api;
+      api?.deselectAll?.();
+      api?.setServerSideSelectionState?.({
+        selectAll: false,
+        toggledNodes: [],
+      });
+      setSelectedAll(false);
+      useSpanGridStore.setState({
+        selectAll: false,
+        toggledNodes: [],
+      });
+    }, [gridRef]);
+    const previousSelectionQueryKeyRef = useRef(selectionQueryKey);
     useEffect(() => {
-      if (previousFilterRequestKeyRef.current === filterRequestKey) return;
-      previousFilterRequestKeyRef.current = filterRequestKey;
-      setGridLoading(enabled);
-      prefetchCache.current.clear();
-      cursorPagination.current.reset();
-      refreshGrid(true);
-    }, [enabled, filterRequestKey, refreshGrid]);
-
+      if (previousSelectionQueryKeyRef.current !== selectionQueryKey) {
+        clearSelection();
+      }
+      previousSelectionQueryKeyRef.current = selectionQueryKey;
+    }, [clearSelection, selectionQueryKey]);
     // Keep the last exact same-query rows during a manual refresh. A query-key
-    // change uses the purge path above and shows a neutral loading state.
+    // change replaces the datasource and shows a neutral loading state.
     useEffect(() => {
       const handler = () => refreshGrid(false);
       window.addEventListener("observe-refresh", handler);
       return () => window.removeEventListener("observe-refresh", handler);
     }, [refreshGrid]);
 
-    // Clear AG Grid's internal selection when the project changes — the
-    // zustand reset handled in the header only clears our mirror, not AG
-    // Grid's server-side selection model. Also reset the local
-    // `selectedAll` flag so the header checkbox's next click re-triggers
-    // selectAll (otherwise the stale `true` makes the first click a
-    // deselect no-op).
+    // Keep the explicit reset event aligned with query-bound invalidation: both
+    // paths clear AG Grid, the mirrored store, and the local header state.
     useEffect(() => {
-      const handler = () => {
-        gridRef?.current?.api?.deselectAll?.();
-        setSelectedAll(false);
-      };
-      window.addEventListener("observe-reset-selection", handler);
+      window.addEventListener("observe-reset-selection", clearSelection);
       return () =>
-        window.removeEventListener("observe-reset-selection", handler);
-    }, [gridRef]);
+        window.removeEventListener("observe-reset-selection", clearSelection);
+    }, [clearSelection]);
 
     // Grid Options
     const defaultColDef = useMemo(
@@ -662,9 +674,13 @@ const SpanGrid = React.forwardRef(
               if (
                 !continuationPending &&
                 firstPageRequestId !== null &&
-                firstPageRequestId === firstPageRequestRef.current &&
-                cursorPagination.current.isCurrent(requestGeneration)
+                firstPageRequestId === firstPageRequestRef.current
               ) {
+                // The newest started page-zero request owns the loading state.
+                // Cursor generations guard row publication above, but they must
+                // not keep the overlay alive when a transition invalidates this
+                // request before AG Grid starts its replacement. A replacement
+                // getRows call increments the id and re-enters loading.
                 setGridLoading(false);
               }
               if (!continuationPending) setLoading(false);
@@ -846,10 +862,7 @@ const SpanGrid = React.forwardRef(
           tooltipHideDelay={2000}
           tooltipInteraction={true}
           serverSideDatasource={dataSource}
-          loading={
-            gridLoading ||
-            previousFilterRequestKeyRef.current !== filterRequestKey
-          }
+          loading={gridLoading}
           suppressServerSideFullWidthLoadingRow={true}
           noRowsOverlayComponent={() =>
             continuationNotice

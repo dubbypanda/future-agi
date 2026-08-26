@@ -36,6 +36,9 @@ from tracer.services.clickhouse.read_budget import (
     ReadDeadlineExceeded,
     is_read_budget_error,
 )
+from tracer.utils.attribute_suggestion_contract import (
+    TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES,
+)
 from tracer.utils.filter_operators import (
     JSON_ARRAY_FILTER_MAX_STRING_UTF8_BYTES,
     JSON_ARRAY_FILTER_MAX_TOTAL_STRING_UTF8_BYTES,
@@ -3152,6 +3155,8 @@ class AttributeReadSelector:
 
         def decoded_has_usable_value(decoded: tuple[AttributeType, Any]) -> bool:
             attr_type, value = decoded
+            if attr_type == "string" and not _typed_string_is_suggestible(value):
+                return False
             candidates: tuple[Any, ...]
             if attr_type == "array":
                 if not isinstance(value, tuple):
@@ -3184,6 +3189,15 @@ class AttributeReadSelector:
                     row,
                     json_attribute_mode=json_mode,
                 )
+                if (
+                    decoded is not None
+                    and decoded[0] == "string"
+                    and not (_typed_string_is_suggestible(decoded[1]))
+                ):
+                    # Suggestion-only policy: the typed key and exact filtering
+                    # remain unchanged, but oversized picker values are omitted.
+                    latest_values.pop(identity, None)
+                    continue
                 if (
                     json_mode != "none"
                     and decoded is None
@@ -3566,6 +3580,8 @@ class AttributeReadSelector:
         counts: Counter[tuple[AttributeType, str]] = Counter()
         values: dict[tuple[AttributeType, str], AttributeValue] = {}
         for attr_type, value in latest_values.values():
+            if attr_type == "string" and not _typed_string_is_suggestible(value):
+                continue
             candidates: tuple[AttributeValue, ...]
             if attr_type == "array":
                 if not isinstance(value, tuple):
@@ -3669,7 +3685,12 @@ class AttributeReadSelector:
         a key-bound latest-state fallback.
         """
 
-        if not continue_operation:
+        # DEV's immutable snapshot already supplies the retained window, so a
+        # fallback cursor can legitimately ask to continue an operation before
+        # this selector ran the optional retained-bound metadata read. Preserve
+        # a real shared budget when one exists; otherwise start the cursor's
+        # public operation here instead of reaching deadline checks with None.
+        if not continue_operation or self._deadline is None:
             self._begin_operation()
         projects = self._project_ids(project_ids)
         if exact_key is not None:
@@ -3740,15 +3761,35 @@ class AttributeReadSelector:
             or not start <= active_segment_start < current_segment_end
         ):
             raise ValueError("invalid attribute-key segment cursor")
-        if has_physical_checkpoint and active_segment_start is None:
-            # Five-field cursors from older pods always checkpointed inside the
-            # fixed six-hour slice.  Derive that legacy lower bound while new
-            # widened checkpoints carry an explicit sixth field.
-            active_segment_start = max(
-                start,
-                current_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            )
         checkpoint_identity = before_identity or resume_identity
+        if checkpoint_identity is not None and active_segment_start is None:
+            if exact_key is None:
+                # Rolling-compatible five-field generic cursors omit the active
+                # slice after checkpointing inside a fully consumed range.
+                # Everything newer than the checkpoint has already been
+                # certified, so resuming the whole six-hour prefix is
+                # unnecessary and can turn a small picker page into a
+                # multi-gigabyte global sort. Re-anchor the unchanged keyset
+                # frontier to the five-minute dense slice that ends one
+                # DateTime64 tick after the checkpoint. That includes lower-id
+                # timestamp ties plus older rows immediately; the next adjacent
+                # slice starts at the resulting lower boundary.
+                current_segment_end = min(
+                    current_segment_end,
+                    checkpoint_identity[3] + timedelta(microseconds=1),
+                )
+                active_segment_start = max(
+                    start,
+                    current_segment_end - ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
+                )
+            else:
+                # Exact-key continuations retain the rolling-compatible legacy
+                # envelope; the exact lane below re-anchors it at the requested
+                # key's deterministic fallback width.
+                active_segment_start = max(
+                    start,
+                    current_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
+                )
         if checkpoint_identity is not None and not (
             active_segment_start is not None
             and active_segment_start <= checkpoint_identity[3] < current_segment_end
@@ -4719,7 +4760,7 @@ class AttributeReadSelector:
         partial cursor.
         """
 
-        if not continue_operation:
+        if not continue_operation or self._deadline is None:
             self._begin_operation()
         projects = self._project_ids(project_ids)
         key = validate_attribute_key(key)
@@ -5046,6 +5087,8 @@ class AttributeReadSelector:
             attr_type, value = decoded
             if attr_type == "array":
                 return value if isinstance(value, tuple) else ()
+            if attr_type == "string" and not _typed_string_is_suggestible(value):
+                return ()
             return () if value in (None, "") else (value,)
 
         def consume_decoded(
@@ -6469,6 +6512,17 @@ def _value_search_text(value: Any) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def _typed_string_is_suggestible(value: Any) -> bool:
+    """Keep typed strings filterable while bounding picker payloads only."""
+
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        return len(value.encode("utf-8")) <= TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES
+    except UnicodeEncodeError:
+        return False
 
 
 def merge_read_metadata(

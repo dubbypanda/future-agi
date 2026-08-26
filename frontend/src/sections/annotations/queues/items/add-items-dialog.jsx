@@ -1922,6 +1922,48 @@ const traceDefaultFilterBase = {
   },
 };
 
+export function AnnotationTelemetryFilterPanel({
+  selectorType,
+  isVoiceProject = false,
+  sessionFilterFields,
+  ...panelProps
+}) {
+  const isSession = selectorType === "session";
+  const isSpan = selectorType === "span";
+  const isVoice = selectorType === "trace" && isVoiceProject;
+
+  return (
+    <TraceFilterPanel
+      {...panelProps}
+      source={isSession ? "sessions" : "traces"}
+      tab={
+        isSession
+          ? undefined
+          : isSpan
+            ? "spans"
+            : isVoice
+              ? "voiceCalls"
+              : "trace"
+      }
+      propertyNamespace={
+        isSession ? "sessions" : isVoice ? "voice_calls" : "traces"
+      }
+      // Session rows keep their own list/value transport, but custom keys are
+      // stored on the underlying spans just like the Users and Tasks surfaces.
+      attributeSource={isSession || isSpan || isVoice ? "spans" : "traces"}
+      isSpansView={isSpan}
+      isSimulator={isVoice}
+      filterFields={isSession ? sessionFilterFields : undefined}
+    />
+  );
+}
+
+AnnotationTelemetryFilterPanel.propTypes = {
+  selectorType: PropTypes.oneOf(["trace", "span", "session"]).isRequired,
+  isVoiceProject: PropTypes.bool,
+  sessionFilterFields: PropTypes.array,
+};
+
 function TraceSelector({
   onSetSelection,
   onSelectAll,
@@ -2438,14 +2480,13 @@ function TraceSelector({
       {/* New trace filter popover — same component as the main LLM Tracing
           page (ObserveToolbar mounts it via `setIsPrimaryFilterOpen`). */}
       {canShowGrid && (
-        <TraceFilterPanel
+        <AnnotationTelemetryFilterPanel
+          selectorType="trace"
+          isVoiceProject={isVoiceProject}
           anchorEl={filterAnchorEl || filterButtonRef.current}
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
           projectId={projectId}
-          source="traces"
-          tab="trace"
-          isSimulator={isVoiceProject}
           currentFilters={validatedMainFilters
             .filter((f) => f?.column_id)
             .map(apiFilterToPanel)}
@@ -3136,14 +3177,12 @@ function SpanSelector({ onSetSelection, onSelectAll }) {
       </Box>
 
       {canShowGrid && (
-        <TraceFilterPanel
+        <AnnotationTelemetryFilterPanel
+          selectorType="span"
           anchorEl={filterAnchorEl || filterButtonRef.current}
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
           projectId={projectId}
-          source="traces"
-          tab="spans"
-          isSpansView
           currentFilters={validatedMainFilters
             .filter((f) => f?.column_id)
             .map(apiFilterToPanel)}
@@ -3761,14 +3800,13 @@ function SessionSelector({ onSetSelection, onSelectAll }) {
       </Box>
 
       {canShowGrid && (
-        <TraceFilterPanel
+        <AnnotationTelemetryFilterPanel
+          selectorType="session"
+          sessionFilterFields={sessionFilterFields}
           anchorEl={filterAnchorEl || filterButtonRef.current}
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
           projectId={projectId}
-          source="sessions"
-          properties={sessionFilterFields}
-          categories={[]}
           currentFilters={validatedMainFilters
             .filter((f) => f?.column_id)
             .map(apiFilterToPanel)}

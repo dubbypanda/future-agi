@@ -118,7 +118,7 @@ describe("CustomColumnDialog — TH-4139", () => {
     expect(onAddColumns).not.toHaveBeenCalled();
   });
 
-  it("forwards free-text search and advances only one cursor page per gesture", async () => {
+  it("forwards free-text search and advances near the attribute-list end", async () => {
     const onAttributeSearchChange = vi.fn();
     let resolvePage;
     const fetchNextAttributePage = vi.fn(
@@ -143,12 +143,20 @@ describe("CustomColumnDialog — TH-4139", () => {
     });
     expect(onAttributeSearchChange).toHaveBeenLastCalledWith("older.attribute");
 
-    const continueButton = screen.getByRole("button", {
-      name: "Continue searching",
+    const scrollContainer = document.querySelector(
+      "[data-attribute-inventory-scroll-container]",
+    );
+    Object.defineProperties(scrollContainer, {
+      scrollTop: { configurable: true, value: 180 },
+      clientHeight: { configurable: true, value: 220 },
+      scrollHeight: { configurable: true, value: 400 },
     });
-    fireEvent.click(continueButton);
-    fireEvent.click(continueButton);
+    fireEvent.scroll(scrollContainer);
+    fireEvent.scroll(scrollContainer);
     expect(fetchNextAttributePage).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue searching/i }),
+    ).not.toBeInTheDocument();
 
     await act(async () => resolvePage());
   });

@@ -30,6 +30,40 @@ def _expected_count(case, seeded: list[SeededRow]) -> int:
         return _expected_meta_count(case, seeded)
     if case.aggregate_predicate is not None:
         return _expected_aggregate_count(case, seeded)
+    if (
+        case.col_type == "SPAN_ATTRIBUTE"
+        and case.filter_op in {"is_null", "is_not_null"}
+        and case.target_type != "spans"
+    ):
+        # Attribute nullness is row-level only for spans. Entity surfaces first
+        # classify each trace: is_null means no live span contains the key,
+        # while is_not_null means at least one does. Sessions then roll up the
+        # matching trace IDs, preserving the backend's trace-grain contract.
+        rows_by_trace: dict[str, list[SeededRow]] = {}
+        for row in seeded:
+            rows_by_trace.setdefault(row.trace_id, []).append(row)
+        trace_matches = {
+            trace_id
+            for trace_id, trace_rows in rows_by_trace.items()
+            if (
+                all(case.expected_predicate(row) for row in trace_rows)
+                if case.filter_op == "is_null"
+                else any(case.expected_predicate(row) for row in trace_rows)
+            )
+        }
+        if case.target_type == "voiceCalls":
+            voice_trace_ids = {
+                row.trace_id
+                for row in seeded
+                if row.parent_span_id is None and row.observation_type == "conversation"
+            }
+            return len(trace_matches & voice_trace_ids)
+        if case.target_type == "traces":
+            return len(trace_matches)
+        if case.target_type == "sessions":
+            return len(
+                {row.session_id for row in seeded if row.trace_id in trace_matches}
+            )
     if case.target_type in ("spans", "voiceCalls"):
         return sum(1 for r in seeded if case.expected_predicate(r))
     if case.target_type == "traces":
@@ -178,7 +212,13 @@ def test_list_endpoint_total_rows(
     expected = _expected_count(case, seeded)
 
     filters = case.to_filter_dict()["filters"]
-    if case.column_id != "created_at":
+    # The UI always sends its explicit date-range filter. Nullness does not
+    # itself provide a bounded range, so retain the UI window for both
+    # created_at null operators as well.
+    if case.column_id != "created_at" or case.filter_op in {
+        "is_null",
+        "is_not_null",
+    }:
         filters = filters + [_DEFAULT_WINDOW_FILTER]
     filter_json = json.dumps(filters)
     url = ENDPOINTS[case.target_type]

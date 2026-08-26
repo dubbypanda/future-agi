@@ -1,18 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Autocomplete, TextField, CircularProgress } from "@mui/material";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { useDebounce } from "src/hooks/use-debounce";
 import { useParams } from "react-router-dom";
+import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import {
   FILTER_TYPE_ALLOWED_OPS,
   LIST_FILTER_OPS,
 } from "src/api/contracts/filter-contract.generated";
+import { boundPropertyCatalogSearch } from "src/hooks/useDashboards";
 import { accumulateUniqueListContinuations } from "src/sections/projects/LLMTracing/listCursorPagination";
+import {
+  FILTER_VALUE_MIN_VISIBLE_RESULTS,
+  FILTER_VALUE_REQUEST_TIMEOUT_MS,
+  INTERACTIVE_TABLE_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+} from "src/config/runtime_limits";
 
-const LOAD_MORE_OPTION = Object.freeze({ __loadMore: true });
-const RETRY_OPTION = Object.freeze({ __retry: true });
+const PAGINATION_SENTINEL_OPTION = Object.freeze({
+  __paginationSentinel: true,
+});
 const LIST_OPERATORS = new Set(LIST_FILTER_OPS);
 // `limit_reached` is resumable when the backend supplies an advancing cursor;
 // only an explicit exhaustion proof is unconditionally terminal.
@@ -23,10 +32,9 @@ const CURSOR_STOPPED_KEY = "filter_value_cursor_stopped";
 // The shared Axios client intentionally has no global timeout. Attribute
 // browsing is interactive, though, and an interrupted proxy/backend response
 // must not leave the picker in an endless "Loading more" state. This is just
-// above the server-side four-second picker wall so ordinary server timeouts can
-// retain their structured response while transport stalls still fail below the
-// five-second interaction contract.
-const ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS = 4_800;
+// independently configurable so ordinary server timeouts can retain their
+// structured response while transport stalls still release the UI.
+const ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS = FILTER_VALUE_REQUEST_TIMEOUT_MS;
 
 const normalizeBrowseMetadata = (result = {}) =>
   TERMINAL_BROWSE_STATUSES.has(result?.browse_status)
@@ -95,8 +103,7 @@ const markEmptyContinuationGuardExhausted = (response) => ({
   },
 });
 
-const isPaginationOption = (option) =>
-  option === LOAD_MORE_OPTION || option === RETRY_OPTION;
+const isPaginationOption = (option) => option === PAGINATION_SENTINEL_OPTION;
 
 const optionValue = (option) =>
   option && typeof option === "object" && "value" in option
@@ -140,11 +147,18 @@ const AutocompleteTextValueSelector = ({
   // free-text edit: committing it again on blur would turn 42/false back into
   // the strings "42"/"false" and silently change ClickHouse storage family.
   const freeTextDirtyRef = useRef(false);
-  const debouncedInput = useDebounce(inputValue, 300);
+  const debouncedInput = useDebounce(
+    inputValue,
+    PROPERTY_CATALOG_SEARCH_DEBOUNCE_MS,
+  );
+  const boundedDebouncedInput = boundPropertyCatalogSearch(debouncedInput);
   const queryClient = useQueryClient();
   const { observeId, id } = useParams();
   const projectId = projectIdProp || observeId || id;
   const definitionFilterType = definition?.filterType?.type || definition?.type;
+  const propertyRegistryId = definition?.propertyId
+    ? definition?.registryId || `custom_attribute:${definition.propertyId}`
+    : "";
   const attributeType =
     definitionFilterType &&
     definition?.attributeTypesExact === true &&
@@ -153,20 +167,23 @@ const AutocompleteTextValueSelector = ({
       ? normalizeAttributeType(definitionFilterType)
       : undefined;
 
-  const queryKey = [
-    "span-attribute-values",
-    projectId,
-    definition?.propertyId,
-    attributeType || "all-types",
-    debouncedInput,
-  ];
+  const queryKey = useMemo(
+    () => [
+      "span-attribute-values",
+      projectId,
+      propertyRegistryId,
+      attributeType || "all-types",
+      boundedDebouncedInput,
+    ],
+    [attributeType, boundedDebouncedInput, projectId, propertyRegistryId],
+  );
+  const valueOptionsListRef = useRef(null);
   const nextPageRequestRef = useRef(null);
   const freshChainRetryRef = useRef(null);
   const [freshChainRetrying, setFreshChainRetrying] = useState(false);
-  const autoScrollPageUsedRef = useRef(false);
+  const [paginationChainGeneration, setPaginationChainGeneration] = useState(0);
   const paginationIdentity = JSON.stringify(queryKey);
   useEffect(() => {
-    autoScrollPageUsedRef.current = false;
     setFreshChainRetrying(false);
     return () => {
       const activeRequest = freshChainRetryRef.current;
@@ -195,11 +212,12 @@ const AutocompleteTextValueSelector = ({
           timeout: ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS,
           params: {
             project_ids: projectId,
+            property_id: propertyRegistryId,
             metric_name: definition?.propertyId,
             metric_type: "custom_attribute",
             source: "traces",
-            search: debouncedInput,
-            page_size: 10,
+            search: boundedDebouncedInput,
+            page_size: INTERACTIVE_TABLE_PAGE_SIZE,
             ...(attributeType ? { attribute_type: attributeType } : {}),
             ...(cursor ? { cursor } : {}),
           },
@@ -237,7 +255,9 @@ const AutocompleteTextValueSelector = ({
         rowsFromResponse: (page) => page?.data?.result?.values || [],
         identityFromRow: optionIdentity,
         knownIdentities: knownValueIdentities,
-        targetRowCount: isFreshChainRead ? 1 : 10,
+        targetRowCount: isFreshChainRead
+          ? FILTER_VALUE_MIN_VISIBLE_RESULTS
+          : INTERACTIVE_TABLE_PAGE_SIZE,
         metadataFromResponse: (response) => {
           const checked = checkedResult(response);
           return isBrowseCursorStopped(checked)
@@ -303,7 +323,7 @@ const AutocompleteTextValueSelector = ({
         ? undefined
         : nextCursor;
     },
-    enabled: Boolean(projectId) && Boolean(definition?.propertyId),
+    enabled: Boolean(projectId) && Boolean(propertyRegistryId),
     staleTime: 30000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -327,11 +347,12 @@ const AutocompleteTextValueSelector = ({
         timeout: ATTRIBUTE_VALUE_REQUEST_TIMEOUT_MS,
         params: {
           project_ids: projectId,
+          property_id: propertyRegistryId,
           metric_name: definition?.propertyId,
           metric_type: "custom_attribute",
           source: "traces",
-          search: debouncedInput,
-          page_size: 10,
+          search: boundedDebouncedInput,
+          page_size: INTERACTIVE_TABLE_PAGE_SIZE,
           ...(attributeType ? { attribute_type: attributeType } : {}),
         },
       });
@@ -370,6 +391,7 @@ const AutocompleteTextValueSelector = ({
         pages: [compactedResponse],
         pageParams: [null],
       });
+      setPaginationChainGeneration((generation) => generation + 1);
       return compactedResponse;
     })();
     const trackedRequest = {
@@ -388,8 +410,9 @@ const AutocompleteTextValueSelector = ({
     return settledPromise;
   }, [
     attributeType,
-    debouncedInput,
+    boundedDebouncedInput,
     definition?.propertyId,
+    propertyRegistryId,
     paginationIdentity,
     projectId,
     queryClient,
@@ -427,17 +450,19 @@ const AutocompleteTextValueSelector = ({
   const continuationGuardExhausted = Boolean(
     data?.pages?.at(-1)?.data?.result?.[EMPTY_CONTINUATION_GUARD_EXHAUSTED],
   );
+  const pages = data?.pages || [];
+  const lastResult = normalizeBrowseMetadata(pages.at(-1)?.data?.result || {});
+  const continuationKey =
+    lastResult.has_more === true &&
+    typeof lastResult.next_cursor === "string" &&
+    lastResult.next_cursor.length > 0
+      ? lastResult.next_cursor
+      : null;
   const cursorChainStopped = (() => {
-    const pages = data?.pages || [];
     if (pages.some((page) => isBrowseCursorStopped(page?.data?.result || {}))) {
       return true;
     }
-    const lastResult = normalizeBrowseMetadata(
-      pages.at(-1)?.data?.result || {},
-    );
-    const nextCursor =
-      lastResult.has_more === true ? lastResult.next_cursor : null;
-    if (typeof nextCursor !== "string" || nextCursor.length === 0) return false;
+    if (!continuationKey) return false;
     const consumedCursors = new Set(
       (data?.pageParams || []).filter(
         (cursor) => typeof cursor === "string" && cursor.length > 0,
@@ -448,13 +473,25 @@ const AutocompleteTextValueSelector = ({
         consumedCursors.add(cursor);
       }
     }
-    return consumedCursors.has(nextCursor);
+    return consumedCursors.has(continuationKey);
   })();
-  const pickerOptions = hasNextPage
-    ? [...options, LOAD_MORE_OPTION]
-    : isError || cursorChainStopped
-      ? [...options, RETRY_OPTION]
-      : options;
+  const paginationError = Boolean(
+    isError ||
+      isFetchNextPageError ||
+      cursorChainStopped ||
+      continuationGuardExhausted,
+  );
+  const retryRequiresFreshChain =
+    cursorChainStopped || (isError && !isFetchNextPageError);
+  const paginationLoadAction = retryRequiresFreshChain
+    ? retryFreshChain
+    : requestNextPage;
+  const showPaginationSentinel = Boolean(
+    hasNextPage || paginationError || isFetchingNextPage || freshChainRetrying,
+  );
+  const pickerOptions = showPaginationSentinel
+    ? [...options, PAGINATION_SENTINEL_OPTION]
+    : options;
   const filterConfig = filter?.filter_config || {};
   const isListOperator = LIST_OPERATORS.has(filterConfig.filter_op);
   const selectedRawValues = isListOperator
@@ -530,116 +567,75 @@ const AutocompleteTextValueSelector = ({
       options={pickerOptions}
       filterOptions={(availableOptions) => availableOptions}
       getOptionLabel={(option) => {
-        if (option === LOAD_MORE_OPTION) {
-          return isFetchNextPageError || continuationGuardExhausted
-            ? "Retry loading values"
-            : "Load more values";
-        }
-        if (option === RETRY_OPTION) return "Retry loading values";
+        if (isPaginationOption(option)) return "";
         const value = optionValue(option);
         return typeof value === "string" ? value : JSON.stringify(value);
       }}
+      getOptionDisabled={isPaginationOption}
       isOptionEqualToValue={(option, value) =>
         Object.is(optionValue(option), optionValue(value)) &&
         optionStorageType(option) === optionStorageType(value)
       }
-      renderOption={(props, option) =>
-        isPaginationOption(option) ? (
-          <li
-            {...props}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (option === RETRY_OPTION) {
-                if (!isFetching && !freshChainRetrying) {
-                  void retryFreshChain().catch(() => {});
-                }
-              } else {
-                requestNextPage();
-              }
-            }}
-          >
-            {option === RETRY_OPTION
-              ? isFetching || freshChainRetrying
-                ? "Retrying values…"
-                : "Retry loading values"
-              : isFetchingNextPage
-                ? "Loading more values…"
-                : isFetchNextPageError || continuationGuardExhausted
-                  ? "Retry loading values"
-                  : "Load more values"}
-          </li>
-        ) : (
+      renderOption={(props, option) => {
+        if (isPaginationOption(option)) {
+          const sentinelProps = { ...props };
+          const optionKey = sentinelProps.key;
+          delete sentinelProps.key;
+          return (
+            <li
+              {...sentinelProps}
+              key={optionKey}
+              role="presentation"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <BoundedCursorPaginationControl
+                resetKey={`${paginationIdentity}:${paginationChainGeneration}`}
+                rootRef={valueOptionsListRef}
+                testId="attribute-value-pagination-sentinel"
+                loadingLabel="Loading more values…"
+                retryLabel="Retry loading values"
+                channels={[
+                  {
+                    channelKey: "attribute-values",
+                    hasNextPage: Boolean(hasNextPage),
+                    continuationKey,
+                    isFetching:
+                      isFetchingNextPage || freshChainRetrying || isFetching,
+                    error: paginationError,
+                    loadNextPage: paginationLoadAction,
+                  },
+                ]}
+              />
+            </li>
+          );
+        }
+        return (
           <li {...props}>
             {typeof optionValue(option) === "string"
               ? optionValue(option)
               : JSON.stringify(optionValue(option))}
           </li>
-        )
-      }
+        );
+      }}
       loading={isLoading}
-      onOpen={() => {
-        autoScrollPageUsedRef.current = false;
-      }}
-      ListboxProps={{
-        onScroll: (event) => {
-          const list = event.currentTarget;
-          const isNearBottom =
-            list.scrollTop + list.clientHeight >= list.scrollHeight - 24;
-          if (!isNearBottom) {
-            autoScrollPageUsedRef.current = false;
-            return;
-          }
-          if (
-            hasNextPage &&
-            !isFetchingNextPage &&
-            !autoScrollPageUsedRef.current
-          ) {
-            // One deliberate trip to the bottom advances one page. Browsers
-            // can emit more momentum/resize scroll events after a fast page
-            // render; letting each event fetch would silently drain the whole
-            // cursor chain and make "Load more" appear endless.
-            autoScrollPageUsedRef.current = true;
-            requestNextPage();
-          }
-        },
-      }}
+      ListboxProps={{ ref: valueOptionsListRef }}
       inputValue={inputValue}
       onInputChange={(_, newInputValue, reason) => {
-        if (
-          reason === "reset" &&
-          ["Load more values", "Retry loading values"].includes(newInputValue)
-        ) {
-          return;
-        }
         freeTextDirtyRef.current = reason === "input";
         setInputValue(newInputValue);
       }}
       value={isListOperator ? selectedOptions : selectedOptions[0] || null}
       onChange={(_, newValue) => {
         freeTextDirtyRef.current = false;
-        if (newValue === RETRY_OPTION) {
-          if (!isFetching && !freshChainRetrying) {
-            void retryFreshChain().catch(() => {});
-          }
-          return;
-        }
-        if (newValue === LOAD_MORE_OPTION) {
-          requestNextPage();
-          return;
-        }
         if (
-          Array.isArray(newValue) &&
-          newValue.some((option) => isPaginationOption(option))
+          isPaginationOption(newValue) ||
+          (Array.isArray(newValue) &&
+            newValue.some((option) => isPaginationOption(option)))
         ) {
-          if (newValue.includes(RETRY_OPTION)) {
-            if (!isFetching && !freshChainRetrying) {
-              void retryFreshChain().catch(() => {});
-            }
-          } else {
-            requestNextPage();
-          }
           return;
         }
         updateSelectedValues(newValue);
@@ -678,6 +674,7 @@ const AutocompleteTextValueSelector = ({
 AutocompleteTextValueSelector.propTypes = {
   definition: PropTypes.shape({
     propertyId: PropTypes.string,
+    registryId: PropTypes.string,
     type: PropTypes.string,
     filterType: PropTypes.shape({ type: PropTypes.string }),
     attributeTypes: PropTypes.arrayOf(PropTypes.string),

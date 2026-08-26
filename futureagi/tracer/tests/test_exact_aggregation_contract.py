@@ -2262,7 +2262,6 @@ def test_exact_refresh_has_a_dedicated_minimal_temporal_queue():
         _ACTIVITY_WRAPPERS,
     )
     from tfc.temporal.drop_in.workflow import TaskRunnerWorkflow
-
     from tracer.services import exact_aggregation_cache as cache_module
     from tracer.tasks.exact_aggregation import (
         EXACT_AGGREGATION_TASK_QUEUE,
@@ -2631,6 +2630,38 @@ def _exact_multi_filters(start: datetime, end: datetime) -> list[dict]:
     ]
 
 
+def _exact_reported_sparse_filters(start: datetime, end: datetime) -> list[dict]:
+    return [
+        _time_filter(start, end),
+        {
+            "column_id": "annotator",
+            "filter_config": {
+                "filter_type": "annotator",
+                "filter_op": "is_null",
+                "filter_value": None,
+            },
+        },
+        {
+            "column_id": "total_tokens",
+            "filter_config": {
+                "col_type": "SYSTEM_METRIC",
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 1,
+            },
+        },
+        {
+            "column_id": "ai_interruption_count",
+            "filter_config": {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 3,
+            },
+        },
+    ]
+
+
 @pytest.mark.unit
 def test_exact_span_partition_boundary_does_not_revive_a_winning_tombstone():
     start = datetime(2026, 8, 1)
@@ -2891,6 +2922,268 @@ def test_exact_trace_candidate_probe_is_all_time_but_classifier_stays_authoritat
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("filter_type", "filter_op", "filter_value"),
+    (
+        ("number", "greater_than", -1),
+        ("number", "equals", 0),
+        ("number", "less_than", 1),
+        ("number", "between", [-1, 1]),
+        ("boolean", "equals", False),
+    ),
+)
+def test_exact_trace_candidate_probe_keeps_key_only_when_map_default_can_match(
+    filter_type,
+    filter_op,
+    filter_value,
+):
+    """A tied missing-key row must not make the candidate narrower than argMax."""
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    filters = _exact_reported_sparse_filters(start, end)
+    filters[-1]["filter_config"].update(
+        filter_type=filter_type,
+        filter_op=filter_op,
+        filter_value=filter_value,
+    )
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=filters,
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+
+    assert "%(latest_filter_key_1)s" in compact_probe_sql
+    assert "latest_filter_param_1" not in probe_params
+    assert probe_params["latest_filter_key_1"] == "ai_interruption_count"
+
+
+@pytest.mark.unit
+def test_exact_trace_candidate_probe_uses_value_superset_for_positive_comparison():
+    """Regress the DEV shape that hit the key-only 1,001-row sentinel.
+
+    The post-deploy 2026-08-25 cold proof took 12.10s and 259 CH statements for
+    ``ai_interruption_count > 3``. The optimization must therefore retain the
+    positive raw-row comparison without sampling or weakening the unchanged
+    exact classifier.
+    """
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    classify_sql, classify_params = (
+        builder.build_filter_identity_match_query_from_seed_rows(
+            [{"trace_id": "key-present-candidate"}]
+        )
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+    compact_classify_sql = " ".join(classify_sql.split())
+
+    # Discovery is an all-time, unsampled raw-row value superset. Every current
+    # >3 match necessarily has a physical live row satisfying this comparison;
+    # stale historical matches are removed by the classifier below.
+    assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in compact_probe_sql
+    assert (
+        "attrs_number[%(latest_filter_key_1)s] > %(latest_filter_param_1)s"
+        in compact_probe_sql
+    )
+    assert probe_params["latest_filter_param_1"] == 3.0
+    assert "start_time >=" not in compact_probe_sql
+    assert "start_time <" not in compact_probe_sql
+    assert "is_deleted = 0" not in compact_probe_sql
+    assert "modulo(" not in compact_probe_sql
+    assert "LIMIT 1 BY trace_id" in compact_probe_sql
+    assert "LIMIT %(exact_graph_candidate_limit)s" in compact_probe_sql
+    assert probe_params["latest_filter_key_1"] == "ai_interruption_count"
+    assert probe_params["exact_graph_candidate_limit"] == 1_001
+
+    # The existing classifier remains the sole authority for the annotation
+    # absence, root token comparison, latest attribute value, and root window.
+    assert "model_hub_score AS s FINAL" in compact_classify_sql
+    assert "trace_id NOT IN" in compact_classify_sql
+    assert "latest_column_value_0 > %(latest_filter_param_0)s" in compact_classify_sql
+    assert "latest_attr_value_1 > %(latest_filter_param_1)s" in compact_classify_sql
+    assert classify_params["latest_filter_param_0"] == 1.0
+    assert classify_params["latest_filter_param_1"] == 3.0
+    assert classify_params["candidate_trace_ids"] == ("key-present-candidate",)
+    assert classify_params["candidate_start_date"] == start
+    assert classify_params["candidate_end_date"] == end
+
+
+@pytest.mark.unit
+def test_exact_trace_candidate_probe_keeps_long_typed_picker_value():
+    """A retained prompt must narrow the graph by key and value, not key alone."""
+
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    long_prompt = (
+        "Metadata-backed prompt: this retained conversation value is intentionally "
+        "long enough to exercise the production picker path without truncating the "
+        "bound comparison. It must remain an exact, case-insensitive value witness "
+        "for the graph candidate query even across a twelve-month request window. "
+        "The latest-state classifier remains authoritative."
+    )
+    assert len(long_prompt) > 256
+    attribute_key = "metadata.conversation.transcript.0.message.content"
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=[
+            _time_filter(start, end),
+            {
+                "column_id": attribute_key,
+                "filter_config": {
+                    "col_type": "SPAN_ATTRIBUTE",
+                    "filter_type": "text",
+                    "filter_op": "in",
+                    "filter_value": [long_prompt],
+                    "attribute_value_types": ["string"],
+                },
+            },
+        ],
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=1_001
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+
+    assert "has(attrs_string.keys, %(latest_filter_key_0)s)" in compact_probe_sql
+    assert (
+        "lowerUTF8(toString(attrs_string[%(latest_filter_key_0)s])) "
+        "IN %(latest_filter_param_0_string)s" in compact_probe_sql
+    )
+    assert probe_params["latest_filter_key_0"] == attribute_key
+    assert probe_params["latest_filter_param_0_string"] == (long_prompt.lower(),)
+    assert probe_params["exact_graph_candidate_limit"] == 1_001
+
+
+@pytest.mark.unit
+def test_exact_trace_value_superset_candidate_probe_rejects_sampling():
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+        bounded_sampling_salt="sampling-cannot-prove-exactness",
+        bounded_sampling_rate=50,
+    )
+
+    assert builder.build_exact_graph_candidate_witness_probe(limit=1_001) == ("", {})
+
+
+@pytest.mark.unit
+def test_exact_reported_sparse_shape_uses_two_statement_candidate_lane():
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    start = datetime(2025, 8, 19)
+    end = datetime(2026, 8, 19)
+    calls = []
+
+    class Analytics:
+        @staticmethod
+        def execute_ch_query(query, params, **kwargs):
+            calls.append((query, dict(params), dict(kwargs)))
+            if "exact_graph_candidate_limit" in params:
+                assert "has(attrs_number.keys, %(latest_filter_key_1)s)" in query
+                assert (
+                    "attrs_number[%(latest_filter_key_1)s]"
+                    " > %(latest_filter_param_1)s" in query
+                )
+                assert params["latest_filter_param_1"] == 3.0
+                return SimpleNamespace(
+                    data=[
+                        {"trace_id": "current-match"},
+                        {"trace_id": "stale-raw-value-only"},
+                    ],
+                    columns=["trace_id"],
+                    query_time_ms=1,
+                )
+            assert params["candidate_trace_ids"] == (
+                "current-match",
+                "stale-raw-value-only",
+            )
+            assert "latest_column_value_0 > %(latest_filter_param_0)s" in query
+            assert "latest_attr_value_1 > %(latest_filter_param_1)s" in query
+            assert "model_hub_score AS s FINAL" in query
+            assert "trace_id NOT IN" in query
+            # The key witness deliberately includes a stale/non-matching
+            # candidate; only latest-state replay may admit a graph member.
+            return SimpleNamespace(
+                data=[{"trace_id": "current-match"}],
+                columns=["trace_id"],
+                query_time_ms=1,
+            )
+
+    trace_ids, query_count, rows_returned = _enumerate_exact_trace_ids(
+        analytics=Analytics(),
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_reported_sparse_filters(start, end),
+        annotation_label_ids=None,
+        started=exact_module.monotonic(),
+    )
+
+    assert trace_ids == ["current-match"]
+    assert query_count == 2
+    assert rows_returned == 3
+    assert len(calls) == 2
+
+
+@pytest.mark.unit
 def test_exact_trace_candidate_probe_rejects_structured_only_filter():
     from tracer.services.clickhouse.v2.query_builders.trace_list import (
         TraceListQueryBuilderV2,
@@ -2912,6 +3205,73 @@ def test_exact_trace_candidate_probe_rejects_structured_only_filter():
     )
 
     assert builder.build_exact_graph_candidate_witness_probe(limit=201) == ("", {})
+
+
+@pytest.mark.unit
+def test_exact_trace_candidate_probe_uses_negative_annotator_relation():
+    from tracer.services.clickhouse.v2.query_builders.trace_list import (
+        TraceListQueryBuilderV2,
+    )
+
+    start = datetime(2025, 8, 18, 7, 38, 38)
+    end = datetime(2026, 8, 19, 7)
+    annotator_id = "00000000-0000-4000-8000-000000000099"
+    builder = TraceListQueryBuilderV2(
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=[
+            _time_filter(start, end),
+            {
+                "column_id": "duration",
+                "filter_config": {
+                    "col_type": "SYSTEM_METRIC",
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 30,
+                },
+            },
+            {
+                "column_id": "annotator",
+                "filter_config": {
+                    "filter_type": "annotator",
+                    "filter_op": "not_equals",
+                    "filter_value": annotator_id,
+                },
+            },
+        ],
+        page_number=0,
+        page_size=200,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+        bounded_include_filter_witnesses=False,
+        bounded_global_span_witnesses=True,
+    )
+
+    probe_sql, probe_params = builder.build_exact_graph_candidate_witness_probe(
+        limit=201
+    )
+    classify_sql, classify_params = (
+        builder.build_filter_identity_match_query_from_seed_rows(
+            [{"trace_id": "annotated-candidate"}]
+        )
+    )
+    compact_probe_sql = " ".join(probe_sql.split())
+    compact_classify_sql = " ".join(classify_sql.split())
+
+    assert "model_hub_score AS s FINAL" in compact_probe_sql
+    assert "s.annotator_id IN (toUUID(%(uid_1)s))" in compact_probe_sql
+    assert "trace_id NOT IN" in compact_probe_sql
+    assert "ORDER BY start_time DESC, trace_id DESC" in compact_probe_sql
+    assert probe_params["uid_1"] == annotator_id
+    assert probe_params["filter_slice_start"] == start
+    assert probe_params["filter_slice_end"] == end
+    assert probe_params["filter_seed_limit"] == 201
+    # The relation probe is only a finite candidate selector. The ordinary
+    # latest-state classifier remains authoritative for both the negative
+    # annotator exclusion and every scalar filter before graph publication.
+    assert "model_hub_score AS s FINAL" in compact_classify_sql
+    assert "trace_id NOT IN" in compact_classify_sql
+    assert classify_params["candidate_trace_ids"] == ("annotated-candidate",)
 
 
 @pytest.mark.unit
@@ -4444,14 +4804,17 @@ def test_exact_trace_membership_exhausts_5k_identity_classifier_boundary(monkeyp
     assert exact_module.EXACT_GRAPH_TRACE_SELECTOR_PAGE_SIZE == 5_000
     assert exact_module.EXACT_GRAPH_TRACE_CANDIDATE_SENTINEL == 1_001
     assert exact_module.EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE == 5_000
-    assert exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS == 30_000
+    assert (
+        exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS
+        == exact_module.EXACT_GRAPH_WALL_DEADLINE_MS
+    )
     assert exact_module.EXACT_GRAPH_READ_SETTINGS["max_threads"] == 1
     assert "max_rows_to_read" not in exact_module.EXACT_GRAPH_READ_SETTINGS
     assert exact_module.EXACT_GRAPH_READ_SETTINGS["max_bytes_to_read"] == (
         exact_module.EXACT_GRAPH_MAX_BYTES_TO_READ
     )
     assert exact_module.EXACT_GRAPH_MAX_BYTES_TO_READ == 36 * 1024 * 1024 * 1024
-    assert exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_READ_SETTINGS["max_threads"] == 4
+    assert exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_READ_SETTINGS["max_threads"] == 8
     assert trace_ids == ordered_ids
     assert [len(batch) for batch in classifier_batches] == [5_000, 5_000, 1]
     assert len(classifier_timeouts) == 3
@@ -4459,7 +4822,7 @@ def test_exact_trace_membership_exhausts_5k_identity_classifier_boundary(monkeyp
         0 < timeout <= exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS
         for timeout in classifier_timeouts
     )
-    assert [settings["max_threads"] for settings in classifier_settings] == [4, 4, 4]
+    assert [settings["max_threads"] for settings in classifier_settings] == [8, 8, 8]
     assert [settings["max_result_rows"] for settings in classifier_settings] == [
         5_000,
         5_000,
@@ -4470,8 +4833,16 @@ def test_exact_trace_membership_exhausts_5k_identity_classifier_boundary(monkeyp
 
 
 @pytest.mark.unit
-def test_exact_trace_membership_bisects_read_budget_classifier_without_gaps(
+@pytest.mark.parametrize(
+    "classifier_error",
+    [
+        ServerException("private bounded classifier timeout", code=159),
+        ServerException("Max query size exceeded at position 262133", code=62),
+    ],
+)
+def test_exact_trace_membership_bisects_retryable_classifier_without_gaps(
     monkeypatch,
+    classifier_error,
 ):
     from tracer.services.clickhouse import exact_graph_reads as exact_module
 
@@ -4533,7 +4904,7 @@ def test_exact_trace_membership_bisects_read_budget_classifier_without_gaps(
                     query_time_ms=1,
                 )
             if len(params["ids"]) > 1:
-                raise ServerException("private bounded classifier timeout", code=159)
+                raise classifier_error
             return SimpleNamespace(
                 data=[{"trace_id": params["ids"][0]}],
                 columns=["trace_id"],
@@ -5056,8 +5427,16 @@ def test_exact_trace_contribution_builder_accepts_5k_and_rejects_larger_batch():
 
 
 @pytest.mark.unit
-def test_exact_trace_graph_bisects_budget_limited_contribution_without_gaps(
+@pytest.mark.parametrize(
+    "contribution_error",
+    [
+        ServerException("private detail", code=159),
+        ServerException("Max query size exceeded at position 262133", code=62),
+    ],
+)
+def test_exact_trace_graph_bisects_retryable_contribution_without_gaps(
     monkeypatch,
+    contribution_error,
 ):
     from tracer.services.clickhouse import exact_graph_reads as exact_module
 
@@ -5077,7 +5456,7 @@ def test_exact_trace_graph_bisects_budget_limited_contribution_without_gaps(
             batch_size = len(params["graph_candidate_trace_ids"])
             self.batch_sizes.append(batch_size)
             if batch_size > 2:
-                raise ServerException("private detail", code=159)
+                raise contribution_error
             return SimpleNamespace(
                 data=[
                     {
@@ -5658,7 +6037,7 @@ def test_exact_graph_budget_failure_does_not_publish_or_split_contribution_batch
 
 
 @pytest.mark.unit
-def test_public_filtered_graph_budget_failure_never_enqueues_raw_exact_fallback():
+def test_public_filtered_graph_returns_pending_without_inline_clickhouse():
     from tracer.services.clickhouse import graph_dispatch
 
     cache.clear()
@@ -5670,9 +6049,17 @@ def test_public_filtered_graph_budget_failure_never_enqueues_raw_exact_fallback(
 
     start = datetime(2026, 8, 1, 0, 0)
     end = datetime(2026, 8, 8, 0, 0)
-    with patch(
-        "tracer.tasks.exact_aggregation.refresh_exact_aggregation_snapshot.apply_async"
-    ) as enqueue:
+    exact_read = []
+
+    def read_or_schedule(namespace, identity, **options):
+        exact_read.append((namespace, identity, options))
+        return options["pending_payload"]
+
+    with patch.object(
+        graph_dispatch,
+        "read_or_schedule_exact_snapshot",
+        side_effect=read_or_schedule,
+    ):
         result = graph_dispatch.fetch_system_metric_graph_ch(
             analytics=InlineQueryForbidden(),
             project_id="11111111-1111-4111-8111-111111111111",
@@ -5680,17 +6067,17 @@ def test_public_filtered_graph_budget_failure_never_enqueues_raw_exact_fallback(
             interval="day",
             metric_id="traffic",
             observe_type="trace",
-            # An already exhausted interactive budget must return typed
-            # degradation. It must not enqueue the retired raw exact path.
+            # The HTTP path must remain independent of the exact worker's
+            # ClickHouse budget and return its pending envelope immediately.
             timeout_ms=1,
         )
 
-    assert result["query_status"] == "degraded"
+    assert result["query_status"] == "pending"
     assert result["query_complete"] is False
-    assert result["query_error_code"] == "read_budget_exceeded"
-    assert result["query_exact"] is False
-    assert result["query_provenance"] == "bounded_candidates"
-    enqueue.assert_not_called()
+    assert result["query_sampled"] is False
+    assert result["query_refreshing"] is True
+    assert exact_read[0][0] == "observe-system-graph"
+    assert exact_read[0][1]["filters"] == _exact_multi_filters(start, end)
 
 
 @pytest.mark.unit
@@ -5920,7 +6307,7 @@ def test_direct_exact_graph_readers_share_deadline_and_fence_final_publication(
             observe_type="span",
         )
 
-    assert observed_timeouts == [25_000]
+    assert observed_timeouts == [exact_module.EXACT_GRAPH_WALL_DEADLINE_MS - 5_000]
 
 
 @pytest.mark.unit
@@ -6617,7 +7004,7 @@ class _ScoreListManager:
 
 
 @pytest.mark.unit
-def test_annotation_reader_sets_postgres_readonly_snapshot_and_30s_timeout(
+def test_annotation_reader_sets_postgres_readonly_snapshot_and_remaining_timeout(
     monkeypatch,
 ):
     from tracer.services.clickhouse import exact_graph_reads as exact_module
@@ -6684,11 +7071,12 @@ def test_annotation_reader_sets_postgres_readonly_snapshot_and_30s_timeout(
         observe_type="trace",
     )
 
+    remaining_timeout_ms = exact_module.EXACT_GRAPH_WALL_DEADLINE_MS - 1_250
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '28750ms'",
+        f"SET LOCAL statement_timeout = '{remaining_timeout_ms}ms'",
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '28750ms'",
+        f"SET LOCAL statement_timeout = '{remaining_timeout_ms}ms'",
     ]
     assert transaction_state["active"] is False
     assert result["query_complete"] is True
@@ -6755,9 +7143,15 @@ def test_annotation_slow_empty_postgres_partition_exhausts_shared_deadline(
 
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '30000ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '30000ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
     ]
     assert analytics.main_calls == []
 
@@ -6825,7 +7219,10 @@ def test_annotation_slow_label_discovery_exhausts_deadline_before_score_work(
 
     assert statements == [
         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
-        "SET LOCAL statement_timeout = '30000ms'",
+        (
+            "SET LOCAL statement_timeout = "
+            f"'{exact_module.EXACT_GRAPH_WALL_DEADLINE_MS}ms'"
+        ),
     ]
     assert score_filters == []
     assert analytics.main_calls == []

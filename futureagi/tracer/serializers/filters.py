@@ -10,6 +10,9 @@ from tfc.utils.api_serializers import (
     StrictInputSerializer,
 )
 from tfc.utils.serializer_fields import JSON_VALUE_SCHEMA, JsonValueField  # noqa: F401
+from tracer.utils.attribute_suggestion_contract import (
+    TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES,
+)
 from tracer.utils.filter_operators import (
     FILTER_TYPE_ALLOWED_OPS,
     JSON_ARRAY_FILTER_MAX_MEMBERS,
@@ -23,6 +26,10 @@ from tracer.utils.filter_operators import (
     normalize_filter_type,
     normalize_span_attribute_filter_type,
     validate_json_map_filter_value,
+)
+from tracer.utils.property_registry import (
+    validate_property_filter_binding,
+    validate_property_graph_binding,
 )
 
 FILTER_CONFIG_SCHEMA = {
@@ -64,6 +71,10 @@ FILTER_ITEM_SCHEMA = {
         "column_id": {
             "type": "string",
             "description": "Column or attribute id to filter on.",
+        },
+        "property_id": {
+            "type": "string",
+            "description": "Optional stable namespaced Property Registry identity.",
         },
         "display_name": {
             "type": "string",
@@ -247,6 +258,8 @@ class ObserveGraphMetricConfigField(serializers.JSONField):
         "value",
         "filter_op",
         "filter_value",
+        "property_id",
+        "source",
     }
 
     class Meta:
@@ -264,6 +277,14 @@ class ObserveGraphMetricConfigField(serializers.JSONField):
                 "value": {},
                 "filter_op": {"type": "string"},
                 "filter_value": {},
+                "property_id": {
+                    "type": "string",
+                    "description": "Stable Property Registry identity.",
+                },
+                "source": {
+                    "type": "string",
+                    "enum": ["traces", "sessions"],
+                },
             },
             "required": ["id", "type"],
             "additionalProperties": False,
@@ -286,6 +307,39 @@ class ObserveGraphMetricConfigField(serializers.JSONField):
             raise serializers.ValidationError(
                 "req_data_config.type must be SYSTEM_METRIC, EVAL, or ANNOTATION."
             )
+        has_property_id = "property_id" in value
+        has_source = "source" in value
+        if has_property_id != has_source:
+            raise serializers.ValidationError(
+                "req_data_config.property_id and source must be provided together."
+            )
+        if has_property_id:
+            property_id = value.get("property_id")
+            source = value.get("source")
+            if not isinstance(property_id, str) or not property_id.strip():
+                raise serializers.ValidationError(
+                    "req_data_config.property_id must be a non-empty string."
+                )
+            if not isinstance(source, str) or not source.strip():
+                raise serializers.ValidationError(
+                    "req_data_config.source must be a non-empty string."
+                )
+            if source not in ("traces", "sessions"):
+                raise serializers.ValidationError(
+                    "req_data_config.source must be traces or sessions."
+                )
+            try:
+                validate_property_graph_binding(
+                    property_id,
+                    metric_name=value["id"],
+                    graph_type=value["type"],
+                    source=source,
+                )
+            except ValueError as exc:
+                raise serializers.ValidationError(str(exc)) from exc
+        # Both fields absent is the explicit compatibility contract for graph
+        # clients predating the Property Registry. Supplying only one is never
+        # interpreted as legacy because that could silently change adapters.
         return value
 
 
@@ -315,16 +369,21 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
 
     total_string_bytes = 0
 
-    def check_string(value: str, *, field: str) -> None:
+    def check_string(
+        value: str,
+        *,
+        field: str,
+        max_utf8_bytes: int = FILTER_STRING_MAX_UTF8_BYTES,
+    ) -> None:
         nonlocal total_string_bytes
         try:
             encoded = value.encode("utf-8", errors="strict")
         except UnicodeEncodeError as exc:
             raise serializers.ValidationError(f"{field} must be valid UTF-8.") from exc
-        if len(encoded) > FILTER_STRING_MAX_UTF8_BYTES:
+        if len(encoded) > max_utf8_bytes:
             raise serializers.ValidationError(
-                f"{field} must be at most {FILTER_STRING_MAX_UTF8_BYTES} "
-                f"UTF-8 bytes ({FILTER_STRING_MAX_UTF8_BYTES} UTF-8 byte limit)."
+                f"{field} must be at most {max_utf8_bytes} "
+                f"UTF-8 bytes ({max_utf8_bytes} UTF-8 byte limit)."
             )
         total_string_bytes += len(encoded)
         if total_string_bytes > FILTER_LIST_MAX_TOTAL_STRING_UTF8_BYTES:
@@ -333,13 +392,23 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                 f"{FILTER_LIST_MAX_TOTAL_STRING_UTF8_BYTES} UTF-8 byte request limit."
             )
 
-    def check_value(value: Any, *, field: str, depth: int = 0) -> None:
+    def check_value(
+        value: Any,
+        *,
+        field: str,
+        depth: int = 0,
+        max_string_utf8_bytes: int = FILTER_STRING_MAX_UTF8_BYTES,
+    ) -> None:
         if depth > FILTER_VALUE_MAX_DEPTH:
             raise serializers.ValidationError(
                 f"{field} supports at most {FILTER_VALUE_MAX_DEPTH} nested levels."
             )
         if isinstance(value, str):
-            check_string(value, field=field)
+            check_string(
+                value,
+                field=field,
+                max_utf8_bytes=max_string_utf8_bytes,
+            )
             return
         if isinstance(value, list):
             if len(value) > FILTER_LIST_MAX_VALUES:
@@ -347,7 +416,12 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                     f"{field} supports at most {FILTER_LIST_MAX_VALUES} values."
                 )
             for item in value:
-                check_value(item, field=field, depth=depth + 1)
+                check_value(
+                    item,
+                    field=field,
+                    depth=depth + 1,
+                    max_string_utf8_bytes=max_string_utf8_bytes,
+                )
             return
         if isinstance(value, dict):
             if len(value) > FILTER_LIST_MAX_VALUES:
@@ -357,7 +431,12 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
             for key, item in value.items():
                 if isinstance(key, str):
                     check_string(key, field=f"{field} key")
-                check_value(item, field=field, depth=depth + 1)
+                check_value(
+                    item,
+                    field=field,
+                    depth=depth + 1,
+                    max_string_utf8_bytes=max_string_utf8_bytes,
+                )
 
     for index, item in enumerate(filters):
         if not isinstance(item, dict):
@@ -367,7 +446,12 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
         column_id = item.get("column_id")
         if isinstance(column_id, str):
             check_string(column_id, field=f"Filter {index + 1} column_id")
-        for optional_key in ("display_name", "source", "output_type"):
+        for optional_key in (
+            "property_id",
+            "display_name",
+            "source",
+            "output_type",
+        ):
             optional_value = item.get(optional_key)
             if isinstance(optional_value, str):
                 check_string(
@@ -403,10 +487,39 @@ def validate_filter_list_complexity(filters: list[Any]) -> None:
                     field=f"Filter {index + 1} {config_key}",
                 )
         if "filter_value" in config:
-            check_value(
-                config["filter_value"],
-                field=f"Filter {index + 1} value",
+            filter_value = config["filter_value"]
+            attribute_value_types = config.get("attribute_value_types")
+            has_aligned_picker_provenance = bool(
+                config.get("col_type") == "SPAN_ATTRIBUTE"
+                and config.get("filter_op") in LIST_FILTER_OPS
+                and isinstance(filter_value, list)
+                and isinstance(attribute_value_types, list)
+                and len(filter_value) == len(attribute_value_types)
             )
+            if has_aligned_picker_provenance:
+                if len(filter_value) > FILTER_LIST_MAX_VALUES:
+                    raise serializers.ValidationError(
+                        f"Filter {index + 1} value supports at most "
+                        f"{FILTER_LIST_MAX_VALUES} values."
+                    )
+                for selected_value, selected_type in zip(
+                    filter_value, attribute_value_types, strict=True
+                ):
+                    check_value(
+                        selected_value,
+                        field=f"Filter {index + 1} value",
+                        depth=1,
+                        max_string_utf8_bytes=(
+                            TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES
+                            if selected_type == "string"
+                            else FILTER_STRING_MAX_UTF8_BYTES
+                        ),
+                    )
+            else:
+                check_value(
+                    filter_value,
+                    field=f"Filter {index + 1} value",
+                )
         if "attribute_value_types" in config:
             check_value(
                 config["attribute_value_types"],
@@ -457,6 +570,22 @@ class FilterItemField(serializers.JSONField):
             raise serializers.ValidationError(
                 f"Unknown filter config keys: {', '.join(extra_config_keys)}"
             )
+
+        property_id = value.get("property_id")
+        if property_id is not None:
+            if not isinstance(property_id, str) or not property_id.strip():
+                raise serializers.ValidationError(
+                    "property_id must be a non-empty string."
+                )
+            try:
+                validate_property_filter_binding(
+                    property_id,
+                    column_id=value.get("column_id"),
+                    column_type=config.get("col_type"),
+                    source=value.get("source"),
+                )
+            except ValueError as exc:
+                raise serializers.ValidationError(str(exc)) from exc
 
         filter_value = config.get("filter_value")
         attribute_value_types = config.get("attribute_value_types")
@@ -971,6 +1100,13 @@ class ObserveGraphDataResultSerializer(serializers.Serializer):
     )
     query_window_start = serializers.CharField(required=False)
     query_window_end = serializers.CharField(required=False)
+    query_applied_filter_version = serializers.ChoiceField(
+        choices=("canonical-json-sha256-v1",), required=False
+    )
+    query_applied_filter_sha256 = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False
+    )
+    query_applied_filter_count = serializers.IntegerField(required=False, min_value=0)
     query_sample_size = serializers.IntegerField(required=False, min_value=0)
     query_count = serializers.IntegerField(required=False, min_value=0)
     query_elapsed_ms = serializers.FloatField(required=False, min_value=0)

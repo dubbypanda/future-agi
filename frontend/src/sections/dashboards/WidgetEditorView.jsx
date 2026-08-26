@@ -48,18 +48,20 @@ import {
 import { paths } from "src/routes/paths";
 import {
   useDashboardDetail,
-  useDashboardMetricsPaginated,
   useDashboardQuery,
   useCreateWidget,
   useUpdateWidget,
   useDeleteWidget,
+  isPropertyCatalogNotReadyError,
+  useLegacyDashboardMetricsPaginated,
+  usePropertyCatalog,
   useSimulationAgents,
 } from "src/hooks/useDashboards";
 import { useDebounce } from "src/hooks/use-debounce";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
 import Iconify from "src/components/iconify";
+import BoundedCursorPaginationControl from "src/components/BoundedCursorPaginationControl";
 import FilterValueLabel, {
-  shouldShowFilterValueContinuation,
   useResolvedFilterOptions,
 } from "src/components/filter-value-label";
 import { useSnackbar } from "src/components/snackbar";
@@ -81,6 +83,11 @@ import {
   normalizeColumnType,
   normalizeFilterType,
 } from "src/api/contracts/filter-contract";
+import {
+  FILTER_VALUE_SEARCH_DEBOUNCE_MS,
+  PROPERTY_CATALOG_PAGE_SIZE,
+  PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+} from "src/config/runtime_limits";
 
 import {
   DEFAULT_DECIMALS,
@@ -122,8 +129,12 @@ import {
 import {
   getWidgetEditorLoadState,
   getWidgetPreviewState,
+  shouldBlockWidgetPreviewForFailure,
   WIDGET_PREVIEW_MAX_WAIT_MS,
 } from "./widgetEditorState";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
+const WIDGET_PREVIEW_REQUEST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
 const escapeCsvField = (field) => {
   const str = String(field ?? "");
@@ -312,6 +323,198 @@ export function getWidgetMetricDataType(metric) {
   return metric?.type || "number";
 }
 
+const WIDGET_OPTION_TYPE_BY_CATALOG_CATEGORY = {
+  system_metric: "system",
+  eval_metric: "eval_metric",
+  annotation_metric: "annotation",
+  custom_attribute: "custom_attribute",
+  custom_column: "custom_column",
+};
+
+const normalizeWidgetCatalogSearchText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const widgetOptionSources = (option) =>
+  new Set(
+    [option?.source, ...(option?.sources || [])].filter(Boolean).map(String),
+  );
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isWidgetPickerOptionInCategory(option, pickerCategory) {
+  if (!option || !pickerCategory || pickerCategory === "all") return true;
+  const sources = widgetOptionSources(option);
+  const targetsSource = (source) =>
+    sources.has(source) || sources.has("all") || sources.has("both");
+  const searchableIdentity = normalizeWidgetCatalogSearchText(
+    `${option.id || ""} ${option.name || ""}`,
+  );
+
+  switch (pickerCategory) {
+    case "trace":
+      return option.type === "system" && targetsSource("traces");
+    case "eval_metric":
+      return option.type === "eval_metric";
+    case "prompt":
+      return (
+        option.type === "system" &&
+        targetsSource("traces") &&
+        searchableIdentity.includes("prompt")
+      );
+    case "dataset":
+      return targetsSource("datasets");
+    case "simulation":
+      return targetsSource("simulation");
+    case "user":
+      return (
+        option.type === "system" &&
+        targetsSource("traces") &&
+        searchableIdentity.includes("user")
+      );
+    case "annotation":
+      return option.type === "annotation";
+    case "custom_attribute":
+      return option.type === "custom_attribute";
+    default:
+      return false;
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveWidgetCatalogResultMetrics({
+  baseMetrics,
+  scopedMetrics,
+  scopedRequestActive,
+  requestSettled,
+}) {
+  if (!requestSettled) return [];
+  return scopedRequestActive ? scopedMetrics || [] : baseMetrics || [];
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildWidgetCatalogPickerOptions({
+  metrics: catalogMetrics,
+  pickerMode,
+  pickerCategory = "all",
+  search = "",
+  requestSettled = true,
+  selectedMetricSources = [],
+  targetMetricSource = null,
+}) {
+  if (!requestSettled) return [];
+
+  const mappedOptions = (catalogMetrics || [])
+    .filter((metric) => pickerMode !== "metric" || metric.role !== "dimension")
+    .filter((metric) =>
+      isWidgetCatalogOptionAllowed(metric, pickerMode, {
+        selectedMetricSources,
+        targetMetricSource,
+      }),
+    )
+    .map((metric) => ({
+      id: metric.name,
+      registryId: metric.propertyId || metric.property_id,
+      name: metric.displayName || metric.display_name || metric.name,
+      type:
+        WIDGET_OPTION_TYPE_BY_CATALOG_CATEGORY[metric.category] ||
+        metric.category,
+      source: metric.source,
+      sources: metric.sources,
+      dataType: getWidgetMetricDataType(metric),
+      outputType: metric.outputType || metric.output_type,
+      columnDataType: metric.dataType || metric.data_type,
+      configIds: metric.configIds || metric.config_ids,
+      evalKey: metric.evalKey || metric.eval_key,
+      unit: metric.unit,
+      choices: metric.choices,
+      choiceOptions: metric.choiceOptions || metric.choice_options,
+      allowedAggregations:
+        metric.allowedAggregations || metric.allowed_aggregations,
+    }))
+    // The server category is authoritative, and this local guard prevents a
+    // cached or compatibility response from leaking System rows into Trace
+    // Attributes (or vice versa) after an explicit category selection.
+    .filter((option) => isWidgetPickerOptionInCategory(option, pickerCategory));
+
+  const seen = new Set();
+  const uniqueOptions = mappedOptions.filter((option) => {
+    const identity = `${option.registryId || `${option.source || "all"}:${option.type}:${option.id}`}:${option.dataType || ""}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+
+  const normalizedSearch = normalizeWidgetCatalogSearchText(search);
+  if (!normalizedSearch) return uniqueOptions;
+
+  // Exact matches stay first, but never suppress fuzzy server matches from
+  // other categories. `cost` under All must retain both Cost and matching
+  // cost_breakdown.* custom attributes.
+  const exactMatches = uniqueOptions.filter((option) =>
+    [option.id, option.name].some(
+      (candidate) =>
+        normalizeWidgetCatalogSearchText(candidate) === normalizedSearch,
+    ),
+  );
+  const exactSet = new Set(exactMatches);
+  return [
+    ...exactMatches,
+    ...uniqueOptions.filter((option) => !exactSet.has(option)),
+  ];
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getWidgetCatalogExactResultCount({
+  request,
+  categoryCounts,
+  categoryCountsExact,
+  requestSettled,
+}) {
+  if (!requestSettled || !categoryCountsExact || !categoryCounts) return null;
+  const countKey = request?.category || "all";
+  const count = categoryCounts[countKey];
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+const WIDGET_SIDEBAR_COUNT_KEY = {
+  all: "all",
+  eval_metric: "eval_metric",
+  annotation: "annotation_metric",
+  custom_attribute: "custom_attribute",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getWidgetCatalogSidebarCategoryCount({
+  pickerCategory,
+  categoryCounts,
+  categoryCountsExact,
+}) {
+  if (!categoryCountsExact || !categoryCounts) return null;
+  const countKey = WIDGET_SIDEBAR_COUNT_KEY[pickerCategory];
+  if (!countKey) return null;
+  const count = categoryCounts[countKey];
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveWidgetCatalogSidebarCounts({
+  requestSettled,
+  search,
+  baseCategoryCounts,
+  baseCategoryCountsExact,
+  allSearchCategoryCounts,
+  allSearchCategoryCountsExact,
+}) {
+  if (!requestSettled) return null;
+  if (!String(search || "").trim()) {
+    return baseCategoryCountsExact ? baseCategoryCounts || null : null;
+  }
+  return allSearchCategoryCountsExact ? allSearchCategoryCounts || null : null;
+}
+
 export function buildWidgetCursorAttributeOptions(
   cursorAttributes,
   pickerMode,
@@ -339,6 +542,7 @@ export function buildWidgetCursorAttributeOptions(
       // Widget filter contract. Keep both out instead of coercing them to text.
       return eligibleTypes.map((dataType) => ({
         id: key,
+        registryId: `custom_attribute:${key}`,
         name: key,
         type: "custom_attribute",
         source: "traces",
@@ -362,7 +566,7 @@ export function mergeWidgetCursorAttributeOptions(
   ];
   const seen = new Set();
   return options.filter((option) => {
-    const identity = `${option.source || "all"}:${option.type}:${option.id}:${option.dataType || ""}`;
+    const identity = `${option.registryId || `${option.source || "all"}:${option.type}:${option.id}`}:${option.dataType || ""}`;
     if (seen.has(identity)) return false;
     seen.add(identity);
     return true;
@@ -373,6 +577,7 @@ export function getWidgetMetricCatalogRequest({
   pickerCategory,
   search,
   pickerOpen,
+  pickerMode = "metric",
 }) {
   const activeCategory = METRIC_CATEGORIES.find(
     (category) => category.key === pickerCategory,
@@ -383,13 +588,227 @@ export function getWidgetMetricCatalogRequest({
     search: activeCategory?.nameFilter
       ? search || activeCategory.nameFilter
       : search,
-    pageSize: 50,
-    // Custom attributes are supplied exclusively by the retained cursor
-    // inventory. No finite catalog category should trigger the legacy capped
-    // ClickHouse attribute scan before the backend applies its category filter.
+    // Metric selection must page and count only aggregatable properties.
+    // Without this server-side scope, a broad dimension-only search can say
+    // "302 results" while rendering none and offer an effectively endless
+    // Load more cursor through rows the picker intentionally hides.
+    role: pickerMode === "metric" ? "metric" : "",
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+    // Only the legacy fallback reads this flag. The activated catalog always
+    // includes custom attributes; the fallback must never rescan the large
+    // source attribute maps while the catalog is unavailable.
     excludeCustomAttributes: true,
-    enabled: pickerOpen && pickerCategory !== "custom_attribute",
+    enabled: pickerOpen,
   };
+}
+
+export function WidgetCatalogPaginationControl({
+  pickerCategory,
+  hasNextPage,
+  continuationKey,
+  isFetchingNextPage,
+  isFetchNextPageError = false,
+  onLoadMore,
+  attributeHasNextPage = false,
+  attributeContinuationKey,
+  isFetchingAttributeNextPage = false,
+  isFetchNextAttributePageError = false,
+  onLoadMoreAttributes,
+}) {
+  const attributePageAvailable =
+    (pickerCategory === "all" || pickerCategory === "custom_attribute") &&
+    Boolean(attributeHasNextPage);
+  return (
+    <BoundedCursorPaginationControl
+      channels={[
+        {
+          channelKey: "catalog",
+          hasNextPage: Boolean(hasNextPage),
+          continuationKey,
+          isFetching: isFetchingNextPage,
+          error: isFetchNextPageError,
+          loadNextPage: onLoadMore,
+        },
+        {
+          channelKey: "attributes",
+          hasNextPage: attributePageAvailable,
+          continuationKey: attributeContinuationKey,
+          isFetching: isFetchingAttributeNextPage,
+          error:
+            (pickerCategory === "all" ||
+              pickerCategory === "custom_attribute") &&
+            isFetchNextAttributePageError,
+          loadNextPage: onLoadMoreAttributes,
+        },
+      ]}
+      testId="widget-catalog-pagination-sentinel"
+      errorMessage="The next page failed. Loaded attributes remain available."
+      retryLabel="Retry"
+    />
+  );
+}
+
+WidgetCatalogPaginationControl.propTypes = {
+  pickerCategory: PropTypes.string.isRequired,
+  hasNextPage: PropTypes.bool,
+  continuationKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  isFetchingNextPage: PropTypes.bool,
+  isFetchNextPageError: PropTypes.bool,
+  onLoadMore: PropTypes.func.isRequired,
+  attributeHasNextPage: PropTypes.bool,
+  attributeContinuationKey: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number,
+  ]),
+  isFetchingAttributeNextPage: PropTypes.bool,
+  isFetchNextAttributePageError: PropTypes.bool,
+  onLoadMoreAttributes: PropTypes.func,
+};
+
+const DATASET_WIDGET_DIMENSIONS = new Set([
+  "dataset",
+  "eval_template",
+  "column_name",
+  "column_source",
+  "cell_status",
+]);
+
+const SIMULATION_FILTER_DIMENSIONS = new Set([
+  "agent_definition",
+  "agent_latency",
+  "agent_version",
+  "ai_interruption_rate",
+  "ai_interruptions",
+  "bot_wpm",
+  "call_type",
+  "customer_cost",
+  "duration",
+  "ended_reason",
+  "llm_cost",
+  "llm_latency",
+  "message_count",
+  "overall_score",
+  "persona",
+  "persona_accent",
+  "persona_age_group",
+  "persona_communication_style",
+  "persona_conversation_speed",
+  "persona_gender",
+  "persona_language",
+  "persona_location",
+  "persona_personality",
+  "persona_profession",
+  "response_time",
+  "run_test",
+  "scenario",
+  "scenario_type",
+  "simulation",
+  "status",
+  "stop_time_after_interruption",
+  "stt_cost",
+  "stt_latency",
+  "talk_ratio",
+  "test_execution",
+  "total_cost",
+  "tts_cost",
+  "tts_latency",
+  "user_interruption_rate",
+  "user_interruptions",
+  "user_wpm",
+]);
+
+const SIMULATION_BREAKDOWN_DIMENSIONS = new Set([
+  "agent_definition",
+  "agent_version",
+  "call_type",
+  "ended_reason",
+  "persona",
+  "persona_accent",
+  "persona_age_group",
+  "persona_communication_style",
+  "persona_conversation_speed",
+  "persona_gender",
+  "persona_language",
+  "persona_location",
+  "persona_personality",
+  "persona_profession",
+  "run_test",
+  "scenario",
+  "scenario_type",
+  "simulation",
+  "status",
+  "test_execution",
+]);
+
+export function isWidgetCatalogOptionAllowed(
+  metric,
+  pickerMode,
+  { selectedMetricSources = [], targetMetricSource = null } = {},
+) {
+  if (!["filter", "metric_filter", "breakdown"].includes(pickerMode)) {
+    return true;
+  }
+  const declaredSources = [
+    ...(metric.source ? [metric.source] : []),
+    ...(metric.sources || []),
+  ];
+  const optionSources = new Set(
+    declaredSources.length > 0 ? declaredSources : ["traces"],
+  );
+  const targetsTrace = ["traces", "all", "both"].some((source) =>
+    optionSources.has(source),
+  );
+  const targetsDataset = ["datasets", "all", "both"].some((source) =>
+    optionSources.has(source),
+  );
+  const targetsSimulation = optionSources.has("simulation");
+  const isSupportedDatasetDimension =
+    metric.category === "system_metric" &&
+    DATASET_WIDGET_DIMENSIONS.has(metric.name);
+  const isSupportedSimulationDimension =
+    metric.category === "system_metric" &&
+    (pickerMode === "breakdown"
+      ? SIMULATION_BREAKDOWN_DIMENSIONS
+      : SIMULATION_FILTER_DIMENSIONS
+    ).has(metric.name);
+
+  if (pickerMode === "metric_filter") {
+    if (targetMetricSource === "datasets") {
+      return isSupportedDatasetDimension;
+    }
+    return targetMetricSource === "simulation"
+      ? targetsSimulation && isSupportedSimulationDimension
+      : targetsTrace;
+  }
+
+  const selectedSources = new Set(selectedMetricSources);
+  if (
+    selectedSources.has("datasets") &&
+    targetsDataset &&
+    !isSupportedDatasetDimension
+  ) {
+    return false;
+  }
+  if (
+    selectedSources.has("simulation") &&
+    targetsSimulation &&
+    !isSupportedSimulationDimension
+  ) {
+    return false;
+  }
+  return (
+    (selectedSources.has("traces") && targetsTrace) ||
+    (selectedSources.has("datasets") && targetsDataset) ||
+    (selectedSources.has("simulation") && targetsSimulation)
+  );
+}
+
+function getWidgetMetricAdapterSource(metric) {
+  if (metric.source === "datasets") return "datasets";
+  if (metric.source === "simulation" && metric.type !== "custom_attribute") {
+    return "simulation";
+  }
+  return "traces";
 }
 
 // Additional aggregation options for dataset-specific types
@@ -401,16 +820,20 @@ const DATASET_EXTRA_AGGREGATIONS = [
   { label: "True Rate", value: "true_rate" },
 ];
 
+const PRESENCE_FILTER_OPERATORS = [
+  { label: "Is set", value: "is_set", noValue: true },
+  { label: "Is not set", value: "is_not_set", noValue: true },
+];
+
 const STRING_FILTER_OPERATORS = [
   { label: "Is", value: "contains", multi: true },
   { label: "Is not", value: "not_contains", multi: true },
   { label: "Contains", value: "str_contains" },
   { label: "Does not contain", value: "str_not_contains" },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
-const NUMBER_FILTER_OPERATORS = [
+const COMPARABLE_FILTER_OPERATORS = [
   { label: "Equals", value: "equal_to" },
   { label: "Not equal", value: "not_equal_to" },
   { label: "Greater than", value: "greater_than" },
@@ -419,37 +842,37 @@ const NUMBER_FILTER_OPERATORS = [
   { label: "Less than or equal to", value: "less_than_or_equal" },
   { label: "Between", value: "between", range: true },
   { label: "Not between", value: "not_between", range: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 const BOOLEAN_FILTER_OPERATORS = [
   { label: "Equals", value: "equal_to" },
   { label: "Not equal", value: "not_equal_to" },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 const ARRAY_FILTER_OPERATORS = [
   { label: "Contains", value: "str_contains", multi: true },
   { label: "Does not contain", value: "str_not_contains", multi: true },
-  { label: "Is set", value: "is_set", noValue: true },
-  { label: "Is not set", value: "is_not_set", noValue: true },
+  ...PRESENCE_FILTER_OPERATORS,
 ];
 
 export const getWidgetFilterOperators = (dataType) => {
-  if (dataType === "number") return NUMBER_FILTER_OPERATORS;
-  if (dataType === "boolean") return BOOLEAN_FILTER_OPERATORS;
-  if (dataType === "array") return ARRAY_FILTER_OPERATORS;
+  const filterType = normalizeFilterType(dataType || "string");
+  if (filterType === "number" || filterType === "datetime") {
+    return COMPARABLE_FILTER_OPERATORS;
+  }
+  if (filterType === "boolean") return BOOLEAN_FILTER_OPERATORS;
+  if (filterType === "array") return ARRAY_FILTER_OPERATORS;
   return STRING_FILTER_OPERATORS;
 };
 
 export function getWidgetFilterDefaults(dataType) {
-  if (dataType === "number") {
+  const filterType = normalizeFilterType(dataType || "string");
+  if (["number", "datetime", "boolean"].includes(filterType)) {
     return { operator: "equal_to", value: "", opensValuePicker: false };
   }
-  if (dataType === "boolean") {
-    return { operator: "equal_to", value: "", opensValuePicker: false };
-  }
-  if (dataType === "array") {
+  if (filterType === "array") {
     return { operator: "str_contains", value: [], opensValuePicker: true };
   }
   return { operator: "contains", value: [], opensValuePicker: true };
@@ -512,6 +935,19 @@ export function hasWidgetFilterValue(filter) {
   return (
     filter.value !== "" && filter.value !== null && filter.value !== undefined
   );
+}
+
+export function buildLinkedProjectFilter(projectIds) {
+  return {
+    id: "project",
+    registryId: "system_attribute:traces:project",
+    name: "Project",
+    type: "system",
+    dataType: "string",
+    source: "traces",
+    operator: "contains",
+    value: projectIds,
+  };
 }
 
 const DASHBOARD_TYPE_TO_COL_TYPE = {
@@ -1183,6 +1619,39 @@ AggregationPicker.propTypes = {
   allowedAggregations: PropTypes.arrayOf(PropTypes.string),
 };
 
+const inferFilterValueStorageType = (value, configuredType) => {
+  if (["string", "number", "boolean", "array"].includes(configuredType)) {
+    return configuredType;
+  }
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  return "string";
+};
+
+const selectedEntriesFromFilter = (filter) => {
+  const values = Array.isArray(filter?.value) ? filter.value : [];
+  const valueTypes = Array.isArray(filter?.valueTypes) ? filter.valueTypes : [];
+  return values.map((value, index) => ({
+    value,
+    type: inferFilterValueStorageType(value, valueTypes[index]),
+  }));
+};
+
+const filterValuePickerScopeKey = (filter, source) =>
+  JSON.stringify([
+    source,
+    filter?.property_id || filter?.propertyId || filter?.registryId || null,
+    filter?.metric_name ||
+      filter?.metricName ||
+      filter?.field ||
+      filter?.name ||
+      filter?.id ||
+      null,
+    filter?.metric_type || filter?.metricType || filter?.type || null,
+    filter?.value || [],
+    filter?.valueTypes || [],
+  ]);
+
 // Filter value picker popup — fetches distinct values for a given attribute
 export function FilterValuePickerPopup({
   anchorEl,
@@ -1193,30 +1662,22 @@ export function FilterValuePickerPopup({
 }) {
   const theme = useTheme();
   const [search, setSearch] = useState("");
-  const [selectedEntries, setSelectedEntries] = useState(() => {
-    const values = Array.isArray(filter?.value) ? filter.value : [];
-    const valueTypes = Array.isArray(filter?.valueTypes)
-      ? filter.valueTypes
-      : [];
-    return values.map((value, index) => ({
-      value,
-      type:
-        valueTypes[index] ||
-        (typeof value === "number"
-          ? "number"
-          : typeof value === "boolean"
-            ? "boolean"
-            : "string"),
-    }));
-  });
+  const [selectedEntries, setSelectedEntries] = useState(() =>
+    selectedEntriesFromFilter(filter),
+  );
+  const valueOptionsListRef = useRef(null);
+  const selectionScopeKey = filterValuePickerScopeKey(filter, source);
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+  useEffect(() => {
+    setSearch("");
+    setSelectedEntries(selectedEntriesFromFilter(filterRef.current));
+  }, [selectionScopeKey]);
   const optionStorageType = (option) => {
-    if (["string", "number", "boolean", "array"].includes(option?.type)) {
-      return option.type;
-    }
-    const value = option?.value;
-    if (typeof value === "number") return "number";
-    if (typeof value === "boolean") return "boolean";
-    return filter?.dataType === "array" ? "array" : "string";
+    return inferFilterValueStorageType(
+      option?.value,
+      option?.type || filter?.dataType,
+    );
   };
   const selectedIdentity = (value, valueType) =>
     `${valueType}:${typeof value}:${JSON.stringify(value)}`;
@@ -1230,13 +1691,14 @@ export function FilterValuePickerPopup({
   // Backend search (custom attributes) reaches values outside the fetched
   // page and the default lookback; the client-side filter below stays as the
   // instant layer on top of whatever is already loaded.
-  const debouncedSearch = useDebounce(search, 500);
+  const debouncedSearch = useDebounce(search, FILTER_VALUE_SEARCH_DEBOUNCE_MS);
   const {
     options,
     isLoading,
     isError,
     fetchNextPage,
     hasNextPage,
+    continuationKey,
     isFetchingNextPage,
     isFetchNextPageError,
     queryReadState,
@@ -1410,7 +1872,10 @@ export function FilterValuePickerPopup({
           <Divider />
 
           {/* Options list */}
-          <Box sx={{ flex: 1, overflow: "auto", maxHeight: 240 }}>
+          <Box
+            ref={valueOptionsListRef}
+            sx={{ flex: 1, overflow: "auto", maxHeight: 240 }}
+          >
             {canSpecifyExactValue && (
               <Box
                 data-widget-filter-exact-value={exactSearchValue}
@@ -1492,36 +1957,24 @@ export function FilterValuePickerPopup({
                 </Box>
               ))
             )}
-            {shouldShowFilterValueContinuation({
-              hasNextPage,
-              isError,
-              isFetchNextPageError,
-            }) && (
-              <Box sx={{ px: 1.5, py: 1 }}>
-                {isFetchNextPageError && (
-                  <Typography
-                    variant="caption"
-                    color="warning.main"
-                    sx={{ display: "block", mb: 0.5 }}
-                  >
-                    The next page failed. Loaded values remain available.
-                  </Typography>
-                )}
-                <Button
-                  fullWidth
-                  size="small"
-                  variant="outlined"
-                  disabled={isFetchingNextPage}
-                  onClick={() => fetchNextPage?.()}
-                >
-                  {isFetchingNextPage
-                    ? "Loading more values…"
-                    : isFetchNextPageError
-                      ? "Retry next page"
-                      : "Load more values"}
-                </Button>
-              </Box>
-            )}
+            <BoundedCursorPaginationControl
+              key={`${filterValuePickerScopeKey(filter, source)}:${debouncedSearch}`}
+              rootRef={valueOptionsListRef}
+              testId="widget-filter-value-pagination-sentinel"
+              loadingLabel="Loading more values…"
+              retryLabel="Retry next page"
+              errorMessage="The next page failed. Loaded values remain available."
+              channels={[
+                {
+                  channelKey: "widget-filter-values",
+                  hasNextPage: Boolean(hasNextPage),
+                  continuationKey,
+                  isFetching: isFetchingNextPage,
+                  error: isFetchNextPageError,
+                  loadNextPage: fetchNextPage,
+                },
+              ]}
+            />
           </Box>
 
           {/* Add button */}
@@ -1584,6 +2037,8 @@ export default function WidgetEditorView() {
   const [lastExactPreview, setLastExactPreview] = useState(null);
   const currentPreviewSignatureRef = useRef("");
   const previewPollTimerRef = useRef(null);
+  const previewRequestControllerRef = useRef(null);
+  const previewRequestTimerRef = useRef(null);
   const previewGenerationRef = useRef(0);
   const [isPreviewRefreshing, setIsPreviewRefreshing] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -1643,6 +2098,7 @@ export default function WidgetEditorView() {
   const [rightTab, setRightTab] = useState(0);
   // Shared picker state: used for metric, filter, and breakdown pickers
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerCatalogSession, setPickerCatalogSession] = useState(0);
   const [pickerAnchor, setPickerAnchor] = useState(null);
   const [pickerCategory, setPickerCategory] = useState("all");
   const [pickerSearch, setPickerSearch] = useState("");
@@ -1755,12 +2211,13 @@ export default function WidgetEditorView() {
     return [...keys];
   }, [breakdowns, filters, metrics]);
 
-  const cursorAttributePickerActive =
-    pickerOpen &&
-    (pickerCategory === "all" || pickerCategory === "custom_attribute");
+  // The activated property catalog now owns trace attributes as well as the
+  // other property families. Keep the retained inventory hook mounted but
+  // disabled for rollout compatibility; the picker must have one cursor and
+  // one bounded end-of-list continuation lane.
+  const cursorAttributePickerActive = false;
   const {
     filteredAttributes: cursorAttributes,
-    isLoading: isCursorAttributeLoading,
     inventoryControlProps: cursorAttributeControlProps,
   } = useCursorAttributeInventory({
     workspaceScope: true,
@@ -1770,57 +2227,224 @@ export default function WidgetEditorView() {
     search: pickerSearch,
     preservedKeys: preservedDashboardAttributeKeys,
     enabled: cursorAttributePickerActive,
-    pageSize: 50,
+    pageSize: PROPERTY_CATALOG_PAGE_SIZE,
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}`,
   });
 
-  // Paginated metrics for the picker
-  const {
-    metrics: paginatedMetrics,
-    total: paginatedTotal,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading: isPaginatedLoading,
-  } = useDashboardMetricsPaginated(
-    useMemo(
-      () =>
-        getWidgetMetricCatalogRequest({
-          pickerCategory,
-          search: debouncedPickerSearch,
-          pickerOpen,
-        }),
-      [pickerCategory, debouncedPickerSearch, pickerOpen],
-    ),
+  const trimmedPickerSearch = pickerSearch.trim();
+  const trimmedDebouncedPickerSearch = debouncedPickerSearch.trim();
+  const pickerSearchSettled =
+    trimmedPickerSearch === trimmedDebouncedPickerSearch;
+  const baseWidgetCatalogRequest = useMemo(
+    () =>
+      getWidgetMetricCatalogRequest({
+        pickerCategory: "all",
+        search: "",
+        pickerOpen,
+        pickerMode,
+      }),
+    [pickerOpen, pickerMode],
+  );
+  const scopedWidgetCatalogRequest = useMemo(
+    () =>
+      getWidgetMetricCatalogRequest({
+        pickerCategory,
+        search: trimmedDebouncedPickerSearch,
+        pickerOpen,
+        pickerMode,
+      }),
+    [pickerCategory, trimmedDebouncedPickerSearch, pickerOpen, pickerMode],
+  );
+  const allSearchWidgetCatalogRequest = useMemo(
+    () =>
+      getWidgetMetricCatalogRequest({
+        pickerCategory: "all",
+        search: trimmedDebouncedPickerSearch,
+        pickerOpen,
+        pickerMode,
+      }),
+    [trimmedDebouncedPickerSearch, pickerOpen, pickerMode],
+  );
+  const scopedWidgetCatalogActive = Boolean(
+    pickerCategory !== "all" || trimmedDebouncedPickerSearch,
   );
 
-  // Map paginated backend metrics to frontend option shape
-  const catalogMetricOptions = useMemo(() => {
-    // Map backend category to frontend type key (used for icons, already-used checks, etc.)
-    const categoryMap = {
-      system_metric: "system",
-      eval_metric: "eval_metric",
-      annotation_metric: "annotation",
-      custom_attribute: "custom_attribute",
-      custom_column: "custom_column",
-    };
-    return paginatedMetrics
-      .filter((m) => pickerMode !== "metric" || m.role !== "dimension")
-      .map((m) => ({
-        id: m.name,
-        name: m.displayName || m.display_name || m.name,
-        type: categoryMap[m.category] || m.category,
-        source: m.source,
-        sources: m.sources,
-        dataType: getWidgetMetricDataType(m),
-        outputType: m.outputType || m.output_type,
-        columnDataType: m.dataType || m.data_type,
-        configIds: m.configIds || m.config_ids,
-        evalKey: m.evalKey || m.eval_key,
-        unit: m.unit,
-        choices: m.choices,
-        choiceOptions: m.choiceOptions || m.choice_options,
-      }));
-  }, [paginatedMetrics, pickerMode]);
+  // Keep the unsearched All lane mounted as the stable exact-count baseline.
+  // Search/category requests use an independent cache lane; once settled,
+  // only that lane may own rows and cursor state.
+  const basePropertyCatalog = usePropertyCatalog({
+    category: baseWidgetCatalogRequest.category,
+    source: baseWidgetCatalogRequest.source,
+    search: baseWidgetCatalogRequest.search,
+    role: baseWidgetCatalogRequest.role,
+    pageSize: baseWidgetCatalogRequest.pageSize,
+    enabled: baseWidgetCatalogRequest.enabled,
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}:base`,
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:base`,
+  });
+  const scopedPropertyCatalog = usePropertyCatalog({
+    category: scopedWidgetCatalogRequest.category,
+    source: scopedWidgetCatalogRequest.source,
+    search: scopedWidgetCatalogRequest.search,
+    role: scopedWidgetCatalogRequest.role,
+    pageSize: scopedWidgetCatalogRequest.pageSize,
+    enabled: scopedWidgetCatalogRequest.enabled && scopedWidgetCatalogActive,
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}:scoped`,
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:scoped`,
+  });
+  // Keep search-wide counts mounted independently from the selected category.
+  // While All is selected this shares the scoped query key and is deduplicated;
+  // after a category click it prevents scoped counts from replacing the All
+  // breakdown shown in the sidebar.
+  const allSearchPropertyCatalog = usePropertyCatalog({
+    category: allSearchWidgetCatalogRequest.category,
+    source: allSearchWidgetCatalogRequest.source,
+    search: allSearchWidgetCatalogRequest.search,
+    role: allSearchWidgetCatalogRequest.role,
+    pageSize: allSearchWidgetCatalogRequest.pageSize,
+    enabled: Boolean(
+      allSearchWidgetCatalogRequest.enabled && trimmedDebouncedPickerSearch,
+    ),
+    cacheScopeKey: `widget-picker:${pickerCatalogSession}:scoped`,
+  });
+  const baseLegacyMetricCatalog = useLegacyDashboardMetricsPaginated({
+    ...baseWidgetCatalogRequest,
+    enabled:
+      baseWidgetCatalogRequest.enabled &&
+      basePropertyCatalog.legacyFallbackRequired,
+  });
+  const scopedLegacyMetricCatalog = useLegacyDashboardMetricsPaginated({
+    ...scopedWidgetCatalogRequest,
+    enabled:
+      scopedWidgetCatalogRequest.enabled &&
+      scopedWidgetCatalogActive &&
+      scopedPropertyCatalog.legacyFallbackRequired,
+  });
+  const baseUsesLegacyCatalog = basePropertyCatalog.legacyFallbackRequired;
+  const scopedUsesLegacyCatalog = scopedPropertyCatalog.legacyFallbackRequired;
+  const scopedRequestOwnsResults = Boolean(
+    scopedWidgetCatalogActive && pickerSearchSettled,
+  );
+  const activeCatalogRequest = scopedRequestOwnsResults
+    ? scopedWidgetCatalogRequest
+    : baseWidgetCatalogRequest;
+  const activePropertyCatalog = scopedRequestOwnsResults
+    ? scopedPropertyCatalog
+    : basePropertyCatalog;
+  const activeLegacyMetricCatalog = scopedRequestOwnsResults
+    ? scopedLegacyMetricCatalog
+    : baseLegacyMetricCatalog;
+  const activeUsesLegacyCatalog = scopedRequestOwnsResults
+    ? scopedUsesLegacyCatalog
+    : baseUsesLegacyCatalog;
+  const activeRequestSettled = Boolean(
+    pickerSearchSettled &&
+      !activePropertyCatalog.isPlaceholderData &&
+      (!activeUsesLegacyCatalog ||
+        !activeLegacyMetricCatalog.isPlaceholderData),
+  );
+  const baseMetrics = baseUsesLegacyCatalog
+    ? baseLegacyMetricCatalog.metrics
+    : basePropertyCatalog.metrics;
+  const scopedMetrics = scopedUsesLegacyCatalog
+    ? scopedLegacyMetricCatalog.metrics
+    : scopedPropertyCatalog.metrics;
+  const paginatedMetrics = resolveWidgetCatalogResultMetrics({
+    baseMetrics,
+    scopedMetrics,
+    scopedRequestActive: scopedRequestOwnsResults,
+    requestSettled: activeRequestSettled,
+  });
+  const activeCategoryCounts = activeUsesLegacyCatalog
+    ? null
+    : activePropertyCatalog.categoryCounts;
+  const activeCategoryCountsExact = Boolean(
+    !activeUsesLegacyCatalog && activePropertyCatalog.categoryCountsExact,
+  );
+  const pickerSidebarCategoryCounts = resolveWidgetCatalogSidebarCounts({
+    requestSettled: activeRequestSettled,
+    search: trimmedDebouncedPickerSearch,
+    baseCategoryCounts: basePropertyCatalog.categoryCounts,
+    baseCategoryCountsExact: basePropertyCatalog.categoryCountsExact,
+    allSearchCategoryCounts: allSearchPropertyCatalog.categoryCounts,
+    allSearchCategoryCountsExact: allSearchPropertyCatalog.categoryCountsExact,
+  });
+  const pickerSidebarCategoryCountsExact = Boolean(pickerSidebarCategoryCounts);
+  const activeCatalogLoading = activeUsesLegacyCatalog
+    ? activeLegacyMetricCatalog.isLoading
+    : activePropertyCatalog.isLoading ||
+      isPropertyCatalogNotReadyError(activePropertyCatalog.error);
+  const paginatedTotal =
+    !activeRequestSettled || activeCatalogLoading
+      ? null
+      : activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.total
+        : getWidgetCatalogExactResultCount({
+            request: activeCatalogRequest,
+            categoryCounts: activeCategoryCounts,
+            categoryCountsExact: activeCategoryCountsExact,
+            requestSettled: activeRequestSettled,
+          });
+  const fetchNextPage = activeUsesLegacyCatalog
+    ? activeLegacyMetricCatalog.fetchNextPage
+    : activePropertyCatalog.fetchNextPage;
+  const hasNextPage = activeRequestSettled
+    ? activeUsesLegacyCatalog
+      ? activeLegacyMetricCatalog.hasNextPage
+      : Boolean(activePropertyCatalog.hasNextPage)
+    : false;
+  const catalogContinuationKey = activeRequestSettled
+    ? activeUsesLegacyCatalog
+      ? activeLegacyMetricCatalog.continuationKey
+      : activePropertyCatalog.continuationKey
+    : null;
+  const isFetchingNextPage = Boolean(
+    activeRequestSettled &&
+      (activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.isFetchingNextPage
+        : activePropertyCatalog.isFetchingNextPage),
+  );
+  const isFetchNextPageError = Boolean(
+    activeRequestSettled &&
+      (activeUsesLegacyCatalog
+        ? activeLegacyMetricCatalog.isFetchNextPageError
+        : activePropertyCatalog.isFetchNextPageError),
+  );
+  const isPaginatedLoading = Boolean(
+    !activeRequestSettled || activeCatalogLoading,
+  );
+
+  const selectedMetricSources = useMemo(
+    () => metrics.map(getWidgetMetricAdapterSource),
+    [metrics],
+  );
+  const targetMetricSource =
+    pickerMetricIndex == null
+      ? null
+      : getWidgetMetricAdapterSource(metrics[pickerMetricIndex] || {});
+  const catalogMetricOptions = useMemo(
+    () =>
+      buildWidgetCatalogPickerOptions({
+        metrics: paginatedMetrics,
+        pickerMode,
+        pickerCategory,
+        search: trimmedDebouncedPickerSearch,
+        requestSettled: activeRequestSettled,
+        selectedMetricSources,
+        targetMetricSource,
+      }),
+    [
+      activeRequestSettled,
+      paginatedMetrics,
+      pickerCategory,
+      pickerMode,
+      selectedMetricSources,
+      targetMetricSource,
+      trimmedDebouncedPickerSearch,
+    ],
+  );
 
   const cursorAttributeOptions = useMemo(
     () => buildWidgetCursorAttributeOptions(cursorAttributes, pickerMode),
@@ -1837,26 +2461,7 @@ export default function WidgetEditorView() {
     [catalogMetricOptions, cursorAttributeOptions, cursorAttributePickerActive],
   );
 
-  const isPickerInventoryLoading =
-    isPaginatedLoading ||
-    (cursorAttributePickerActive && isCursorAttributeLoading);
-
-  // Infinite scroll handler for the picker's right panel
-  const pickerListRef = useRef(null);
-  const handlePickerScroll = useCallback(
-    (e) => {
-      const el = e.target;
-      if (
-        pickerCategory !== "custom_attribute" &&
-        el.scrollHeight - el.scrollTop - el.clientHeight < 50 &&
-        hasNextPage &&
-        !isFetchingNextPage
-      ) {
-        fetchNextPage();
-      }
-    },
-    [fetchNextPage, hasNextPage, isFetchingNextPage, pickerCategory],
-  );
+  const isPickerInventoryLoading = isPaginatedLoading;
 
   // Chart tab — axis config
   const [axisConfig, setAxisConfig] = useState({
@@ -1963,6 +2568,7 @@ export default function WidgetEditorView() {
           return {
             ...m,
             id: m.name || m.id,
+            registryId: m.property_id || m.propertyId,
             name: m.displayName || m.display_name || m.name || m.id,
             type: frontendType,
             dataType: m.dataType || m.data_type || m.attribute_type || "number",
@@ -2000,6 +2606,7 @@ export default function WidgetEditorView() {
         const savedBreakdowns = (qc.breakdowns || []).map((b) => ({
           ...b,
           id: b.id || b.name,
+          registryId: b.property_id || b.propertyId,
           name: b.displayName || b.display_name || b.name || b.id,
           type: bdTypeMap[b.type] || b.type || "system",
           dataType: b.dataType || b.data_type || b.attribute_type || "string",
@@ -2046,6 +2653,7 @@ export default function WidgetEditorView() {
 
     return {
       column_id: f.id,
+      ...(f.registryId && { property_id: f.registryId }),
       ...(f.name && { display_name: f.name }),
       ...(f.source && { source: f.source }),
       ...(f.outputType && { output_type: f.outputType }),
@@ -2060,6 +2668,7 @@ export default function WidgetEditorView() {
         f.metric_type || f.metricType || f.type || "system_metric";
       return {
         id: f.metric_name || f.metricName || f.id,
+        registryId: f.property_id || f.propertyId,
         name: f.metric_name || f.metricName || f.name || f.id || "",
         type: toDashboardFilterType(backendType),
         dataType: normalizeWidgetDashboardDataType(
@@ -2083,6 +2692,7 @@ export default function WidgetEditorView() {
 
     return {
       id: f.column_id,
+      registryId: f.property_id || f.propertyId,
       name: f.display_name || f.column_id,
       type: dashboardType,
       source: f.source || fallbackSource,
@@ -2101,6 +2711,7 @@ export default function WidgetEditorView() {
     const base = {
       id: m.id || `m${i}`,
       name: m.id,
+      ...(m.registryId && { property_id: m.registryId }),
       display_name: m.name || m.id,
       type: backendType,
       source: m.source || "traces",
@@ -2142,6 +2753,7 @@ export default function WidgetEditorView() {
     // b.id = backend key
     const base = {
       name: b.id,
+      ...(b.registryId && { property_id: b.registryId }),
       display_name: b.name || b.id,
       type: backendType,
       source: b.source || "traces",
@@ -2185,6 +2797,10 @@ export default function WidgetEditorView() {
 
   useEffect(() => {
     previewGenerationRef.current += 1;
+    previewRequestControllerRef.current?.abort();
+    previewRequestControllerRef.current = null;
+    clearTimeout(previewRequestTimerRef.current);
+    previewRequestTimerRef.current = null;
     clearTimeout(previewPollTimerRef.current);
     previewPollTimerRef.current = null;
     setIsPreviewRefreshing(false);
@@ -2194,6 +2810,9 @@ export default function WidgetEditorView() {
   useEffect(
     () => () => {
       previewGenerationRef.current += 1;
+      previewRequestControllerRef.current?.abort();
+      previewRequestControllerRef.current = null;
+      clearTimeout(previewRequestTimerRef.current);
       clearTimeout(previewPollTimerRef.current);
     },
     [],
@@ -2207,6 +2826,10 @@ export default function WidgetEditorView() {
       clearTimeout(previewPollTimerRef.current);
       previewPollTimerRef.current = null;
       const pollingController = createAggregationPollController();
+      // Include the first preview request in the same sub-ten-second action
+      // budget as any pending-response polls. Retry creates a fresh controller.
+      pollingController.start();
+      pollingController.recordAttempt();
       let refreshWasQueued = false;
       setPreviewFailed(false);
 
@@ -2231,10 +2854,42 @@ export default function WidgetEditorView() {
       };
 
       const execute = (forceRefresh) => {
+        previewRequestControllerRef.current?.abort();
+        clearTimeout(previewRequestTimerRef.current);
+        const requestController = new AbortController();
+        previewRequestControllerRef.current = requestController;
+        const finishAttempt = () => {
+          clearTimeout(previewRequestTimerRef.current);
+          previewRequestTimerRef.current = null;
+          if (previewRequestControllerRef.current === requestController) {
+            previewRequestControllerRef.current = null;
+          }
+        };
+        const requestTimeoutMs = pollingController.remainingMs(
+          WIDGET_PREVIEW_REQUEST_TIMEOUT_MS,
+        );
+        previewRequestTimerRef.current = window.setTimeout(() => {
+          if (
+            !isCurrent() ||
+            previewRequestControllerRef.current !== requestController
+          ) {
+            return;
+          }
+          finishAttempt();
+          previewGenerationRef.current = generation + 1;
+          requestController.abort();
+          setIsPreviewRefreshing(false);
+          setPreviewFailed(true);
+        }, requestTimeoutMs);
         mutateDashboardQuery(
-          { queryConfig, refresh: forceRefresh },
+          {
+            queryConfig,
+            refresh: forceRefresh,
+            signal: requestController.signal,
+          },
           {
             onSuccess: (response) => {
+              finishAttempt();
               if (!isCurrent()) return;
 
               const exactResult = getExactDashboardResult(response);
@@ -2281,6 +2936,7 @@ export default function WidgetEditorView() {
               }
             },
             onError: () => {
+              finishAttempt();
               if (!isCurrent()) return;
               if (refreshWasQueued && pollingController.recordFailure()) {
                 schedulePoll();
@@ -2337,6 +2993,7 @@ export default function WidgetEditorView() {
   ]);
 
   const openPicker = (e, mode, targetIndex = null, metricIndex = null) => {
+    setPickerCatalogSession((session) => session + 1);
     setPickerAnchor(e.currentTarget);
     setPickerOpen(true);
     setPickerCategory("all");
@@ -2386,15 +3043,7 @@ export default function WidgetEditorView() {
           const projectIds = [...new Set(obsProjects.map((p) => p.projectId))];
           newMetric.filters = [
             ...(newMetric.filters || []),
-            {
-              id: "project",
-              name: "Project",
-              type: "system",
-              dataType: "string",
-              source: "traces",
-              operator: "contains",
-              value: projectIds,
-            },
+            buildLinkedProjectFilter(projectIds),
           ];
           newMetric._linkedAgents = obsProjects
             .map((p) => p.agentName)
@@ -2424,6 +3073,7 @@ export default function WidgetEditorView() {
       const defaults = getWidgetFilterDefaults(dataType);
       const entry = {
         id: option.id,
+        registryId: option.registryId,
         name: option.name,
         type: option.type,
         dataType,
@@ -2458,6 +3108,7 @@ export default function WidgetEditorView() {
     } else if (pickerMode === "breakdown") {
       const entry = {
         id: option.id,
+        registryId: option.registryId,
         name: option.name,
         type: option.type,
         dataType: option.dataType || "string",
@@ -2485,6 +3136,7 @@ export default function WidgetEditorView() {
       const defaults = getWidgetFilterDefaults(dataType);
       const newFilter = {
         id: option.id,
+        registryId: option.registryId,
         name: option.name,
         type: option.type,
         dataType,
@@ -3263,6 +3915,10 @@ export default function WidgetEditorView() {
       isPreviewRefreshing ||
       serverPreviewState === "preparing");
   const previewActivity = previewPreparing && !activeExactPreview;
+  const previewFailureBlocksRendering = shouldBlockWidgetPreviewForFailure({
+    previewFailed,
+    hasExactPreview: Boolean(activeExactPreview),
+  });
 
   useEffect(() => {
     if (!previewActivity) return undefined;
@@ -3994,7 +4650,7 @@ export default function WidgetEditorView() {
                 />
               </Box>
             )}
-            {isHorizontal && previewFailed && (
+            {isHorizontal && previewFailureBlocksRendering && (
               <Box sx={{ p: 2 }}>
                 <WidgetPreviewStatus state="failed" onRetry={retryPreview} />
               </Box>
@@ -4002,7 +4658,7 @@ export default function WidgetEditorView() {
             {isHorizontal &&
               !previewLoading &&
               !previewPreparing &&
-              !previewFailed &&
+              !previewFailureBlocksRendering &&
               previewSeries.length === 0 && (
                 <Box
                   sx={{
@@ -4021,7 +4677,7 @@ export default function WidgetEditorView() {
             previewSeries.length > 0 &&
             !previewLoading &&
             !previewPreparing &&
-            !previewFailed
+            !previewFailureBlocksRendering
               ? (() => {
                   const maxVal = Math.max(
                     ...barData.series[0].data.map(Math.abs),
@@ -4396,7 +5052,7 @@ export default function WidgetEditorView() {
                   <WidgetPreviewStatus
                     state={previewPreparing ? "preparing" : "loading"}
                   />
-                ) : previewFailed ? (
+                ) : previewFailureBlocksRendering ? (
                   <WidgetPreviewStatus state="failed" onRetry={retryPreview} />
                 ) : previewSeries.length > 0 ? (
                   <Box sx={{ width: "100%", height: "100%" }}>
@@ -6829,7 +7485,12 @@ export default function WidgetEditorView() {
                 fullWidth
                 placeholder={`Search ${pickerMode === "metric" ? "metrics" : pickerMode === "metric_filter" ? "filter attributes" : pickerMode === "filter" ? "filter attributes" : "breakdown attributes"}...`}
                 value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
+                onChange={(e) => {
+                  setPickerSearch(e.target.value);
+                  // A new text scope starts in All. An explicit category click
+                  // after typing remains authoritative until the text changes.
+                  setPickerCategory("all");
+                }}
                 autoFocus
                 InputProps={{
                   startAdornment: (
@@ -6842,7 +7503,8 @@ export default function WidgetEditorView() {
                     </InputAdornment>
                   ),
                   endAdornment:
-                    !cursorAttributePickerActive && paginatedTotal > 0 ? (
+                    !cursorAttributePickerActive &&
+                    Number.isSafeInteger(paginatedTotal) ? (
                       <InputAdornment position="end">
                         <Typography
                           variant="caption"
@@ -6867,63 +7529,75 @@ export default function WidgetEditorView() {
                   py: 0.5,
                 }}
               >
-                {METRIC_CATEGORIES.map((cat) => (
-                  <Box
-                    key={cat.key}
-                    onClick={() => setPickerCategory(cat.key)}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      px: 1.5,
-                      py: 0.75,
-                      cursor: "pointer",
-                      borderRadius: 1,
-                      mx: 0.5,
-                      bgcolor:
-                        pickerCategory === cat.key
-                          ? "action.selected"
-                          : "transparent",
-                      "&:hover": {
+                {METRIC_CATEGORIES.map((cat) => {
+                  const categoryCount = getWidgetCatalogSidebarCategoryCount({
+                    pickerCategory: cat.key,
+                    categoryCounts: pickerSidebarCategoryCounts,
+                    categoryCountsExact: pickerSidebarCategoryCountsExact,
+                  });
+                  return (
+                    <Box
+                      key={cat.key}
+                      onClick={() => setPickerCategory(cat.key)}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        px: 1.5,
+                        py: 0.75,
+                        cursor: "pointer",
+                        borderRadius: 1,
+                        mx: 0.5,
                         bgcolor:
                           pickerCategory === cat.key
                             ? "action.selected"
-                            : "action.hover",
-                      },
-                    }}
-                  >
-                    <Iconify
-                      icon={cat.icon}
-                      width={16}
-                      sx={{
-                        color:
-                          pickerCategory === cat.key
-                            ? "primary.main"
-                            : "text.secondary",
-                      }}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: "12px",
-                        fontWeight: pickerCategory === cat.key ? 600 : 400,
-                        color:
-                          pickerCategory === cat.key
-                            ? "text.primary"
-                            : "text.secondary",
+                            : "transparent",
+                        "&:hover": {
+                          bgcolor:
+                            pickerCategory === cat.key
+                              ? "action.selected"
+                              : "action.hover",
+                        },
                       }}
                     >
-                      {cat.label}
-                    </Typography>
-                  </Box>
-                ))}
+                      <Iconify
+                        icon={cat.icon}
+                        width={16}
+                        sx={{
+                          color:
+                            pickerCategory === cat.key
+                              ? "primary.main"
+                              : "text.secondary",
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "12px",
+                          fontWeight: pickerCategory === cat.key ? 600 : 400,
+                          color:
+                            pickerCategory === cat.key
+                              ? "text.primary"
+                              : "text.secondary",
+                          flex: 1,
+                        }}
+                      >
+                        {cat.label}
+                      </Typography>
+                      {Number.isSafeInteger(categoryCount) && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.disabled", fontSize: 10 }}
+                        >
+                          {categoryCount}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
               </Box>
-              {/* Right: items — paginated with infinite scroll */}
-              <Box
-                ref={pickerListRef}
-                onScroll={handlePickerScroll}
-                sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}
-              >
+              {/* Right: items — the end sentinel advances one cursor page. */}
+              <Box sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}>
                 {isPickerInventoryLoading &&
                   pickerMetricOptions.length === 0 &&
                   Array.from({ length: 8 }).map((_, i) => (
@@ -7072,17 +7746,40 @@ export default function WidgetEditorView() {
                     </Box>
                   );
                 })}
-                {isFetchingNextPage && (
-                  <Box sx={{ py: 1.5, textAlign: "center" }}>
-                    <CircularProgress size={16} />
-                  </Box>
-                )}
+                <WidgetCatalogPaginationControl
+                  key={`${pickerCatalogSession}:${pickerMode}:${pickerCategory}:${debouncedPickerSearch}`}
+                  pickerCategory={pickerCategory}
+                  hasNextPage={hasNextPage}
+                  continuationKey={catalogContinuationKey}
+                  isFetchingNextPage={isFetchingNextPage}
+                  isFetchNextPageError={isFetchNextPageError}
+                  onLoadMore={fetchNextPage}
+                  attributeHasNextPage={
+                    cursorAttributePickerActive &&
+                    cursorAttributeControlProps.hasNextPage
+                  }
+                  attributeContinuationKey={
+                    cursorAttributePickerActive
+                      ? cursorAttributeControlProps.continuationKey
+                      : null
+                  }
+                  isFetchingAttributeNextPage={
+                    cursorAttributePickerActive &&
+                    cursorAttributeControlProps.isFetchingNextPage
+                  }
+                  isFetchNextAttributePageError={
+                    cursorAttributePickerActive &&
+                    cursorAttributeControlProps.isFetchNextPageError
+                  }
+                  onLoadMoreAttributes={cursorAttributeControlProps.onLoadMore}
+                />
                 {cursorAttributePickerActive && (
                   <Box sx={{ px: 1.5, pb: 1.5 }}>
                     <AttributeInventoryControls
                       {...cursorAttributeControlProps}
                       search={pickerSearch}
                       showSearch={false}
+                      showLoadMore={false}
                     />
                   </Box>
                 )}

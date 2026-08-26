@@ -1,8 +1,12 @@
 import { Alert, Box, Button, CircularProgress, TextField } from "@mui/material";
 import PropTypes from "prop-types";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
-/** One explicit gesture advances at most one cursor-backed attribute page. */
+const ATTRIBUTE_PAGINATION_THRESHOLD_PX = 120;
+const ATTRIBUTE_PAGINATION_ROOT_MARGIN = `0px 0px ${ATTRIBUTE_PAGINATION_THRESHOLD_PX}px 0px`;
+const ACTIVE_REQUESTS = new WeakMap();
+
+/** One viewport-end gesture advances at most one cursor-backed attribute page. */
 const AttributeInventoryControls = ({
   search = "",
   onSearchChange,
@@ -17,25 +21,123 @@ const AttributeInventoryControls = ({
   canRetry = false,
   onRetry,
   showSearch = true,
+  showLoadMore = true,
   searchLabel = "Search attributes",
+  scrollContainerRef,
 }) => {
   const activeRequestRef = useRef(null);
+  const bottomEdgeLatchedRef = useRef(false);
+  const paginationSentinelRef = useRef(null);
+  const paginationStateRef = useRef(null);
   const [pendingAction, setPendingAction] = useState(null);
   const loading = isFetchingNextPage || pendingAction !== null;
 
   const runOneRequest = useCallback((action, requestAction) => {
-    if (!requestAction || activeRequestRef.current) return;
-    const request = Promise.resolve(requestAction());
+    if (
+      typeof requestAction !== "function" ||
+      activeRequestRef.current ||
+      ACTIVE_REQUESTS.has(requestAction)
+    ) {
+      return false;
+    }
+
+    let requestResult;
+    try {
+      requestResult = requestAction();
+    } catch (_error) {
+      return false;
+    }
+    const request = Promise.resolve(requestResult);
+    ACTIVE_REQUESTS.set(requestAction, request);
     activeRequestRef.current = request;
     setPendingAction(action);
     const clearRequest = () => {
+      if (ACTIVE_REQUESTS.get(requestAction) === request) {
+        ACTIVE_REQUESTS.delete(requestAction);
+      }
       if (activeRequestRef.current === request) {
         activeRequestRef.current = null;
         setPendingAction(null);
       }
     };
     request.then(clearRequest, clearRequest);
+    return true;
   }, []);
+
+  paginationStateRef.current = {
+    canAutoLoad:
+      showLoadMore &&
+      hasNextPage &&
+      !loading &&
+      !isError &&
+      !isExactSearchError &&
+      !isFetchNextPageError &&
+      !cursorRetryExhausted,
+    onLoadMore,
+  };
+
+  const requestNextPage = useCallback(() => {
+    const paginationState = paginationStateRef.current;
+    if (!paginationState?.canAutoLoad) return false;
+    return runOneRequest("load", paginationState.onLoadMore);
+  }, [runOneRequest]);
+
+  const handleNearViewportEnd = useCallback(
+    (isNearEnd) => {
+      if (!isNearEnd) {
+        bottomEdgeLatchedRef.current = false;
+        return;
+      }
+      if (bottomEdgeLatchedRef.current) return;
+      if (requestNextPage()) bottomEdgeLatchedRef.current = true;
+    },
+    [requestNextPage],
+  );
+
+  useEffect(() => {
+    bottomEdgeLatchedRef.current = false;
+  }, [search]);
+
+  useEffect(() => {
+    if (!showLoadMore) return undefined;
+
+    const scrollContainer = scrollContainerRef?.current;
+    if (scrollContainer) {
+      const handleScroll = () => {
+        const remaining =
+          scrollContainer.scrollHeight -
+          scrollContainer.scrollTop -
+          scrollContainer.clientHeight;
+        handleNearViewportEnd(remaining <= ATTRIBUTE_PAGINATION_THRESHOLD_PX);
+      };
+      scrollContainer.addEventListener("scroll", handleScroll, {
+        passive: true,
+      });
+      return () => scrollContainer.removeEventListener("scroll", handleScroll);
+    }
+
+    const sentinel = paginationSentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver !== "function") {
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        handleNearViewportEnd(
+          Boolean(entry?.isIntersecting || entry?.intersectionRatio > 0),
+        );
+      },
+      { rootMargin: ATTRIBUTE_PAGINATION_ROOT_MARGIN },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    cursorRetryExhausted,
+    handleNearViewportEnd,
+    hasNextPage,
+    scrollContainerRef,
+    showLoadMore,
+  ]);
 
   const hasWarning =
     isError ||
@@ -43,8 +145,24 @@ const AttributeInventoryControls = ({
     isExactSearchDegraded ||
     isFetchNextPageError ||
     cursorRetryExhausted;
+  const hasAutomaticPagination =
+    showLoadMore &&
+    !cursorRetryExhausted &&
+    (hasNextPage || pendingAction === "load");
+  const canRetryNextPage =
+    showLoadMore &&
+    hasNextPage &&
+    isFetchNextPageError &&
+    !cursorRetryExhausted &&
+    typeof onLoadMore === "function";
 
-  if (!showSearch && !hasNextPage && !canRetry && !loading && !hasWarning) {
+  if (
+    !showSearch &&
+    !hasAutomaticPagination &&
+    !canRetry &&
+    !loading &&
+    !hasWarning
+  ) {
     return null;
   }
 
@@ -96,29 +214,44 @@ const AttributeInventoryControls = ({
             )}
           </Button>
         )}
-        {(hasNextPage || pendingAction === "load") && (
+        {(canRetryNextPage || pendingAction === "page-retry") && (
           <Button
             size="small"
             disabled={loading}
-            onClick={() => runOneRequest("load", onLoadMore)}
+            onClick={() => runOneRequest("page-retry", onLoadMore)}
           >
-            {pendingAction === "load" || isFetchingNextPage ? (
+            {pendingAction === "page-retry" ? (
               <>
                 <CircularProgress size={14} sx={{ mr: 0.75 }} />
-                Loading attributes…
+                Retrying properties…
               </>
-            ) : isExactSearchDegraded ? (
-              "Continue retained properties"
-            ) : isFetchNextPageError ? (
-              "Retry properties"
-            ) : search.trim() ? (
-              "Continue searching"
             ) : (
-              "Load more attributes"
+              "Retry next property page"
             )}
           </Button>
         )}
+        {showLoadMore &&
+          loading &&
+          pendingAction !== "retry" &&
+          pendingAction !== "page-retry" && (
+            <Box
+              role="status"
+              aria-live="polite"
+              sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+            >
+              <CircularProgress size={14} />
+              Loading more properties…
+            </Box>
+          )}
       </Box>
+      {hasAutomaticPagination && (
+        <Box
+          ref={paginationSentinelRef}
+          aria-hidden="true"
+          data-attribute-pagination-sentinel=""
+          sx={{ width: "100%", height: 1 }}
+        />
+      )}
     </Box>
   );
 };
@@ -137,7 +270,9 @@ AttributeInventoryControls.propTypes = {
   canRetry: PropTypes.bool,
   onRetry: PropTypes.func,
   showSearch: PropTypes.bool,
+  showLoadMore: PropTypes.bool,
   searchLabel: PropTypes.string,
+  scrollContainerRef: PropTypes.shape({ current: PropTypes.any }),
 };
 
 export default AttributeInventoryControls;

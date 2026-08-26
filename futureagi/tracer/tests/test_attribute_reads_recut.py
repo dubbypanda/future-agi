@@ -108,6 +108,9 @@ from tracer.services.clickhouse.list_cursor import (
     encode_list_cursor,
 )
 from tracer.services.clickhouse.read_budget import ReadDeadlineExceeded
+from tracer.utils.attribute_suggestion_contract import (
+    TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES,
+)
 from tracer.utils.filter_operators import (
     JSON_ARRAY_FILTER_MAX_STRING_UTF8_BYTES,
     JSON_ARRAY_FILTER_MAX_TOTAL_STRING_UTF8_BYTES,
@@ -2359,6 +2362,61 @@ def test_native_value_precedence_is_string_then_number_then_boolean_then_json():
     assert AttributeReadSelector._decode_target_value(row) == (
         "string",
         "native-string",
+    )
+
+
+def test_typed_string_suggestion_cap_retains_key_and_exact_raw_value() -> None:
+    at_limit = "é" * (TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES // 2)
+    oversized = "z" * (TYPED_STRING_SUGGESTION_MAX_UTF8_BYTES + 1)
+    candidate_time = NOW - timedelta(minutes=30)
+    candidates = [
+        _candidate(PROJECT_A, "at-limit", start_time=candidate_time),
+        _candidate(PROJECT_A, "oversized", start_time=candidate_time),
+    ]
+    latest = [
+        _target_row(
+            PROJECT_A,
+            "at-limit",
+            start_time=candidate_time,
+            string=at_limit,
+        ),
+        _target_row(
+            PROJECT_A,
+            "oversized",
+            start_time=candidate_time,
+            string=oversized,
+        ),
+    ]
+
+    def respond(call, _):
+        if "segment_start" in call.params:
+            return candidates
+        return latest
+
+    key_read = AttributeReadSelector(
+        RecordingExecutor(respond), now=NOW, typed_only=True
+    ).discover_keys(
+        [PROJECT_A],
+        exact_key="payload",
+        window_start=NOW - timedelta(hours=1),
+        window_end=NOW,
+    )
+    value_read = AttributeReadSelector(
+        RecordingExecutor(respond), now=NOW, typed_only=True
+    ).read_values(
+        [PROJECT_A],
+        "payload",
+        window_start=NOW - timedelta(hours=1),
+        window_end=NOW,
+    )
+
+    assert key_read.rows == (AttributeKeyRow("payload", "string", 2),)
+    assert value_read.rows == (AttributeValueRow(at_limit, "string", 1),)
+    # The raw typed-map value remains intact for exact user-entered filtering;
+    # only the property suggestion consumer applies the size policy.
+    assert AttributeReadSelector._decode_target_value(latest[1]) == (
+        "string",
+        oversized,
     )
 
 
@@ -8514,6 +8572,7 @@ def test_span_attribute_keys_contract_accepts_exact_probe_and_read_state():
         "query_error_code",
         "query_window_start",
         "query_window_end",
+        "total_count",
         "has_more",
         "next_cursor",
         "browse_mode",
@@ -10351,6 +10410,23 @@ def test_attribute_cursor_continues_retained_bound_operation_budget():
     assert page.metadata.query_count >= 2
 
 
+def test_value_cursor_continue_without_prior_metadata_starts_operation_budget():
+    executor = RecordingExecutor()
+
+    page = AttributeReadSelector(executor, now=NOW).read_value_cursor_page(
+        [PROJECT_A],
+        "model",
+        page_size=10,
+        window_start=NOW - timedelta(microseconds=1),
+        window_end=NOW,
+        continue_operation=True,
+    )
+
+    assert page.has_more is False
+    assert page.metadata.query_complete is True
+    assert page.metadata.query_count == len(executor.calls)
+
+
 def test_attribute_retained_bound_budget_falls_back_without_starving_cursor(
     monkeypatch,
 ):
@@ -10570,8 +10646,10 @@ def test_span_attribute_key_cursor_compresses_widened_checkpoint_and_continues(
 
     assert attempted_segments[0] == (
         (
-            first.next_segment_end - ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            first.next_segment_end,
+            first.next_before_identity[3]
+            + timedelta(microseconds=1)
+            - ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
+            first.next_before_identity[3] + timedelta(microseconds=1),
         ),
         first.next_before_identity,
     )
@@ -10864,9 +10942,9 @@ def test_span_attribute_key_cursor_recuts_dense_checkpoint_at_same_keyset_fronti
         (
             None,
             (
-                ATTRIBUTE_READ_EXPLICIT_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT,
+                ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
                 ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT,
             ),
         ),
@@ -10998,15 +11076,27 @@ def test_span_attribute_key_cursor_dense_retry_keeps_late_pages_exact(
         expected_widths
     )
     assert tuple(call[2] for call in candidate_calls[: len(expected_widths)]) == (
-        *(ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS for _ in expected_widths[:-2]),
-        None,
-        None,
+        tuple(
+            (
+                ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS
+                if width > ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT
+                else None
+            )
+            for width in expected_widths
+        )
     )
-    assert replay_calls == [
-        (0, None),
-        (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
-        (1, None),
-    ]
+    assert replay_calls == (
+        [
+            (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
+            (1, None),
+        ]
+        if segment_start is None
+        else [
+            (0, None),
+            (2, ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS),
+            (1, None),
+        ]
+    )
 
 
 def test_span_attribute_key_cursor_dense_floor_failure_is_fail_closed(monkeypatch):
@@ -11049,18 +11139,14 @@ def test_span_attribute_key_cursor_dense_floor_failure_is_fail_closed(monkeypatc
                 before_identity=checkpoint,
             )
 
-    assert calls[:3] == [
-        (
-            ATTRIBUTE_READ_EXPLICIT_SEGMENT,
-            ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS,
-        ),
+    assert calls[:2] == [
         (
             ATTRIBUTE_KEY_CURSOR_MIN_SEGMENT,
             ATTRIBUTE_KEY_CURSOR_SPECULATIVE_TIMEOUT_MS,
         ),
         (ATTRIBUTE_KEY_CURSOR_DENSE_RETRY_MIN_SEGMENT, None),
     ]
-    assert calls[3:] == calls[:3]
+    assert calls[2:] == calls[:2]
 
 
 def test_span_attribute_key_cursor_reuses_candidate_proof_while_recutting_replay(
@@ -12306,7 +12392,7 @@ def test_span_attribute_workspace_project_read_sets_remaining_pg_timeout(
     ]
     assert cursor.execute.call_args_list == [
         mock_call("SET TRANSACTION READ ONLY"),
-        mock_call("SET LOCAL statement_timeout = %s", ["1234ms"]),
+        mock_call("SELECT set_config('statement_timeout', %s, true)", ["1234"]),
     ]
 
 

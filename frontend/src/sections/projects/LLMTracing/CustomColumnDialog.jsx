@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
   Box,
@@ -35,6 +35,7 @@ const CustomColumnDialog = ({
   inventoryControlProps,
 }) => {
   const [search, setSearch] = useState("");
+  const attributeListRef = useRef(null);
 
   // IDs of custom columns already added to the grid
   const existingCustomIds = useMemo(
@@ -190,6 +191,8 @@ const CustomColumnDialog = ({
           }}
         />
         <Box
+          ref={attributeListRef}
+          data-attribute-inventory-scroll-container=""
           sx={{
             maxHeight: 300,
             overflowY: "auto",
@@ -244,6 +247,7 @@ const CustomColumnDialog = ({
           {...inventoryControlProps}
           showSearch={false}
           search={search}
+          scrollContainerRef={attributeListRef}
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

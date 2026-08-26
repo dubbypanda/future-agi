@@ -14,6 +14,7 @@ vi.mock("src/utils/axios", () => ({
 }));
 
 import { useAgentGraph } from "../agent-graph";
+import { AGGREGATION_POLL_MAX_ATTEMPTS } from "src/utils/queryReadState";
 
 const pendingResponse = () => ({
   data: {
@@ -79,7 +80,9 @@ describe("useAgentGraph bounded polling", () => {
 
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
     const boundedRequestCount = mocks.get.mock.calls.length;
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isError).toBe(false);
     expect(result.current.pollingPaused).toBe(true);

@@ -42,6 +42,15 @@ const fullTypedValuePage = (featuredValue, prefix) => [
   })),
 ];
 
+let paginationIntersectionCallback;
+
+const intersectPaginationSentinel = (isIntersecting = true) =>
+  act(() =>
+    paginationIntersectionCallback?.([
+      { isIntersecting, target: document.createElement("div") },
+    ]),
+  );
+
 describe("AutocompleteTextValueSelector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,9 +58,18 @@ describe("AutocompleteTextValueSelector", () => {
     // unused, so discard queued one-shot implementations between tests.
     mocks.get.mockReset();
     mocks.params = { observeId: "project-large" };
+    paginationIntersectionCallback = undefined;
+    class Observer {
+      constructor(callback) {
+        paginationIntersectionCallback = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("IntersectionObserver", Observer);
   });
 
-  it("loads exact cursor pages on scroll and normalizes the attribute type", async () => {
+  it("loads exact cursor pages at the visible list end and normalizes the attribute type", async () => {
     mocks.get
       .mockResolvedValueOnce({
         data: {
@@ -104,6 +122,7 @@ describe("AutocompleteTextValueSelector", () => {
         timeout: 4_800,
         params: expect.objectContaining({
           project_ids: "project-large",
+          property_id: "custom_attribute:call.status",
           metric_name: "call.status",
           metric_type: "custom_attribute",
           attribute_type: "string",
@@ -112,20 +131,10 @@ describe("AutocompleteTextValueSelector", () => {
       }),
     );
 
-    const listbox = screen.getByRole("listbox");
-    let scrollTop = 80;
-    Object.defineProperties(listbox, {
-      scrollTop: {
-        configurable: true,
-        get: () => scrollTop,
-        set: (value) => {
-          scrollTop = value;
-        },
-      },
-      clientHeight: { configurable: true, get: () => 20 },
-      scrollHeight: { configurable: true, get: () => 100 },
-    });
-    fireEvent.scroll(listbox);
+    expect(
+      screen.queryByRole("option", { name: "Load more values" }),
+    ).not.toBeInTheDocument();
+    intersectPaginationSentinel();
 
     expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
     expect(screen.getAllByRole("option", { name: "completed" })).toHaveLength(
@@ -145,7 +154,7 @@ describe("AutocompleteTextValueSelector", () => {
     expect(screen.queryByText(/incomplete|sample/i)).not.toBeInTheDocument();
   });
 
-  it("coalesces repeated bottom-scroll events into one cursor request", async () => {
+  it("coalesces repeated visible-end events into one signed-cursor request", async () => {
     let resolveSecondPage;
     const secondPage = new Promise((resolve) => {
       resolveSecondPage = resolve;
@@ -175,15 +184,8 @@ describe("AutocompleteTextValueSelector", () => {
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
     await screen.findByRole("option", { name: "completed" });
-    const listbox = screen.getByRole("listbox");
-    Object.defineProperties(listbox, {
-      scrollTop: { configurable: true, get: () => 80 },
-      clientHeight: { configurable: true, get: () => 20 },
-      scrollHeight: { configurable: true, get: () => 100 },
-    });
-
-    fireEvent.scroll(listbox);
-    fireEvent.scroll(listbox);
+    intersectPaginationSentinel();
+    intersectPaginationSentinel();
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
 
     await act(async () => {
@@ -203,7 +205,9 @@ describe("AutocompleteTextValueSelector", () => {
     expect(mocks.get).toHaveBeenCalledTimes(2);
   });
 
-  it("does not drain another cursor page while the same bottom-scroll gesture remains active", async () => {
+  it("attempts each new signed cursor once while the end sentinel remains visible", async () => {
+    let resolveSecondPage;
+    let resolveThirdPage;
     mocks.get
       .mockResolvedValueOnce({
         data: {
@@ -214,24 +218,18 @@ describe("AutocompleteTextValueSelector", () => {
           },
         },
       })
-      .mockResolvedValueOnce({
-        data: {
-          result: {
-            values: fullTypedValuePage("ended", "middle"),
-            has_more: true,
-            next_cursor: "page-3",
-          },
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          result: {
-            values: [{ value: "failed", type: "string" }],
-            has_more: false,
-            next_cursor: null,
-          },
-        },
-      });
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondPage = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveThirdPage = resolve;
+          }),
+      );
 
     render(
       <AutocompleteTextValueSelector
@@ -244,37 +242,43 @@ describe("AutocompleteTextValueSelector", () => {
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
     await screen.findByRole("option", { name: "completed" });
-    const listbox = screen.getByRole("listbox");
-    let scrollTop = 80;
-    Object.defineProperties(listbox, {
-      scrollTop: {
-        configurable: true,
-        get: () => scrollTop,
-        set: (value) => {
-          scrollTop = value;
-        },
-      },
-      clientHeight: { configurable: true, get: () => 20 },
-      scrollHeight: { configurable: true, get: () => 100 },
-    });
-
-    fireEvent.scroll(listbox);
-    expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
+    intersectPaginationSentinel();
+    intersectPaginationSentinel();
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
 
-    // Browser momentum/resize events can report the same bottom position after
-    // a fast page completes. They must not silently drain the next cursor.
-    scrollTop = 80;
-    fireEvent.scroll(listbox);
-    await act(async () => Promise.resolve());
-    expect(mocks.get).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolveSecondPage({
+        data: {
+          result: {
+            values: fullTypedValuePage("ended", "middle"),
+            has_more: true,
+            next_cursor: "page-3",
+          },
+        },
+      });
+    });
+    expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(3));
 
-    // Leaving the threshold and deliberately returning is a new gesture.
-    scrollTop = 0;
-    fireEvent.scroll(listbox);
-    scrollTop = 80;
-    fireEvent.scroll(listbox);
+    intersectPaginationSentinel();
+    intersectPaginationSentinel();
+    await act(async () => Promise.resolve());
+    expect(mocks.get).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      resolveThirdPage({
+        data: {
+          result: {
+            values: [{ value: "failed", type: "string" }],
+            has_more: false,
+            next_cursor: null,
+          },
+        },
+      });
+    });
     expect(await screen.findByRole("option", { name: "failed" })).toBeVisible();
+    expect(mocks.get.mock.calls[1][1].params.cursor).toBe("page-2");
+    expect(mocks.get.mock.calls[2][1].params.cursor).toBe("page-3");
     expect(mocks.get).toHaveBeenCalledTimes(3);
   });
 
@@ -349,7 +353,7 @@ describe("AutocompleteTextValueSelector", () => {
     );
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
-    const retry = await screen.findByRole("option", {
+    const retry = await screen.findByRole("button", {
       name: "Retry loading values",
     });
     expect(mocks.get).toHaveBeenCalledOnce();
@@ -369,7 +373,7 @@ describe("AutocompleteTextValueSelector", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps duplicate-heavy physical pages behind explicit actions", async () => {
+  it("automatically traverses duplicate-heavy pages without a manual continuation row", async () => {
     mocks.get
       .mockResolvedValueOnce({
         data: {
@@ -424,13 +428,12 @@ describe("AutocompleteTextValueSelector", () => {
     expect(
       await screen.findByRole("option", { name: "completed" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("option", { name: "Load more values" }));
+    intersectPaginationSentinel();
 
     expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
     expect(
-      screen.getByRole("option", { name: "Load more values" }),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole("option", { name: "Load more values" }));
+      screen.queryByRole("option", { name: "Load more values" }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "failed" })).toBeVisible();
     expect(screen.getAllByRole("option", { name: "completed" })).toHaveLength(
       1,
@@ -486,7 +489,7 @@ describe("AutocompleteTextValueSelector", () => {
     );
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
-    await screen.findByRole("option", { name: "Retry loading values" });
+    await screen.findByRole("button", { name: "Retry loading values" });
     expect(mocks.get).toHaveBeenCalledOnce();
 
     for (
@@ -495,16 +498,16 @@ describe("AutocompleteTextValueSelector", () => {
       expectedRequests += 1
     ) {
       fireEvent.click(
-        screen.getByRole("option", { name: "Retry loading values" }),
+        screen.getByRole("button", { name: "Retry loading values" }),
       );
       await waitFor(() =>
         expect(mocks.get).toHaveBeenCalledTimes(expectedRequests),
       );
-      await screen.findByRole("option", { name: "Retry loading values" });
+      await screen.findByRole("button", { name: "Retry loading values" });
     }
 
     fireEvent.click(
-      screen.getByRole("option", { name: "Retry loading values" }),
+      screen.getByRole("button", { name: "Retry loading values" }),
     );
     expect(
       await screen.findByRole("option", { name: "eventually-found" }),
@@ -545,7 +548,7 @@ describe("AutocompleteTextValueSelector", () => {
     );
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
-    const retry = await screen.findByRole("option", {
+    const retry = await screen.findByRole("button", {
       name: "Retry loading values",
     });
     expect(mocks.get).toHaveBeenCalledOnce();
@@ -556,9 +559,54 @@ describe("AutocompleteTextValueSelector", () => {
     // The repeated cursor returned by that explicit request is rejected before
     // another physical request can be issued.
     expect(
-      await screen.findByRole("option", { name: "Retry loading values" }),
+      await screen.findByRole("button", { name: "Retry loading values" }),
     ).toBeVisible();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("reuses the first cursor after a fresh-chain retry resets pagination", async () => {
+    const page = (value, hasMore, nextCursor) => ({
+      data: {
+        result: {
+          values: fullTypedValuePage(value, value),
+          query_complete: true,
+          query_status: "complete",
+          has_more: hasMore,
+          next_cursor: nextCursor,
+        },
+      },
+    });
+    mocks.get
+      .mockResolvedValueOnce(page("initial", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("stalled", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("fresh", true, "same-first-cursor"))
+      .mockResolvedValueOnce(page("recovered", false, null));
+
+    render(
+      <AutocompleteTextValueSelector
+        definition={{ propertyId: "retry.status", type: "text" }}
+        filter={{ id: "filter-1", filter_config: { filter_value: "" } }}
+        updateFilter={vi.fn()}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    expect(
+      await screen.findByRole("option", { name: "initial" }),
+    ).toBeVisible();
+    intersectPaginationSentinel();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
+
+    expect(
+      await screen.findByRole("option", { name: "recovered" }),
+    ).toBeVisible();
+    expect(mocks.get).toHaveBeenCalledTimes(4);
+    expect(mocks.get.mock.calls[2][1].params).not.toHaveProperty("cursor");
+    expect(mocks.get.mock.calls[3][1].params.cursor).toBe("same-first-cursor");
   });
 
   it("preserves values and offers retry for a malformed cursor contract", async () => {
@@ -587,7 +635,7 @@ describe("AutocompleteTextValueSelector", () => {
       await screen.findByRole("option", { name: "completed" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("option", { name: "Retry loading values" }),
+      screen.getByRole("button", { name: "Retry loading values" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("option", { name: "Load more values" }),
@@ -654,9 +702,9 @@ describe("AutocompleteTextValueSelector", () => {
     expect(
       await screen.findByRole("option", { name: "completed" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("option", { name: "Load more values" }));
+    intersectPaginationSentinel();
 
-    const retry = await screen.findByRole("option", {
+    const retry = await screen.findByRole("button", {
       name: "Retry loading values",
     });
     expect(mocks.get).toHaveBeenCalledTimes(2);
@@ -667,7 +715,7 @@ describe("AutocompleteTextValueSelector", () => {
     // The retry gesture consumes exactly one sparse page, then retains the
     // exact signed checkpoint for another explicit action.
     expect(screen.getByRole("option", { name: "completed" })).toBeVisible();
-    const retryBoundedContinuation = await screen.findByRole("option", {
+    const retryBoundedContinuation = await screen.findByRole("button", {
       name: "Retry loading values",
     });
     expect(mocks.get).toHaveBeenNthCalledWith(
@@ -680,7 +728,7 @@ describe("AutocompleteTextValueSelector", () => {
 
     fireEvent.click(retryBoundedContinuation);
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(4));
-    const finalContinuation = await screen.findByRole("option", {
+    const finalContinuation = await screen.findByRole("button", {
       name: "Retry loading values",
     });
     expect(mocks.get).toHaveBeenNthCalledWith(
@@ -743,7 +791,7 @@ describe("AutocompleteTextValueSelector", () => {
     fireEvent.mouseDown(screen.getByRole("combobox"));
     await waitFor(() => expect(mocks.get).toHaveBeenCalledOnce());
     fireEvent.click(
-      await screen.findByRole("option", { name: "Retry loading values" }),
+      await screen.findByRole("button", { name: "Retry loading values" }),
     );
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
     await waitFor(() =>
@@ -825,7 +873,7 @@ describe("AutocompleteTextValueSelector", () => {
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
     expect(await screen.findByRole("option", { name: "recent" })).toBeVisible();
-    fireEvent.click(screen.getByRole("option", { name: "Load more values" }));
+    intersectPaginationSentinel();
     expect(await screen.findByRole("option", { name: "older" })).toBeVisible();
     expect(mocks.get.mock.calls[1][1].params.cursor).toBe("next-bounded-batch");
     expect(

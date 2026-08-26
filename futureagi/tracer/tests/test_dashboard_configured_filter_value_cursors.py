@@ -7,8 +7,8 @@ import pytest
 from model_hub.models.score import Score
 from tracer.services.annotation_label_source import AnnotationLabelScoresProjectPG
 from tracer.services.clickhouse.list_cursor import ListCursorError
+from tracer.services.configured_value_options import configured_value_options
 from tracer.views.dashboard import (
-    _append_configured_filter_value_option,
     _filter_value_options_for_search,
     _finite_filter_value_cursor_page,
 )
@@ -95,11 +95,7 @@ def test_configured_json_values_are_preserved_deduped_and_searchable():
         {"value": False, "label": "Duplicate disabled"},
         {"value": 0, "label": "Duplicate zero"},
     ]
-    values = []
-    seen = set()
-
-    for choice in choices:
-        _append_configured_filter_value_option(values, seen, choice)
+    values = list(configured_value_options(choices))
 
     assert values == [
         {"value": False, "label": "Disabled"},
@@ -341,25 +337,29 @@ def test_annotation_choice_label_search_returns_the_stored_value(
         },
     )
 
-    response = auth_client.get(
-        FILTER_VALUES_URL,
-        {
-            "source": "traces",
-            "metric_type": "annotation_metric",
-            "metric_name": str(label.id),
-            "project_ids": str(project.id),
-            "page_size": 10,
-            "search": "rEfUnD rEqUeStEd",
-        },
-    )
+    with patch.object(
+        AnnotationLabelScoresProjectPG,
+        "categorical_values_for_label",
+        side_effect=AssertionError("configured values must not scan Score history"),
+        create=True,
+    ):
+        response = auth_client.get(
+            FILTER_VALUES_URL,
+            {
+                "source": "traces",
+                "metric_type": "annotation_metric",
+                "metric_name": str(label.id),
+                "project_ids": str(project.id),
+                "page_size": 10,
+                "search": "rEfUnD rEqUeStEd",
+            },
+        )
 
     assert response.status_code == 200
     payload = response.json()["result"]
     assert payload["values"] == [{"value": "refund_code", "label": "Refund requested"}]
-    # Configured choices are stable, but stored-only Score values are a
-    # changing sample. The response must not claim this is the full historical
-    # annotation vocabulary.
-    assert payload["query_complete"] is False
+    assert payload["query_complete"] is True
+    assert payload["query_status"] == "complete"
 
 
 @pytest.mark.django_db
@@ -401,43 +401,49 @@ def test_annotation_configured_choices_preserve_json_values_and_search_them(
         "page_size": 20,
     }
 
-    payload = auth_client.get(FILTER_VALUES_URL, params).json()["result"]
-
-    assert payload["values"] == [
-        {"value": False, "label": "Disabled"},
-        {"value": 0, "label": "Zero code"},
-        {"value": "Null fallback", "label": "Null fallback"},
-        {"value": "Empty fallback", "label": "Empty fallback"},
-        {"value": "Plain string", "label": "Plain string"},
-    ]
-    assert payload["query_complete"] is False
-
-    for search, expected in (
-        ("false", [{"value": False, "label": "Disabled"}]),
-        ("0", [{"value": 0, "label": "Zero code"}]),
-        (
-            "fallback",
-            [
-                {"value": "Null fallback", "label": "Null fallback"},
-                {"value": "Empty fallback", "label": "Empty fallback"},
-            ],
-        ),
-        ("plain", [{"value": "Plain string", "label": "Plain string"}]),
+    with patch.object(
+        AnnotationLabelScoresProjectPG,
+        "categorical_values_for_label",
+        side_effect=AssertionError("configured values must not scan Score history"),
+        create=True,
     ):
-        searched = auth_client.get(
-            FILTER_VALUES_URL,
-            {**params, "search": search},
-        ).json()["result"]
-        assert searched["values"] == expected
-    assert payload["query_status"] == "sampled"
-    assert payload["query_error_code"] == "sample_limit"
-    assert payload["browse_status"] == "limit_reached"
+        payload = auth_client.get(FILTER_VALUES_URL, params).json()["result"]
+
+        assert payload["values"] == [
+            {"value": False, "label": "Disabled"},
+            {"value": 0, "label": "Zero code"},
+            {"value": "Null fallback", "label": "Null fallback"},
+            {"value": "Empty fallback", "label": "Empty fallback"},
+            {"value": "Plain string", "label": "Plain string"},
+        ]
+        assert payload["query_complete"] is True
+
+        for search, expected in (
+            ("false", [{"value": False, "label": "Disabled"}]),
+            ("0", [{"value": 0, "label": "Zero code"}]),
+            (
+                "fallback",
+                [
+                    {"value": "Null fallback", "label": "Null fallback"},
+                    {"value": "Empty fallback", "label": "Empty fallback"},
+                ],
+            ),
+            ("plain", [{"value": "Plain string", "label": "Plain string"}]),
+        ):
+            searched = auth_client.get(
+                FILTER_VALUES_URL,
+                {**params, "search": search},
+            ).json()["result"]
+            assert searched["values"] == expected
+    assert payload["query_status"] == "complete"
+    assert "query_error_code" not in payload
+    assert payload["browse_status"] == "exhausted"
     assert payload["has_more"] is False
     assert payload["next_cursor"] is None
 
 
 @pytest.mark.django_db
-def test_annotation_stored_categorical_fallback_never_claims_exhaustive(
+def test_annotation_configured_values_do_not_scan_score_history(
     auth_client,
     project,
     organization,
@@ -465,22 +471,10 @@ def test_annotation_stored_categorical_fallback_never_claims_exhaustive(
     with patch.object(
         AnnotationLabelScoresProjectPG,
         "categorical_values_for_label",
-        side_effect=[
-            [{"selected": ["Stored first"]}],
-            [{"selected": ["Stored changed"]}],
-        ],
+        side_effect=AssertionError("configured values must not scan Score history"),
+        create=True,
     ) as stored_read:
-        first = auth_client.get(
-            FILTER_VALUES_URL,
-            {
-                "source": "traces",
-                "metric_type": "annotation_metric",
-                "metric_name": str(label.id),
-                "project_ids": str(project.id),
-                "page_size": 10,
-            },
-        ).json()["result"]
-        second = auth_client.get(
+        payload = auth_client.get(
             FILTER_VALUES_URL,
             {
                 "source": "traces",
@@ -495,15 +489,13 @@ def test_annotation_stored_categorical_fallback_never_claims_exhaustive(
         {"value": "Configured", "label": "Configured"},
         {"value": "Configured Other", "label": "Configured Other"},
     ]
-    assert first["values"] == expected_values
-    assert second["values"] == expected_values
-    assert first["query_complete"] is False
-    assert first["query_status"] == "sampled"
-    assert first["query_error_code"] == "sample_limit"
-    assert first["browse_status"] == "limit_reached"
-    assert first["has_more"] is False
-    assert first["next_cursor"] is None
-    assert second["next_cursor"] is None
+    assert payload["values"] == expected_values
+    assert payload["query_complete"] is True
+    assert payload["query_status"] == "complete"
+    assert "query_error_code" not in payload
+    assert payload["browse_status"] == "exhausted"
+    assert payload["has_more"] is False
+    assert payload["next_cursor"] is None
     stored_read.assert_not_called()
 
 

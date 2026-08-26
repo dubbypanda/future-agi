@@ -504,15 +504,25 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return item
 
     def _positive_relational_seed_filter(self) -> dict[str, Any] | None:
-        """Return the sole positive boolean relation eligible for root seeding.
+        """Return one positive relation that is necessary for every match.
 
-        ``has_eval`` and ``has_annotation`` have a positive row witness.  For a
-        one-project, unsorted request whose only public membership predicate is
-        one of those booleans, the exact relation can narrow root discovery
-        before the ordinary finite latest-state classifier runs.  Negative
-        predicates and conjunctions remain classifier-only: absence has no
-        positive witness, and combining this optimization with another leaf
-        would need a separate ordered-prefix proof.
+        A project-scoped eval value, a positive annotator selection, and the
+        existing ``has_eval=true`` / ``has_annotation=true`` relations all
+        have a physical positive witness.  Any one of them can therefore
+        narrow root discovery even when the request has additional ``AND``
+        predicates: the ordinary finite latest-state classifier still repeats
+        *every* public filter before publishing a row.  Prefer annotator and
+        eval-value witnesses over the broader boolean existence relations.
+
+        Pure negative-existence predicates remain classifier-only because
+        absence has no positive row with which to seed candidates.  Global
+        annotator ``not_equals``/``not_in`` is different: its public contract
+        requires at least one annotation and excludes traces annotated by the
+        selected users.  The complete Score relation is therefore a safe,
+        usually selective candidate seed; the finite classifier still repeats
+        the exclusion before publication.  Eval value ``not_in``/
+        ``not_equals`` likewise selects a positive eval row whose value
+        satisfies the negated comparison.
 
         Voice calls delegate to this trace builder with one private conversation
         root invariant.  That marker is structural, not a public filter, so it
@@ -526,40 +536,102 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             for item in self._active_non_time_filters()
             if not item.get("_eval_task_trace_root")
         ]
-        if len(active_filters) != 1:
+        candidates: list[tuple[int, int, dict[str, Any]]] = []
+        positive_eval_operations = {
+            "equals",
+            "not_equals",
+            "in",
+            "not_in",
+            "greater_than",
+            "greater_than_or_equal",
+            "less_than",
+            "less_than_or_equal",
+            "between",
+            "not_between",
+            "contains",
+            "not_contains",
+            "starts_with",
+            "ends_with",
+            "is_not_null",
+        }
+        for index, item in enumerate(active_filters):
+            key = item.get("column_id") or item.get("columnId")
+            config = item.get("filter_config") or item.get("filterConfig") or {}
+            if not key or not isinstance(config, dict):
+                continue
+            col_type = str(
+                config.get("col_type") or config.get("colType") or ""
+            ).upper()
+            filter_type = str(
+                config.get("filter_type") or config.get("filterType") or ""
+            ).lower()
+            operation = normalize_filter_op(
+                config.get("filter_op") or config.get("filterOp")
+            )
+            value = config.get("filter_value", config.get("filterValue"))
+
+            if key == "annotator":
+                # ``annotator`` is a Score relation independent of col_type,
+                # except that an explicit SPAN_ATTRIBUTE means the caller
+                # intentionally selected a raw customer attribute with the
+                # same name. ``is_not_null`` also has a positive Score-row
+                # witness, so it can seed candidates without scanning every
+                # trace in the requested window. ``is_null`` remains
+                # classifier-only because absence has no row to seed from.
+                if col_type not in {"", "NORMAL", "SYSTEM_METRIC", "ANNOTATION"}:
+                    continue
+                if filter_type not in {"", "text", "annotator"}:
+                    continue
+                values = value if isinstance(value, (list, tuple)) else [value]
+                if operation == "is_not_null":
+                    candidates.append((0, index, item))
+                    continue
+                if (
+                    operation in {"equals", "in", "not_equals", "not_in"}
+                    and values
+                    and all(isinstance(member, str) and member for member in values)
+                ):
+                    candidates.append((0, index, item))
+                continue
+
+            if col_type == "EVAL_METRIC" and key not in {
+                "annotator",
+                "has_annotation",
+                "has_eval",
+                "my_annotations",
+            }:
+                # Every supported value comparison except ``is_null`` is
+                # compiled as trace_id IN (matching latest live eval rows).
+                # Config/template resolution is project-scoped by the filter
+                # compiler used below.
+                if isinstance(key, str) and operation in positive_eval_operations:
+                    candidates.append((1, index, item))
+                continue
+
+            if key not in {"has_eval", "has_annotation"}:
+                continue
+            if key == "has_eval" and not self._eval_config_ids_known:
+                # The eval table has no project id. Candidate-first membership
+                # is safe only when the endpoint supplied its authoritative
+                # active project config set.
+                continue
+            if (
+                key == "has_annotation"
+                and self._annotation_label_set_known
+                and not self.annotation_label_ids
+            ):
+                # Completeness across a known empty label set is vacuously
+                # true; there is no positive Score witness for root seeding.
+                continue
+            wants_relation = value is True or (
+                isinstance(value, str) and value.strip().lower() == "true"
+            )
+            if operation == "equals" and wants_relation:
+                candidates.append((2, index, item))
+
+        if not candidates:
             return None
-        item = active_filters[0]
-        key = item.get("column_id") or item.get("columnId")
-        if key not in {"has_eval", "has_annotation"}:
-            return None
-        if key == "has_eval" and not self._eval_config_ids_known:
-            # The eval table has no project id. Candidate-first membership is
-            # safe only when the endpoint supplied its authoritative active
-            # project config set; legacy/direct builders keep their established
-            # candidate-scoped classifier instead of admitting a colliding
-            # trace id from another project.
-            return None
-        if (
-            key == "has_annotation"
-            and self._annotation_label_set_known
-            and not self.annotation_label_ids
-        ):
-            # Completeness across a known empty label set is vacuously true;
-            # there is no positive Score witness with which to narrow roots.
-            return None
-        config = item.get("filter_config") or item.get("filterConfig") or {}
-        if not isinstance(config, dict):
-            return None
-        operation = normalize_filter_op(
-            config.get("filter_op") or config.get("filterOp")
-        )
-        value = config.get("filter_value", config.get("filterValue"))
-        wants_relation = value is True or (
-            isinstance(value, str) and value.strip().lower() == "true"
-        )
-        if operation != "equals" or not wants_relation:
-            return None
-        return item
+        return min(candidates, key=lambda candidate: candidate[:2])[2]
 
     def _positive_relational_seed(self) -> tuple[str, dict[str, Any]]:
         """Compile the exact project-scoped relation used by root discovery.
@@ -588,6 +660,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 self.eval_config_ids if self._eval_config_ids_known else None
             ),
             annotation_label_set_known=self._annotation_label_set_known,
+            eval_filter_metadata=self.eval_filter_metadata,
         )
         predicate, params = filter_builder.translate([filter_item])
         return predicate or "", params
@@ -660,12 +733,14 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return predicate or "", dict(filter_builder._params)
 
     def supports_filter_candidate_seed_page(self) -> bool:
-        """Use an exact relational candidate set before ordered public roots."""
+        """Use an exact relational candidate before public or bulk roots."""
 
+        public_list_or_bulk_identity = (
+            not self._bounded_identity_only and not self._bounded_bulk_scan
+        ) or (self._bounded_identity_only and self._bounded_bulk_scan)
         return bool(
             not self._bounded_internal_scan
-            and not self._bounded_identity_only
-            and not self._bounded_bulk_scan
+            and public_list_or_bulk_identity
             and not self._bounded_population_proof
             and not self.sort_params
             and (
@@ -836,11 +911,19 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         """
 
         plans, _ = self._partition_trace_filter_plans(self._bounded_filters())
+        error_status_plan = self._selective_error_status_anchor_plan()
         candidates = [
             (index, plan)
             for index, plan in enumerate(plans)
             if plan.scope == "any" and self._plan_uses_indexed_anchor(plan)
         ]
+        if error_status_plan is not None:
+            # The public status comparison is case-insensitive and therefore
+            # compiles through lowerUTF8(), which cannot use the deployed raw
+            # status bloom.  Prefer this equivalent positive raw witness for
+            # sparse ERROR/ERRORED/FAILED discovery; latest-state replay below
+            # remains authoritative and removes stale physical versions.
+            candidates.append((-1, error_status_plan))
         candidates.sort(
             key=lambda item: (
                 item[1].raw_witness_rank is None,
@@ -851,6 +934,74 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             )
         )
         return [plan for _, plan in candidates]
+
+    def _selective_error_status_anchor_plan(
+        self,
+    ) -> LatestFilterPredicate | None:
+        """Return the indexed positive error witness used by Display.
+
+        Trace status has any-span semantics.  A matching trace must therefore
+        have at least one physical error-status row somewhere in its history.
+        The raw status bloom is a safe candidate superset for equals/IN error
+        filters; the finite global classifier still decides current membership.
+        """
+
+        for item_index, item in enumerate(self._active_non_time_filters()):
+            key = str(item.get("column_id") or item.get("columnId") or "")
+            if key != "status":
+                continue
+            config = item.get("filter_config") or item.get("filterConfig") or {}
+            operation = normalize_filter_op(
+                str(config.get("filter_op") or config.get("filterOp") or "")
+            )
+            raw_value = config.get("filter_value", config.get("filterValue"))
+            values = raw_value if isinstance(raw_value, list) else [raw_value]
+            normalized_values = {
+                str(value).strip().upper() for value in values if value is not None
+            }
+            if (
+                operation in {"equals", "in"}
+                and normalized_values
+                and normalized_values <= {"ERROR", "ERRORED", "FAILED"}
+            ):
+                item_plans, residual = self._partition_trace_filter_plans([item])
+                if residual or len(item_plans) != 1 or item_plans[0].scope != "any":
+                    return None
+                plan = item_plans[0]
+                anchor_param = f"trace_error_status_anchor_values_{item_index}"
+                return LatestFilterPredicate(
+                    aggregates=plan.aggregates,
+                    predicate=plan.predicate,
+                    seed_predicate=plan.seed_predicate,
+                    params={
+                        **plan.params,
+                        anchor_param: tuple(sorted(normalized_values)),
+                    },
+                    scope=plan.scope,
+                    raw_witness_predicate=f"status IN %({anchor_param})s",
+                    raw_key_witness_predicate=plan.raw_key_witness_predicate,
+                    raw_witness_rank=0,
+                    source_metric=plan.source_metric,
+                )
+        return None
+
+    def _uses_global_error_status_anchor(self) -> bool:
+        """Whether a sparse list may prove its error candidate population.
+
+        A request-window child probe cannot prove trace absence because the
+        root can be in-window while its matching child is outside it.  For the
+        long-window Display error shape, probe the indexed error witness across
+        the project's complete retained history instead.  Exhausting that
+        finite superset is then an exact population proof after classification.
+        Graph strata retain their request-window sampling contract.
+        """
+
+        request_start, request_end = self._bounded_request_window
+        return bool(
+            not getattr(self, "_bounded_anchor_probe", False)
+            and request_end - request_start > timedelta(hours=1)
+            and self._selective_error_status_anchor_plan() is not None
+        )
 
     def _graph_key_witness_plans(self) -> list[LatestFilterPredicate]:
         """Return positive any-span Map keys for graph-only discovery.
@@ -889,6 +1040,29 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                     r"\bmapContains\(span_attr_(?:str|num|bool),",
                     predicate,
                 )
+            ):
+                return plan
+        return None
+
+    def _positive_typed_map_candidate_plan(
+        self,
+    ) -> LatestFilterPredicate | None:
+        """Return one positive scalar Map leaf safe for finite discovery.
+
+        Rank-zero equality/IN leaves keep their selective raw key/value
+        witness. Other positive scalar operations (for example ``>`` or
+        ``is_not_null``) may add their raw-row seed predicate only when the
+        compiler proves a missing-key default cannot satisfy it; unsafe shapes
+        keep key presence alone. This helper is intentionally limited to the
+        optional exact graph candidate probe; authoritative partitioning
+        continues to require the narrower rank-zero plan above.
+        """
+
+        for plan in self._graph_key_witness_plans():
+            key_witness = str(plan.raw_key_witness_predicate or "")
+            if re.search(
+                r"\bhas\(span_attr_(?:str|num|bool)\.keys,",
+                key_witness,
             ):
                 return plan
         return None
@@ -1432,6 +1606,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             return trace_id, str(row.get("project_id") or "")
         return trace_id
 
+    def allow_filter_anchor_probe_for_initial_continuation(self) -> bool:
+        """Run the global sparse-error proof only on a fresh cursor page."""
+
+        return self._uses_global_error_status_anchor()
+
     def supports_filter_anchor_probe(self) -> bool:
         """Whether a direct any-span leaf can classify sparse vs common."""
 
@@ -1443,18 +1622,17 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             return False
         return bool(self._filter_anchor_plans())
 
-    @staticmethod
-    def filter_anchor_probe_proves_complete_population() -> bool:
-        """Return false because a temporal child anchor cannot prove absence.
+    def filter_anchor_probe_proves_complete_population(self) -> bool:
+        """Return true only for the complete-history sparse error witness.
 
-        The probe remains useful as a positive candidate accelerator.  Its
-        exhaustion is not a population proof: the canonical root may be in the
-        requested time window while the only matching child lies outside it.
-        The bounded reader must therefore continue through ordered roots and
-        global finite classification before claiming an exact page.
+        Ordinary temporal child anchors remain positive accelerators: the
+        canonical root may be in the requested window while its matching child
+        lies outside it.  The specialized error anchor deliberately scans the
+        indexed positive witness across complete retained project history, so
+        exhausting its sentinel does prove the full candidate population.
         """
 
-        return False
+        return self._uses_global_error_status_anchor()
 
     def supports_graph_key_witness_probe(self) -> bool:
         """Whether graph discovery can use one cheap typed-Map key leaf."""
@@ -1475,6 +1653,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         request_start, request_end = self._bounded_request_window
         return bool(
             request_end - request_start > timedelta(hours=1)
+            and not self._uses_global_error_status_anchor()
             and self.recommended_filter_anchor_probe_limit() is None
         )
 
@@ -1494,6 +1673,9 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         cannot prove that selector's final membership/order, so do not spend
         its fixed request budget before ordered candidate acquisition.
         """
+
+        if self._uses_global_error_status_anchor():
+            return _LONG_WINDOW_ANCHOR_SENTINEL
 
         # The production product-path gate showed that even partitioned long-
         # window probes routinely hit their deliberately tight row/byte caps
@@ -1521,6 +1703,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_anchor_probe_strata(self) -> int | None:
         """Partition only the optional long-window list probe."""
 
+        if self._uses_global_error_status_anchor():
+            # This query intentionally covers complete retained history; date
+            # strata would turn the finite superset back into a temporal sample.
+            return 1
         if self.recommended_filter_anchor_probe_limit() is not None:
             return _LONG_WINDOW_ANCHOR_STRATA
         return None
@@ -1552,6 +1738,62 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         if limit <= 0 or (limit == 1 and slice_start is None and slice_end is None):
             raise ValueError("anchor probe limit must include a sentinel")
+        if (
+            not _graph_key_witness
+            and slice_start is None
+            and slice_end is None
+            and self._uses_global_error_status_anchor()
+        ):
+            anchor = self._selective_error_status_anchor_plan()
+            if anchor is None:  # pragma: no cover - guarded by capability hook
+                raise ValueError("trace error-status anchor is unavailable")
+            anchor_predicate = anchor.raw_witness_predicate
+            if not anchor_predicate:  # pragma: no cover - constructed above
+                raise ValueError("trace error-status witness is unavailable")
+            anchor_params = {
+                key: value
+                for key, value in anchor.params.items()
+                if f"%({key})s" in anchor_predicate
+            }
+            params: dict[str, Any] = {
+                **self.params,
+                **anchor_params,
+                "filter_anchor_limit": int(limit),
+            }
+            project_version_fragment = ""
+            if self.project_version_id:
+                params["project_version_id"] = self.project_version_id
+                project_version_fragment = (
+                    "AND project_version_id = %(project_version_id)s"
+                )
+            sampling_fragment = ""
+            if self._bounded_sampling_rate is not None:
+                params["bounded_sampling_salt"] = str(self._bounded_sampling_salt)
+                params["bounded_sampling_rate"] = float(self._bounded_sampling_rate)
+                sampling_fragment = """
+                  AND modulo(
+                      cityHash64(%(bounded_sampling_salt)s, toString(trace_id)), 100
+                  ) < %(bounded_sampling_rate)s
+                """
+            identity_projection = (
+                "project_id, trace_id" if self.project_ids is not None else "trace_id"
+            )
+            identity_limit_by = (
+                "project_id, trace_id" if self.project_ids is not None else "trace_id"
+            )
+            query = f"""
+            SELECT {identity_projection}
+            FROM {self.TABLE}
+            PREWHERE {self.project_filter_sql()}
+              AND is_deleted = 0
+              {project_version_fragment}
+            WHERE {anchor_predicate}
+              {sampling_fragment}
+            LIMIT 1 BY {identity_limit_by}
+            LIMIT %(filter_anchor_limit)s
+            """
+            return query, params
+
         request_start, request_end = self.parse_time_range(self.filters)
         if (slice_start is None) != (slice_end is None):
             raise ValueError("anchor probe slice values must be provided together")
@@ -1667,21 +1909,28 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         *,
         limit: int,
     ) -> tuple[str, dict[str, Any]]:
-        """Return a finite all-time superset for a selective exact graph.
+        """Return a finite necessary superset for a selective exact graph.
 
-        Positive scalar typed-Map equality/IN predicates have an exhaustive
-        raw witness: every latest-live matching span necessarily has a raw
-        live version carrying the same key/value.  Historical matching rows
-        may also survive before ReplacingMergeTree merges, so this result is
-        deliberately *not* authoritative.  The exact graph reader must replay
-        every returned trace through its ordinary latest-state classifier,
-        which also verifies the canonical root is inside the request window.
+        Positive scalar typed-Map predicates have an exhaustive raw witness:
+        default-safe comparisons use a key/value witness, while shapes whose
+        missing-key default could satisfy an independently aggregated value
+        keep key presence alone. Every latest-live matching span is therefore
+        still represented even with conflicting rows tied at the maximum
+        version. Historical matching rows and tombstones may also survive
+        before ReplacingMergeTree merges, so this result is deliberately *not*
+        authoritative. The probe retains tombstones because deletion is also
+        independently aggregated at latest state; the exact graph reader must
+        replay every returned trace through its ordinary classifier, which
+        resolves deletion and verifies the canonical root request window.
 
-        Child spans have no maximum duration relative to their root.  This
-        probe therefore has no request-window or adjacent-day predicate.  A
-        ``limit`` sentinel lets the caller use the shortcut only when the
-        complete candidate population is demonstrably small; a full sentinel
-        falls back to exhaustive root enumeration without publishing rows.
+        Child spans have no maximum duration relative to their root, so raw
+        span-attribute witnesses are intentionally all-time.  Positive
+        relational witnesses (for example the Score population required by a
+        global negative annotator filter) instead select canonical roots and
+        are safely bounded to the frozen request window.  A ``limit`` sentinel
+        lets the caller use either shortcut only when the complete candidate
+        population is demonstrably small; a full sentinel falls back to
+        exhaustive root enumeration without publishing rows.
         """
 
         if limit <= 1:
@@ -1698,10 +1947,31 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             and self._bounded_sampling_rate is None
         ):
             return "", {}
-        anchor = self._positive_typed_map_anchor_plan()
+        anchor = self._positive_typed_map_candidate_plan()
         if anchor is None:
-            return "", {}
-        raw_witness_predicate = str(anchor.raw_witness_predicate or "")
+            # A global negative annotator filter is not a raw span-attribute
+            # witness, but it does have an exact positive Score population:
+            # traces with at least one project-scoped annotation, minus traces
+            # annotated by the excluded users.  Acquire only canonical roots
+            # in the frozen graph window through that relation.  A full
+            # sentinel still falls back to the exhaustive root walk and every
+            # returned identity still crosses the unchanged latest-state
+            # classifier, so this is a latency optimization only.
+            if self._positive_relational_seed_filter() is None:
+                return "", {}
+            request_start, request_end = self.parse_time_range(self.filters)
+            return TraceListQueryBuilder.build_filter_ordered_seed_page(
+                self,
+                slice_start=request_start,
+                slice_end=request_end,
+                limit=limit,
+                _positive_relation_candidate_first=True,
+            )
+        raw_witness_predicate = str(
+            anchor.raw_graph_value_witness_predicate
+            or anchor.raw_key_witness_predicate
+            or ""
+        )
         if not raw_witness_predicate:
             return "", {}
 
@@ -1722,7 +1992,6 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         SELECT trace_id
         FROM {self.TABLE}
         PREWHERE {self.project_filter_sql()}
-          AND is_deleted = 0
           {project_version_fragment}
         WHERE {raw_witness_predicate}
         LIMIT 1 BY trace_id
@@ -3411,12 +3680,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                     AND latest_start_time < fromUnixTimestamp64Micro(%(candidate_end_date_us)s)
                 )"""
             any_span_having = " AND ".join(
-                (f"countIf({any_span_window_condition} AND ({plan.predicate})) > 0")
+                plan.grouped_match_predicate(any_span_window_condition)
                 for plan in any_span_plans
             )
         else:
             any_span_having = " AND ".join(
-                f"countIf({plan.predicate}) > 0" for plan in any_span_plans
+                plan.grouped_match_predicate() for plan in any_span_plans
             )
         any_span_having_fragment = (
             f"\n              AND {any_span_having}" if any_span_having else ""
@@ -3461,8 +3730,18 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             for witness_index, plan in enumerate(any_span_plans):
                 witness_alias = f"filter_witness_{witness_index}"
                 witness_aliases.append(witness_alias)
-                witness_condition = f"({plan.predicate})"
-                if scope_span_witnesses_to_request_window:
+                if plan.exclude_group_matches:
+                    # Group absence has no positive attribute span. The live
+                    # canonical root is nevertheless an exact row-level
+                    # is-null witness because the group proof established that
+                    # no span in this trace contains the key.
+                    witness_condition = canonical_root_condition
+                else:
+                    witness_condition = f"({plan.predicate})"
+                if (
+                    scope_span_witnesses_to_request_window
+                    and not plan.exclude_group_matches
+                ):
                     witness_condition = (
                         f"{any_span_window_condition} AND {witness_condition}"
                     )

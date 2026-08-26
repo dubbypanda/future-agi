@@ -7,11 +7,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   debouncedValue: undefined,
+  propertyCatalog: vi.fn(),
+  catalogResult: null,
 }));
 
 vi.mock("src/hooks/use-debounce", () => ({
   useDebounce: (value) =>
     mocks.debouncedValue === undefined ? value : mocks.debouncedValue,
+}));
+
+vi.mock("src/hooks/useDashboards", () => ({
+  isPropertyCatalogNotReadyError: (error) =>
+    error?.response?.status === 503 &&
+    error?.response?.data?.code === "property_catalog_not_ready",
+  usePropertyCatalog: (options) => {
+    mocks.propertyCatalog(options);
+    return mocks.catalogResult;
+  },
 }));
 
 vi.mock("src/utils/axios", () => ({
@@ -25,7 +37,8 @@ vi.mock("src/utils/axios", () => ({
 
 import {
   getAttributeKeyPageReadState,
-  useExactTraceAttributeProperties,
+  useExactTraceAttributeProperties as useUnifiedExactTraceAttributeProperties,
+  useLegacyExactTraceAttributeProperties as useExactTraceAttributeProperties,
 } from "../useExactTraceAttributeProperties";
 
 function createWrapper() {
@@ -45,6 +58,76 @@ describe("useExactTraceAttributeProperties", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.debouncedValue = undefined;
+    mocks.catalogResult = {
+      error: {
+        response: {
+          status: 503,
+          data: { code: "property_catalog_not_ready" },
+        },
+      },
+      legacyFallbackRequired: true,
+      metrics: [],
+    };
+  });
+
+  it("uses the unified catalog as the authoritative searchable definition list", async () => {
+    const fetchNextPage = vi.fn().mockResolvedValue(undefined);
+    mocks.catalogResult = {
+      data: { pages: [{ metrics: [] }] },
+      error: null,
+      legacyFallbackRequired: false,
+      metrics: [
+        {
+          name: "customer.plan",
+          display_name: "Customer plan",
+          property_id: "custom_attribute:customer.plan",
+          type: "string",
+        },
+      ],
+      hasNextPage: true,
+      fetchNextPage,
+      isFetchingNextPage: false,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      queryReadState: "complete",
+      refetch: vi.fn(),
+    };
+
+    const { result } = renderHook(
+      () =>
+        useUnifiedExactTraceAttributeProperties({
+          projectId: "project-a",
+          search: "customer.plan",
+          source: "spans",
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.propertyCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "custom_attribute",
+        source: "traces",
+        search: "customer.plan",
+        projectIds: ["project-a"],
+        pageSize: 20,
+        allowLegacyNotReadyFallback: true,
+      }),
+    );
+    expect(result.current.data).toEqual([
+      expect.objectContaining({
+        id: "customer.plan",
+        registryId: "custom_attribute:customer.plan",
+        name: "Customer plan",
+      }),
+    ]);
+    expect(result.current.exactSearchMatched).toBe(true);
+    await act(async () => result.current.fetchNextExactPage());
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
   });
 
   it("loads ten retained keys first and de-duplicates cursor pages", async () => {
@@ -60,6 +143,7 @@ describe("useExactTraceAttributeProperties", () => {
           browse_mode: "recent_suggestions",
           browse_status: "continuation",
           browse_limit: 224,
+          total_count: 73,
           has_more: true,
           next_cursor: "signed-page-2",
         },
@@ -75,6 +159,7 @@ describe("useExactTraceAttributeProperties", () => {
           browse_mode: "recent_suggestions",
           browse_status: "exhausted",
           browse_limit: 224,
+          total_count: 73,
           has_more: false,
           next_cursor: null,
         },
@@ -91,6 +176,7 @@ describe("useExactTraceAttributeProperties", () => {
     );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.totalCount).toBe(73);
     expect(mocks.get).toHaveBeenNthCalledWith(
       1,
       "/api/traces/span-attribute-keys/",
@@ -126,6 +212,7 @@ describe("useExactTraceAttributeProperties", () => {
     expect(result.current.browseStatus).toBe("exhausted");
     expect(result.current.browseLimit).toBe(224);
     expect(result.current.browseLimitReached).toBe(false);
+    expect(result.current.totalCount).toBe(73);
   });
 
   it("continues a resumable limit_reached catalog into its next batch", async () => {

@@ -1,9 +1,10 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "src/utils/test-utils";
+import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import axios from "src/utils/axios";
 import {
+  AGGREGATION_POLL_MAX_ATTEMPTS,
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
@@ -23,6 +24,23 @@ vi.mock("react-apexcharts", () => ({
 
 vi.mock("src/components/custom-datepicker/DatePicker", () => ({
   default: () => null,
+}));
+
+vi.mock("src/hooks/useDashboards", () => ({
+  PROPERTY_CATALOG_REQUEST_TIMEOUT_MS: 9_000,
+  isPropertyCatalogNotReadyError: (error) =>
+    error?.response?.status === 503 &&
+    error?.response?.data?.code === "property_catalog_not_ready",
+  usePropertyCatalog: () => ({
+    error: {
+      response: {
+        status: 503,
+        data: { code: "property_catalog_not_ready" },
+      },
+    },
+    legacyFallbackRequired: true,
+    metrics: [],
+  }),
 }));
 
 vi.mock("../../common", () => ({
@@ -59,6 +77,34 @@ function renderWithQueryClient(ui) {
   );
 }
 
+const installIntersectionObserver = () => {
+  const observers = [];
+  class IntersectionObserverMock {
+    constructor(callback, options) {
+      this.callback = callback;
+      this.options = options;
+      this.observe = vi.fn();
+      this.disconnect = vi.fn();
+      observers.push(this);
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+  const emit = (isIntersecting) => {
+    const observer = observers.at(-1);
+    if (!observer) throw new Error("No IntersectionObserver was created");
+    act(() => observer.callback([{ isIntersecting }]));
+  };
+  return { observers, emit };
+};
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe("PrimaryGraph", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,7 +136,10 @@ describe("PrimaryGraph", () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   it("uses observeIdOverride as the graph project id", async () => {
     renderWithQueryClient(
@@ -98,17 +147,73 @@ describe("PrimaryGraph", () => {
     );
 
     await waitFor(() => expect(axios.post).toHaveBeenCalled());
+    expect(axios.get).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByText("Latency"));
+    await waitFor(() => expect(axios.get).toHaveBeenCalled());
 
     expect(axios.get).toHaveBeenCalledWith("/dashboard/metrics/", {
-      params: { exclude_custom_attributes: true },
+      params: {
+        exclude_custom_attributes: true,
+        page: 1,
+        page_size: 200,
+        project_ids: "project-override",
+        per_eval_config: true,
+      },
+      signal: expect.anything(),
+      timeout: 9_000,
     });
 
     expect(axios.post).toHaveBeenCalledWith(
       "/tracer/trace/get_graph_methods/",
       expect.objectContaining({
         project_id: "project-override",
+        req_data_config: expect.objectContaining({
+          id: "latency",
+          type: "SYSTEM_METRIC",
+          property_id: "system_attribute:traces:latency",
+          source: "traces",
+        }),
       }),
-      expect.objectContaining({ params: { allow_sampled: true } }),
+      expect.objectContaining({ params: { allow_sampled: false } }),
+    );
+  });
+
+  it("binds session aggregate graphs to the session property source", async () => {
+    renderWithQueryClient(
+      <PrimaryGraph
+        observeIdOverride="project-override"
+        graphEndpoint="/tracer/trace-session/get_session_graph_data/"
+        trafficLabel="sessions"
+      />,
+    );
+
+    await waitFor(() => expect(axios.post).toHaveBeenCalled());
+    expect(axios.post.mock.calls.at(-1)[1].req_data_config).toEqual(
+      expect.objectContaining({
+        id: "latency",
+        property_id: "system_attribute:sessions:latency",
+        source: "sessions",
+      }),
+    );
+  });
+
+  it("preserves the users namespace while using the session transport", async () => {
+    renderWithQueryClient(
+      <PrimaryGraph
+        observeIdOverride="project-override"
+        graphEndpoint="/tracer/project/get_users_aggregate_graph_data/"
+        trafficLabel="users"
+      />,
+    );
+
+    await waitFor(() => expect(axios.post).toHaveBeenCalled());
+    expect(axios.post.mock.calls.at(-1)[1].req_data_config).toEqual(
+      expect.objectContaining({
+        id: "latency",
+        property_id: "system_attribute:users:latency",
+        source: "sessions",
+      }),
     );
   });
 
@@ -117,6 +222,7 @@ describe("PrimaryGraph", () => {
       <PrimaryGraph
         observeIdOverride="project-override"
         graphEndpoint="/tracer/observation-span/get_graph_methods/"
+        trafficLabel="spans"
       />,
     );
 
@@ -126,9 +232,314 @@ describe("PrimaryGraph", () => {
       "/tracer/observation-span/get_graph_methods/",
       expect.objectContaining({
         project_id: "project-override",
+        req_data_config: expect.objectContaining({
+          property_id: "system_attribute:spans:latency",
+          source: "traces",
+        }),
       }),
-      expect.objectContaining({ params: { allow_sampled: true } }),
+      expect.objectContaining({ params: { allow_sampled: false } }),
     );
+  });
+
+  it("offers project eval configs and excludes simulation-only system metrics", async () => {
+    axios.get.mockResolvedValue({
+      data: {
+        result: {
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              display_name: "Latency",
+              source: "traces",
+              property_id: "system_attribute:traces:latency",
+              type: "number",
+            },
+            {
+              category: "system_metric",
+              name: "call_count",
+              display_name: "Call Count",
+              source: "simulation",
+              property_id: "system_attribute:simulation:call_count",
+              type: "number",
+            },
+            {
+              category: "eval_metric",
+              name: "config-1",
+              display_name: "Quality eval",
+              source: "traces",
+              property_id: "eval_config:config-1",
+              output_type: "SCORE",
+            },
+          ],
+        },
+      },
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    await waitFor(() => expect(axios.post).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByText("Latency"));
+    expect(await screen.findByText("Quality eval")).toBeVisible();
+    expect(screen.queryByText("Call Count")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Quality eval"));
+    await waitFor(() =>
+      expect(axios.post.mock.calls.at(-1)[1].req_data_config).toEqual(
+        expect.objectContaining({
+          id: "config-1",
+          type: "EVAL",
+          property_id: "eval_config:config-1",
+          source: "traces",
+        }),
+      ),
+    );
+  });
+
+  it("automatically loads three legacy metric pages when responses omit page", async () => {
+    const intersection = installIntersectionObserver();
+    const secondPage = deferred();
+    const thirdPage = deferred();
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) => {
+      if (params.page === 2) return secondPage.promise;
+      if (params.page === 3) return thirdPage.promise;
+      return Promise.resolve(
+        response({
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              display_name: "Latency",
+              source: "traces",
+              property_id: "system_attribute:traces:latency",
+              type: "number",
+            },
+          ],
+          page_size: 200,
+          total: 202,
+          has_more: true,
+        }),
+      );
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    fireEvent.click(await screen.findByText("Latency"));
+
+    const sentinel = await screen.findByTestId(
+      "primary-graph-metric-pagination-sentinel",
+    );
+    expect(intersection.observers[0].options.root).toBe(sentinel.parentElement);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
+    expect(axios.get).toHaveBeenCalledTimes(1);
+
+    intersection.emit(true);
+    intersection.emit(true);
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
+    expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
+      params: expect.objectContaining({ page: 2, page_size: 200 }),
+      signal: expect.anything(),
+      timeout: 9_000,
+    });
+
+    await act(async () => {
+      secondPage.resolve(
+        response({
+          metrics: [
+            {
+              category: "annotation_metric",
+              name: "annotation-1",
+              display_name: "QA Annotation",
+              source: "both",
+              property_id: "annotation:annotation-1",
+              output_type: "numeric",
+            },
+          ],
+          page_size: 200,
+          total: 202,
+          has_more: true,
+        }),
+      );
+      await secondPage.promise;
+    });
+
+    expect(await screen.findByText("QA Annotation")).toBeVisible();
+    // The end remains visible after a short page, so its new cursor advances
+    // without another scroll gesture.
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3));
+    expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
+      params: expect.objectContaining({ page: 3, page_size: 200 }),
+      signal: expect.anything(),
+      timeout: 9_000,
+    });
+
+    await act(async () => {
+      thirdPage.resolve(
+        response({
+          metrics: [
+            {
+              category: "eval_metric",
+              name: "eval-1",
+              display_name: "Quality Eval",
+              source: "traces",
+              property_id: "eval_config:eval-1",
+              output_type: "SCORE",
+            },
+          ],
+          page_size: 200,
+          total: 202,
+          has_more: false,
+        }),
+      );
+      await thirdPage.promise;
+    });
+
+    expect(await screen.findByText("Quality Eval")).toBeVisible();
+    expect(axios.get).toHaveBeenCalledTimes(3);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("restarts the same metric continuation when the project changes", async () => {
+    const intersection = installIntersectionObserver();
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) =>
+      Promise.resolve(
+        response({
+          metrics:
+            params.page === 1
+              ? [
+                  {
+                    category: "system_metric",
+                    name: "latency",
+                    display_name: "Latency",
+                    source: "traces",
+                    property_id: `system_attribute:traces:latency:${params.project_ids}`,
+                    type: "number",
+                  },
+                ]
+              : [],
+          page_size: 200,
+          total: 201,
+          has_more: params.page === 1,
+        }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const graph = (projectId) => (
+      <QueryClientProvider client={queryClient}>
+        <PrimaryGraph observeIdOverride={projectId} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(graph("project-one"));
+
+    fireEvent.click(await screen.findByText("Latency"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+    intersection.emit(true);
+    await waitFor(() =>
+      expect(
+        axios.get.mock.calls.some(
+          ([, { params }]) =>
+            params.project_ids === "project-one" && params.page === 2,
+        ),
+      ).toBe(true),
+    );
+
+    rerender(graph("project-two"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+    intersection.emit(true);
+    await waitFor(() =>
+      expect(
+        axios.get.mock.calls.some(
+          ([, { params }]) =>
+            params.project_ids === "project-two" && params.page === 2,
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("requires an explicit retry after an automatic metric page fails", async () => {
+    const intersection = installIntersectionObserver();
+    let pageTwoAttempts = 0;
+    const response = (result) => ({ data: { result } });
+    axios.get.mockImplementation((_url, { params }) => {
+      if (params.page === 2) {
+        pageTwoAttempts += 1;
+        if (pageTwoAttempts === 1) {
+          return Promise.reject(new Error("next page failed"));
+        }
+        return Promise.resolve(
+          response({
+            metrics: [
+              {
+                category: "annotation_metric",
+                name: "annotation-recovered",
+                display_name: "Recovered Annotation",
+                source: "both",
+                property_id: "annotation:annotation-recovered",
+                output_type: "numeric",
+              },
+            ],
+            page: 2,
+            page_size: 200,
+            total: 201,
+            has_more: false,
+          }),
+        );
+      }
+      return Promise.resolve(
+        response({
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              display_name: "Latency",
+              source: "traces",
+              property_id: "system_attribute:traces:latency",
+              type: "number",
+            },
+          ],
+          page: 1,
+          page_size: 200,
+          total: 201,
+          has_more: true,
+        }),
+      );
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    fireEvent.click(await screen.findByText("Latency"));
+    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+
+    intersection.emit(true);
+    const retry = await screen.findByRole("button", {
+      name: "Retry loading more metrics",
+    });
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByRole("button", { name: /load more|continue/i }),
+    ).not.toBeInTheDocument();
+
+    intersection.emit(true);
+    await act(async () => undefined);
+    expect(axios.get).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(retry);
+    expect(await screen.findByText("Recovered Annotation")).toBeVisible();
+    expect(axios.get).toHaveBeenCalledTimes(3);
   });
 
   const statusFilter = {
@@ -170,9 +581,7 @@ describe("PrimaryGraph", () => {
     expect(postedFilters()).toEqual([statusFilter]);
   });
 
-  it("strips col-level filters when extraFilters is passed, even empty (trace/span)", async () => {
-    // Regression guard for the round-2 review bug: the mode gate must be
-    // prop PRESENCE — an empty toolbar filter list is still trace mode.
+  it("keeps validated grid filters when trace/span toolbar filters are empty", async () => {
     renderWithQueryClient(
       <PrimaryGraph
         observeIdOverride="project-override"
@@ -183,10 +592,10 @@ describe("PrimaryGraph", () => {
 
     await waitFor(() => expect(axios.post).toHaveBeenCalled());
 
-    expect(postedFilters()).toEqual([]);
+    expect(postedFilters()).toEqual([statusFilter]);
   });
 
-  it("forwards toolbar extraFilters and strips the FE-only id (trace/span)", async () => {
+  it("combines grid and toolbar filters and strips FE-only ids", async () => {
     renderWithQueryClient(
       <PrimaryGraph
         observeIdOverride="project-override"
@@ -198,7 +607,7 @@ describe("PrimaryGraph", () => {
     await waitFor(() => expect(axios.post).toHaveBeenCalled());
 
     const { id: _id, ...metricFilterWithoutId } = metricFilter;
-    expect(postedFilters()).toEqual([metricFilterWithoutId]);
+    expect(postedFilters()).toEqual([statusFilter, metricFilterWithoutId]);
   });
 
   it("does not present a degraded graph read as an empty time range", async () => {
@@ -234,7 +643,7 @@ describe("PrimaryGraph", () => {
     expect(screen.queryByTestId("apex-chart")).not.toBeInTheDocument();
   });
 
-  it("charts and labels a fully covered bounded graph sample", async () => {
+  it("does not render a sampled graph response as exact data", async () => {
     axios.post.mockResolvedValue({
       data: {
         result: {
@@ -263,13 +672,13 @@ describe("PrimaryGraph", () => {
       <PrimaryGraph observeIdOverride="project-override" />,
     );
 
-    expect(await screen.findByTestId("apex-chart")).toBeInTheDocument();
-    expect(screen.getByText(/sampled estimates/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(
+      await screen.findByText(
         "We couldn't load this data. Please retry in a moment.",
       ),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("apex-chart")).not.toBeInTheDocument();
+    expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
     expect(
       screen.queryByText("No data available for this time range"),
     ).not.toBeInTheDocument();
@@ -365,7 +774,7 @@ describe("PrimaryGraph", () => {
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
       expect.objectContaining({
-        params: { allow_sampled: true, refresh: true },
+        params: { allow_sampled: false, refresh: true },
       }),
     );
     expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
@@ -430,13 +839,81 @@ describe("PrimaryGraph", () => {
       2,
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
-      expect.objectContaining({ params: { allow_sampled: true } }),
+      expect.objectContaining({ params: { allow_sampled: false } }),
     );
     expect(screen.getByTestId("apex-chart")).toBeInTheDocument();
     expect(exactCompletion).toHaveBeenCalledOnce();
     window.removeEventListener(
       "observe-aggregation-completed",
       exactCompletion,
+    );
+  });
+
+  it("keeps observing a healthy 12M exact job beyond one request window", async () => {
+    vi.useFakeTimers();
+    const pendingResponse = {
+      data: {
+        result: {
+          metric_name: "latency",
+          data: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: true,
+          query_refresh_failed: false,
+        },
+      },
+    };
+    axios.post
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce(pendingResponse)
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            metric_name: "latency",
+            data: [
+              {
+                timestamp: "2026-08-03T00:00:00Z",
+                value: 42,
+                primary_traffic: 2,
+              },
+            ],
+            query_complete: true,
+            query_status: "complete",
+            query_sampled: false,
+            query_refreshing: false,
+          },
+        },
+      });
+
+    renderWithQueryClient(
+      <PrimaryGraph
+        observeIdOverride="project-override"
+        dateFilter={{ dateOption: "12M" }}
+        filters={[
+          {
+            column_id: "duration",
+            operator: "greater_than",
+            value: 30,
+          },
+          {
+            column_id: "annotator",
+            operator: "is_not_null",
+          },
+        ]}
+      />,
+    );
+
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+
+    expect(axios.post).toHaveBeenCalledTimes(4);
+    expect(
+      screen.queryByText(AGGREGATION_POLLING_PAUSED_MESSAGE),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("apex-chart")).toHaveAttribute(
+      "data-primary-first-y",
+      "42",
     );
   });
 
@@ -463,7 +940,9 @@ describe("PrimaryGraph", () => {
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
 
     const boundedRequestCount = axios.post.mock.calls.length;
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
     expect(screen.getByText(AGGREGATION_POLLING_PAUSED_MESSAGE)).toBeVisible();
     expect(
       screen.queryByText(

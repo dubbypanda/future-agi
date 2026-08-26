@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import {
   Box,
+  Button,
   Chip,
   IconButton,
   MenuItem,
@@ -31,6 +32,7 @@ import PartialInputWarningDetails, {
 import { isEditableElement } from "src/utils/keyboardUtils";
 import { parsePythonReprIfNeeded } from "src/sections/develop-detail/DataTab/common";
 import { DATE_OPTION_TO_PERIOD } from "src/sections/evals/Helpers/evalUsageColumns";
+import { QUERY_FAILED_RETRY_MESSAGE } from "src/utils/queryReadState";
 
 // ── Inline stat ──
 const StatPill = ({ label, value, color }) => (
@@ -52,7 +54,6 @@ const StatPill = ({ label, value, color }) => (
     </Typography>
   </Box>
 );
-
 
 // ── Score chip ──
 const ScoreCell = ({ value }) => {
@@ -909,19 +910,23 @@ const TaskUsageTab = ({ taskId }) => {
     : undefined;
   const customEndInclusive = dateOption === "Custom";
 
-  const { data: chartData, isLoading: chartLoading } = useTaskUsageChart(
-    taskId,
-    {
-      period,
-      evalId: apiEvalId,
-      dateRange: explicitDateRange,
-      endInclusive: customEndInclusive,
-    },
-  );
+  const {
+    data: chartData,
+    isLoading: chartLoading,
+    isError: chartError,
+    refetch: retryChart,
+  } = useTaskUsageChart(taskId, {
+    period,
+    evalId: apiEvalId,
+    dateRange: explicitDateRange,
+    endInclusive: customEndInclusive,
+  });
   const {
     data: logsData,
     isLoading: logsLoading,
     isFetching: logsFetching,
+    isError: logsError,
+    refetch: retryLogs,
   } = useTaskUsageLogs(taskId, {
     page,
     pageSize,
@@ -1044,6 +1049,7 @@ const TaskUsageTab = ({ taskId }) => {
             }}
           >
             <DateTimeRangePicker
+              includeOneHour
               dateOption={dateOption}
               setDateOption={(opt) => {
                 setDateOption(opt);
@@ -1079,7 +1085,7 @@ const TaskUsageTab = ({ taskId }) => {
               </Select>
             )}
           </Box>
-          {!chartLoading && (
+          {!chartLoading && !chartError && (
             <Box
               sx={{
                 display: "flex",
@@ -1147,6 +1153,25 @@ const TaskUsageTab = ({ taskId }) => {
         >
           {chartLoading ? (
             <Skeleton variant="rounded" width="100%" height="100%" />
+          ) : chartError ? (
+            <Box
+              role="alert"
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 1,
+                height: "100%",
+              }}
+            >
+              <Typography variant="caption" color="warning.main">
+                {QUERY_FAILED_RETRY_MESSAGE}
+              </Typography>
+              <Button size="small" onClick={() => retryChart()}>
+                Retry
+              </Button>
+            </Box>
           ) : chart.length > 0 ? (
             <UsageChart data={chart} outputType={chartOutputType} />
           ) : (
@@ -1232,9 +1257,31 @@ const TaskUsageTab = ({ taskId }) => {
               isLoading={logsLoading && !logsData}
               rowCount={totalLogs}
               onRowClick={handleRowClick}
-              emptyMessage="No evaluation runs for this period"
+              emptyMessage={
+                logsError
+                  ? QUERY_FAILED_RETRY_MESSAGE
+                  : "No evaluation runs for this period"
+              }
             />
           </Box>
+          {logsError && (
+            <Box
+              role="alert"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                color: "warning.main",
+                fontSize: 12,
+                py: 0.5,
+              }}
+            >
+              {QUERY_FAILED_RETRY_MESSAGE}
+              <Button size="small" onClick={() => retryLogs()}>
+                Retry
+              </Button>
+            </Box>
+          )}
           <Box sx={{ flexShrink: 0 }}>
             <DataTablePagination
               page={page}

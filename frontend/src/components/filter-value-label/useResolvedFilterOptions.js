@@ -154,6 +154,7 @@ export function useResolvedFilterOptions(
       : undefined;
 
   const valueQuery = useDashboardFilterValues({
+    propertyId: filter?.registryId || filter?.property_id || filter?.propertyId,
     metricName: filter?.id || "",
     metricType: backendType,
     projectIds: [],
@@ -202,6 +203,7 @@ export function useResolvedFilterOptions(
     queryReadState: valueQuery.queryReadState,
     fetchNextPage: valueQuery.fetchNextPage,
     hasNextPage: valueQuery.hasNextPage,
+    continuationKey: valueQuery.continuationKey,
     isFetchingNextPage: valueQuery.isFetchingNextPage,
     isFetchNextPageError: valueQuery.isFetchNextPageError,
     cursorChainStopped: valueQuery.cursorChainStopped,

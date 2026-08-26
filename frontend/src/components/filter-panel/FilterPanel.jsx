@@ -50,6 +50,7 @@ import React, {
   useState,
 } from "react";
 import Iconify from "src/components/iconify";
+import { buildPropertyRegistryId } from "src/hooks/useDashboards";
 import { useAIFilter } from "src/hooks/use-ai-filter";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,28 @@ const ENUM_OPERATORS = [
   { value: "is", label: "Is" },
   { value: "is_not", label: "Is not" },
 ];
+
+function aiPropertyCategory(field) {
+  if (field.category) return field.category;
+  const kind = field.propertyKind || field.property_kind;
+  if (kind === "custom_attribute") return "attribute";
+  if (kind === "eval" || kind === "eval_config" || kind === "eval_template")
+    return "eval";
+  if (kind === "annotation") return "annotation";
+  if (kind === "dataset_column") return "dataset_column";
+  return "system";
+}
+
+function aiPropertyMetricType(field) {
+  if (field.metricType || field.metric_type)
+    return field.metricType || field.metric_type;
+  const category = aiPropertyCategory(field);
+  if (category === "attribute") return "custom_attribute";
+  if (category === "eval") return "eval_metric";
+  if (category === "annotation") return "annotation_metric";
+  if (category === "dataset_column") return "custom_column";
+  return "system_metric";
+}
 
 function getOperators(fieldDef) {
   const fieldType = typeof fieldDef === "string" ? fieldDef : fieldDef?.type;
@@ -628,8 +651,7 @@ const isCompleteNumericInput = (v) => {
   return Number.isFinite(parseFloat(str));
 };
 
-const QUERY_FIELD_LOAD_MORE_OPTION = "__query_field_load_more__";
-const QUERY_VALUE_LOAD_MORE_OPTION = "__query_value_load_more__";
+const QUERY_PAGINATION_THRESHOLD_PX = 40;
 
 const QueryInput = forwardRef(function QueryInput(
   {
@@ -667,6 +689,7 @@ const QueryInput = forwardRef(function QueryInput(
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
   const bottomEdgeLatchedRef = useRef(false);
+  const paginationRequestRef = useRef(null);
   const initialTokensKey = useMemo(
     () => JSON.stringify(initialTokens || []),
     [initialTokens],
@@ -791,59 +814,22 @@ const QueryInput = forwardRef(function QueryInput(
     getOperatorsProp,
   ]);
 
-  const filtered = useMemo(() => {
-    const matchingOptions = inputValue
-      ? options.filter((option) => {
-          const query = inputValue.toLowerCase();
-          const candidates =
-            phase === "value" ? [option.id, option.label] : [option.label];
-          return candidates.some((candidate) =>
-            String(candidate ?? "")
-              .toLowerCase()
-              .includes(query),
-          );
-        })
-      : options;
-    if (phase === "field" && hasMoreFields) {
-      return [
-        ...matchingOptions,
-        {
-          id: QUERY_FIELD_LOAD_MORE_OPTION,
-          label: fieldLoadingMore
-            ? "Loading more fields..."
-            : fieldLoadError
-              ? "Retry loading fields"
-              : "Load more fields",
-          type: "field_load_more",
-        },
-      ];
-    }
-    if (phase === "value" && hasMoreValues) {
-      return [
-        ...matchingOptions,
-        {
-          id: QUERY_VALUE_LOAD_MORE_OPTION,
-          label: valueLoadingMore
-            ? "Loading more values..."
-            : valueLoadError
-              ? "Retry loading values"
-              : "Load more values",
-          type: "value_load_more",
-        },
-      ];
-    }
-    return matchingOptions;
-  }, [
-    fieldLoadError,
-    fieldLoadingMore,
-    hasMoreFields,
-    hasMoreValues,
-    inputValue,
-    options,
-    phase,
-    valueLoadError,
-    valueLoadingMore,
-  ]);
+  const filtered = useMemo(
+    () =>
+      inputValue
+        ? options.filter((option) => {
+            const query = inputValue.toLowerCase();
+            const candidates =
+              phase === "value" ? [option.id, option.label] : [option.label];
+            return candidates.some((candidate) =>
+              String(candidate ?? "")
+                .toLowerCase()
+                .includes(query),
+            );
+          })
+        : options,
+    [inputValue, options, phase],
+  );
 
   const exactInputOption = useMemo(() => {
     const candidate = inputValue.trim().toLowerCase();
@@ -1028,16 +1014,6 @@ const QueryInput = forwardRef(function QueryInput(
   const handleSelect = useCallback(
     (_, option) => {
       if (!option) return;
-      if (option?.type === "field_load_more") {
-        if (!fieldLoadingMore) onLoadMoreFields?.();
-        reopenDropdown();
-        return;
-      }
-      if (option?.type === "value_load_more") {
-        if (!valueLoadingMore) onLoadMoreValues?.();
-        reopenDropdown();
-        return;
-      }
       if (typeof option === "string") {
         const explicitValue = option.trim();
         if (
@@ -1090,10 +1066,6 @@ const QueryInput = forwardRef(function QueryInput(
       hasStaticValueChoices,
       allowsFreeTextValue,
       isNumericScalar,
-      fieldLoadingMore,
-      valueLoadingMore,
-      onLoadMoreFields,
-      onLoadMoreValues,
     ],
   );
 
@@ -1233,31 +1205,80 @@ const QueryInput = forwardRef(function QueryInput(
     [tokens, onApply],
   );
 
-  const handleOptionsScroll = useCallback(
-    (event) => {
-      const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
-      if (scrollHeight - scrollTop - clientHeight > 40) {
-        bottomEdgeLatchedRef.current = false;
-        return;
+  const requestNextPage = useCallback(
+    (requestedPhase, { retry = false } = {}) => {
+      if (paginationRequestRef.current) return false;
+      const isFieldRequest = requestedPhase === "field";
+      const hasMore = isFieldRequest ? hasMoreFields : hasMoreValues;
+      const loading = isFieldRequest ? fieldLoadingMore : valueLoadingMore;
+      const failed = isFieldRequest ? fieldLoadError : valueLoadError;
+      const requestAction = isFieldRequest
+        ? onLoadMoreFields
+        : onLoadMoreValues;
+      if (
+        !hasMore ||
+        loading ||
+        (!retry && failed) ||
+        typeof requestAction !== "function"
+      ) {
+        return false;
       }
-      if (bottomEdgeLatchedRef.current) return;
-      if (phase === "field" && hasMoreFields && !fieldLoadingMore) {
-        bottomEdgeLatchedRef.current = true;
-        onLoadMoreFields?.();
-      } else if (phase === "value" && hasMoreValues && !valueLoadingMore) {
-        bottomEdgeLatchedRef.current = true;
-        onLoadMoreValues?.();
+
+      let requestResult;
+      try {
+        requestResult = requestAction();
+      } catch (_error) {
+        return false;
       }
+      const request = Promise.resolve(requestResult);
+      paginationRequestRef.current = request;
+      const clearRequest = () => {
+        if (paginationRequestRef.current === request) {
+          paginationRequestRef.current = null;
+        }
+      };
+      request.then(clearRequest, clearRequest);
+      return true;
     },
     [
+      fieldLoadError,
       fieldLoadingMore,
       hasMoreFields,
       hasMoreValues,
       onLoadMoreFields,
       onLoadMoreValues,
-      phase,
+      valueLoadError,
       valueLoadingMore,
     ],
+  );
+
+  const handleOptionsScroll = useCallback(
+    (event) => {
+      const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
+      if (
+        scrollHeight - scrollTop - clientHeight >
+        QUERY_PAGINATION_THRESHOLD_PX
+      ) {
+        bottomEdgeLatchedRef.current = false;
+        return;
+      }
+      if (bottomEdgeLatchedRef.current) return;
+      if (requestNextPage(phase)) {
+        bottomEdgeLatchedRef.current = true;
+      }
+    },
+    [phase, requestNextPage],
+  );
+
+  const handlePaginationRetry = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (requestNextPage(phase, { retry: true })) {
+        bottomEdgeLatchedRef.current = true;
+      }
+    },
+    [phase, requestNextPage],
   );
 
   const inlinePrefix = useMemo(() => {
@@ -1291,6 +1312,16 @@ const QueryInput = forwardRef(function QueryInput(
           : allowsFreeTextValue
             ? "type or pick value..."
             : "pick value...";
+  const paginationRetryAvailable =
+    phase === "field"
+      ? fieldLoadError &&
+        hasMoreFields &&
+        typeof onLoadMoreFields === "function"
+      : phase === "value"
+        ? valueLoadError &&
+          hasMoreValues &&
+          typeof onLoadMoreValues === "function"
+        : false;
 
   // Shared chip/prefix render — used by both the Autocomplete renderInput
   // startAdornment and the range-phase Box below.
@@ -1479,8 +1510,6 @@ const QueryInput = forwardRef(function QueryInput(
       renderOption={(props, option) => {
         const { key, ...rest } = props;
         const isField = option.type === "field";
-        const isFieldLoadMore = option.type === "field_load_more";
-        const isValueLoadMore = option.type === "value_load_more";
         const isOperator = option.type === "operator";
         const isValue = option.type === "value";
         const fieldDef = isField ? fieldMap[option.id] : null;
@@ -1523,10 +1552,6 @@ const QueryInput = forwardRef(function QueryInput(
                 width={14}
                 sx={{ color: "text.disabled", flexShrink: 0 }}
               />
-            )}
-            {((isFieldLoadMore && fieldLoadingMore) ||
-              (isValueLoadMore && valueLoadingMore)) && (
-              <CircularProgress size={14} sx={{ flexShrink: 0 }} />
             )}
             <Box
               sx={{
@@ -1586,13 +1611,29 @@ const QueryInput = forwardRef(function QueryInput(
                 {prefixChips}
               </>
             ),
-            endAdornment:
-              (phase === "field" && (fieldLoading || fieldLoadingMore)) ||
+            endAdornment: paginationRetryAvailable ? (
+              <>
+                <IconButton
+                  size="small"
+                  aria-label={`Retry loading ${phase === "field" ? "fields" : "values"}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={handlePaginationRetry}
+                  disabled={
+                    paginationRequestRef.current !== null ||
+                    (phase === "field" ? fieldLoadingMore : valueLoadingMore)
+                  }
+                  sx={{ mr: 0.5 }}
+                >
+                  <Iconify icon="mdi:refresh" width={16} />
+                </IconButton>
+                {params.InputProps.endAdornment}
+              </>
+            ) : (phase === "field" && (fieldLoading || fieldLoadingMore)) ||
               (phase === "value" && (valueLoading || valueLoadingMore)) ? (
-                <CircularProgress size={14} sx={{ mr: 1 }} />
-              ) : (
-                params.InputProps.endAdornment
-              ),
+              <CircularProgress size={14} sx={{ mr: 1 }} />
+            ) : (
+              params.InputProps.endAdornment
+            ),
             sx: {
               ...params.InputProps.sx,
               fontSize: 13,
@@ -1676,7 +1717,7 @@ const FilterPanel = ({
   // Optional smart-mode wiring. When the caller passes a `projectId`,
   // the AI filter call goes through the agentic backend (`mode=smart`),
   // which fetches real CH values and grounds the LLM's answer. Without
-  // a `projectId` the panel falls back to the legacy build_filters path.
+  // a `projectId` this component retains its non-smart local-parser path.
   projectId,
   source = "traces",
   // Render the filter rows alone — no tabs, no AI box, no caption. The Query
@@ -1699,7 +1740,14 @@ const FilterPanel = ({
     () =>
       filterFields.map((f) => ({
         field: f.value,
+        property_id: buildPropertyRegistryId({
+          propertyId: f.registryId || f.property_id,
+          metricName: f.value,
+          metricType: aiPropertyMetricType(f),
+          source: f.propertySource || f.property_source || source,
+        }),
         label: f.label,
+        category: aiPropertyCategory(f),
         type: f.type,
         operators:
           f.type === "enum"
@@ -1713,7 +1761,7 @@ const FilterPanel = ({
         // canonical example.
         ...(f.choiceLabels ? { choice_labels: f.choiceLabels } : {}),
       })),
-    [filterFields],
+    [filterFields, source],
   );
 
   const {
@@ -1850,14 +1898,23 @@ const FilterPanel = ({
 
   const handleAiFilter = useCallback(async () => {
     if (!aiQuery.trim()) return;
-    const aiFilters = await aiParseQuery(
-      aiQuery,
-      projectId ? { smart: true, projectId, source } : undefined,
-    );
+    let aiFilters;
+    try {
+      aiFilters = await aiParseQuery(
+        aiQuery,
+        projectId ? { smart: true, projectId, source } : undefined,
+      );
+    } catch {
+      // A smart request that could not prove its value vocabulary must not
+      // silently become an ungrounded local literal filter.
+      return;
+    }
     const parsed =
       aiFilters.length > 0
         ? aiFilters
-        : parseNaturalLanguage(aiQuery, filterFields, fieldMap);
+        : projectId
+          ? []
+          : parseNaturalLanguage(aiQuery, filterFields, fieldMap);
     setRows(parsed);
     setAiQuery("");
   }, [aiQuery, aiParseQuery, filterFields, fieldMap, projectId, source]);

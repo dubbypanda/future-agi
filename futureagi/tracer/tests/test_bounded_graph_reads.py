@@ -3600,6 +3600,7 @@ def test_locked_trace_temporal_candidates_use_resource_safe_union_batches() -> N
 @pytest.mark.parametrize(
     ("fetch_name", "namespace"),
     [
+        ("fetch_system_metric_graph_ch", "observe-system-graph"),
         ("fetch_all_system_metrics_ch", "observe-all-system-graphs"),
         ("fetch_eval_graph_ch", "observe-eval-graph"),
         ("fetch_eval_chart_series_ch", "observe-eval-chart-series"),
@@ -4537,3 +4538,27 @@ def test_graph_views_bind_v2_and_have_no_postgres_telemetry_fallback():
         assert "isinstance(exc, BoundedGraphReadError)" in source
         assert "is_clickhouse_api_read_unavailable_error(exc)" in source
         assert "raise" in source
+
+
+@pytest.mark.unit
+def test_graph_namespace_validation_never_exposes_parser_exception_text():
+    from tracer.views.observation_span import ObservationSpanView
+    from tracer.views.project import ProjectView
+    from tracer.views.trace import TraceView
+    from tracer.views.trace_session import TraceSessionView
+
+    graph_methods = (
+        TraceView.get_graph_methods,
+        ObservationSpanView.get_graph_methods,
+        TraceSessionView.get_session_graph_data,
+        ProjectView.get_users_aggregate_graph_data,
+    )
+    for method in graph_methods:
+        source = inspect.getsource(method)
+        namespace_handler = source.split("except ValueError:", 1)[1].split(
+            "metric_type =", 1
+        )[0]
+        assert '"property_id is not valid for this graph endpoint"' in (
+            namespace_handler
+        )
+        assert "str(" not in namespace_handler

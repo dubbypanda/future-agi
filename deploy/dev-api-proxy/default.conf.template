@@ -1,0 +1,39 @@
+server {
+    listen 8000;
+    server_name _;
+
+    # The public DEV API accepts only the two exact OTLP/HTTP trace paths.
+    # The collector itself remains loopback-only on the host.
+    location ~ ^/(?:tracer/)?v1/traces$ {
+        client_max_body_size ${DEV_API_PROXY_OTLP_MAX_BODY_SIZE};
+
+        proxy_pass http://fi-collector:4318;
+        proxy_connect_timeout ${DEV_API_PROXY_CONNECT_TIMEOUT};
+        proxy_read_timeout ${DEV_API_PROXY_READ_TIMEOUT};
+        proxy_send_timeout ${DEV_API_PROXY_SEND_TIMEOUT};
+        proxy_request_buffering off;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Content-Type $http_content_type;
+        proxy_set_header Content-Encoding $http_content_encoding;
+    }
+
+    location / {
+        # Preserve the backend's existing request-size behavior. The bounded
+        # edge limit above applies only to OTLP/HTTP ingestion.
+        client_max_body_size 0;
+
+        proxy_pass http://backend:80;
+        proxy_connect_timeout ${DEV_API_PROXY_CONNECT_TIMEOUT};
+        proxy_read_timeout ${DEV_API_PROXY_READ_TIMEOUT};
+        proxy_send_timeout ${DEV_API_PROXY_SEND_TIMEOUT};
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

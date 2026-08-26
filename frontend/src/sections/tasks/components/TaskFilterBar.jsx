@@ -32,6 +32,7 @@ import {
   getVoiceCallFilterField,
   toVoiceCallApiValue,
 } from "src/sections/projects/LLMTracing/voiceCallFilterFields";
+import { SESSION_RULE_FILTER_FIELDS } from "src/sections/annotations/queues/constants";
 
 // ── Operator handling — canonical backend ops ──
 //
@@ -150,6 +151,9 @@ export function convertNewToOld(newFilters, { rowType } = {}) {
     const base = {
       property: isAttribute ? "attributes" : canonicalField,
       propertyId: canonicalField,
+      ...(f.registryId || f.property_id
+        ? { registryId: f.registryId || f.property_id }
+        : {}),
       fieldCategory: fieldCategory || "system",
       fieldLabel:
         voiceField?.label || f.fieldName || f.fieldLabel || canonicalField,
@@ -280,6 +284,7 @@ export function convertOldToNew(oldFilters, { rowType } = {}) {
         ? getVoiceCallFilterField(persistedField)
         : undefined;
     const field = voiceField?.value || persistedField;
+    const registryId = f.registryId || f.property_id;
 
     const rawOp = f?.filterConfig?.filterOp || "equals";
     const category =
@@ -302,11 +307,12 @@ export function convertOldToNew(oldFilters, { rowType } = {}) {
 
     let entry;
     if (isMultiValueOp) {
-      const key = `${field}|${op}|${category}`;
+      const key = `${registryId || "legacy"}|${field}|${op}|${category}`;
       entry = groups.get(key);
       if (!entry) {
         entry = {
           field,
+          ...(registryId ? { registryId } : {}),
           fieldLabel: voiceField?.label || f.fieldLabel || field,
           fieldType,
           fieldCategory: category,
@@ -326,6 +332,7 @@ export function convertOldToNew(oldFilters, { rowType } = {}) {
     } else {
       entry = {
         field,
+        ...(registryId ? { registryId } : {}),
         fieldLabel: voiceField?.label || f.fieldLabel || field,
         fieldType,
         fieldCategory: category,
@@ -484,10 +491,28 @@ const TaskFilterBar = ({
     convertOldToNew(formFilters, { rowType }),
   );
   const suppressNextSync = useRef(false);
+  const filterPanelSources = taskFilterPanelSources(rowType);
+  const filterPanelTab = rowTypeToFilterTab(rowType);
+  // TraceFilterPanel resolves its unified catalog from the explicit attribute
+  // source, except voice calls which use their dedicated definition namespace.
+  // Label hydration must use that exact identity or a cached trace catalog can
+  // attach the wrong label to a span/session/voice property with the same id.
+  const labelCatalogSource =
+    filterPanelTab === "voiceCalls"
+      ? "voice_calls"
+      : filterPanelSources.attributeSource || filterPanelSources.source;
+  const needsPropertyLabelResolution = panelFilters.some(
+    (filter) =>
+      !filter.fieldName &&
+      (!filter.fieldLabel || filter.fieldLabel === filter.field),
+  );
 
-  // Resolve UUID column ids → display names. Shares cache with TraceFilterPanel.
+  // Resolve persisted ids only when a chip is missing its display label. Empty
+  // task forms no longer issue an eager catalog request.
   const { data: properties = [] } = useTraceFilterProperties(projectId, {
     isSimulator,
+    sourceScope: labelCatalogSource,
+    enabled: Boolean(projectId && needsPropertyLabelResolution),
   });
   // Resolve annotator user UUIDs → "Name (email)" for chip values.
   const hasAnnotatorFilter = panelFilters.some((f) => f.field === "annotator");
@@ -495,7 +520,7 @@ const TaskFilterBar = ({
     metricName: "annotator",
     metricType: "annotation_metric",
     projectIds: projectId ? [projectId] : [],
-    source: "traces",
+    source: filterPanelSources.source,
     pageSize: 10,
     enabled: hasAnnotatorFilter,
   });
@@ -597,7 +622,6 @@ const TaskFilterBar = ({
   }, [isPanelOpen, anchorToBar]);
 
   const hasFilters = panelFilters.length > 0;
-  const filterPanelSources = taskFilterPanelSources(rowType);
 
   return (
     <Box ref={barRef} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -699,12 +723,17 @@ const TaskFilterBar = ({
         currentFilters={panelFilters}
         projectId={projectId}
         isSimulator={isSimulator}
-        tab={rowTypeToFilterTab(rowType)}
+        tab={filterPanelTab}
         source={filterPanelSources.source}
         // Task custom attributes always live on the selected rows' spans.
         // Keep the semantic row source for value lookup (sessions must remain
         // sessions) while browsing raw keys through the retained span cursor.
         attributeSource={filterPanelSources.attributeSource}
+        filterFields={
+          filterPanelSources.source === "sessions"
+            ? SESSION_RULE_FILTER_FIELDS
+            : undefined
+        }
         onApply={(next) => applyPanelFilters(next || [])}
       />
     </Box>

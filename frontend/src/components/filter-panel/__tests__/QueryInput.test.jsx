@@ -267,7 +267,9 @@ describe("QueryInput explicit values", () => {
     fireEvent.scroll(listbox);
     fireEvent.scroll(listbox);
     expect(onLoadMoreValues).toHaveBeenCalledOnce();
+    expect(utils.queryByText("Load more values")).not.toBeInTheDocument();
 
+    await act(async () => Promise.resolve());
     scrollTop = 80;
     fireEvent.scroll(listbox);
     scrollTop = 180;
@@ -275,50 +277,50 @@ describe("QueryInput explicit values", () => {
     expect(onLoadMoreValues).toHaveBeenCalledTimes(2);
   });
 
-  it.each([
-    [false, "Load more values"],
-    [true, "Retry loading values"],
-  ])(
-    "keeps an explicit %s value continuation reachable without scrolling",
-    async (valueLoadError, actionLabel) => {
-      const field = {
-        value: "custom_value",
-        label: "Custom value",
-        type: "string",
-      };
-      const onLoadMoreValues = vi.fn();
-      const { utils } = renderQueryInput({
-        field,
-        valueOptions: [
-          { value: "already-loaded", label: "already-loaded", type: "string" },
-        ],
-        onLoadMoreValues,
-        hasMoreValues: true,
-        valueLoadError,
-      });
-
-      await selectPhaseOption(utils, "Custom value", "pick operator...");
-      await selectPhaseOption(utils, "Contains", "type or pick value...");
-
-      const input = utils.getByRole("combobox");
-      fireEvent.click(await utils.findByText(actionLabel));
-
-      expect(onLoadMoreValues).toHaveBeenCalledOnce();
-      expect(input).toHaveAttribute("placeholder", "type or pick value...");
-      if (valueLoadError) {
-        expect(
-          utils.getByText(
-            "More values could not be loaded. Loaded matches remain available.",
-          ),
-        ).toHaveAttribute("role", "status");
-      }
-    },
-  );
-
-  it("requests exact field search and advances field discovery explicitly", async () => {
+  it("keeps failed value pagination retryable without a selectable continuation row", async () => {
     const field = {
-      value: "recent_attribute",
-      label: "Recent attribute",
+      value: "custom_value",
+      label: "Custom value",
+      type: "string",
+    };
+    let resolvePage;
+    const onLoadMoreValues = vi.fn(
+      () => new Promise((resolve) => (resolvePage = resolve)),
+    );
+    const { utils } = renderQueryInput({
+      field,
+      valueOptions: [
+        { value: "already-loaded", label: "already-loaded", type: "string" },
+      ],
+      onLoadMoreValues,
+      hasMoreValues: true,
+      valueLoadError: true,
+    });
+
+    await selectPhaseOption(utils, "Custom value", "pick operator...");
+    await selectPhaseOption(utils, "Contains", "type or pick value...");
+
+    const retry = utils.getByRole("button", {
+      name: "Retry loading values",
+    });
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+
+    expect(onLoadMoreValues).toHaveBeenCalledOnce();
+    expect(utils.queryByText("Load more values")).not.toBeInTheDocument();
+    expect(
+      utils.getByText(
+        "More values could not be loaded. Loaded matches remain available.",
+      ),
+    ).toHaveAttribute("role", "status");
+
+    await act(async () => resolvePage());
+  });
+
+  it("requests exact field search and advances field discovery near the list end", async () => {
+    const field = {
+      value: "final_status",
+      label: "Final status",
       type: "string",
     };
     const onFieldSearchChange = vi.fn();
@@ -332,12 +334,20 @@ describe("QueryInput explicit values", () => {
 
     const input = utils.getByRole("combobox");
     fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "final_status" } });
+    fireEvent.change(input, { target: { value: "final" } });
 
-    expect(onFieldSearchChange).toHaveBeenLastCalledWith("final_status");
-    fireEvent.click(await utils.findByText("Load more fields"));
+    expect(onFieldSearchChange).toHaveBeenLastCalledWith("final");
+    const listbox = await utils.findByRole("listbox");
+    Object.defineProperties(listbox, {
+      scrollTop: { configurable: true, value: 180 },
+      clientHeight: { configurable: true, value: 220 },
+      scrollHeight: { configurable: true, value: 400 },
+    });
+    fireEvent.scroll(listbox);
+    fireEvent.scroll(listbox);
     expect(onLoadMoreFields).toHaveBeenCalledOnce();
-    expect(input).toHaveValue("final_status");
+    expect(utils.queryByText("Load more fields")).not.toBeInTheDocument();
+    expect(input).toHaveValue("final");
   });
 
   it("fetches and preserves type when an existing token is edited", async () => {

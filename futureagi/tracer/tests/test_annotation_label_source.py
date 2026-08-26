@@ -457,6 +457,47 @@ class TestProjectPGDiscovery:
         result = AnnotationLabelScoresProjectPG().label_ids_for_project(project.id)
         assert result == [str(label.id)]
 
+    def test_label_visibility_exists_is_project_isolated_and_excludes_sessions(
+        self, organization, workspace, project, trace, user
+    ):
+        from tracer.models.trace_session import TraceSession
+        from tracer.services.annotation_label_source import (
+            AnnotationLabelScoresProjectPG,
+        )
+
+        visible_label = _make_label(organization, workspace, project)
+        _make_span_score(
+            label=visible_label,
+            span=_make_span(project, trace),
+            organization=organization,
+            workspace=workspace,
+            user=user,
+            project=project,
+        )
+        session_label = _make_label(organization, workspace, project)
+        Score.objects.create(
+            source_type=QueueItemSourceType.TRACE_SESSION.value,
+            trace_session=TraceSession.objects.create(project=project),
+            label=session_label,
+            value={"rating": 4.0},
+            score_source="HUMAN",
+            annotator=user,
+            organization=organization,
+            workspace=workspace,
+            tracer_project_id=project.id,
+            deleted=False,
+        )
+
+        source = AnnotationLabelScoresProjectPG()
+        assert source.label_has_scores_for_projects(visible_label.id, [str(project.id)])
+        assert not source.label_has_scores_for_projects(
+            visible_label.id, [str(uuid.uuid4())]
+        )
+        assert not source.label_has_scores_for_projects(
+            session_label.id, [str(project.id)]
+        )
+        assert not source.label_has_scores_for_projects(visible_label.id, [])
+
     def test_filter_values_are_project_isolated(
         self, organization, workspace, project, trace, user
     ):
@@ -490,9 +531,27 @@ class TestProjectPGDiscovery:
 
         source = AnnotationLabelScoresProjectPG()
         assert source.annotator_ids_for_projects([str(project.id)]) == [str(user.id)]
-        assert source.categorical_values_for_label(label.id, [str(project.id)]) == [
-            {"selected": ["included"]}
-        ]
+        assert source.label_has_scores_for_projects(label.id, [str(project.id)]) is True
+
+    def test_score_volume_does_not_become_an_annotation_value_vocabulary(
+        self, organization, workspace, project, trace, user
+    ):
+        from tracer.services.configured_value_options import configured_value_options
+
+        label = _make_label(organization, workspace, project)
+        for value in ("first", "second"):
+            score = _make_span_score(
+                label=label,
+                span=_make_span(project, trace),
+                organization=organization,
+                workspace=workspace,
+                user=user,
+                project=project,
+            )
+            score.value = {"selected": [value]}
+            score.save(update_fields=["value"])
+
+        assert configured_value_options(label.settings.get("options")) == ()
 
     def test_candidate_rows_require_exact_project_and_trace_span_pair(
         self, organization, workspace, project, user
@@ -612,10 +671,10 @@ class TestBackfillTracerProject:
         )
         assert score.tracer_project_id is None
 
-        res = backfill_tracer_project_ids()
+        res = backfill_tracer_project_ids(only_project=str(project.id))
         score.refresh_from_db()
         assert score.tracer_project_id == project.id
         assert res["updated"] >= 1
 
         # Idempotent second run.
-        assert backfill_tracer_project_ids()["updated"] == 0
+        assert backfill_tracer_project_ids(only_project=str(project.id))["updated"] == 0

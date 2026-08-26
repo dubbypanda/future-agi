@@ -95,6 +95,25 @@ class UserListQueryBuilder(BaseQueryBuilder):
         "end_user_id": "end_user_id",
     }
 
+    _RELATION_FILTER_COL_TYPES = frozenset({"EVAL_METRIC", "ANNOTATION"})
+
+    @staticmethod
+    def _filter_col_type(item: dict[str, Any]) -> str:
+        config = item.get("filter_config") or item.get("filterConfig") or {}
+        return str(
+            config.get("col_type")
+            or config.get("colType")
+            or item.get("col_type")
+            or item.get("colType")
+            or ""
+        ).upper()
+
+    @classmethod
+    def _is_relation_filter(cls, item: dict[str, Any]) -> bool:
+        """Whether a Users filter is backed by eval/annotation relations."""
+
+        return cls._filter_col_type(item) in cls._RELATION_FILTER_COL_TYPES
+
     # Columns that can be selected by the exact latest-span page query.  Cursor
     # reads prioritize ``span_user_rollup`` and complete its insert-block blind
     # spots from the compact curated dimension; every selected id is replayed
@@ -874,6 +893,246 @@ class UserListQueryBuilder(BaseQueryBuilder):
             total_count
         FROM candidate_users
         {order_by}
+        """
+        return query, params
+
+    def build_relation_filter_user_query(
+        self,
+        relation_filters: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+        *,
+        eval_filter_metadata: dict[str, Any] | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Classify a finite Users page with eval/annotation filter semantics.
+
+        The unified picker uses UUID-like ``column_id`` values for custom evals
+        and annotation labels.  Those identifiers are relation keys, not span
+        attribute names. Replay only the already selected users' physical span
+        identities, evaluate each relation filter independently across all of a
+        user's spans, then intersect the resulting user-level booleans.
+
+        Negative filters require an existing relation and reject a user when
+        any span has the excluded value. Null checks likewise test absence over
+        the complete finite user span set, rather than accepting one unrelated
+        unannotated span as a witness.
+        """
+
+        if not self.candidate_end_user_ids or not relation_filters:
+            return "", {}
+        if any(not self._is_relation_filter(item) for item in relation_filters):
+            raise ValueError("user relation query received a non-relation filter")
+
+        from tracer.services.clickhouse.query_builders.filters import (
+            normalize_filter_op,
+        )
+        from tracer.services.clickhouse.v2.query_builders.filters import (
+            ClickHouseFilterBuilderV2,
+        )
+
+        start_date, end_date = self.parse_time_range(self.filters)
+        params: dict[str, Any] = {
+            "candidate_end_user_ids": self.candidate_end_user_ids,
+            "candidate_scan_end_user_ids": self.candidate_scan_end_user_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+        if self.project_ids is not None:
+            params["project_ids"] = tuple(self.project_ids)
+        else:
+            params["project_id"] = self.project_id
+
+        eu_map, finite_map_params = self._finite_end_user_map(
+            candidate_param="candidate_end_user_ids"
+        )
+        params.update(finite_map_params)
+        resolved_latest_eu = resolved_id_expr(
+            "latest_spans.end_user_id", "relation_eu_remap"
+        )
+
+        # Preserve a top-level legacy col_type at the compiler boundary while
+        # keeping the request payload immutable.
+        normalized_filters: list[dict[str, Any]] = []
+        for item in relation_filters:
+            config = dict(item.get("filter_config") or item.get("filterConfig") or {})
+            config["col_type"] = self._filter_col_type(item)
+            normalized_filters.append(
+                {
+                    **item,
+                    "filter_config": config,
+                }
+            )
+
+        negative_to_positive = {
+            "not_equals": "equals",
+            "not_in": "in",
+            "not_contains": "contains",
+            "not_between": "between",
+        }
+        requirement_selects: list[str] = []
+        requirement_checks: list[str] = []
+
+        def with_operator(item: dict[str, Any], operation: str) -> dict[str, Any]:
+            config = dict(item.get("filter_config") or {})
+            config["filter_op"] = operation
+            return {**item, "filter_config": config}
+
+        def compile_requirement(
+            item: dict[str, Any],
+            *,
+            filter_index: int,
+            requirement_index: int,
+            required: bool,
+        ) -> None:
+            filter_builder = ClickHouseFilterBuilderV2(
+                table="relation_candidate_spans",
+                project_ids=self.project_ids,
+                project_id=self.project_id,
+                query_mode=ClickHouseFilterBuilderV2.QUERY_MODE_SPAN,
+                span_date_scope=True,
+                candidate_entities_table="relation_candidate_span_entities",
+                strict_trace_project_correlation=True,
+                eval_filter_metadata=eval_filter_metadata,
+            )
+            predicate, predicate_params = filter_builder.translate([item])
+            if not predicate:
+                predicate = "0 = 1"
+            for name, value in predicate_params.items():
+                scoped_name = f"relation_{filter_index}_{requirement_index}_{name}"
+                predicate = predicate.replace(
+                    f"%({name})s",
+                    f"%({scoped_name})s",
+                )
+                params[scoped_name] = value
+            alias = f"relation_requirement_{len(requirement_selects)}"
+            requirement_selects.append(f"max(toUInt8({predicate})) AS {alias}")
+            requirement_checks.append(f"{alias} = {1 if required else 0}")
+
+        for filter_index, item in enumerate(normalized_filters):
+            config = item.get("filter_config") or {}
+            operation = normalize_filter_op(
+                config.get("filter_op") or config.get("filterOp")
+            )
+            if operation == "is_null":
+                compile_requirement(
+                    with_operator(item, "is_not_null"),
+                    filter_index=filter_index,
+                    requirement_index=0,
+                    required=False,
+                )
+                continue
+            positive_operation = negative_to_positive.get(operation or "")
+            if positive_operation is not None:
+                compile_requirement(
+                    with_operator(item, "is_not_null"),
+                    filter_index=filter_index,
+                    requirement_index=0,
+                    required=True,
+                )
+                compile_requirement(
+                    with_operator(item, positive_operation),
+                    filter_index=filter_index,
+                    requirement_index=1,
+                    required=False,
+                )
+                continue
+            compile_requirement(
+                item,
+                filter_index=filter_index,
+                requirement_index=0,
+                required=True,
+            )
+
+        requirement_select_sql = ",\n                ".join(requirement_selects)
+        requirement_where_sql = "\n          AND ".join(requirement_checks)
+
+        query = f"""
+        WITH
+        relation_eu_survivor_map AS ({eu_map}),
+        relation_candidate_span_identities AS (
+            SELECT DISTINCT
+                project_id,
+                observation_type,
+                service_name,
+                toStartOfHour(start_time) AS identity_hour,
+                trace_id,
+                id
+            FROM spans
+            PREWHERE {self._project_predicate("spans")}
+              AND toDate(start_time) BETWEEN
+                  toDate(%(start_date)s) AND toDate(%(end_date)s)
+              AND start_time >= %(start_date)s
+              AND start_time < %(end_date)s
+              AND end_user_id IN %(candidate_scan_end_user_ids)s
+        ),
+        latest_relation_candidate_spans AS (
+            SELECT
+                project_id,
+                observation_type,
+                service_name,
+                toStartOfHour(start_time) AS identity_hour,
+                trace_id,
+                id,
+                argMax(start_time, _version) AS start_time,
+                argMax(tuple(end_user_id), _version).1 AS end_user_id,
+                argMax(parent_span_id, _version) AS parent_span_id,
+                argMax(is_deleted, _version) AS is_deleted
+            FROM spans
+            PREWHERE {self._project_predicate("spans")}
+              AND toDate(start_time) BETWEEN
+                  toDate(%(start_date)s) AND toDate(%(end_date)s)
+              AND start_time >= %(start_date)s
+              AND start_time < %(end_date)s
+              AND (
+                  project_id,
+                  observation_type,
+                  service_name,
+                  toStartOfHour(start_time),
+                  trace_id,
+                  id
+              ) IN (
+                  SELECT
+                      project_id,
+                      observation_type,
+                      service_name,
+                      identity_hour,
+                      trace_id,
+                      id
+                  FROM relation_candidate_span_identities
+              )
+            GROUP BY
+                project_id,
+                observation_type,
+                service_name,
+                identity_hour,
+                trace_id,
+                id
+        ),
+        relation_candidate_spans AS (
+            SELECT
+                latest_spans.project_id,
+                latest_spans.trace_id,
+                latest_spans.id,
+                latest_spans.start_time,
+                latest_spans.parent_span_id,
+                toString({resolved_latest_eu}) AS resolved_end_user_id
+            FROM latest_relation_candidate_spans AS latest_spans
+            LEFT JOIN relation_eu_survivor_map AS relation_eu_remap
+                ON latest_spans.end_user_id = relation_eu_remap.any_id
+            WHERE latest_spans.is_deleted = 0
+              AND {resolved_latest_eu} IN %(candidate_end_user_ids)s
+        ),
+        relation_candidate_span_entities AS (
+            SELECT DISTINCT trace_id, id
+            FROM relation_candidate_spans
+        )
+        SELECT end_user_id
+        FROM (
+            SELECT
+                resolved_end_user_id AS end_user_id,
+                {requirement_select_sql}
+            FROM relation_candidate_spans
+            GROUP BY resolved_end_user_id
+        ) AS relation_user_matches
+        WHERE {requirement_where_sql}
         """
         return query, params
 

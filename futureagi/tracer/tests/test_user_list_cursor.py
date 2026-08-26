@@ -15,6 +15,7 @@ from tracer.serializers.trace import (
     UsersTableRowSerializer,
 )
 from tracer.services.clickhouse.list_cursor import ListCursor
+from tracer.services.clickhouse.query_builders.filters import EvalFilterMetadata
 from tracer.services.clickhouse.query_builders.user_list import UserListQueryBuilder
 from tracer.services.clickhouse.read_budget import ReadDeadline, ReadDeadlineExceeded
 from tracer.services.users_list_manager import (
@@ -583,6 +584,241 @@ def test_user_attribute_enrichment_projects_requested_direct_write_keys_only():
     assert "AS attribute_typed_values" in sql
     assert "end_user_id IN %(eu_scan_ids)s" in sql
     assert params["requested_attribute_keys"] == ["final_status", "score"]
+
+
+def test_custom_eval_and_annotation_filters_are_not_span_attribute_keys():
+    eval_id = str(uuid.uuid4())
+    annotation_id = str(uuid.uuid4())
+    filters = [
+        {
+            "column_id": eval_id,
+            "filter_config": {
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 50,
+                "col_type": "EVAL_METRIC",
+            },
+        },
+        {
+            "column_id": annotation_id,
+            "filter_config": {
+                "filter_type": "number",
+                "filter_op": "equals",
+                "filter_value": 4,
+                "col_type": "ANNOTATION",
+            },
+        },
+        {
+            "column_id": "customer_tier",
+            "filter_config": {
+                "filter_type": "text",
+                "filter_op": "equals",
+                "filter_value": "enterprise",
+                "col_type": "SPAN_ATTRIBUTE",
+            },
+        },
+    ]
+
+    manager = _manager(filters=filters)
+
+    assert manager.relation_filters == tuple(filters[:2])
+    assert manager.attribute_keys == ("customer_tier",)
+    assert eval_id not in manager.attribute_keys
+    assert annotation_id not in manager.attribute_keys
+    assert manager.filters_need_enrichment is True
+
+
+def test_relation_filter_query_compiles_eval_and_annotation_semantics_together():
+    project_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    alias_id = str(uuid.uuid4())
+    eval_id = str(uuid.uuid4())
+    eval_config_id = str(uuid.uuid4())
+    annotation_id = str(uuid.uuid4())
+    relation_filters = [
+        {
+            "column_id": eval_id,
+            "filter_config": {
+                "filter_type": "boolean",
+                "filter_op": "equals",
+                "filter_value": "Passed",
+                "col_type": "EVAL_METRIC",
+            },
+        },
+        {
+            "column_id": annotation_id,
+            "filter_config": {
+                "filter_type": "number",
+                "filter_op": "greater_than",
+                "filter_value": 3,
+                "col_type": "ANNOTATION",
+            },
+        },
+    ]
+    builder = UserListQueryBuilder(
+        organization_id=str(uuid.uuid4()),
+        project_ids=[project_id],
+        candidate_end_user_ids=[user_id],
+        candidate_scan_end_user_ids=[user_id, alias_id],
+        candidate_end_user_id_map={user_id: user_id, alias_id: user_id},
+    )
+
+    sql, params = builder.build_relation_filter_user_query(
+        relation_filters,
+        eval_filter_metadata={
+            eval_id: EvalFilterMetadata((eval_config_id,), "PASS_FAIL")
+        },
+    )
+
+    assert "latest_relation_candidate_spans AS" in sql
+    assert "argMax(tuple(end_user_id), _version).1 AS end_user_id" in sql
+    assert "eval_scan.custom_eval_config_id IN" in sql
+    assert "FROM model_hub_score AS s FINAL" in sql
+    assert "s.label_id = toUUID" in sql
+    assert "AND (" in sql
+    assert "attrs_string" not in sql
+    assert "attributes_extra" not in sql
+    assert params["candidate_end_user_ids"] == (user_id,)
+    assert params["candidate_scan_end_user_ids"] == (user_id, alias_id)
+    assert (eval_config_id,) in params.values()
+    assert annotation_id in params.values()
+
+
+def test_relation_membership_gates_exact_rows_before_other_enrichment():
+    now = datetime(2026, 8, 5, 12, tzinfo=UTC)
+    candidates = [_candidate(index, now=now) for index in range(3)]
+    matching_ids = {candidates[0]["end_user_id"], candidates[2]["end_user_id"]}
+    eval_id = str(uuid.uuid4())
+    annotation_id = str(uuid.uuid4())
+    manager = _manager(
+        filters=[
+            {
+                "column_id": eval_id,
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 50,
+                    "col_type": "EVAL_METRIC",
+                },
+            },
+            {
+                "column_id": annotation_id,
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "equals",
+                    "filter_value": 4,
+                    "col_type": "ANNOTATION",
+                },
+            },
+        ]
+    )
+    builder = MagicMock()
+    builder.build_candidate_page_query.return_value = ("SELECT candidate page", {})
+    builder.format_rows.return_value = {
+        "table": [_exact(candidate) for candidate in candidates],
+        "total_count": len(candidates),
+    }
+    builder.build_relation_filter_user_query.return_value = (
+        "SELECT matching users",
+        {},
+    )
+    analytics = MagicMock()
+    analytics.execute_ch_query.side_effect = [
+        SimpleNamespace(data=[]),
+        SimpleNamespace(
+            data=[{"end_user_id": end_user_id} for end_user_id in matching_ids]
+        ),
+    ]
+
+    with (
+        patch.object(manager, "_exact_candidate_builder", return_value=builder),
+        patch.object(manager, "_relation_eval_metadata", return_value={}),
+        patch.object(manager, "_enrich_rows") as enrich_rows,
+        patch(
+            "tracer.services.users_list_manager.V2AnalyticsQueryService",
+            return_value=analytics,
+        ),
+    ):
+        rows = manager._read_exact_candidate_rows(
+            candidate_ids=[candidate["end_user_id"] for candidate in candidates],
+            candidate_scan_ids=[candidate["end_user_id"] for candidate in candidates],
+            candidate_end_user_id_map={
+                candidate["end_user_id"]: candidate["end_user_id"]
+                for candidate in candidates
+            },
+            frozen_filters=[],
+            window_start=now - timedelta(days=30),
+            window_end=now,
+            deadline=ReadDeadline.start(10_000),
+        )
+
+    assert {row["end_user_id"] for row in rows} == matching_ids
+    assert manager._relation_matching_user_ids == matching_ids
+    assert {
+        row["end_user_id"] for row in enrich_rows.call_args.args[0]
+    } == matching_ids
+    builder.build_relation_filter_user_query.assert_called_once_with(
+        manager.relation_filters,
+        eval_filter_metadata={},
+    )
+
+
+def test_mixed_user_filter_requires_system_attribute_eval_and_annotation_matches():
+    end_user_id = str(uuid.uuid4())
+    manager = _manager(
+        filters=[
+            {
+                "column_id": "total_cost",
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 5,
+                },
+            },
+            {
+                "column_id": "customer_tier",
+                "filter_config": {
+                    "filter_type": "text",
+                    "filter_op": "equals",
+                    "filter_value": "enterprise",
+                    "col_type": "SPAN_ATTRIBUTE",
+                },
+            },
+            {
+                "column_id": str(uuid.uuid4()),
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "greater_than",
+                    "filter_value": 50,
+                    "col_type": "EVAL_METRIC",
+                },
+            },
+            {
+                "column_id": str(uuid.uuid4()),
+                "filter_config": {
+                    "filter_type": "number",
+                    "filter_op": "equals",
+                    "filter_value": 4,
+                    "col_type": "ANNOTATION",
+                },
+            },
+        ]
+    )
+    matching_row = {
+        "end_user_id": end_user_id,
+        "total_cost": 10,
+        "customer_tier": "enterprise",
+    }
+
+    manager._relation_matching_user_ids.add(end_user_id)
+
+    assert manager._row_matches_filters(matching_row)
+    assert not manager._row_matches_filters(
+        {**matching_row, "customer_tier": "self-serve"}
+    )
+    assert not manager._row_matches_filters(
+        {**matching_row, "end_user_id": str(uuid.uuid4())}
+    )
 
 
 def test_positive_text_attribute_filter_prunes_only_physical_candidate_seed():

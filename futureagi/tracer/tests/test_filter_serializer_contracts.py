@@ -297,20 +297,35 @@ class TestFilterSerializerContracts:
         assert "source" in serializer.errors
 
     def test_dashboard_filter_values_query_parses_project_ids(self):
+        project_a = "00000000-0000-4000-8000-000000000001"
+        project_b = "00000000-0000-4000-8000-000000000002"
         serializer = DashboardFilterValuesQuerySerializer(
             data={
                 "metric_name": "latency_ms",
                 "metric_type": "system_metric",
                 "source": "traces",
-                "project_ids": "project-a, project-b,,",
+                "project_ids": f"{project_a}, {project_b},{project_a},,",
             }
         )
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["project_ids"] == [
-            "project-a",
-            "project-b",
+            project_a,
+            project_b,
         ]
+
+    def test_dashboard_filter_values_query_rejects_non_uuid_project_ids(self):
+        serializer = DashboardFilterValuesQuerySerializer(
+            data={
+                "metric_name": "latency_ms",
+                "metric_type": "system_metric",
+                "source": "traces",
+                "project_ids": "project-a",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "project_ids" in serializer.errors
 
     def test_dashboard_filter_values_project_ids_preserves_csv_wire_and_list_runtime(
         self,
@@ -758,6 +773,84 @@ class TestFilterSerializerContracts:
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["page"] == 2
         assert serializer.validated_data["remove_simulation_calls"] is True
+
+    @pytest.mark.parametrize(
+        "filter_config",
+        [
+            {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "text",
+                "filter_op": "in",
+                "filter_value": ["alpha"],
+                "attribute_value_types": ["string"],
+            },
+            {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "number",
+                "filter_op": "equals",
+                "filter_value": 7.5,
+            },
+            {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "boolean",
+                "filter_op": "equals",
+                "filter_value": False,
+            },
+        ],
+    )
+    def test_trace_voice_call_query_accepts_qualifier_scalar_filter_shapes(
+        self, filter_config
+    ):
+        serializer = TraceVoiceCallListQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps(
+                    [{"column_id": "customer.scalar", "filter_config": filter_config}]
+                ),
+                "attribute_keys": json.dumps(["customer.scalar"]),
+                "cursor_mode": "true",
+                "page_size": "5",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "filter_config",
+        [
+            {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "number",
+                "filter_op": "in",
+                "filter_value": [7.5],
+                "attribute_value_types": ["number"],
+            },
+            {
+                "col_type": "SPAN_ATTRIBUTE",
+                "filter_type": "boolean",
+                "filter_op": "in",
+                "filter_value": [False],
+                "attribute_value_types": ["boolean"],
+            },
+        ],
+    )
+    def test_trace_voice_call_query_rejects_legacy_scalar_membership_shapes(
+        self, filter_config
+    ):
+        serializer = TraceVoiceCallListQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps(
+                    [{"column_id": "customer.scalar", "filter_config": filter_config}]
+                ),
+                "attribute_keys": json.dumps(["customer.scalar"]),
+                "cursor_mode": "true",
+                "page_size": "5",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "filters" in serializer.errors
 
     def test_trace_index_queries_reject_camel_case_aliases(self):
         trace_index = TraceIndexQuerySerializer(

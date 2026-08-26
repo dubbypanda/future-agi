@@ -94,6 +94,7 @@ const TraceGrid = React.forwardRef(
       canonicalColumnsRef,
       enabled = true,
       showErrors = false,
+      compareType,
     },
     gridRef,
   ) => {
@@ -161,7 +162,7 @@ const TraceGrid = React.forwardRef(
         setContinuationNotice(null);
       }
     }, [continuationNotice, gridRef]);
-    const filterRequestKey = useMemo(
+    const selectionQueryKey = useMemo(
       () =>
         JSON.stringify({
           filters,
@@ -170,8 +171,9 @@ const TraceGrid = React.forwardRef(
           hasEvalFilter,
           dateInterval,
           projectId,
-          requestedAttributeKeys: requestedAttributeKeysKey,
           enabled,
+          showErrors,
+          compareType,
         }),
       [
         filters,
@@ -180,50 +182,57 @@ const TraceGrid = React.forwardRef(
         hasEvalFilter,
         dateInterval,
         projectId,
-        requestedAttributeKeysKey,
         enabled,
+        showErrors,
+        compareType,
       ],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-
+    const filterRequestKey = useMemo(
+      () =>
+        JSON.stringify({
+          selectionQueryKey,
+          requestedAttributeKeys: requestedAttributeKeysKey,
+        }),
+      [selectionQueryKey, requestedAttributeKeysKey],
+    );
+    const clearSelection = useCallback(() => {
+      const api = gridRef?.current?.api;
+      api?.deselectAll?.();
+      api?.setServerSideSelectionState?.({
+        selectAll: false,
+        toggledNodes: [],
+      });
+      setSelectedAll(false);
+      useTraceGridStore.setState({
+        selectAll: false,
+        toggledNodes: [],
+      });
+    }, [gridRef]);
+    const previousSelectionQueryKeyRef = useRef(selectionQueryKey);
     useEffect(() => {
-      if (previousFilterRequestKeyRef.current === filterRequestKey) return;
-      previousFilterRequestKeyRef.current = filterRequestKey;
-      setGridLoading(enabled);
-      prefetchCache.current.clear();
-      cursorPagination.current.reset();
-      refreshGrid(true);
-    }, [enabled, filterRequestKey, refreshGrid]);
-
+      if (previousSelectionQueryKeyRef.current !== selectionQueryKey) {
+        clearSelection();
+      }
+      previousSelectionQueryKeyRef.current = selectionQueryKey;
+    }, [clearSelection, selectionQueryKey]);
     // Listen for refresh events from the header reload button
     useEffect(() => {
       // A same-query manual refresh keeps the last exact rows visible until
-      // their replacement is complete. Filter/range changes still purge so
-      // rows from a different query are never presented as current.
+      // their replacement is complete. Filter/range changes replace the
+      // datasource so rows from a different query are never presented as
+      // current.
       const handler = () => refreshGrid(false);
       window.addEventListener("observe-refresh", handler);
       return () => window.removeEventListener("observe-refresh", handler);
     }, [refreshGrid]);
 
-    // Clear AG Grid's internal selection when the project changes — the
-    // zustand reset handled in the header only clears our mirror, not AG
-    // Grid's server-side selection model. Also reset the local
-    // `selectedAll` flag so the header checkbox's next click re-triggers
-    // selectAll (otherwise the stale `true` makes the first click a
-    // deselect no-op).
+    // Keep the explicit reset event aligned with query-bound invalidation: both
+    // paths clear AG Grid, the mirrored store, and the local header state.
     useEffect(() => {
-      const handler = () => {
-        gridRef?.current?.api?.deselectAll?.();
-        setSelectedAll(false);
-      };
-      window.addEventListener("observe-reset-selection", handler);
+      window.addEventListener("observe-reset-selection", clearSelection);
       return () =>
-        window.removeEventListener("observe-reset-selection", handler);
-    }, [gridRef]);
-
-    useEffect(() => {
-      gridRef?.current?.api?.hideOverlay?.();
-    }, [filters, extraFilters, hasEvalFilter, metricFilters, gridRef]);
+        window.removeEventListener("observe-reset-selection", clearSelection);
+    }, [clearSelection]);
 
     const defaultColDef = useMemo(
       () => ({
@@ -287,7 +296,6 @@ const TraceGrid = React.forwardRef(
             let continuationPending = false;
             try {
               setLoading(true);
-              params.api?.hideOverlay();
               const { request } = params;
               requestGeneration = cursorPagination.current.generation();
 
@@ -501,9 +509,15 @@ const TraceGrid = React.forwardRef(
               if (
                 !continuationPending &&
                 firstPageRequestId !== null &&
-                firstPageRequestId === firstPageRequestRef.current &&
-                cursorPagination.current.isCurrent(requestGeneration)
+                firstPageRequestId === firstPageRequestRef.current
               ) {
+                // Loading ownership follows the newest first-page request, not
+                // the cursor generation. A datasource/filter transition may
+                // invalidate this request before AG Grid starts its replacement;
+                // keeping the old generation guard leaves the controlled overlay
+                // stuck forever. A replacement getRows call increments the id and
+                // sets loading again, so an older request cannot settle a newer
+                // in-flight page.
                 setGridLoading(false);
               }
               if (!continuationPending) setLoading(false);
@@ -686,8 +700,11 @@ const TraceGrid = React.forwardRef(
         validatedSteps[currentStep - 1]
       );
     }, [openReplaySessionDrawer, currentStep, validatedSteps]);
-    const isGridReadPending =
-      gridLoading || previousFilterRequestKeyRef.current !== filterRequestKey;
+    // Controlled loading starts only when AG Grid actually asks this
+    // datasource for page zero. URL/config hydration can replace a datasource
+    // before AG Grid starts its request; deriving loading from the request key
+    // leaves the overlay stuck when no replacement call follows.
+    const isGridReadPending = gridLoading;
 
     return (
       <Box

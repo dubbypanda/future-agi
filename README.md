@@ -148,6 +148,17 @@ Open [http://localhost:3000](http://localhost:3000).
 </tr>
 </table>
 
+The unified property catalog is enabled by default in the normal self-host
+stack. The root Compose project starts its dedicated Kafka broker and topic,
+the unified producer and consumer, isolated catalog storage, and the bounded
+workspace supervisor; the legacy span-attribute catalog remains disabled.
+User-facing catalog reads stay activation-gated so a fresh or empty workspace
+continues to use the compatibility path instead of returning a catalog-readiness
+error. See the
+[OSS/local compatibility and qualification guide](fi-collector/PROPERTY_CATALOG_OSS.md)
+for the component contract, overrides, and verification commands. This path
+does not require EE modules.
+
 ### Instrument your first agent
 
 <table width="100%">

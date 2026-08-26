@@ -127,6 +127,50 @@ def build_literal_text_predicate(
     return f"{function}({haystack}, {needle})"
 
 
+def build_numeric_filter_predicate(
+    expression: str,
+    filter_op: str | None,
+    filter_value: Any,
+    *,
+    param_prefix: str,
+    params: dict[str, Any],
+) -> str:
+    """Compile the canonical number-filter contract for a trusted expression.
+
+    Aggregate aliases cannot be routed through the row-level filter builder,
+    so session list and graph queries share this small compiler. Invalid value
+    shapes fail closed instead of emitting malformed ClickHouse SQL.
+    """
+
+    normalized_op = normalize_filter_op(filter_op)
+    if normalized_op == "is_null":
+        return f"{expression} IS NULL"
+    if normalized_op == "is_not_null":
+        return f"{expression} IS NOT NULL"
+
+    if normalized_op in RANGE_OPS:
+        if not isinstance(filter_value, (list, tuple)) or len(filter_value) != 2:
+            return "0 = 1"
+        lower_param = f"{param_prefix}_lo"
+        upper_param = f"{param_prefix}_hi"
+        params[lower_param], params[upper_param] = filter_value
+        sql_op = "NOT BETWEEN" if normalized_op == "not_between" else "BETWEEN"
+        return f"{expression} {sql_op} %({lower_param})s AND %({upper_param})s"
+
+    comparison_op = {
+        "equals": "=",
+        "not_equals": "!=",
+        "greater_than": ">",
+        "less_than": "<",
+        "greater_than_or_equal": ">=",
+        "less_than_or_equal": "<=",
+    }.get(normalized_op)
+    if comparison_op is None or filter_value is None:
+        return "0 = 1"
+    params[param_prefix] = filter_value
+    return f"{expression} {comparison_op} %({param_prefix})s"
+
+
 def _sanitize_key(key: str) -> str:
     """Validate a key is safe for use in ClickHouse expressions."""
     if not key or not _SAFE_ATTR_KEY_RE.match(key):
@@ -467,6 +511,7 @@ class ClickHouseFilterBuilder:
         span_date_scope: bool = False,
         candidate_ids_param: str | None = None,
         candidate_entities_param: str | None = None,
+        candidate_entities_table: str | None = None,
         strict_trace_project_correlation: bool = False,
         trace_project_eval_config_ids: list[str] | tuple[str, ...] | None = None,
         strict_enduser_project_correlation: bool = False,
@@ -517,8 +562,22 @@ class ClickHouseFilterBuilder:
             is None
         ):
             raise ValueError("candidate_entities_param must be an internal identifier")
+        if (
+            candidate_entities_table is not None
+            and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", candidate_entities_table)
+            is None
+        ):
+            raise ValueError("candidate_entities_table must be an internal identifier")
+        if (
+            candidate_entities_param is not None
+            and candidate_entities_table is not None
+        ):
+            raise ValueError(
+                "candidate_entities_param and candidate_entities_table are mutually exclusive"
+            )
         self.candidate_ids_param = candidate_ids_param
         self.candidate_entities_param = candidate_entities_param
+        self.candidate_entities_table = candidate_entities_table
         # Organization trace pages can contain the same textual trace id in
         # more than one project.  Their residual predicates are compiled as
         # finite, per-project branches and opt into this guard so score rows
@@ -595,6 +654,12 @@ class ClickHouseFilterBuilder:
     ) -> str:
         """Bound a span-side relational probe by its trace-scoped identity."""
 
+        if self.candidate_entities_table is not None:
+            return (
+                f" AND (toString({trace_column}), toString({span_column})) "
+                "IN (SELECT toString(trace_id), toString(id) FROM "
+                f"{self.candidate_entities_table})"
+            )
         if self.candidate_entities_param is not None:
             return (
                 f" AND (toString({trace_column}), toString({span_column})) "
@@ -621,7 +686,11 @@ class ClickHouseFilterBuilder:
     def _score_side_candidate_filter(self, alias: str = "s") -> str:
         """Prune an annotation score probe before it feeds a spans join."""
 
-        if self.candidate_ids_param is None and self.candidate_entities_param is None:
+        if (
+            self.candidate_ids_param is None
+            and self.candidate_entities_param is None
+            and self.candidate_entities_table is None
+        ):
             return ""
         observation_id = f"{alias}.observation_span_id"
         if self.query_mode == self.QUERY_MODE_SPAN:
@@ -632,6 +701,11 @@ class ClickHouseFilterBuilder:
             # check is a safe candidate superset; ``_score_span_select`` joins
             # it back to the project-scoped spans table and applies the exact
             # trace/span tuple after resolution.
+            if self.candidate_entities_table is not None:
+                return (
+                    f" AND toString({observation_id}) IN ("
+                    f"SELECT toString(id) FROM {self.candidate_entities_table})"
+                )
             if self.candidate_ids_param is not None:
                 return self._candidate_filter(observation_id)
             return ""
@@ -1450,6 +1524,12 @@ class ClickHouseFilterBuilder:
             filter_op, value_coercer, filter_value
         )
         exists_predicate = f"mapContains({map_column}, '{attribute_key}')"
+        if filter_op in NO_VALUE_OPS:
+            return self._scope_span_attr_inner(
+                exists_predicate,
+                negate_trace_membership=(filter_op == "is_null"),
+                latest_physical_state=True,
+            )
         inner_predicate = self._span_attr_inner(
             map_column,
             attribute_key,
@@ -1463,14 +1543,46 @@ class ClickHouseFilterBuilder:
 
         return self._scope_span_attr_inner(inner_predicate)
 
-    def _scope_span_attr_inner(self, inner_predicate: str) -> str:
-        """Apply one row predicate directly for spans or to any trace member."""
+    def _scope_span_attr_inner(
+        self,
+        inner_predicate: str,
+        *,
+        negate_trace_membership: bool = False,
+        latest_physical_state: bool = False,
+    ) -> str:
+        """Apply a row predicate directly or classify the containing trace."""
 
         if self.query_mode == self.QUERY_MODE_SPAN:
-            return inner_predicate
+            return (
+                f"NOT {inner_predicate}" if negate_trace_membership else inner_predicate
+            )
         candidate_filter = self._candidate_trace_filter()
+        membership_op = "NOT IN" if negate_trace_membership else "IN"
+        if latest_physical_state:
+            # Null/presence is a trace-grain classification, but attributes are
+            # stored on mutable physical span rows. Replay every complete span
+            # identity before deciding whether any live span contains the key;
+            # filtering tombstones or key-absent versions before argMax would
+            # resurrect an older match. The v2 compiler rewrites the legacy
+            # version/tombstone names below to _version/is_deleted.
+            return (
+                f"trace_id {membership_op} ("
+                f"SELECT trace_id FROM ("
+                f"SELECT project_id, trace_id, id, start_time, "
+                f"argMax(_peerdb_is_deleted, _peerdb_version) "
+                f"AS latest_is_deleted, "
+                f"argMax(toUInt8({inner_predicate}), _peerdb_version) "
+                f"AS latest_attribute_match "
+                f"FROM {self.table} "
+                f"WHERE {self._project_scope_predicate()}"
+                f"{self._span_membership_date_filter()}"
+                f"{candidate_filter} "
+                f"GROUP BY project_id, trace_id, id, start_time"
+                f") WHERE latest_is_deleted = 0 "
+                f"AND latest_attribute_match = 1)"
+            )
         return (
-            f"trace_id IN ("
+            f"trace_id {membership_op} ("
             f"SELECT trace_id FROM {self.table} "
             f"WHERE {self._project_scope_predicate()} "
             f"AND is_deleted = 0"

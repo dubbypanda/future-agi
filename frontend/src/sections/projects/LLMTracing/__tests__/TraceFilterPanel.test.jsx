@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "src/utils/test-utils";
+import { act, fireEvent, render, screen, waitFor } from "src/utils/test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
+import {
+  buildApiFilterFromPanelRow,
+  FILTER_STRING_MAX_UTF8_BYTES,
+  TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
+} from "src/api/contracts/filter-contract";
+import { FILTER_VALUE_PAGE_SIZE } from "src/config/runtime_limits";
 import axios, { endpoints } from "src/utils/axios";
 import TraceFilterPanel, {
   buildManualAttributeProperty,
@@ -10,10 +15,13 @@ import TraceFilterPanel, {
   filterPropertiesForPicker,
   findTraceFilterProperty,
   getTraceFilterFields,
+  mergeCatalogSearchProperties,
   mergeTraceFilterProperties,
   mergeRetainedAttributeProperties,
   normalizeFilterRowOperator,
+  PropertyPickerPaginationControl,
   shouldUseRetainedAttributePages,
+  supplementCatalogSearchCategoryCounts,
   toStaticFilterProperty,
 } from "../TraceFilterPanel";
 import {
@@ -25,6 +33,33 @@ import {
 const parseQueryMock = vi.fn();
 const dashboardFilterValuesMock = vi.hoisted(() => vi.fn());
 const exactAttributePropertiesMock = vi.hoisted(() => vi.fn());
+const propertyCatalogMock = vi.hoisted(() => vi.fn());
+let intersectionObservers = [];
+
+const triggerPropertyPageIntersection = () => {
+  const sentinel = document.querySelector(
+    "[data-filter-property-page-sentinel]",
+  );
+  expect(sentinel).toBeInTheDocument();
+  const observer = [...intersectionObservers]
+    .reverse()
+    .find((candidate) => candidate.targets.has(sentinel));
+  expect(observer).toBeDefined();
+  act(() => {
+    observer.callback([{ isIntersecting: true, target: sentinel }]);
+  });
+};
+
+const triggerValuePageIntersection = () => {
+  const sentinel = screen.getByTestId("filter-value-pagination-sentinel");
+  const observer = [...intersectionObservers]
+    .reverse()
+    .find((candidate) => candidate.targets.has(sentinel));
+  expect(observer).toBeDefined();
+  act(() => {
+    observer.callback([{ isIntersecting: true, target: sentinel }]);
+  });
+};
 
 const defaultDashboardFilterValues = () => ({
   data: [],
@@ -35,30 +70,113 @@ const defaultDashboardFilterValues = () => ({
   hasNextPage: false,
   isFetchingNextPage: false,
   isFetchNextPageError: false,
+  continuationKey: null,
   refetch: vi.fn(),
 });
 
+const defaultExactAttributeProperties = () => ({
+  data: [],
+  isFetching: false,
+  fetchNextPage: vi.fn(),
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  fetchNextExactPage: vi.fn(),
+  hasNextExactPage: false,
+  isFetchingExactSearch: false,
+  isFetchingNextExactPage: false,
+  isFetchNextPageError: false,
+  queryReadState: "complete",
+  browseStatus: "exhausted",
+  totalCount: 0,
+  pageCount: 1,
+  exactSearchMatched: false,
+  cursorRetryExhausted: false,
+  continuationKey: null,
+  debouncedSearch: "",
+  refetch: vi.fn(),
+});
+
+const settledPropertyCatalog = ({ metrics = [], categoryCounts } = {}) => ({
+  metrics,
+  categoryCounts: categoryCounts || {
+    all: metrics.length,
+    system_metric: 0,
+    eval_metric: 0,
+    annotation_metric: 0,
+    custom_attribute: 0,
+    custom_column: 0,
+  },
+  categoryCountsExact: true,
+  legacyFallbackRequired: false,
+  error: null,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+  isSuccess: true,
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  isFetchNextPageError: false,
+  cursorChainStopped: false,
+  fetchNextPage: vi.fn(),
+  data: { pages: [] },
+});
+
+const GLOBAL_CATALOG_SEARCH_CASES = [
+  {
+    search: "Tokens",
+    source: "voice_calls",
+    tab: "voiceCalls",
+    initialMetrics: [],
+    optionId: "gen_ai.usage.total_tokens",
+    categoryName: "System",
+    categoryCountLabel: "System property count",
+  },
+  {
+    search: "Annotator",
+    source: "traces",
+    tab: "trace",
+    initialMetrics: [],
+    optionId: "annotator",
+    categoryName: "Annotations",
+    categoryCountLabel: "Annotations property count",
+  },
+];
+
 beforeEach(() => {
+  intersectionObservers = [];
+  globalThis.IntersectionObserver = class IntersectionObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.targets = new Set();
+      intersectionObservers.push(this);
+    }
+
+    disconnect() {
+      this.targets.clear();
+    }
+
+    observe(target) {
+      this.targets.add(target);
+    }
+
+    unobserve(target) {
+      this.targets.delete(target);
+    }
+  };
   dashboardFilterValuesMock.mockReturnValue(defaultDashboardFilterValues());
-  exactAttributePropertiesMock.mockReturnValue({
-    data: [],
-    isFetching: false,
-    fetchNextPage: vi.fn(),
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    fetchNextExactPage: vi.fn(),
-    hasNextExactPage: false,
-    isFetchingExactSearch: false,
-    isFetchingNextExactPage: false,
-    isFetchNextPageError: false,
-    queryReadState: "complete",
-    browseStatus: "exhausted",
-    pageCount: 1,
-    exactSearchMatched: false,
-    cursorRetryExhausted: false,
-    debouncedSearch: "",
-    refetch: vi.fn(),
+  propertyCatalogMock.mockReturnValue({
+    error: {
+      response: {
+        status: 503,
+        data: { code: "property_catalog_not_ready" },
+      },
+    },
+    legacyFallbackRequired: true,
+    metrics: [],
   });
+  exactAttributePropertiesMock.mockReturnValue(
+    defaultExactAttributeProperties(),
+  );
 });
 
 describe("JSON array picker value identity", () => {
@@ -84,6 +202,69 @@ describe("JSON array picker value identity", () => {
   });
 });
 
+describe("PropertyPickerPaginationControl", () => {
+  it("advances both property inventories through one single-flight intersection", () => {
+    const loadAttributes = vi.fn(() => new Promise(() => {}));
+    const loadCatalog = vi.fn(() => new Promise(() => {}));
+    const scrollRootRef = { current: document.createElement("div") };
+
+    render(
+      <PropertyPickerPaginationControl
+        resetKey="project-one"
+        scrollRootRef={scrollRootRef}
+        attributePageAvailable
+        attributeContinuationKey="attribute-cursor-2"
+        isFetchingAttributePage={false}
+        attributePageError={false}
+        onLoadMoreAttributes={loadAttributes}
+        catalogPageAvailable
+        catalogContinuationKey="catalog-cursor-2"
+        isFetchingCatalogPage={false}
+        catalogPageError={false}
+        onLoadMoreCatalog={loadCatalog}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Load more properties" }),
+    ).not.toBeInTheDocument();
+    triggerPropertyPageIntersection();
+    triggerPropertyPageIntersection();
+
+    expect(loadAttributes).toHaveBeenCalledOnce();
+    expect(loadCatalog).toHaveBeenCalledOnce();
+  });
+
+  it("restarts the same property cursors when the project scope changes", async () => {
+    const loadProjectOne = vi.fn().mockResolvedValue(undefined);
+    const loadProjectTwo = vi.fn().mockResolvedValue(undefined);
+    const scrollRootRef = { current: document.createElement("div") };
+    const renderControl = (resetKey, loadCatalog) => (
+      <PropertyPickerPaginationControl
+        resetKey={resetKey}
+        scrollRootRef={scrollRootRef}
+        attributePageAvailable={false}
+        attributeContinuationKey={null}
+        isFetchingAttributePage={false}
+        attributePageError={false}
+        onLoadMoreAttributes={vi.fn()}
+        catalogPageAvailable
+        catalogContinuationKey="catalog-cursor-2"
+        isFetchingCatalogPage={false}
+        catalogPageError={false}
+        onLoadMoreCatalog={loadCatalog}
+      />
+    );
+    const { rerender } = render(renderControl("project-one", loadProjectOne));
+
+    triggerPropertyPageIntersection();
+    await waitFor(() => expect(loadProjectOne).toHaveBeenCalledOnce());
+
+    rerender(renderControl("project-two", loadProjectTwo));
+    await waitFor(() => expect(loadProjectTwo).toHaveBeenCalledOnce());
+  });
+});
+
 vi.mock("src/hooks/use-ai-filter", () => ({
   useAIFilter: () => ({
     parseQuery: parseQueryMock,
@@ -92,8 +273,10 @@ vi.mock("src/hooks/use-ai-filter", () => ({
   }),
 }));
 
-vi.mock("src/hooks/useDashboards", () => ({
+vi.mock("src/hooks/useDashboards", async (importOriginal) => ({
+  ...(await importOriginal()),
   useDashboardFilterValues: dashboardFilterValuesMock,
+  usePropertyCatalog: propertyCatalogMock,
 }));
 
 vi.mock("../useExactTraceAttributeProperties", () => ({
@@ -109,9 +292,27 @@ function renderPanel({
   showQueryTab = false,
   projectId,
   source,
+  propertyNamespace,
   attributeSource,
   tab,
+  allowWorkspaceScope = false,
+  propertyFilter,
 }) {
+  let panelProps = {
+    currentFilters,
+    properties,
+    onApply,
+    onClose,
+    open,
+    showQueryTab,
+    projectId,
+    source,
+    propertyNamespace,
+    attributeSource,
+    tab,
+    allowWorkspaceScope,
+    propertyFilter,
+  };
   const anchorEl = document.createElement("button");
   document.body.appendChild(anchorEl);
   const queryClient = new QueryClient({
@@ -121,16 +322,19 @@ function renderPanel({
     <QueryClientProvider client={queryClient}>
       <TraceFilterPanel
         anchorEl={anchorEl}
-        open={open}
-        onClose={onClose}
-        onApply={onApply}
-        currentFilters={[...currentFilters]}
-        properties={properties}
-        showQueryTab={showQueryTab}
-        projectId={projectId}
-        source={source}
-        attributeSource={attributeSource}
-        tab={tab}
+        open={panelProps.open}
+        onClose={panelProps.onClose}
+        onApply={panelProps.onApply}
+        currentFilters={[...panelProps.currentFilters]}
+        properties={panelProps.properties}
+        showQueryTab={panelProps.showQueryTab}
+        projectId={panelProps.projectId}
+        source={panelProps.source}
+        propertyNamespace={panelProps.propertyNamespace}
+        attributeSource={panelProps.attributeSource}
+        tab={panelProps.tab}
+        allowWorkspaceScope={panelProps.allowWorkspaceScope}
+        propertyFilter={panelProps.propertyFilter}
       />
     </QueryClientProvider>
   );
@@ -140,9 +344,59 @@ function renderPanel({
     onApply,
     onClose,
     ...utils,
-    rerenderPanel: () => utils.rerender(panel()),
+    rerenderPanel: (nextProps = {}) => {
+      panelProps = { ...panelProps, ...nextProps };
+      utils.rerender(panel());
+    },
   };
 }
+
+describe("TraceFilterPanel workspace property scope", () => {
+  it("loads the unified catalog without requiring a route project", () => {
+    propertyCatalogMock.mockReturnValue({
+      metrics: [],
+      legacyFallbackRequired: false,
+      usesUnifiedCatalog: true,
+    });
+
+    renderPanel({ allowWorkspaceScope: true });
+
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: [],
+        enabled: true,
+        allowLegacyNotReadyFallback: false,
+      }),
+    );
+  });
+
+  it("does not read property inventories for a mounted but closed panel", () => {
+    propertyCatalogMock.mockReturnValue({
+      metrics: [],
+      legacyFallbackRequired: false,
+      usesUnifiedCatalog: true,
+    });
+    propertyCatalogMock.mockClear();
+    exactAttributePropertiesMock.mockClear();
+
+    renderPanel({
+      open: false,
+      projectId: "project-closed-filter",
+      source: "traces",
+    });
+
+    expect(
+      propertyCatalogMock.mock.calls.some(
+        ([request]) => request.enabled === true,
+      ),
+    ).toBe(false);
+    expect(
+      exactAttributePropertiesMock.mock.calls.some(
+        ([request]) => request.enabled === true,
+      ),
+    ).toBe(false);
+  });
+});
 
 const selectQueryPhaseOption = async (typed, nextPlaceholder) => {
   const input = screen.getByRole("combobox");
@@ -154,6 +408,17 @@ const selectQueryPhaseOption = async (typed, nextPlaceholder) => {
     expect(input).toHaveAttribute("placeholder", nextPlaceholder),
   );
   return input;
+};
+
+const scrollQueryOptionsToEnd = async () => {
+  const listbox = await screen.findByRole("listbox");
+  Object.defineProperties(listbox, {
+    scrollTop: { configurable: true, value: 180 },
+    clientHeight: { configurable: true, value: 220 },
+    scrollHeight: { configurable: true, value: 400 },
+  });
+  fireEvent.scroll(listbox);
+  return listbox;
 };
 
 describe("TraceFilterPanel AI apply (#577)", () => {
@@ -215,6 +480,7 @@ describe("TraceFilterPanel AI apply (#577)", () => {
         fieldCategory: "system",
         fieldType: "string",
         apiColType: undefined,
+        registryId: "system_attribute:traces:status",
         operator: "in",
         value: ["ERROR"],
       },
@@ -270,6 +536,53 @@ describe("TraceFilterPanel AI apply: additive, empty, single-call", () => {
     document.body.removeChild(anchorEl);
   });
 
+  it("uses property_id to disambiguate same-name AI fields", async () => {
+    parseQueryMock.mockResolvedValue([
+      {
+        field: "status",
+        property_id: "annotation:status",
+        operator: "is",
+        value: "Approved",
+      },
+    ]);
+    const { anchorEl, onApply } = renderPanel({
+      properties: [
+        {
+          id: "status",
+          name: "Status",
+          category: "system",
+          type: "string",
+          registryId: "system_attribute:traces:status",
+        },
+        {
+          id: "status",
+          name: "Review status",
+          category: "annotation",
+          type: "categorical",
+          apiColType: "ANNOTATION",
+          registryId: "annotation:status",
+        },
+      ],
+    });
+
+    const aiInput = screen.getByPlaceholderText(/Ask AI/i);
+    fireEvent.change(aiInput, { target: { value: "approved reviews" } });
+    fireEvent.keyDown(aiInput, { key: "Enter" });
+
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    expect(onApply.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        field: "status",
+        registryId: "annotation:status",
+        fieldCategory: "annotation",
+        apiColType: "ANNOTATION",
+        value: ["Approved"],
+      }),
+    ]);
+
+    document.body.removeChild(anchorEl);
+  });
+
   it("shows an inline caption when the AI returns an empty filter list", async () => {
     parseQueryMock.mockResolvedValue([]);
     const { anchorEl, onApply, onClose } = renderPanel({
@@ -290,6 +603,30 @@ describe("TraceFilterPanel AI apply: additive, empty, single-call", () => {
     expect(onApply).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(aiInput.value).toBe("gibberish");
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("does not apply an ungrounded fallback when smart grounding rejects", async () => {
+    parseQueryMock.mockRejectedValue(
+      new Error("AI value grounding needs a more specific value."),
+    );
+    const { anchorEl, onApply, onClose } = renderPanel({
+      properties,
+      projectId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    const aiInput = screen.getByPlaceholderText(/Ask AI/i);
+    fireEvent.change(aiInput, { target: { value: "model gpt" } });
+    fireEvent.keyDown(aiInput, { key: "Enter" });
+
+    await waitFor(() => expect(parseQueryMock).toHaveBeenCalledTimes(1));
+    expect(onApply).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(aiInput.value).toBe("model gpt");
+    expect(
+      screen.queryByText(/Could not derive filters from that query/i),
+    ).not.toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
   });
@@ -429,6 +766,153 @@ describe("getTraceFilterFields (TH-4571)", () => {
   });
 });
 
+describe("catalog search global property supplements", () => {
+  const tokensProperty = toStaticFilterProperty(
+    getTraceFilterFields("voiceCalls").find(
+      (field) => field.value === "gen_ai.usage.total_tokens",
+    ),
+    false,
+    "voice_calls",
+    "voice_calls",
+  );
+  const annotatorProperty = buildTraceFilterProperties([], {
+    sourceScope: "traces",
+    includeGlobalAnnotator: true,
+  }).find((property) => property.id === "annotator");
+  const emptySearchCounts = {
+    all: 0,
+    system_metric: 0,
+    eval_metric: 0,
+    annotation_metric: 0,
+    custom_attribute: 0,
+    custom_column: 0,
+  };
+
+  it.each([
+    ["Tokens", tokensProperty, "system_metric"],
+    ["Annotator", annotatorProperty, "annotation_metric"],
+  ])(
+    "restores searched %s and its exact category count when the server omits it",
+    (search, property, categoryCountKey) => {
+      expect(
+        mergeCatalogSearchProperties({
+          baseProperties: [property],
+          catalogProperties: [],
+          search,
+        }),
+      ).toEqual([property]);
+      expect(
+        supplementCatalogSearchCategoryCounts({
+          categoryCounts: emptySearchCounts,
+          baseProperties: [property],
+          catalogProperties: [],
+          search,
+        }),
+      ).toEqual({
+        ...emptySearchCounts,
+        all: 1,
+        [categoryCountKey]: 1,
+      });
+    },
+  );
+
+  it("prefers the canonical local Tokens definition without double-counting a server alias", () => {
+    const serverAlias = {
+      id: "tokens",
+      registryId: "system_attribute:voice_calls:tokens",
+      name: "Tokens",
+      category: "system",
+      apiColType: "SYSTEM_METRIC",
+      type: "number",
+    };
+    const serverCounts = {
+      ...emptySearchCounts,
+      all: 1,
+      system_metric: 1,
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [tokensProperty],
+        catalogProperties: [serverAlias],
+        search: "Tokens",
+      }),
+    ).toEqual([tokensProperty]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: serverCounts,
+        baseProperties: [tokensProperty],
+        catalogProperties: [serverAlias],
+        search: "Tokens",
+      }),
+    ).toBe(serverCounts);
+  });
+
+  it("keeps a same-key raw Attribute separate from canonical System Tokens", () => {
+    const rawAttribute = {
+      id: "gen_ai.usage.total_tokens",
+      registryId: "custom_attribute:gen_ai.usage.total_tokens",
+      name: "gen_ai.usage.total_tokens",
+      category: "attribute",
+      rawCategory: "custom_attribute",
+      apiColType: "SPAN_ATTRIBUTE",
+      type: "number",
+    };
+    const attributeCounts = {
+      ...emptySearchCounts,
+      all: 1,
+      custom_attribute: 1,
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [tokensProperty],
+        catalogProperties: [rawAttribute],
+        search: "Tokens",
+      }),
+    ).toEqual([tokensProperty, rawAttribute]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: attributeCounts,
+        baseProperties: [tokensProperty],
+        catalogProperties: [rawAttribute],
+        search: "Tokens",
+      }),
+    ).toEqual({
+      ...attributeCounts,
+      all: 2,
+      system_metric: 1,
+    });
+  });
+
+  it("does not restore project-specific System fields that authoritative search omitted", () => {
+    const projectMetric = {
+      id: "project_specific_metric",
+      registryId: "system_attribute:traces:project_specific_metric",
+      name: "Project Specific Metric",
+      category: "system",
+      apiColType: "SYSTEM_METRIC",
+      type: "number",
+    };
+
+    expect(
+      mergeCatalogSearchProperties({
+        baseProperties: [projectMetric],
+        catalogProperties: [],
+        search: "Project Specific Metric",
+      }),
+    ).toEqual([]);
+    expect(
+      supplementCatalogSearchCategoryCounts({
+        categoryCounts: emptySearchCounts,
+        baseProperties: [projectMetric],
+        catalogProperties: [],
+        search: "Project Specific Metric",
+      }),
+    ).toBe(emptySearchCounts);
+  });
+});
+
 describe("voice-call property search aliases", () => {
   const properties = getTraceFilterFields("voiceCalls").map((field) =>
     toStaticFilterProperty(field),
@@ -436,14 +920,14 @@ describe("voice-call property search aliases", () => {
 
   it("finds the displayed cost field by its Live Preview response key", () => {
     expect(
-      filterPropertiesForPicker({ properties, search: "cost_cents" }),
-    ).toEqual([
+      filterPropertiesForPicker({ properties, search: "cost_cents" })[0],
+    ).toEqual(
       expect.objectContaining({
         id: "cost_cents",
         name: "Cost (cents)",
         apiColType: "SYSTEM_METRIC",
       }),
-    ]);
+    );
   });
 
   it("finds status and uses the normalized voice-list system metric", () => {
@@ -458,7 +942,7 @@ describe("voice-call property search aliases", () => {
     );
   });
 
-  it("finds the provider Call ID globally even after browsing Attributes", () => {
+  it("keeps a searched category isolated after browsing Attributes", () => {
     const nestedAttribute = {
       id: "conversation.transcript.0.tool_calls.0.tool_call.id",
       name: "conversation.transcript.0.tool_calls.0.tool_call.id",
@@ -475,12 +959,56 @@ describe("voice-call property search aliases", () => {
       }),
     ).toEqual([
       expect.objectContaining({
-        id: "call_id",
-        name: "Call ID",
-        category: "system",
-        apiColType: "SYSTEM_METRIC",
+        id: "conversation.transcript.0.tool_calls.0.tool_call.id",
+        category: "attribute",
+        apiColType: "SPAN_ATTRIBUTE",
       }),
     ]);
+  });
+
+  it("keeps all cost attribute matches beside an exact System Cost result", () => {
+    const costProperties = [
+      {
+        id: "cost",
+        name: "Cost",
+        category: "system",
+        type: "number",
+        apiColType: "SYSTEM_METRIC",
+      },
+      {
+        id: "cost_breakdown.analysisCost",
+        name: "cost_breakdown.analysisCost",
+        category: "attribute",
+        type: "number",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+      {
+        id: "cost_breakdown.ttsCost",
+        name: "cost_breakdown.ttsCost",
+        category: "attribute",
+        type: "number",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+    ];
+
+    expect(
+      filterPropertiesForPicker({
+        properties: costProperties,
+        category: "all",
+        search: "cost",
+      }).map(({ id }) => id),
+    ).toEqual([
+      "cost",
+      "cost_breakdown.analysisCost",
+      "cost_breakdown.ttsCost",
+    ]);
+    expect(
+      filterPropertiesForPicker({
+        properties: costProperties,
+        category: "attribute",
+        search: "cost",
+      }).map(({ id }) => id),
+    ).toEqual(["cost_breakdown.analysisCost", "cost_breakdown.ttsCost"]);
   });
 
   it("treats the exact Call ID display label as the canonical call_id field", () => {
@@ -496,7 +1024,7 @@ describe("voice-call property search aliases", () => {
     ]);
   });
 
-  it("keeps raw call_id discovery reachable beside the canonical system id", () => {
+  it("keeps loaded call_id attribute matches beside the canonical system id", () => {
     const fetchNextPage = vi.fn();
     exactAttributePropertiesMock.mockReturnValue({
       data: [
@@ -511,6 +1039,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:call-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -533,11 +1062,8 @@ describe("voice-call property search aliases", () => {
       document.querySelector(
         '[data-filter-property-option="conversation.transcript.0.tool_calls.0.tool_call.id"]',
       ),
-    ).not.toBeInTheDocument();
-    const loadMore = screen.getByRole("button", {
-      name: "Load more attributes",
-    });
-    fireEvent.click(loadMore);
+    ).toBeInTheDocument();
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -559,6 +1085,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:call-id-sibling-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -578,9 +1105,7 @@ describe("voice-call property search aliases", () => {
     expect(
       document.querySelector('[data-filter-property-option="call_id"]'),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
     data = [
@@ -602,7 +1127,7 @@ describe("voice-call property search aliases", () => {
       document.querySelector('[data-filter-property-option="call_id"]'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
     document.body.removeChild(anchorEl);
   });
@@ -622,6 +1147,7 @@ describe("voice-call property search aliases", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "exact:trace-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -642,11 +1168,9 @@ describe("voice-call property search aliases", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -668,6 +1192,7 @@ describe("voice-call property search aliases", () => {
       // Exact certification stops the supplemental lookup, but this retained
       // continuation must remain independently reachable.
       hasNextPage: true,
+      continuationKey: "retained:trace-id-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -694,11 +1219,9 @@ describe("voice-call property search aliases", () => {
       document.querySelector('[data-filter-property-option="trace_id"]'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Load more attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
@@ -732,6 +1255,7 @@ describe("voice-call property search aliases", () => {
         isFetching: false,
         fetchNextPage,
         hasNextPage,
+        continuationKey: hasNextPage ? `exact:${surface}:foo-cursor-2` : null,
         isFetchingNextPage: false,
         fetchNextExactPage: vi.fn(),
         hasNextExactPage: false,
@@ -741,6 +1265,7 @@ describe("voice-call property search aliases", () => {
         exactSearchError: null,
         queryReadState: "complete",
         browseStatus: hasNextPage ? "continuation" : "exhausted",
+        totalCount: 3,
         pageCount: hasNextPage ? 1 : 2,
         exactSearchMatched: search === "foo",
         cursorRetryExhausted: false,
@@ -768,6 +1293,12 @@ describe("voice-call property search aliases", () => {
           document.querySelectorAll("[data-filter-property-option]"),
         ).map((option) => option.dataset.filterPropertyOption),
       ).toEqual(["foo", "foo_archive"]);
+      expect(
+        screen.getByLabelText("Attributes property count"),
+      ).toHaveTextContent("3");
+      const exactAllCount =
+        screen.getByLabelText("All property count").textContent;
+      expect(Number(exactAllCount)).toBeGreaterThanOrEqual(3);
       expect(exactAttributePropertiesMock).toHaveBeenCalledWith(
         expect.objectContaining({
           projectId: `project-${surface}`,
@@ -775,9 +1306,7 @@ describe("voice-call property search aliases", () => {
           source: expectedAttributeSource,
         }),
       );
-      fireEvent.click(
-        screen.getByRole("button", { name: "Load more attributes" }),
-      );
+      triggerPropertyPageIntersection();
       expect(fetchNextPage).toHaveBeenCalledOnce();
 
       data = [
@@ -799,11 +1328,636 @@ describe("voice-call property search aliases", () => {
         ).map((option) => option.dataset.filterPropertyOption),
       ).toEqual(["foo", "foo_archive", "foo.bar"]);
       expect(
-        screen.queryByRole("button", { name: "Load more attributes" }),
+        screen.getByLabelText("Attributes property count"),
+      ).toHaveTextContent("3");
+      expect(screen.getByLabelText("All property count")).toHaveTextContent(
+        exactAllCount,
+      );
+      expect(
+        document.querySelector("[data-filter-property-page-sentinel]"),
       ).not.toBeInTheDocument();
       document.body.removeChild(anchorEl);
     },
   );
+
+  it("shows an unknown attribute total instead of a growing loaded-page count", () => {
+    let data = [
+      {
+        id: "recent.attribute",
+        name: "recent.attribute",
+        category: "attribute",
+        type: "string",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+    ];
+    exactAttributePropertiesMock.mockImplementation(() => ({
+      data,
+      isFetching: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextExactPage: vi.fn(),
+      hasNextExactPage: false,
+      isFetchingExactSearch: false,
+      isFetchingNextExactPage: false,
+      isFetchNextPageError: false,
+      exactSearchError: null,
+      queryReadState: "complete",
+      browseStatus: "continuation",
+      totalCount: null,
+      pageCount: data.length,
+      exactSearchMatched: false,
+      cursorRetryExhausted: false,
+      debouncedSearch: "",
+      refetch: vi.fn(),
+    }));
+
+    const { anchorEl, rerenderPanel } = renderPanel({
+      properties: getTraceFilterFields("trace").map((field) =>
+        toStaticFilterProperty(field),
+      ),
+      projectId: "project-count-unknown",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    expect(
+      screen.getByLabelText("Attributes property count unavailable"),
+    ).toHaveTextContent("…");
+    expect(
+      screen.getByLabelText("All property count unavailable"),
+    ).toHaveTextContent("…");
+
+    data = [
+      ...data,
+      {
+        id: "older.attribute",
+        name: "older.attribute",
+        category: "attribute",
+        type: "string",
+        apiColType: "SPAN_ATTRIBUTE",
+      },
+    ];
+    rerenderPanel();
+
+    expect(
+      screen.getByLabelText("Attributes property count unavailable"),
+    ).toHaveTextContent("…");
+    document.body.removeChild(anchorEl);
+  });
+
+  it("renders an exact zero attribute total", () => {
+    const { anchorEl } = renderPanel({
+      properties: getTraceFilterFields("trace").map((field) =>
+        toStaticFilterProperty(field),
+      ),
+      projectId: "project-zero-attributes",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("0");
+    document.body.removeChild(anchorEl);
+  });
+
+  it("renders the exact project-scoped category breakdown from the catalog", () => {
+    propertyCatalogMock.mockReturnValue({
+      metrics: [],
+      categoryCounts: {
+        all: 333,
+        system_metric: 111,
+        eval_metric: 22,
+        annotation_metric: 10,
+        custom_attribute: 190,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    });
+    const { anchorEl } = renderPanel({
+      projectId: "project-exact-counts",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+
+    expect(screen.getByLabelText("All property count")).toHaveTextContent(
+      "333",
+    );
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "111",
+    );
+    expect(screen.getByLabelText("Evals property count")).toHaveTextContent(
+      "22",
+    );
+    expect(
+      screen.getByLabelText("Annotations property count"),
+    ).toHaveTextContent("10");
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("190");
+    document.body.removeChild(anchorEl);
+  });
+
+  it("retains exact base counts while a category page is loading", () => {
+    propertyCatalogMock.mockImplementation(({ category = "" }) => ({
+      metrics: [],
+      categoryCounts: category
+        ? null
+        : {
+            all: 436,
+            system_metric: 53,
+            eval_metric: 0,
+            annotation_metric: 3,
+            custom_attribute: 380,
+            custom_column: 0,
+          },
+      categoryCountsExact: !category,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: Boolean(category),
+      isFetching: Boolean(category),
+      isError: false,
+      isSuccess: !category,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-loading-counts",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.click(screen.getByText("Annotations"));
+
+    expect(screen.getByLabelText("All property count")).toHaveTextContent(
+      "436",
+    );
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "53",
+    );
+    expect(
+      screen.getByLabelText("Annotations property count"),
+    ).toHaveTextContent("3");
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("380");
+    document.body.removeChild(anchorEl);
+  });
+
+  it("keeps base counts invariant after a category page settles", () => {
+    propertyCatalogMock.mockImplementation(({ category = "" }) => ({
+      metrics: [],
+      // A scoped response can be served from a stale or mismatched cache
+      // during a rolling deployment. Category navigation must not let it
+      // replace the exact totals owned by the unfiltered base scope.
+      categoryCounts: category
+        ? {
+            all: 258,
+            system_metric: 36,
+            eval_metric: 0,
+            annotation_metric: 0,
+            custom_attribute: 222,
+            custom_column: 0,
+          }
+        : {
+            all: 275,
+            system_metric: 53,
+            eval_metric: 0,
+            annotation_metric: 0,
+            custom_attribute: 222,
+            custom_column: 0,
+          },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-settled-counts",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.click(screen.getByText("System"));
+
+    expect(screen.getByLabelText("All property count")).toHaveTextContent(
+      "275",
+    );
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "53",
+    );
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("222");
+    document.body.removeChild(anchorEl);
+  });
+
+  it.each(GLOBAL_CATALOG_SEARCH_CASES)(
+    "keeps omitted global $search visible in Basic search and category counts",
+    async ({
+      search,
+      source,
+      tab,
+      initialMetrics,
+      optionId,
+      categoryName,
+      categoryCountLabel,
+    }) => {
+      propertyCatalogMock.mockImplementation(({ search: catalogSearch = "" }) =>
+        settledPropertyCatalog({
+          metrics: catalogSearch ? [] : initialMetrics,
+          categoryCounts: catalogSearch
+            ? {
+                all: 0,
+                system_metric: 0,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 0,
+                custom_column: 0,
+              }
+            : undefined,
+        }),
+      );
+      const { anchorEl } = renderPanel({
+        projectId: `project-global-${search.toLowerCase()}`,
+        source,
+        tab,
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Property" }));
+      fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+        target: { value: search },
+      });
+
+      await waitFor(() =>
+        expect(propertyCatalogMock).toHaveBeenCalledWith(
+          expect.objectContaining({ search }),
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          document.querySelector(`[data-filter-property-option="${optionId}"]`),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("1");
+      expect(screen.getByLabelText("All property count")).toHaveTextContent(
+        "1",
+      );
+      expect(screen.getByLabelText(categoryCountLabel)).toHaveTextContent("1");
+
+      fireEvent.click(screen.getByText(categoryName));
+      await waitFor(() =>
+        expect(
+          document.querySelector(`[data-filter-property-option="${optionId}"]`),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("1");
+      document.body.removeChild(anchorEl);
+    },
+  );
+
+  it("uses the activated catalog for trace attributes, text search, and pagination", async () => {
+    const fetchNextSearchPage = vi.fn();
+    exactAttributePropertiesMock.mockClear();
+    propertyCatalogMock.mockImplementation(({ search = "" }) => {
+      const searching = search === "rare.attribute";
+      return {
+        metrics: [
+          {
+            property_id: searching
+              ? "custom_attribute:rare.attribute"
+              : "custom_attribute:catalog.attribute",
+            name: searching ? "rare.attribute" : "catalog.attribute",
+            display_name: searching ? "rare.attribute" : "catalog.attribute",
+            category: "custom_attribute",
+            source: "traces",
+            sources: ["traces"],
+            type: "string",
+          },
+        ],
+        categoryCounts: {
+          all: 1,
+          system_metric: 0,
+          eval_metric: 0,
+          annotation_metric: 0,
+          custom_attribute: 1,
+          custom_column: 0,
+        },
+        categoryCountsExact: true,
+        legacyFallbackRequired: false,
+        error: null,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        isSuccess: true,
+        hasNextPage: searching,
+        continuationKey: searching ? "catalog:rare-attribute-cursor-2" : null,
+        isFetchingNextPage: false,
+        isFetchNextPageError: false,
+        cursorChainStopped: false,
+        fetchNextPage: searching ? fetchNextSearchPage : vi.fn(),
+        data: { pages: [] },
+      };
+    });
+
+    const { anchorEl } = renderPanel({
+      projectId: "project-catalog-search",
+      source: "traces",
+      tab: "trace",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+
+    expect(screen.getByText("catalog.attribute")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Attributes"));
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "custom_attribute",
+        projectIds: ["project-catalog-search"],
+        pageSize: 20,
+        enabled: true,
+      }),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "rare.attribute" },
+    });
+
+    expect(await screen.findByText("rare.attribute")).toBeInTheDocument();
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: ["project-catalog-search"],
+        source: "traces",
+        search: "rare.attribute",
+        pageSize: 20,
+        enabled: true,
+      }),
+    );
+    expect(screen.getByLabelText("All property count")).toHaveTextContent("1");
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("1");
+
+    triggerPropertyPageIntersection();
+    expect(fetchNextSearchPage).toHaveBeenCalledOnce();
+    expect(
+      exactAttributePropertiesMock.mock.calls.some(
+        ([request]) => request.enabled === true,
+      ),
+    ).toBe(false);
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("keeps exact All search counts and category isolation for voice-call cost fields", async () => {
+    const systemCost = {
+      property_id: "system_metric:cost_cents",
+      name: "cost_cents",
+      display_name: "Cost",
+      category: "system_metric",
+      source: "voice_calls",
+      sources: ["voice_calls"],
+      type: "number",
+    };
+    const costAttributes = [
+      "cost_breakdown.analysisCost",
+      "cost_breakdown.ttsCost",
+    ].map((name) => ({
+      property_id: `custom_attribute:${name}`,
+      name,
+      display_name: name,
+      category: "custom_attribute",
+      source: "voice_calls",
+      sources: ["voice_calls"],
+      type: "number",
+    }));
+    propertyCatalogMock.mockImplementation(({ category = "", search = "" }) => {
+      const searching = search === "cost";
+      const attributePage = category === "custom_attribute";
+      return {
+        metrics: searching
+          ? attributePage
+            ? costAttributes
+            : [systemCost, ...costAttributes]
+          : [],
+        categoryCounts: searching
+          ? attributePage
+            ? {
+                all: 30,
+                system_metric: 1,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 29,
+                custom_column: 0,
+              }
+            : {
+                all: 35,
+                system_metric: 6,
+                eval_metric: 0,
+                annotation_metric: 0,
+                custom_attribute: 29,
+                custom_column: 0,
+              }
+          : {
+              all: 35,
+              system_metric: 6,
+              eval_metric: 0,
+              annotation_metric: 0,
+              custom_attribute: 29,
+              custom_column: 0,
+            },
+        categoryCountsExact: true,
+        legacyFallbackRequired: false,
+        error: null,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        isSuccess: true,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        isFetchNextPageError: false,
+        cursorChainStopped: false,
+        fetchNextPage: vi.fn(),
+        data: { pages: [] },
+      };
+    });
+    const { anchorEl } = renderPanel({
+      projectId: "00000000-0000-4000-8000-000000000035",
+      source: "voice_calls",
+      tab: "voiceCalls",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "cost" },
+    });
+    // Select a category before the debounced All-search response can be
+    // retained in component state. The independent All-search request must
+    // still own the global breakdown.
+    fireEvent.click(screen.getByText("Attributes"));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector(
+          '[data-filter-property-option="cost_breakdown.analysisCost"]',
+        ),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByLabelText("Property search result count"),
+    ).toHaveTextContent("29");
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("All property count")).toHaveTextContent("35");
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "6",
+    );
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("29");
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("All"));
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Property search result count"),
+      ).toHaveTextContent("35"),
+    );
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      ),
+    ).toBeInTheDocument();
+    document.body.removeChild(anchorEl);
+  });
+
+  it("applies propertyFilter to authoritative Basic and Query catalog searches", async () => {
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics: search
+        ? [
+            {
+              property_id: "system_metric:voice_calls:cost_cents",
+              name: "cost_cents",
+              display_name: "Cost",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+            {
+              property_id: "custom_attribute:cost_breakdown.analysisCost",
+              name: "cost_breakdown.analysisCost",
+              display_name: "cost_breakdown.analysisCost",
+              category: "custom_attribute",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+          ]
+        : [],
+      categoryCounts: {
+        all: search ? 2 : 0,
+        system_metric: search ? 1 : 0,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: search ? 1 : 0,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-property-filter-search",
+      source: "voice_calls",
+      tab: "voiceCalls",
+      showQueryTab: true,
+      propertyFilter: (property) => property.category === "attribute",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "cost" },
+    });
+    const attributeOption = await waitFor(() => {
+      const option = document.querySelector(
+        '[data-filter-property-option="cost_breakdown.analysisCost"]',
+      );
+      expect(option).toBeInTheDocument();
+      return option;
+    });
+    expect(
+      document.querySelector('[data-filter-property-option="cost_cents"]'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(attributeOption);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const queryInput = screen.getByRole("combobox");
+    fireEvent.focus(queryInput);
+    fireEvent.change(queryInput, { target: { value: "cost" } });
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("cost_breakdown.analysisCost").length,
+      ).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText("Cost")).not.toBeInTheDocument();
+    document.body.removeChild(anchorEl);
+  });
 
   it("resets a browsed category when property search starts", () => {
     const { anchorEl } = renderPanel({
@@ -827,6 +1981,16 @@ describe("voice-call property search aliases", () => {
 
     expect(
       document.querySelector('[data-filter-property-option="call_id"]'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Attributes"));
+    expect(
+      document.querySelector('[data-filter-property-option="call_id"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector(
+        '[data-filter-property-option="conversation.transcript.0.tool_calls.0.tool_call.id"]',
+      ),
     ).toBeInTheDocument();
     document.body.removeChild(anchorEl);
   });
@@ -863,7 +2027,7 @@ describe("voice-call property search aliases", () => {
         metricName: "call_status",
         metricType: "system_metric",
         source: "traces",
-        pageSize: 10,
+        pageSize: FILTER_VALUE_PAGE_SIZE,
         enabled: false,
       }),
     );
@@ -1029,6 +2193,69 @@ describe("voice-call property parity", () => {
     );
   });
 
+  it("keeps supplied filterField category and registry identity", () => {
+    expect(
+      mergeTraceFilterProperties({
+        propertyNamespace: "users",
+        filterFields: [
+          {
+            id: "review_label",
+            name: "Review Label",
+            category: "annotation",
+            apiColType: "ANNOTATION",
+            registryId: "annotation:review-label-id",
+            type: "categorical",
+          },
+        ],
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        id: "review_label",
+        registryId: "annotation:review-label-id",
+        category: "annotation",
+        apiColType: "ANNOTATION",
+      }),
+    );
+  });
+
+  it("uses surface namespaces without changing the native value source", () => {
+    expect(
+      mergeTraceFilterProperties({ tab: "voiceCalls", source: "traces" }).find(
+        (property) => property.id === "ended_reason",
+      ),
+    ).toMatchObject({
+      registryId: "system_attribute:voice_calls:ended_reason",
+    });
+    expect(
+      mergeTraceFilterProperties({
+        source: "sessions",
+        propertyNamespace: "users",
+        filterFields: [{ id: "user_id", name: "User ID" }],
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        id: "user_id",
+        registryId: "system_attribute:users:user_id",
+      }),
+    );
+  });
+
+  it("keeps the Sessions property identity stable across native value aliases", () => {
+    expect(
+      mergeTraceFilterProperties({
+        source: "sessions",
+        filterFields: [{ id: "session_id", name: "Session ID" }],
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        id: "session_id",
+        registryId: "system_attribute:sessions:session",
+        category: "system",
+        apiColType: "SYSTEM_METRIC",
+      }),
+    );
+  });
+
   it("deduplicates dashboard system aliases while retaining raw attributes", () => {
     const merged = mergeTraceFilterProperties({
       tab: "voiceCalls",
@@ -1151,6 +2378,15 @@ describe("voice-call property parity", () => {
     expect(findTraceFilterProperty(merged, attributeRow)).toMatchObject({
       category: "attribute",
       apiColType: "SPAN_ATTRIBUTE",
+    });
+    expect(
+      findTraceFilterProperty(merged, {
+        field: "cost_cents",
+        registryId: "custom_attribute:cost_cents",
+      }),
+    ).toMatchObject({
+      registryId: "custom_attribute:cost_cents",
+      category: "attribute",
     });
     expect([
       buildApiFilterFromPanelRow(systemRow),
@@ -1319,6 +2555,142 @@ describe("voice-call property parity", () => {
 });
 
 describe("exact manual attribute fallback", () => {
+  it("requests the unified trace catalog as a source-scoped page of 20", () => {
+    propertyCatalogMock.mockReturnValue({
+      legacyFallbackRequired: false,
+      metrics: [],
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+    });
+
+    const { anchorEl } = renderPanel({
+      projectId: "project-source-scope",
+      source: "traces",
+    });
+
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: ["project-source-scope"],
+        source: "traces",
+        pageSize: 20,
+        perEvalConfig: true,
+      }),
+    );
+    document.body.removeChild(anchorEl);
+  });
+
+  it("keeps unified voice definition, search, and category pages voice-scoped", async () => {
+    propertyCatalogMock.mockImplementation(({ search = "" }) => {
+      const searchingEndedReason = search === "ended_reason";
+      return {
+        legacyFallbackRequired: false,
+        metrics: searchingEndedReason
+          ? [
+              {
+                property_id: "system_attribute:voice_calls:ended_reason",
+                name: "ended_reason",
+                display_name: "Ended Reason",
+                category: "system_metric",
+                source: "voice_calls",
+                sources: ["system", "voice_calls", "ended_reason"],
+                type: "string",
+              },
+            ]
+          : [],
+        categoryCounts: searchingEndedReason
+          ? {
+              all: 1,
+              system_metric: 1,
+              eval_metric: 0,
+              annotation_metric: 0,
+              custom_attribute: 0,
+              custom_column: 0,
+            }
+          : {
+              all: 81,
+              system_metric: 31,
+              eval_metric: 0,
+              annotation_metric: 0,
+              custom_attribute: 50,
+              custom_column: 0,
+            },
+        categoryCountsExact: true,
+        error: null,
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        isFetchNextPageError: false,
+        cursorChainStopped: false,
+        fetchNextPage: vi.fn(),
+        data: { pages: [] },
+      };
+    });
+
+    const { anchorEl } = renderPanel({
+      projectId: "project-voice-source-scope",
+      source: "traces",
+      tab: "voiceCalls",
+    });
+
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: ["project-voice-source-scope"],
+        source: "voice_calls",
+        pageSize: 20,
+        perEvalConfig: true,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.click(screen.getByText("Attributes"));
+
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "custom_attribute",
+        projectIds: ["project-voice-source-scope"],
+        source: "voice_calls",
+        pageSize: 20,
+        enabled: true,
+      }),
+    );
+    expect(screen.getByLabelText("All property count")).toHaveTextContent("81");
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("50");
+
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "ended_reason" },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("All property count")).toHaveTextContent(
+        "1",
+      ),
+    );
+    expect(screen.getByLabelText("System property count")).toHaveTextContent(
+      "1",
+    );
+    expect(
+      screen.getByLabelText("Attributes property count"),
+    ).toHaveTextContent("0");
+    await waitFor(() =>
+      expect(propertyCatalogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectIds: ["project-voice-source-scope"],
+          source: "voice_calls",
+          search: "ended_reason",
+          pageSize: 20,
+          enabled: true,
+        }),
+      ),
+    );
+    document.body.removeChild(anchorEl);
+  });
+
   it("keeps property selection usable and prefetches retained keys while the catalog is pending", async () => {
     let resolveCatalog;
     const pendingCatalog = new Promise((resolve) => {
@@ -1335,21 +2707,27 @@ describe("exact manual attribute fallback", () => {
     });
 
     await waitFor(() =>
-      expect(getSpy).toHaveBeenCalledWith(endpoints.dashboard.metrics, {
-        params: expect.objectContaining({
-          project_ids: "project-whatfix",
-          per_eval_config: true,
-          exclude_custom_attributes: true,
+      expect(getSpy).toHaveBeenCalledWith(
+        endpoints.dashboard.metrics,
+        expect.objectContaining({
+          params: expect.objectContaining({
+            page: 1,
+            page_size: 200,
+            project_ids: "project-whatfix",
+            per_eval_config: true,
+            exclude_custom_attributes: true,
+          }),
+          signal: expect.any(AbortSignal),
         }),
-      }),
+      ),
     );
 
-    expect(
-      screen.getByText(
-        "Loading additional evaluation and annotation properties…",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loading properties…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Property" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    expect(
+      screen.getByPlaceholderText("Search properties..."),
+    ).toBeInTheDocument();
     expect(exactAttributePropertiesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-whatfix",
@@ -1359,24 +2737,15 @@ describe("exact manual attribute fallback", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Property" }));
-    expect(
-      screen.getByPlaceholderText("Search properties..."),
-    ).toBeInTheDocument();
-
     resolveCatalog({ data: { result: { metrics: [] } } });
     await waitFor(() =>
-      expect(
-        screen.queryByText(
-          "Loading additional evaluation and annotation properties…",
-        ),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText("Loading properties…")).not.toBeInTheDocument(),
     );
     getSpy.mockRestore();
     document.body.removeChild(anchorEl);
   });
 
-  it("decouples retained key discovery from session value semantics", () => {
+  it("routes session custom-attribute values through their trace fact store", () => {
     dashboardFilterValuesMock.mockClear();
     exactAttributePropertiesMock.mockClear();
     const finalStatus = {
@@ -1384,6 +2753,7 @@ describe("exact manual attribute fallback", () => {
       name: "final_status",
       category: "attribute",
       rawCategory: "custom_attribute",
+      registryId: "custom_attribute:final_status",
       type: "string",
       attributeTypes: ["string"],
       attributeTypesExact: false,
@@ -1417,7 +2787,7 @@ describe("exact manual attribute fallback", () => {
       expect.objectContaining({
         metricName: "final_status",
         metricType: "custom_attribute",
-        source: "sessions",
+        source: "traces",
       }),
     );
 
@@ -1432,6 +2802,7 @@ describe("exact manual attribute fallback", () => {
       name: "final_status",
       category: "attribute",
       rawCategory: "custom_attribute",
+      registryId: "custom_attribute:final_status",
       type: "string",
       attributeTypes: ["string"],
       attributeTypesExact: false,
@@ -1574,6 +2945,7 @@ describe("exact manual attribute fallback", () => {
       name: "final_status",
       category: "attribute",
       rawCategory: "custom_attribute",
+      registryId: "custom_attribute:final_status",
       type: "string",
       apiColType: "SPAN_ATTRIBUTE",
       isManualExactAttribute: true,
@@ -1614,6 +2986,7 @@ describe("exact manual attribute fallback", () => {
       name: "cost_cents",
       category: "attribute",
       rawCategory: "custom_attribute",
+      registryId: "custom_attribute:cost_cents",
       type: "string",
       apiColType: "SPAN_ATTRIBUTE",
       isManualExactAttribute: true,
@@ -1649,6 +3022,7 @@ describe("exact manual attribute fallback", () => {
       isFetchingNextPage: false,
       fetchNextExactPage,
       hasNextExactPage: true,
+      continuationKey: "exact:prompt-slug-cursor-2",
       isFetchingExactSearch: false,
       isFetchingNextExactPage: false,
       isFetchNextPageError: false,
@@ -1678,11 +3052,11 @@ describe("exact manual attribute fallback", () => {
     expect(screen.queryByText("No properties found")).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "No matching attribute found yet. Continue searching older attributes.",
+        "No matching attribute found yet. Older attributes load automatically at the end of this list.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Continue searching attributes" }),
+      document.querySelector("[data-filter-property-page-sentinel]"),
     ).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
@@ -1742,7 +3116,7 @@ describe("exact manual attribute fallback", () => {
     },
   );
 
-  it("coalesces exact-search scroll and button gestures into one continuation", () => {
+  it("coalesces exact-search scroll and button gestures into one continuation", async () => {
     let resolveExactPage;
     const exactPage = new Promise((resolve) => {
       resolveExactPage = resolve;
@@ -1763,6 +3137,7 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:recent-cursor-2",
       isFetchingNextPage: false,
       fetchNextExactPage,
       hasNextExactPage: true,
@@ -1798,14 +3173,15 @@ describe("exact manual attribute fallback", () => {
 
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue searching attributes" }),
-    );
+    triggerPropertyPageIntersection();
 
     expect(fetchNextExactPage).toHaveBeenCalledOnce();
     expect(fetchNextPage).not.toHaveBeenCalled();
 
-    resolveExactPage();
+    await act(async () => {
+      resolveExactPage();
+      await exactPage;
+    });
     document.body.removeChild(anchorEl);
   });
 
@@ -1839,9 +3215,15 @@ describe("exact manual attribute fallback", () => {
       document.querySelector('[data-filter-property-option="retained_500"]'),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show 10 more properties" }),
+    const propertyList = document.querySelector(
+      "[data-filter-property-options-list]",
     );
+    Object.defineProperties(propertyList, {
+      scrollTop: { configurable: true, value: 280 },
+      clientHeight: { configurable: true, value: 220 },
+      scrollHeight: { configurable: true, value: 500 },
+    });
+    fireEvent.scroll(propertyList);
     const finalLoadedProperty = document.querySelector(
       '[data-filter-property-option="retained_509"]',
     );
@@ -1854,12 +3236,10 @@ describe("exact manual attribute fallback", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("loads one cursor page per natural downward gesture without draining or requiring an up-scroll", () => {
+  it("advances one server cursor page when the list reaches its end", () => {
     const fetchNextPage = vi.fn();
-    let attributeCount = 10;
-    let pageCount = 1;
     exactAttributePropertiesMock.mockImplementation(() => ({
-      data: Array.from({ length: attributeCount }, (_, index) => ({
+      data: Array.from({ length: 20 }, (_, index) => ({
         id: `recent_${index}`,
         name: `recent_${index}`,
         category: "attribute",
@@ -1870,14 +3250,15 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:short-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
       browseStatus: "continuation",
-      pageCount,
+      pageCount: 1,
       debouncedSearch: "",
     }));
-    const { anchorEl, rerenderPanel } = renderPanel({ properties: [] });
+    const { anchorEl } = renderPanel({ properties: [] });
 
     fireEvent.click(screen.getByRole("button", { name: "Property" }));
     const propertyList = document.querySelector(
@@ -1891,40 +3272,18 @@ describe("exact manual attribute fallback", () => {
     });
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
-
+    fireEvent.scroll(propertyList);
+    triggerPropertyPageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
-    // A successful page adds rows. The next downward gesture may advance from
-    // the new bottom directly; no artificial up-scroll is needed.
-    attributeCount = 20;
-    pageCount = 2;
-    rerenderPanel();
-    Object.defineProperty(propertyList, "scrollTop", {
-      configurable: true,
-      value: 380,
-    });
-    Object.defineProperty(propertyList, "scrollHeight", {
-      configurable: true,
-      value: 600,
-    });
+    // Momentum/layout scroll events after the page request must remain inert.
     fireEvent.scroll(propertyList);
     fireEvent.scroll(propertyList);
-    expect(fetchNextPage).toHaveBeenCalledTimes(2);
-
-    // An exact empty continuation still increments the page revision. It must
-    // unlock one further gesture without auto-draining every remaining page.
-    pageCount = 3;
-    rerenderPanel();
-    fireEvent.scroll(propertyList);
-    fireEvent.scroll(propertyList);
-    expect(fetchNextPage).toHaveBeenCalledTimes(3);
-    expect(
-      screen.queryByText(/results are incomplete/i),
-    ).not.toBeInTheDocument();
+    expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
 
-  it("offers an explicit fallback when attribute scrolling cannot advance", () => {
+  it("loads a short attribute page when its end sentinel is visible", () => {
     const fetchNextPage = vi.fn();
     exactAttributePropertiesMock.mockReturnValue({
       data: [
@@ -1940,6 +3299,7 @@ describe("exact manual attribute fallback", () => {
       isFetching: false,
       fetchNextPage,
       hasNextPage: true,
+      continuationKey: "retained:short-cursor-2",
       isFetchingNextPage: false,
       isFetchNextPageError: false,
       queryReadState: "complete",
@@ -1948,9 +3308,7 @@ describe("exact manual attribute fallback", () => {
     const { anchorEl } = renderPanel({ properties: [] });
 
     fireEvent.click(screen.getByRole("button", { name: "Property" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Load more attributes" }),
-    );
+    triggerPropertyPageIntersection();
 
     expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
@@ -2137,6 +3495,115 @@ describe("exact manual attribute fallback", () => {
 
     document.body.removeChild(anchorEl);
   });
+
+  it("loads the next bounded catalog page through the unified control", async () => {
+    const getSpy = vi.spyOn(axios, "get").mockImplementation((url, config) => {
+      if (url !== endpoints.dashboard.metrics) {
+        return Promise.resolve({ data: { result: {} } });
+      }
+      const page = config?.params?.page || 1;
+      return Promise.resolve({
+        data: {
+          result: {
+            metrics: [],
+            page,
+            page_size: 200,
+            has_more: page === 1,
+          },
+        },
+      });
+    });
+
+    const { anchorEl } = renderPanel({
+      projectId: "project-whatfix",
+      source: "traces",
+    });
+
+    await waitFor(() =>
+      expect(getSpy).toHaveBeenCalledWith(
+        endpoints.dashboard.metrics,
+        expect.objectContaining({
+          params: expect.objectContaining({ page: 1, page_size: 200 }),
+        }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-filter-property-page-sentinel]"),
+      ).toBeInTheDocument(),
+    );
+    triggerPropertyPageIntersection();
+
+    await waitFor(() =>
+      expect(getSpy).toHaveBeenCalledWith(
+        endpoints.dashboard.metrics,
+        expect.objectContaining({
+          params: expect.objectContaining({ page: 2, page_size: 200 }),
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-filter-property-page-sentinel]"),
+      ).not.toBeInTheDocument(),
+    );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("hides unrelated catalog continuation for matched and attribute views", async () => {
+    propertyCatalogMock.mockReturnValue({
+      legacyFallbackRequired: false,
+      metrics: [
+        {
+          name: "model",
+          display_name: "Model",
+          category: "system_metric",
+          source: "traces",
+          type: "string",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      error: null,
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      fetchNextPage: vi.fn(),
+    });
+
+    const { anchorEl } = renderPanel({
+      projectId: "project-whatfix",
+      source: "traces",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    const search = screen.getByPlaceholderText("Search properties...");
+    fireEvent.change(search, { target: { value: "model" } });
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-filter-property-option="model"]'),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /eval and annotation properties/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "" } });
+    fireEvent.click(screen.getByText("Attributes"));
+    expect(
+      screen.queryByRole("button", {
+        name: /eval and annotation properties/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    document.body.removeChild(anchorEl);
+  });
 });
 
 describe("filter-value picker bounded-read UX", () => {
@@ -2225,13 +3692,14 @@ describe("filter-value picker bounded-read UX", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("keeps every empty prompt_slug value checkpoint behind an explicit gesture", async () => {
-    const fetchNextPage = vi.fn(() => Promise.resolve());
+  it("auto-advances an empty prompt_slug value checkpoint once", async () => {
+    const fetchNextPage = vi.fn();
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
       data: [],
       browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "prompt-empty-cursor-2",
       fetchNextPage,
     });
     const promptSlugProperty = {
@@ -2264,11 +3732,6 @@ describe("filter-value picker bounded-read UX", () => {
       document.querySelector('[data-filter-value-trigger="prompt_slug"]'),
     );
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Continue searching values" }),
-      ).toBeInTheDocument(),
-    );
     expect(fetchNextPage).not.toHaveBeenCalled();
     rerenderPanel();
     expect(fetchNextPage).not.toHaveBeenCalled();
@@ -2280,9 +3743,11 @@ describe("filter-value picker bounded-read UX", () => {
         "No values found yet. Continue searching or enter an exact value.",
       ),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue searching values" }),
-    );
+    expect(
+      screen.queryByRole("button", { name: /continue searching values/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
     document.body.removeChild(anchorEl);
@@ -2294,7 +3759,7 @@ describe("filter-value picker bounded-read UX", () => {
   ])(
     "lets %s repeat the same selected-property value search in one open picker",
     async (_surface, tab) => {
-      const fetchRejectedPage = vi.fn(() => Promise.resolve());
+      const fetchRejectedPage = vi.fn();
       dashboardFilterValuesMock.mockImplementation((request) => ({
         ...defaultDashboardFilterValues(),
         data: request.search
@@ -2302,6 +3767,9 @@ describe("filter-value picker bounded-read UX", () => {
           : [{ value: "recent", label: "recent", type: "string" }],
         browseStatus: request.search ? "continuation" : "exhausted",
         hasNextPage: Boolean(request.search),
+        continuationKey: request.search
+          ? `search:${request.search}:cursor-2`
+          : null,
         fetchNextPage:
           request.search === "rejected" ? fetchRejectedPage : vi.fn(),
       }));
@@ -2336,27 +3804,63 @@ describe("filter-value picker bounded-read UX", () => {
         document.querySelector('[data-filter-value-trigger="prompt_slug"]'),
       );
       const searchInput = screen.getByPlaceholderText("Search values...");
+      const callsBeforeSearch = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "rejected" } });
-      const firstContinue = await screen.findByRole(
-        "button",
-        { name: "Continue searching values" },
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeSearch)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" &&
+                  request.search === "rejected",
+              ),
+          ).toBe(true);
+        },
         { timeout: 1_500 },
       );
       expect(fetchRejectedPage).not.toHaveBeenCalled();
-      fireEvent.click(firstContinue);
+      triggerValuePageIntersection();
       await waitFor(() => expect(fetchRejectedPage).toHaveBeenCalledOnce());
 
-      // Clear and re-enter immediately, before the 500 ms value-search
-      // debounce can publish the intermediate empty query.
+      // Returning through the empty-search scope remounts the bounded cursor
+      // lane. The same backend cursor may then be attempted once in the new
+      // search session, but never twice inside either session.
+      const callsBeforeClear = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "" } });
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeClear)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" && request.search === "",
+              ),
+          ).toBe(true);
+        },
+        { timeout: 1_500 },
+      );
+      const callsBeforeReentry = dashboardFilterValuesMock.mock.calls.length;
       fireEvent.change(searchInput, { target: { value: "rejected" } });
-      const secondContinue = await screen.findByRole(
-        "button",
-        { name: "Continue searching values" },
+      await waitFor(
+        () => {
+          expect(
+            dashboardFilterValuesMock.mock.calls
+              .slice(callsBeforeReentry)
+              .some(
+                ([request]) =>
+                  request.metricName === "prompt_slug" &&
+                  request.search === "rejected",
+              ),
+          ).toBe(true);
+        },
         { timeout: 1_500 },
       );
       expect(fetchRejectedPage).toHaveBeenCalledOnce();
-      fireEvent.click(secondContinue);
+      triggerValuePageIntersection();
+      triggerValuePageIntersection();
       await waitFor(() => expect(fetchRejectedPage).toHaveBeenCalledTimes(2));
 
       expect(fetchRejectedPage).toHaveBeenCalledTimes(2);
@@ -2373,7 +3877,16 @@ describe("filter-value picker bounded-read UX", () => {
   );
 
   it.each([
-    ["tracing", undefined, "traces", "provider", "Provider", "provider"],
+    [
+      "tracing",
+      undefined,
+      "traces",
+      "provider",
+      "Provider",
+      "provider",
+      "system_attribute:traces:provider",
+      undefined,
+    ],
     [
       "voice",
       "voiceCalls",
@@ -2381,8 +3894,29 @@ describe("filter-value picker bounded-read UX", () => {
       "ended_reason",
       "Ended Reason",
       "ended_reason",
+      "system_attribute:voice_calls:ended_reason",
+      undefined,
     ],
-    ["session", undefined, "sessions", "session_id", "Session ID", "session"],
+    [
+      "session",
+      undefined,
+      "sessions",
+      "session_id",
+      "Session ID",
+      "session",
+      "system_attribute:sessions:session",
+      undefined,
+    ],
+    [
+      "users",
+      undefined,
+      "sessions",
+      "user_id",
+      "User ID",
+      "user_id",
+      "system_attribute:users:user_id",
+      "users",
+    ],
   ])(
     "sends %s Basic system-value search to the cursor backend",
     async (
@@ -2392,6 +3926,8 @@ describe("filter-value picker bounded-read UX", () => {
       propertyId,
       propertyName,
       expectedMetricName,
+      expectedPropertyId,
+      propertyNamespace,
     ) => {
       const property = {
         id: propertyId,
@@ -2416,6 +3952,7 @@ describe("filter-value picker bounded-read UX", () => {
         projectId: `project-system-${_surface}`,
         source,
         tab,
+        propertyNamespace,
       });
 
       fireEvent.click(
@@ -2429,9 +3966,10 @@ describe("filter-value picker bounded-read UX", () => {
         () =>
           expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
             expect.objectContaining({
+              propertyId: expectedPropertyId,
               metricName: expectedMetricName,
               metricType: "system_metric",
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source,
@@ -2517,7 +4055,7 @@ describe("filter-value picker bounded-read UX", () => {
             expect.objectContaining({
               metricName: propertyId,
               metricType,
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source: "traces",
@@ -2536,6 +4074,7 @@ describe("filter-value picker bounded-read UX", () => {
       data: [],
       browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "failed-value-cursor",
       isFetchNextPageError: true,
       fetchNextPage,
     });
@@ -2549,7 +4088,7 @@ describe("filter-value picker bounded-read UX", () => {
     expect(fetchNextPage).not.toHaveBeenCalled();
     expect(
       screen.getByText(
-        "More values could not be loaded. Retry searching below.",
+        "More values could not be loaded. Loaded values remain available.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -2580,41 +4119,65 @@ describe("filter-value picker bounded-read UX", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Query" }));
     await selectQueryPhaseOption("Status", "pick operator...");
     await selectQueryPhaseOption("Contains", "type or pick value...");
-    fireEvent.click(await screen.findByText("Retry loading values"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
 
     expect(retryFreshPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
 
-  it("loads the next value page when the options list reaches the bottom", () => {
-    const fetchNextPage = vi.fn();
-    dashboardFilterValuesMock.mockReturnValue({
+  it("loads each new short-page value continuation once while the end stays visible", async () => {
+    const fetchNextPage = vi.fn().mockResolvedValue(undefined);
+    let currentResult = {
       ...defaultDashboardFilterValues(),
       data: [{ value: "completed", label: "completed" }],
+      browseStatus: "continuation",
       hasNextPage: true,
+      continuationKey: "value-cursor-2",
       fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
+    };
+    dashboardFilterValuesMock.mockImplementation(() => currentResult);
+    const { anchorEl, rerenderPanel } = renderPanel({
       currentFilters,
       properties: [statusProperty],
     });
 
     openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-    fireEvent.scroll(optionsList);
-
+    expect(
+      screen.queryByRole("button", { name: /load more/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Searching more values…"),
+      ).not.toBeInTheDocument(),
+    );
+
+    currentResult = {
+      ...currentResult,
+      data: [
+        { value: "completed", label: "completed" },
+        { value: "failed", label: "failed" },
+      ],
+      continuationKey: "value-cursor-3",
+    };
+    rerenderPanel();
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalledTimes(2));
+
+    triggerValuePageIntersection();
+    rerenderPanel();
+    expect(fetchNextPage).toHaveBeenCalledTimes(2);
+
     document.body.removeChild(anchorEl);
   });
 
-  it("hides a stale Load more control after exhaustion proves no next value", () => {
+  it("does not paginate after terminal browse metadata proves exhaustion", () => {
     const fetchNextPage = vi.fn();
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
@@ -2624,6 +4187,7 @@ describe("filter-value picker bounded-read UX", () => {
       // metadata must win.
       browseStatus: "exhausted",
       hasNextPage: true,
+      continuationKey: "stale-value-cursor",
       fetchNextPage,
     });
     const { anchorEl } = renderPanel({
@@ -2634,30 +4198,21 @@ describe("filter-value picker bounded-read UX", () => {
     openValuePicker();
     expect(screen.getByText("CONVERSATION")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Load more" }),
+      screen.queryByTestId("filter-value-pagination-sentinel"),
     ).not.toBeInTheDocument();
-
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-    fireEvent.scroll(optionsList);
     expect(fetchNextPage).not.toHaveBeenCalled();
 
     document.body.removeChild(anchorEl);
   });
 
-  it("keeps Load more actionable at a resumable limit_reached checkpoint", () => {
-    const fetchNextPage = vi.fn();
+  it("auto-loads a resumable limit_reached continuation without manual UI", () => {
+    const fetchNextPage = vi.fn(() => new Promise(() => {}));
     dashboardFilterValuesMock.mockReturnValue({
       ...defaultDashboardFilterValues(),
       data: [{ value: "CONVERSATION", label: "CONVERSATION" }],
       browseStatus: "limit_reached",
       hasNextPage: true,
+      continuationKey: "resume-value-cursor",
       fetchNextPage,
     });
     const { anchorEl } = renderPanel({
@@ -2666,92 +4221,13 @@ describe("filter-value picker bounded-read UX", () => {
     });
 
     openValuePicker();
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    expect(
+      screen.queryByRole("button", { name: /load more/i }),
+    ).not.toBeInTheDocument();
+    triggerValuePageIntersection();
+    triggerValuePageIntersection();
     expect(fetchNextPage).toHaveBeenCalledOnce();
 
-    document.body.removeChild(anchorEl);
-  });
-
-  it("does not drain every value cursor page from one bottom-scroll gesture", () => {
-    const fetchNextPage = vi.fn();
-    dashboardFilterValuesMock.mockReturnValue({
-      ...defaultDashboardFilterValues(),
-      data: [{ value: "completed", label: "completed" }],
-      hasNextPage: true,
-      fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
-      currentFilters,
-      properties: [statusProperty],
-    });
-
-    openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-
-    // Inertial scrolling can emit more bottom events after a fast page has
-    // resolved. Only the first event may auto-advance this open picker.
-    fireEvent.scroll(optionsList);
-    fireEvent.scroll(optionsList);
-    fireEvent.scroll(optionsList);
-    expect(fetchNextPage).toHaveBeenCalledOnce();
-
-    // Leaving the edge and deliberately returning is a new pagination
-    // gesture, so scroll-to-load continues to work page by page.
-    Object.defineProperty(optionsList, "scrollTop", {
-      configurable: true,
-      value: 80,
-    });
-    fireEvent.scroll(optionsList);
-    Object.defineProperty(optionsList, "scrollTop", {
-      configurable: true,
-      value: 180,
-    });
-    fireEvent.scroll(optionsList);
-    expect(fetchNextPage).toHaveBeenCalledTimes(2);
-
-    // Exact continuation remains explicitly available; this is not a result
-    // cap and does not hide later unique values.
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-    expect(fetchNextPage).toHaveBeenCalledTimes(3);
-
-    document.body.removeChild(anchorEl);
-  });
-
-  it("coalesces scroll and Load more while the same value page is in flight", () => {
-    const fetchNextPage = vi.fn(() => new Promise(() => {}));
-    dashboardFilterValuesMock.mockReturnValue({
-      ...defaultDashboardFilterValues(),
-      data: [{ value: "completed", label: "completed" }],
-      hasNextPage: true,
-      fetchNextPage,
-    });
-    const { anchorEl } = renderPanel({
-      currentFilters,
-      properties: [statusProperty],
-    });
-
-    openValuePicker();
-    const optionsList = document.querySelector(
-      "[data-filter-value-options-list]",
-    );
-    Object.defineProperties(optionsList, {
-      scrollTop: { configurable: true, value: 180 },
-      clientHeight: { configurable: true, value: 220 },
-      scrollHeight: { configurable: true, value: 400 },
-    });
-
-    fireEvent.scroll(optionsList);
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-
-    expect(fetchNextPage).toHaveBeenCalledOnce();
     document.body.removeChild(anchorEl);
   });
 
@@ -2780,6 +4256,89 @@ describe("filter-value picker bounded-read UX", () => {
     const applied = onApply.mock.calls.at(-1)[0][0];
     expect(applied.value).toEqual(["1", 1, true]);
     expect(applied.valueTypes).toEqual(["string", "number", "boolean"]);
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it.each([
+    ["normal", "manual-completed"],
+    ["between 4 and 16 KiB", "x".repeat(FILTER_STRING_MAX_UTF8_BYTES + 1)],
+    ["at 16 KiB", "é".repeat(TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2)],
+  ])(
+    "preserves string provenance for a %s free-typed exact attribute value",
+    async (_case, exactValue) => {
+      const onApply = vi.fn();
+      const { anchorEl } = renderPanel({
+        currentFilters,
+        properties: [statusProperty],
+        onApply,
+      });
+
+      openValuePicker();
+      fireEvent.change(screen.getByPlaceholderText("Search values..."), {
+        target: { value: exactValue },
+      });
+      const exactOption = document.querySelector("[data-filter-value-option]");
+      expect(exactOption).toHaveAttribute(
+        "data-filter-value-option",
+        exactValue,
+      );
+      fireEvent.click(exactOption);
+
+      await waitFor(() => expect(onApply).toHaveBeenCalled());
+      const applied = onApply.mock.calls.at(-1)[0][0];
+      expect(applied).toMatchObject({
+        field: "call.status",
+        fieldCategory: "attribute",
+        apiColType: "SPAN_ATTRIBUTE",
+        value: [exactValue],
+        valueTypes: ["string"],
+      });
+      expect(buildApiFilterFromPanelRow(applied).filter_config).toMatchObject({
+        filter_value: [exactValue],
+        attribute_value_types: ["string"],
+      });
+
+      document.body.removeChild(anchorEl);
+    },
+  );
+
+  it("blocks an oversized exact attribute value before search or apply", async () => {
+    const oversizedValue = `${"é".repeat(
+      TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES / 2,
+    )}x`;
+    const onApply = vi.fn();
+    const { anchorEl } = renderPanel({
+      currentFilters,
+      properties: [statusProperty],
+      onApply,
+    });
+
+    openValuePicker();
+    const callsBeforeInput = dashboardFilterValuesMock.mock.calls.length;
+    fireEvent.change(screen.getByPlaceholderText("Search values..."), {
+      target: { value: oversizedValue },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Exact values are limited to 16 KiB (16,384 UTF-8 bytes).",
+    );
+    expect(
+      document.querySelector("[data-filter-value-option]"),
+    ).not.toBeInTheDocument();
+    expect(onApply).not.toHaveBeenCalled();
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 550)));
+    const requestsAfterInput = dashboardFilterValuesMock.mock.calls
+      .slice(callsBeforeInput)
+      .map(([request]) => request);
+    expect(
+      requestsAfterInput.every(
+        ({ search, searchGesture }) =>
+          search !== oversizedValue && searchGesture !== oversizedValue,
+      ),
+    ).toBe(true);
+    expect(onApply).not.toHaveBeenCalled();
 
     document.body.removeChild(anchorEl);
   });
@@ -2824,7 +4383,7 @@ describe("filter-value picker bounded-read UX", () => {
             metricName: "call.status",
             metricType: "custom_attribute",
             search: "number",
-            pageSize: 10,
+            pageSize: FILTER_VALUE_PAGE_SIZE,
           }),
         ),
       { timeout: 1_200 },
@@ -2887,6 +4446,49 @@ describe("filter-value picker bounded-read UX", () => {
       field: "call.status",
       value: [2],
       valueTypes: ["number"],
+    });
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("retains an off-page attribute registry identity through Query editing", async () => {
+    dashboardFilterValuesMock.mockReturnValue({
+      ...defaultDashboardFilterValues(),
+      data: [{ value: "new", label: "new", type: "string" }],
+    });
+    const onApply = vi.fn();
+    const { anchorEl } = renderPanel({
+      currentFilters: [
+        {
+          field: "rare.attribute",
+          registryId: "custom_attribute:rare.attribute",
+          fieldName: "Rare attribute",
+          fieldCategory: "attribute",
+          fieldType: "string",
+          apiColType: "SPAN_ATTRIBUTE",
+          operator: "contains",
+          value: ["old"],
+          valueTypes: ["string"],
+        },
+      ],
+      // Deliberately absent from the current catalog page: the selected row
+      // itself is the only source of its stable identity.
+      properties: [],
+      onApply,
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    fireEvent.click(await screen.findByText("Rare attribute contains old"));
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "new" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply.mock.calls.at(-1)[0][0]).toMatchObject({
+      field: "rare.attribute",
+      registryId: "custom_attribute:rare.attribute",
+      value: ["new"],
     });
 
     document.body.removeChild(anchorEl);
@@ -2963,6 +4565,144 @@ describe("filter-value picker bounded-read UX", () => {
         }),
       ]),
     );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("preserves system, eval, annotation, and attribute filters as one mixed query", async () => {
+    const onApply = vi.fn();
+    const { anchorEl } = renderPanel({
+      currentFilters: [
+        {
+          field: "status",
+          registryId: "system_attribute:traces:status",
+          fieldName: "Status",
+          fieldCategory: "system",
+          fieldType: "string",
+          apiColType: "SYSTEM_METRIC",
+          operator: "in",
+          value: ["OK"],
+        },
+        {
+          field: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          fieldName: "Quality eval",
+          fieldCategory: "eval",
+          fieldType: "categorical",
+          apiColType: "EVAL_METRIC",
+          operator: "in",
+          value: ["passed"],
+        },
+        {
+          field: "annotator",
+          registryId: "annotation:annotator",
+          fieldName: "Annotator",
+          fieldCategory: "annotation",
+          fieldType: "annotator",
+          apiColType: "ANNOTATION",
+          operator: "is_not_null",
+          value: [],
+        },
+        {
+          field: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          fieldName: "Customer plan",
+          fieldCategory: "attribute",
+          fieldType: "string",
+          apiColType: "SPAN_ATTRIBUTE",
+          operator: "contains",
+          value: ["enterprise"],
+          valueTypes: ["string"],
+        },
+      ],
+      properties: [
+        {
+          id: "status",
+          registryId: "system_attribute:traces:status",
+          name: "Status",
+          category: "system",
+          type: "string",
+          apiColType: "SYSTEM_METRIC",
+        },
+        {
+          id: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          name: "Quality eval",
+          category: "eval",
+          type: "categorical",
+          apiColType: "EVAL_METRIC",
+        },
+        {
+          id: "annotator",
+          registryId: "annotation:annotator",
+          name: "Annotator",
+          category: "annotation",
+          type: "annotator",
+          apiColType: "ANNOTATION",
+        },
+        {
+          id: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          name: "Customer plan",
+          category: "attribute",
+          type: "string",
+          apiColType: "SPAN_ATTRIBUTE",
+        },
+      ],
+      onApply,
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    expect(screen.getByText("Status equals OK")).toBeInTheDocument();
+    expect(screen.getByText("Quality eval is passed")).toBeInTheDocument();
+    expect(screen.getByText("Annotator is not null")).toBeInTheDocument();
+    const attributeToken = screen.getByText(
+      "Customer plan contains enterprise",
+    );
+
+    // Re-commit one row through the real Query editor. The panel must retain
+    // all four wire-qualified families in the single applied filter set.
+    fireEvent.click(attributeToken);
+    const input = screen.getByRole("combobox");
+    expect(input).toHaveValue("enterprise");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply.mock.calls.at(-1)[0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "status",
+          registryId: "system_attribute:traces:status",
+          fieldCategory: "system",
+          apiColType: "SYSTEM_METRIC",
+          value: ["OK"],
+        }),
+        expect.objectContaining({
+          field: "quality-eval",
+          registryId: "evaluation:quality-eval",
+          fieldCategory: "eval",
+          apiColType: "EVAL_METRIC",
+          value: ["passed"],
+        }),
+        expect.objectContaining({
+          field: "annotator",
+          registryId: "annotation:annotator",
+          fieldCategory: "annotation",
+          apiColType: "ANNOTATION",
+          operator: "is_not_null",
+        }),
+        expect.objectContaining({
+          field: "customer.plan",
+          registryId: "custom_attribute:customer.plan",
+          fieldCategory: "attribute",
+          apiColType: "SPAN_ATTRIBUTE",
+          value: ["enterprise"],
+          valueTypes: ["string"],
+        }),
+      ]),
+    );
+    expect(onApply.mock.calls.at(-1)[0]).toHaveLength(4);
 
     document.body.removeChild(anchorEl);
   });
@@ -3049,6 +4789,7 @@ describe("filter-value picker bounded-read UX", () => {
             ? [
                 {
                   id: "final_status",
+                  registryId: "custom_attribute:final_status",
                   name: "final_status",
                   category: "attribute",
                   rawCategory: "custom_attribute",
@@ -3128,6 +4869,7 @@ describe("filter-value picker bounded-read UX", () => {
     expect(onApply.mock.calls.at(-1)[0]).toEqual([
       expect.objectContaining({
         field: "final_status",
+        registryId: "custom_attribute:final_status",
         fieldCategory: "attribute",
         fieldType: "string",
         apiColType: "SPAN_ATTRIBUTE",
@@ -3136,6 +4878,252 @@ describe("filter-value picker bounded-read UX", () => {
         valueTypes: ["string"],
       }),
     ]);
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("searches Query-tab fields through the activated unified catalog", async () => {
+    const fetchNextBasePage = vi.fn();
+    const fetchNextSearchPage = vi.fn();
+    exactAttributePropertiesMock.mockClear();
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics:
+        search === "rare.query.attribute"
+          ? [
+              {
+                property_id: "custom_attribute:rare.query.attribute",
+                name: "rare.query.attribute",
+                display_name: "rare.query.attribute",
+                category: "custom_attribute",
+                source: "traces",
+                sources: ["traces"],
+                type: "string",
+              },
+            ]
+          : [],
+      categoryCounts: {
+        all: search ? 1 : 0,
+        system_metric: 0,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: search ? 1 : 0,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: !search || search === "rare.query.attribute",
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage:
+        search === "rare.query.attribute"
+          ? fetchNextSearchPage
+          : fetchNextBasePage,
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-query-catalog",
+      source: "traces",
+      tab: "trace",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "rare.query.attribute" } });
+    expect(screen.queryByText("Load more fields")).not.toBeInTheDocument();
+
+    expect(await screen.findByText("rare.query.attribute")).toBeInTheDocument();
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: ["project-query-catalog"],
+        source: "traces",
+        search: "rare.query.attribute",
+        pageSize: 20,
+        enabled: true,
+      }),
+    );
+    expect(
+      exactAttributePropertiesMock.mock.calls.some(
+        ([request]) => request.enabled === true,
+      ),
+    ).toBe(false);
+    await scrollQueryOptionsToEnd();
+    expect(fetchNextSearchPage).toHaveBeenCalledOnce();
+    expect(fetchNextBasePage).not.toHaveBeenCalled();
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it.each(GLOBAL_CATALOG_SEARCH_CASES)(
+    "keeps omitted global $search visible in Query search",
+    async ({ search, source, tab, initialMetrics }) => {
+      propertyCatalogMock.mockImplementation(({ search: catalogSearch = "" }) =>
+        settledPropertyCatalog({
+          metrics: catalogSearch ? [] : initialMetrics,
+        }),
+      );
+      const { anchorEl } = renderPanel({
+        projectId: `project-query-global-${search.toLowerCase()}`,
+        source,
+        tab,
+        showQueryTab: true,
+      });
+
+      fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+      const input = screen.getByRole("combobox");
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: search } });
+
+      await waitFor(() =>
+        expect(propertyCatalogMock).toHaveBeenCalledWith(
+          expect.objectContaining({ search }),
+        ),
+      );
+      expect(await screen.findByText(search)).toBeInTheDocument();
+
+      document.body.removeChild(anchorEl);
+    },
+  );
+
+  it("lets an authoritative Query search replace stale base fields without collapsing exact matches", async () => {
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics: search
+        ? [
+            {
+              property_id: "system_attribute:voice_calls:cost_cents",
+              name: "cost_cents",
+              display_name: "Cost",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+            {
+              property_id: "custom_attribute:cost_breakdown.analysisCost",
+              name: "cost_breakdown.analysisCost",
+              display_name: "cost_breakdown.analysisCost",
+              category: "custom_attribute",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "number",
+            },
+          ]
+        : [
+            {
+              property_id: "system_attribute:voice_calls:model",
+              name: "model",
+              display_name: "Model",
+              category: "system_metric",
+              source: "voice_calls",
+              sources: ["voice_calls"],
+              type: "string",
+            },
+          ],
+      categoryCounts: {
+        all: search ? 2 : 1,
+        system_metric: 1,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: search ? 1 : 0,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-query-authoritative-search",
+      source: "voice_calls",
+      tab: "voiceCalls",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    expect(await screen.findByText("Model")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "cost" } });
+
+    expect(await screen.findByText("Cost")).toBeInTheDocument();
+    expect(
+      await screen.findByText("cost_breakdown.analysisCost"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Model")).not.toBeInTheDocument();
+    document.body.removeChild(anchorEl);
+  });
+
+  it("pages Query-tab browsing through the activated base catalog", async () => {
+    const fetchNextBasePage = vi.fn();
+    exactAttributePropertiesMock.mockClear();
+    propertyCatalogMock.mockImplementation(({ search = "" }) => ({
+      metrics: [
+        {
+          property_id: "system_attribute:traces:model",
+          name: "model",
+          display_name: "Model",
+          category: "system_metric",
+          source: "traces",
+          sources: ["traces"],
+          type: "string",
+        },
+      ],
+      categoryCounts: {
+        all: 2,
+        system_metric: 1,
+        eval_metric: 0,
+        annotation_metric: 0,
+        custom_attribute: 1,
+        custom_column: 0,
+      },
+      categoryCountsExact: true,
+      legacyFallbackRequired: false,
+      error: null,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      hasNextPage: !search,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      cursorChainStopped: false,
+      fetchNextPage: !search ? fetchNextBasePage : vi.fn(),
+      data: { pages: [] },
+    }));
+    const { anchorEl } = renderPanel({
+      projectId: "project-query-base-catalog",
+      source: "traces",
+      tab: "trace",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    fireEvent.focus(screen.getByRole("combobox"));
+    await screen.findByText("Model");
+    await scrollQueryOptionsToEnd();
+
+    expect(fetchNextBasePage).toHaveBeenCalledOnce();
+    expect(
+      exactAttributePropertiesMock.mock.calls.some(
+        ([request]) => request.enabled === true,
+      ),
+    ).toBe(false);
 
     document.body.removeChild(anchorEl);
   });
@@ -3166,9 +5154,10 @@ describe("filter-value picker bounded-read UX", () => {
     await waitFor(() =>
       expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          propertyId: "system_attribute:voice_calls:ended_reason",
           metricName: "ended_reason",
           metricType: "system_metric",
-          pageSize: 10,
+          pageSize: FILTER_VALUE_PAGE_SIZE,
           source: "traces",
           enabled: true,
         }),
@@ -3183,7 +5172,7 @@ describe("filter-value picker bounded-read UX", () => {
           expect.objectContaining({
             metricName: "ended_reason",
             metricType: "system_metric",
-            pageSize: 10,
+            pageSize: FILTER_VALUE_PAGE_SIZE,
             search: "customer",
             searchGesture: "customer",
             source: "traces",
@@ -3191,6 +5180,41 @@ describe("filter-value picker bounded-read UX", () => {
         ),
       { timeout: 1_500 },
     );
+    document.body.removeChild(anchorEl);
+  });
+
+  it("uses the Sessions adapter identity for Query-tab Session ID values", async () => {
+    const { anchorEl } = renderPanel({
+      properties: [
+        {
+          id: "session_id",
+          name: "Session ID",
+          category: "system",
+          type: "string",
+          apiColType: "SYSTEM_METRIC",
+        },
+      ],
+      projectId: "project-sessions-query",
+      source: "sessions",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    await selectQueryPhaseOption("Session ID", "pick operator...");
+
+    await waitFor(() =>
+      expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          propertyId: "system_attribute:sessions:session",
+          metricName: "session",
+          metricType: "system_metric",
+          pageSize: FILTER_VALUE_PAGE_SIZE,
+          source: "sessions",
+          enabled: true,
+        }),
+      ),
+    );
+
     document.body.removeChild(anchorEl);
   });
 
@@ -3259,7 +5283,7 @@ describe("filter-value picker bounded-read UX", () => {
             expect.objectContaining({
               metricName: propertyId,
               metricType,
-              pageSize: 10,
+              pageSize: FILTER_VALUE_PAGE_SIZE,
               search: "needle",
               searchGesture: "needle",
               source: "traces",
@@ -3276,7 +5300,7 @@ describe("filter-value picker bounded-read UX", () => {
     ["tracing", undefined, "traces"],
     ["voice", "voiceCalls", "spans"],
   ])(
-    "keeps %s Query-field pagination explicit after an exact-prefix match",
+    "keeps %s Query-field pagination scroll-driven after an exact-prefix match",
     async (surface, tab, expectedAttributeSource) => {
       let hasNextPage = true;
       let data = [
@@ -3354,7 +5378,7 @@ describe("filter-value picker bounded-read UX", () => {
           source: expectedAttributeSource,
         }),
       );
-      fireEvent.click(screen.getByText("Load more fields"));
+      await scrollQueryOptionsToEnd();
       expect(fetchNextPage).toHaveBeenCalledOnce();
       rerenderPanel();
 
@@ -3513,8 +5537,9 @@ describe("filter-value picker bounded-read UX", () => {
 
     fireEvent.focus(input);
     expect(
-      await screen.findByText("Loading more fields..."),
-    ).toBeInTheDocument();
+      screen.queryByText("Loading more fields..."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
   });
@@ -3564,7 +5589,9 @@ describe("filter-value picker bounded-read UX", () => {
         "More fields could not be loaded. Retained matches remain available.",
       ),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Retry loading fields"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading fields" }),
+    );
     expect(retryFieldSearch).toHaveBeenCalledOnce();
     expect(screen.queryByText("hidden backend detail")).not.toBeInTheDocument();
 
@@ -3597,7 +5624,9 @@ describe("filter-value picker bounded-read UX", () => {
     await selectQueryPhaseOption("Provider", "pick operator...");
     await selectQueryPhaseOption("contains", "type or pick value...");
 
-    fireEvent.click(await screen.findByText("Retry loading values"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry loading values" }),
+    );
     expect(refetch).toHaveBeenCalledOnce();
     expect(
       screen.getByText(
@@ -3688,6 +5717,120 @@ describe("filter-value picker bounded-read UX", () => {
     expect(betaCalls.every(([request]) => request.search !== "needle")).toBe(
       true,
     );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("resets partial Query state when the project changes", async () => {
+    exactAttributePropertiesMock.mockImplementation(({ search = "" }) => ({
+      ...defaultExactAttributeProperties(),
+      data: [statusProperty],
+      totalCount: 1,
+      debouncedSearch: String(search).trim(),
+    }));
+    const { anchorEl, rerenderPanel } = renderPanel({
+      properties: [statusProperty],
+      projectId: "project-one",
+      source: "traces",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    let input = await selectQueryPhaseOption("Status", "pick operator...");
+    await selectQueryPhaseOption("contains", "type or pick value...");
+    fireEvent.change(input, { target: { value: "project-one-value" } });
+    await waitFor(
+      () =>
+        expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectIds: ["project-one"],
+            metricName: "call.status",
+            search: "project-one-value",
+            enabled: true,
+          }),
+        ),
+      { timeout: 1_500 },
+    );
+
+    const callsBeforeScopeChange = dashboardFilterValuesMock.mock.calls.length;
+    rerenderPanel({ projectId: "project-two" });
+    input = screen.getByRole("combobox");
+    await waitFor(() =>
+      expect(input).toHaveAttribute(
+        "placeholder",
+        "type to filter — e.g. field → operator → value",
+      ),
+    );
+    await waitFor(() => {
+      const projectTwoCalls = dashboardFilterValuesMock.mock.calls
+        .slice(callsBeforeScopeChange)
+        .map(([request]) => request)
+        .filter(({ projectIds }) => projectIds?.[0] === "project-two");
+      expect(projectTwoCalls.length).toBeGreaterThan(0);
+      expect(
+        projectTwoCalls.every(
+          ({ enabled, metricName, search }) =>
+            enabled === false && metricName === "" && search === "",
+        ),
+      ).toBe(true);
+    });
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("resets partial Query state when the catalog source changes", async () => {
+    exactAttributePropertiesMock.mockImplementation(({ search = "" }) => ({
+      ...defaultExactAttributeProperties(),
+      data: [statusProperty],
+      totalCount: 1,
+      debouncedSearch: String(search).trim(),
+    }));
+    const { anchorEl, rerenderPanel } = renderPanel({
+      properties: [statusProperty],
+      projectId: "project-source-scope",
+      source: "traces",
+      showQueryTab: true,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Query" }));
+    const input = await selectQueryPhaseOption("Status", "pick operator...");
+    await selectQueryPhaseOption("contains", "type or pick value...");
+    fireEvent.change(input, { target: { value: "trace-source-value" } });
+    await waitFor(
+      () =>
+        expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectIds: ["project-source-scope"],
+            source: "traces",
+            search: "trace-source-value",
+            enabled: true,
+          }),
+        ),
+      { timeout: 1_500 },
+    );
+
+    const callsBeforeScopeChange = dashboardFilterValuesMock.mock.calls.length;
+    rerenderPanel({ source: "sessions" });
+    const resetInput = screen.getByRole("combobox");
+    await waitFor(() =>
+      expect(resetInput).toHaveAttribute(
+        "placeholder",
+        "type to filter — e.g. field → operator → value",
+      ),
+    );
+    await waitFor(() => {
+      const sessionCalls = dashboardFilterValuesMock.mock.calls
+        .slice(callsBeforeScopeChange)
+        .map(([request]) => request)
+        .filter(({ source }) => source === "sessions");
+      expect(sessionCalls.length).toBeGreaterThan(0);
+      expect(
+        sessionCalls.every(
+          ({ enabled, metricName, search }) =>
+            enabled === false && metricName === "" && search === "",
+        ),
+      ).toBe(true);
+    });
 
     document.body.removeChild(anchorEl);
   });
@@ -3959,6 +6102,81 @@ describe("annotator annotation filter (TH-4710)", () => {
     );
   });
 
+  it("combines voice-call system fields with trace-derived attributes", () => {
+    const metrics = [
+      {
+        name: "ended_reason",
+        display_name: "Ended Reason",
+        category: "system_metric",
+        source: "voice_calls",
+        sources: ["system", "voice_calls", "ended_reason"],
+        type: "string",
+      },
+      {
+        name: "customer.plan",
+        display_name: "customer.plan",
+        category: "custom_attribute",
+        source: "traces",
+        sources: ["attribute", "span", "traces", "string"],
+        type: "string",
+      },
+      {
+        name: "latency",
+        display_name: "Latency",
+        category: "system_metric",
+        source: "traces",
+        sources: ["system", "traces", "latency"],
+        type: "number",
+      },
+    ];
+
+    expect(
+      buildTraceFilterProperties(metrics, { sourceScope: "voice_calls" }),
+    ).toEqual([
+      expect.objectContaining({
+        id: "ended_reason",
+        registryId: "system_attribute:voice_calls:ended_reason",
+      }),
+      expect.objectContaining({
+        id: "customer.plan",
+        registryId: "custom_attribute:customer.plan",
+      }),
+    ]);
+  });
+
+  it("does not expose simulation properties on a trace-source picker", () => {
+    const metrics = [
+      {
+        name: "agent_definition",
+        display_name: "Agent",
+        category: "system_metric",
+        source: "simulation",
+        sources: ["simulation"],
+        type: "string",
+      },
+      {
+        name: "model",
+        display_name: "Model",
+        category: "system_metric",
+        source: "traces",
+        sources: ["traces"],
+        type: "string",
+      },
+    ];
+
+    expect(
+      buildTraceFilterProperties(metrics, {
+        isSimulator: true,
+        sourceScope: "traces",
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        id: "model",
+        registryId: "system_attribute:traces:model",
+      }),
+    ]);
+  });
+
   it("adds a global Annotator property inside annotation filters", () => {
     const properties = buildTraceFilterProperties([
       {
@@ -3996,6 +6214,38 @@ describe("annotator annotation filter (TH-4710)", () => {
     );
     expect(annotatorIndex).toBeLessThan(labelIndex);
   });
+
+  it.each(["traces", "spans", "voice_calls", "sessions"])(
+    "keeps the global Annotator property when the first %s catalog page has no annotation definitions",
+    (sourceScope) => {
+      expect(
+        buildTraceFilterProperties([], {
+          sourceScope,
+          includeGlobalAnnotator: true,
+        }),
+      ).toEqual([
+        expect.objectContaining({
+          id: "annotator",
+          registryId: "annotation:annotator",
+          category: "annotation",
+          apiColType: "SYSTEM_METRIC",
+          catalogSearchFallback: true,
+        }),
+      ]);
+    },
+  );
+
+  it.each(["dataset", "simulation"])(
+    "does not inject Annotator into the %s catalog",
+    (sourceScope) => {
+      expect(
+        buildTraceFilterProperties([], {
+          sourceScope,
+          includeGlobalAnnotator: true,
+        }),
+      ).toEqual([]);
+    },
+  );
 
   it("maps every annotation label output type to the matching filter input type", () => {
     const properties = buildTraceFilterProperties([

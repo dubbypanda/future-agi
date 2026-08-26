@@ -18,6 +18,10 @@ from typing import Any
 import structlog
 
 from tracer.services.clickhouse.list_cursor import ListCursor
+from tracer.services.clickhouse.query_builders.filters import (
+    EvalFilterMetadata,
+    resolve_eval_filter_metadata,
+)
 from tracer.services.clickhouse.read_budget import (
     ReadDeadline,
     ReadDeadlineExceeded,
@@ -406,9 +410,16 @@ class UsersListManager:
             if column
         )
         requested_attribute_keys = [str(key) for key in (attribute_keys or ()) if key]
+        self.relation_filters = tuple(
+            item
+            for item in self.filters
+            if UserListQueryBuilderV2._is_relation_filter(item)
+        )
         attribute_filter_items: dict[str, list[dict[str, Any]]] = {}
         for item in self.filters:
             if UserListQueryBuilderV2._is_date_filter(item):
+                continue
+            if UserListQueryBuilderV2._is_relation_filter(item):
                 continue
             column_id = item.get("column_id") or item.get("columnId")
             if column_id and column_id not in UserListQueryBuilderV2.OUTPUT_FILTER_MAP:
@@ -477,6 +488,7 @@ class UsersListManager:
             )
             for item in self.filters
             if (item.get("column_id") or item.get("columnId"))
+            and not UserListQueryBuilderV2._is_relation_filter(item)
         }
         self.metric_keys = frozenset(
             (self.requested_columns | filter_columns) & _USER_LIST_EXTRA_METRIC_FIELDS
@@ -492,10 +504,13 @@ class UsersListManager:
             (self.requested_columns | filter_columns) & _USER_LIST_EVAL_FIELDS
         )
         self.filters_need_enrichment = bool(
-            attribute_filter_items
+            self.relation_filters
+            or attribute_filter_items
             or filter_columns
             & (_USER_LIST_EXTRA_METRIC_FIELDS | _USER_LIST_EVAL_FIELDS)
         )
+        self._relation_eval_metadata_cache: dict[str, EvalFilterMetadata] | None = None
+        self._relation_matching_user_ids: set[str] = set()
         self.scoped_project_ids, self.empty_scope = self._resolve_scope(
             self.project_id, allowed_project_ids
         )
@@ -849,6 +864,53 @@ class UsersListManager:
         )
         return {str(row.get("end_user_id", "")): row for row in eval_result.data}
 
+    def _relation_eval_metadata(self) -> dict[str, EvalFilterMetadata]:
+        """Resolve custom-eval metadata once for all finite cursor batches."""
+
+        if self._relation_eval_metadata_cache is None:
+            eval_ids = {
+                str(item.get("column_id") or item.get("columnId"))
+                for item in self.relation_filters
+                if UserListQueryBuilderV2._filter_col_type(item) == "EVAL_METRIC"
+                and (item.get("column_id") or item.get("columnId"))
+            }
+            self._relation_eval_metadata_cache = {
+                eval_id: resolve_eval_filter_metadata(
+                    eval_id,
+                    self.scoped_project_ids,
+                )
+                for eval_id in eval_ids
+            }
+        return self._relation_eval_metadata_cache
+
+    def _read_relation_filter_matches(
+        self,
+        rows: list[dict],
+        builder: UserListQueryBuilderV2,
+        deadline: ReadDeadline,
+    ) -> set[str]:
+        """Return finite page users satisfying all eval/annotation filters."""
+
+        if not rows or not self.relation_filters:
+            return {str(row.get("end_user_id")) for row in rows if row.get("end_user_id")}
+        query, params = builder.build_relation_filter_user_query(
+            self.relation_filters,
+            eval_filter_metadata=self._relation_eval_metadata(),
+        )
+        if not query:
+            return set()
+        result = V2AnalyticsQueryService().execute_ch_query(
+            query,
+            params,
+            timeout_ms=deadline.remaining_ms(USER_LIST_ENRICHMENT_TIMEOUT_MS),
+            settings=_page_replay_read_settings(max_result_rows=max(1, len(rows))),
+        )
+        return {
+            str(row.get("end_user_id"))
+            for row in result.data or ()
+            if row.get("end_user_id")
+        }
+
     @staticmethod
     def _apply_evals(rows: list[dict], eval_map: dict[str, dict]) -> None:
         for entry in rows:
@@ -1067,6 +1129,20 @@ class UsersListManager:
         rows = builder.format_rows(result.data)["table"]
         if not rows:
             return []
+        if self.relation_filters:
+            relation_matches = self._read_relation_filter_matches(
+                rows,
+                builder,
+                deadline,
+            )
+            self._relation_matching_user_ids.update(relation_matches)
+            rows = [
+                row
+                for row in rows
+                if str(row.get("end_user_id", "")) in relation_matches
+            ]
+            if not rows:
+                return []
         if self.approximate_num_sessions:
             for row in rows:
                 row["num_sessions_is_approximate"] = True
@@ -1306,6 +1382,13 @@ class UsersListManager:
     def _row_matches_filters(self, row: dict[str, Any]) -> bool:
         for item in self.filters:
             if UserListQueryBuilderV2._is_date_filter(item):
+                continue
+            if UserListQueryBuilderV2._is_relation_filter(item):
+                if (
+                    str(row.get("end_user_id", ""))
+                    not in self._relation_matching_user_ids
+                ):
+                    return False
                 continue
             config = item.get("filter_config") or {}
             column_id = item.get("column_id") or item.get("columnId")

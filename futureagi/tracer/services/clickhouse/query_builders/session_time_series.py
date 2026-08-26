@@ -18,7 +18,10 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from tracer.services.clickhouse.query_builders.base import NIL_UUID, BaseQueryBuilder
-from tracer.services.clickhouse.query_builders.filters import ClickHouseFilterBuilder
+from tracer.services.clickhouse.query_builders.filters import (
+    ClickHouseFilterBuilder,
+    build_numeric_filter_predicate,
+)
 from tracer.services.clickhouse.query_builders.session_filters import (
     SESSION_ID_FILTER_COLS,
     build_session_id_filter_clause,
@@ -68,7 +71,11 @@ class SessionTimeSeriesQueryBuilder(BaseQueryBuilder):
         self.params["start_date"] = self.start_date
         self.params["end_date"] = self.end_date
 
-        filter_builder = ClickHouseFilterBuilder(table=self.TABLE)
+        filter_builder = ClickHouseFilterBuilder(
+            table=self.TABLE,
+            project_id=self.project_id,
+            project_ids=self.project_ids,
+        )
         span_filters = self._extract_span_filters()
         extra_where, extra_params = filter_builder.translate(span_filters)
         self.params.update(extra_params)
@@ -192,23 +199,17 @@ class SessionTimeSeriesQueryBuilder(BaseQueryBuilder):
             filter_value = config.get("filter_value", config.get("filterValue"))
             ch_col = self.SESSION_FILTER_MAP[col_id]
 
-            op_map = {
-                "equals": "=",
-                "not_equals": "!=",
-                "greater_than": ">",
-                "less_than": "<",
-                "greater_than_or_equal": ">=",
-                "less_than_or_equal": "<=",
-            }
-            op = op_map.get(filter_op)
-            if op is None:
-                conditions.append("0 = 1")
-                continue
-
             param_counter += 1
             param_name = f"having_{param_counter}"
-            self.params[param_name] = filter_value
-            conditions.append(f"{ch_col} {op} %({param_name})s")
+            conditions.append(
+                build_numeric_filter_predicate(
+                    ch_col,
+                    filter_op,
+                    filter_value,
+                    param_prefix=param_name,
+                    params=self.params,
+                )
+            )
 
         return " AND ".join(conditions)
 

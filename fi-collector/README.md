@@ -22,6 +22,24 @@ time, with bounded per-batch memory.
 
 ## Two run modes
 
+### Unified property catalog development
+
+The catalog Kafka Compose file under this directory is broker infrastructure;
+it is not the unified property-catalog application stack. Its optional topic
+initializer is retained only for the legacy `FI_CATALOG_MODE` span-attribute
+catalog.
+
+For `FI_PROPERTY_CATALOG_MODE`, follow the canonical
+[unified property-catalog DEV Docker guide](../deploy/dev/property-catalog-docker/README.md).
+That bundle explicitly keeps `FI_CATALOG_MODE=disabled`, enables
+`FI_PROPERTY_CATALOG_MODE=kafka`, starts both `fi-collector` and
+`fi-property-catalog-consumer`, attaches them to the application and Kafka
+networks, and uses a deployment-scoped property-catalog topic.
+
+For the non-EE component matrix, default-on stack contract, fail-closed
+activation/read gates, and repository-local verification commands, see
+[Unified property catalog: OSS/local compatibility](PROPERTY_CATALOG_OSS.md).
+
 ### 1. Bundled with the FutureAGI backend (single docker compose up)
 
 The main `docker-compose.yml` at `future-agi/` adds `fi-collector` as a

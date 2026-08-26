@@ -85,6 +85,21 @@ _JSON_MAP_ALLOWED_OPS = frozenset(
         "is_not_null",
     }
 )
+_POSITIVE_RAW_WITNESS_OPS = frozenset(
+    {
+        "equals",
+        "in",
+        "contains",
+        "starts_with",
+        "ends_with",
+        "between",
+        "greater_than",
+        "greater_than_or_equal",
+        "less_than",
+        "less_than_or_equal",
+        "is_not_null",
+    }
+)
 _TRACE_ROOT_COLUMNS = {
     "trace_id": ("trace_id", "text", False),
     "project_id": ("project_id", "text", False),
@@ -164,8 +179,28 @@ class LatestFilterPredicate:
     # attribute value; the latest-state classifier still applies the complete
     # value predicate before a row can become a graph point.
     raw_key_witness_predicate: str | None = None
+    # Stricter raw key/value witness for the optional exact-graph shortcut.
+    # This is populated only when a missing Map key's physical default cannot
+    # satisfy the value comparison. That keeps the witness exhaustive even if
+    # equal-version rows make the classifier's independent argMax fields pick
+    # existence and value from different physical rows.
+    raw_graph_value_witness_predicate: str | None = None
     raw_witness_rank: int | None = None
     source_metric: str | None = None
+    # ``predicate`` normally identifies one matching latest-live span. Grouped
+    # trace/session reducers then require at least one such span. Attribute
+    # ``is_null`` is the one inverse shape: its predicate identifies key
+    # presence, and the target trace matches only when the group has none.
+    exclude_group_matches: bool = False
+
+    def grouped_match_predicate(self, row_scope: str | None = None) -> str:
+        """Compile this latest-span predicate at its enclosing target grain."""
+
+        predicate = self.predicate
+        if row_scope:
+            predicate = f"{row_scope} AND ({predicate})"
+        comparison = "= 0" if self.exclude_group_matches else "> 0"
+        return f"countIf({predicate}) {comparison}"
 
 
 def _parts(item: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -202,6 +237,65 @@ def _normalize_value(
     if raw is None or raw == "":
         raise UnsupportedFilterShapeError(f"{operation} requires a value")
     return operation, coerce(raw)
+
+
+def _missing_typed_map_default_can_match(
+    *,
+    map_column: str,
+    operation: str,
+    params: dict[str, Any],
+    index: int,
+    value_param: str | None = None,
+) -> bool:
+    """Return whether a missing key's Map lookup default can pass the value test.
+
+    The latest-state classifier aggregates key existence and value separately.
+    With conflicting rows tied at the maximum version, those fields can be
+    sourced from different physical rows. A graph candidate may therefore add
+    the raw value predicate only when the missing-key default itself cannot
+    satisfy that predicate. Unknown and text-ordering shapes stay conservative.
+    """
+
+    if operation == "is_not_null":
+        return False
+    if map_column == "span_attr_str":
+        # Value normalization rejects empty operands for these operations, so
+        # the missing-key default (empty string) cannot satisfy them. Keep
+        # ordering/range operations conservative because their collation
+        # semantics are delegated to ClickHouse.
+        return operation not in {
+            "equals",
+            "in",
+            "contains",
+            "starts_with",
+            "ends_with",
+        }
+    if map_column not in {"span_attr_num", "span_attr_bool"}:
+        return True
+
+    bound_value_param = value_param or f"latest_filter_param_{index}"
+    value = params.get(bound_value_param)
+    default: object = 0.0 if map_column == "span_attr_num" else False
+    try:
+        if operation == "equals":
+            return default == value
+        if operation == "in":
+            return default in value
+        if operation == "between":
+            low = params[f"{bound_value_param}_low"]
+            high = params[f"{bound_value_param}_high"]
+            return low <= default <= high
+        if operation == "greater_than":
+            return default > value
+        if operation == "greater_than_or_equal":
+            return default >= value
+        if operation == "less_than":
+            return default < value
+        if operation == "less_than_or_equal":
+            return default <= value
+    except (KeyError, TypeError):
+        return True
+    return True
 
 
 def _comparison(
@@ -311,10 +405,49 @@ def _raw_uuid_seed_predicate(
 
 
 def _attribute_plan(
-    item: dict[str, Any], *, index: int, scope: str
+    item: dict[str, Any],
+    *,
+    index: int,
+    scope: str,
+    group_nulls: bool = False,
 ) -> LatestFilterPredicate:
     raw_key, config = _parts(item)
     key = _validate_attribute_key(raw_key)
+    operation = normalize_filter_op(
+        str(config.get("filter_op") or config.get("filterOp") or "")
+    )
+    if group_nulls and operation == "is_null":
+        # Keep the ordinary row-level null plan for its safe seed/witness
+        # metadata, but classify the enclosing trace by absence of the
+        # corresponding positive key-presence predicate. Building that
+        # predicate through the same compiler keeps scalar and structured
+        # attributes on one semantic path.
+        row_plan = _attribute_plan(item, index=index, scope=scope)
+        presence_item = {
+            **item,
+            "filter_config": {
+                **config,
+                "filter_op": "is_not_null",
+            },
+        }
+        presence_item.pop("filterConfig", None)
+        presence_plan = _attribute_plan(
+            presence_item,
+            index=index,
+            scope=scope,
+        )
+        if (
+            row_plan.aggregates != presence_plan.aggregates
+            or row_plan.params != presence_plan.params
+        ):
+            raise AssertionError(
+                "attribute null and presence plans must share latest state"
+            )
+        return replace(
+            row_plan,
+            predicate=presence_plan.predicate,
+            exclude_group_matches=True,
+        )
     raw_filter_value = config.get("filter_value", config.get("filterValue"))
     filter_type = normalize_span_attribute_filter_type(
         str(config.get("filter_type") or config.get("filterType") or ""),
@@ -381,9 +514,6 @@ def _attribute_plan(
     # that companion must never participate in an exhaustive raw witness.
     exact_seed_predicate = seed_predicate
     params[key_param] = key
-    operation = normalize_filter_op(
-        str(config.get("filter_op") or config.get("filterOp") or "")
-    )
     if map_column == "span_attr_num" and operation in {"equals", "in"}:
         bound_value = params[f"latest_filter_param_{index}"]
         normalized_values = (
@@ -404,19 +534,6 @@ def _attribute_plan(
             index_predicate = f"hasAny({numeric_values}, [{', '.join(placeholders)}])"
         seed_predicate = f"({seed_predicate}) AND {index_predicate}"
 
-    positive_witness_operations = {
-        "equals",
-        "in",
-        "contains",
-        "starts_with",
-        "ends_with",
-        "between",
-        "greater_than",
-        "greater_than_or_equal",
-        "less_than",
-        "less_than_or_equal",
-        "is_not_null",
-    }
     key_witness_predicate = (
         f"(indexHint(has(mapKeys({map_column}), {bound_key})) AND "
         f"has({map_column}.keys, {bound_key}))"
@@ -425,10 +542,11 @@ def _attribute_plan(
     # reach this compiler. Keep the graph key probe limited to positive value
     # shapes (including is-not-null) for which key presence is a superset.
     raw_key_witness_predicate = (
-        key_witness_predicate if operation in positive_witness_operations else None
+        key_witness_predicate if operation in _POSITIVE_RAW_WITNESS_OPS else None
     )
     raw_witness_predicate = None
-    if operation in positive_witness_operations:
+    raw_graph_value_witness_predicate = None
+    if operation in _POSITIVE_RAW_WITNESS_OPS:
         raw_witness_predicate = key_witness_predicate
         if operation in {"equals", "in"}:
             # Positive scalar equality is safe to apply to raw physical rows:
@@ -443,6 +561,20 @@ def _attribute_plan(
             raw_witness_predicate = (
                 f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
             )
+        if not _missing_typed_map_default_can_match(
+            map_column=map_column,
+            operation=operation,
+            params=params,
+            index=index,
+        ):
+            exhaustive_value_predicate = (
+                exact_seed_predicate
+                if map_column == "span_attr_str"
+                else seed_predicate
+            )
+            raw_graph_value_witness_predicate = (
+                f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
+            )
     return LatestFilterPredicate(
         aggregates=(
             f"argMax(mapContains({map_column}, {bound_key}), _peerdb_version) AS {exists_alias}",
@@ -454,9 +586,10 @@ def _attribute_plan(
         scope=scope,
         raw_witness_predicate=raw_witness_predicate,
         raw_key_witness_predicate=raw_key_witness_predicate,
+        raw_graph_value_witness_predicate=raw_graph_value_witness_predicate,
         raw_witness_rank=(
             {"equals": 0, "in": 0}.get(operation, 10)
-            if operation in positive_witness_operations
+            if operation in _POSITIVE_RAW_WITNESS_OPS
             else None
         ),
     )
@@ -522,6 +655,8 @@ def _mixed_typed_attribute_plan(
     seed_exists: list[str] = []
     seed_matches: list[str] = []
     key_witnesses: list[str] = []
+    typed_raw_witnesses: list[str] = []
+    typed_graph_witnesses: list[str] = []
     storage_metadata: dict[str, tuple[str, Callable[[object], object], bool]] = {
         "string": ("span_attr_str", _strict_text, True),
         "number": ("span_attr_num", _strict_finite_number, False),
@@ -568,6 +703,19 @@ def _mixed_typed_attribute_plan(
             f"(indexHint(has(mapKeys({map_column}), {bound_key})) "
             f"AND has({map_column}.keys, {bound_key}))"
         )
+        typed_raw_witnesses.append(f"(({key_witnesses[-1]}) AND ({seed_matches[-1]}))")
+        if operation == "in":
+            typed_graph_witnesses.append(
+                key_witnesses[-1]
+                if _missing_typed_map_default_can_match(
+                    map_column=map_column,
+                    operation=operation,
+                    params=params,
+                    index=index,
+                    value_param=value_param,
+                )
+                else typed_raw_witnesses[-1]
+            )
 
     if not latest_matches:
         raise UnsupportedFilterShapeError(
@@ -579,8 +727,22 @@ def _mixed_typed_attribute_plan(
     if operation == "in":
         predicate = f"({latest_positive})"
         seed_predicate = f"({seed_positive})"
-        raw_witness_predicate = f"({seed_positive})"
+        # Keep the exact typed key/value comparison while also carrying the
+        # deployed Map-key bloom witness.  Without this companion, a typed
+        # filter with one selected storage type was treated as unindexed and
+        # the public span cursor seeded every row (`WHERE 1 = 1`) before
+        # classification.  The witness is a redundant positive superset, so it
+        # changes only physical pruning and never the filter's Unicode/value
+        # semantics.
+        raw_witness_predicate = f"({' OR '.join(typed_raw_witnesses)})"
         raw_key_witness_predicate = f"({' OR '.join(key_witnesses)})"
+        # The picker adds storage provenance and suffixed parameters, but its
+        # positive membership semantics are otherwise identical to scalar IN.
+        # Narrow each storage branch by value unless a missing Map key's
+        # physical default (numeric zero or false) could satisfy it. Unsafe
+        # branches retain key presence, so a mixed picker stays exhaustive
+        # without forcing every safe long-string branch back to key-only.
+        raw_graph_value_witness_predicate = f"({' OR '.join(typed_graph_witnesses)})"
         raw_witness_rank = 0
     else:
         predicate = f"(({' OR '.join(latest_exists)}) AND NOT ({latest_positive}))"
@@ -589,6 +751,7 @@ def _mixed_typed_attribute_plan(
         # use a raw-row witness without risking an incomplete latest replay.
         raw_witness_predicate = None
         raw_key_witness_predicate = None
+        raw_graph_value_witness_predicate = None
         raw_witness_rank = None
 
     return LatestFilterPredicate(
@@ -599,6 +762,7 @@ def _mixed_typed_attribute_plan(
         scope=scope,
         raw_witness_predicate=raw_witness_predicate,
         raw_key_witness_predicate=raw_key_witness_predicate,
+        raw_graph_value_witness_predicate=raw_graph_value_witness_predicate,
         raw_witness_rank=raw_witness_rank,
     )
 
@@ -1218,6 +1382,14 @@ def _column_plan(
         seed_predicate=seed_predicate,
         params=params,
         scope=scope,
+        raw_witness_predicate=(
+            seed_predicate if operation in _POSITIVE_RAW_WITNESS_OPS else None
+        ),
+        raw_witness_rank=(
+            {"equals": 0, "in": 0}.get(operation, 10)
+            if operation in _POSITIVE_RAW_WITNESS_OPS
+            else None
+        ),
     )
 
 
@@ -1259,6 +1431,9 @@ def _expression_plan(
     )
     if seed_params != params:
         raise AssertionError("latest and seed predicates must share bound values")
+    operation = normalize_filter_op(
+        str(config.get("filter_op") or config.get("filterOp") or "")
+    )
     aggregate_value = f"tuple({expression})" if nullable else expression
     suffix = ".1" if nullable else ""
     return LatestFilterPredicate(
@@ -1267,6 +1442,14 @@ def _expression_plan(
         seed_predicate=seed_predicate,
         params=params,
         scope=scope,
+        raw_witness_predicate=(
+            seed_predicate if operation in _POSITIVE_RAW_WITNESS_OPS else None
+        ),
+        raw_witness_rank=(
+            {"equals": 0, "in": 0}.get(operation, 10)
+            if operation in _POSITIVE_RAW_WITNESS_OPS
+            else None
+        ),
     )
 
 
@@ -1478,7 +1661,14 @@ def compile_trace_filter_plans(
         elif col_type == "SPAN_ATTRIBUTE":
             # Trace attribute filters retain their documented any-span
             # semantics: separate child spans may satisfy separate filters.
-            plans.append(_attribute_plan(item, index=index, scope="any"))
+            plans.append(
+                _attribute_plan(
+                    item,
+                    index=index,
+                    scope="any",
+                    group_nulls=True,
+                )
+            )
         elif col_type in {"SYSTEM_METRIC", "TRACE_END_USER"}:
             plans.append(
                 _system_metric_plan(
@@ -1495,6 +1685,8 @@ def compile_trace_filter_plans(
 
 def compile_span_filter_plans(
     filters: list[dict[str, Any]],
+    *,
+    group_attribute_nulls: bool = False,
 ) -> list[LatestFilterPredicate]:
     plans: list[LatestFilterPredicate] = []
     for item in filters:
@@ -1521,7 +1713,14 @@ def compile_span_filter_plans(
         } and col_type in {"", "NORMAL"}:
             plans.append(_system_metric_plan(item, index=index, trace_mode=False))
         elif col_type == "SPAN_ATTRIBUTE":
-            plans.append(_attribute_plan(item, index=index, scope="span"))
+            plans.append(
+                _attribute_plan(
+                    item,
+                    index=index,
+                    scope="span",
+                    group_nulls=group_attribute_nulls,
+                )
+            )
         elif col_type in {"SYSTEM_METRIC", "TRACE_END_USER"}:
             plans.append(_system_metric_plan(item, index=index, trace_mode=False))
         else:
@@ -1579,6 +1778,8 @@ def partition_trace_filter_plans(
 
 def partition_span_filter_plans(
     filters: list[dict[str, Any]],
+    *,
+    group_attribute_nulls: bool = False,
 ) -> tuple[list[LatestFilterPredicate], list[dict[str, Any]]]:
     """Span equivalent of :func:`partition_trace_filter_plans`."""
 
@@ -1591,9 +1792,18 @@ def partition_span_filter_plans(
         elif _is_candidate_residual_filter(item):
             residual.append(item)
         else:
-            compile_span_filter_plans([item])
+            compile_span_filter_plans(
+                [item],
+                group_attribute_nulls=group_attribute_nulls,
+            )
             supported.append(item)
-    return compile_span_filter_plans(supported), residual
+    return (
+        compile_span_filter_plans(
+            supported,
+            group_attribute_nulls=group_attribute_nulls,
+        ),
+        residual,
+    )
 
 
 def supports_trace_filters(filters: list[dict[str, Any]]) -> bool:

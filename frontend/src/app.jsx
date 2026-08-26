@@ -1,7 +1,11 @@
 import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import "src/global.css";
-import { isChunkError } from "src/utils/lazyWithRetry";
+import {
+  clearChunkReloadAttempt,
+  isChunkError,
+  requestChunkReload,
+} from "src/utils/lazyWithRetry";
 
 // ----------------------------------------------------------------------
 
@@ -111,9 +115,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Clear chunk reload flag on successful app load
-sessionStorage.removeItem("chunk_reload_attempted");
-
 // Initialize the BrowserAgent
 if (CURRENT_ENVIRONMENT === "production") new BrowserAgent(prodTracing);
 if (CURRENT_ENVIRONMENT === "dev") new BrowserAgent(devTracing);
@@ -133,21 +134,9 @@ export default function App() {
     }
   }, [location.pathname]);
 
-  // Clear chunk reload flag on successful mount so future deploys can trigger a reload
-  useEffect(() => {
-    sessionStorage.removeItem("chunk_reload_attempted");
-  }, []);
-
   const logError = (error, info) => {
     // Chunk errors after a deploy — silently reload once instead of showing error page
-    if (
-      isChunkError(error) &&
-      !sessionStorage.getItem("chunk_reload_attempted")
-    ) {
-      sessionStorage.setItem("chunk_reload_attempted", "1");
-      window.location.reload();
-      return;
-    }
+    if (isChunkError(error) && requestChunkReload()) return;
 
     Sentry.captureException(error, {
       contexts: {
@@ -196,16 +185,12 @@ export default function App() {
                               error,
                               resetErrorBoundary,
                             }) => {
-                              // Chunk errors trigger a silent reload in onError —
-                              // render nothing while the page reloads
-                              if (isChunkError(error)) {
-                                return null;
-                              }
                               return (
                                 <ErrorFallback
                                   error={error}
                                   resetErrorBoundary={() => {
                                     resetErrorBoundary();
+                                    clearChunkReloadAttempt();
                                     window.location.reload();
                                   }}
                                 />

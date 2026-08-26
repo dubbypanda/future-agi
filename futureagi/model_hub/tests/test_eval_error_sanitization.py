@@ -20,6 +20,13 @@ from model_hub.serializers.contracts import EvalUsageQuerySerializer
 from model_hub.views import separate_evals
 
 
+@pytest.fixture(autouse=True)
+def _enable_clickhouse_eval_usage(settings):
+    """This module exercises the ClickHouse usage reader explicitly."""
+
+    settings.EVAL_USAGE_CLICKHOUSE_ENABLED = True
+
+
 def _usage_template(organization, workspace):
     return EvalTemplate.no_workspace_objects.create(
         name=f"bounded-usage-{uuid.uuid4().hex[:8]}",
@@ -80,7 +87,7 @@ def test_eval_logs_table_internal_error_is_sanitized(auth_client, monkeypatch):
     monkeypatch.setattr(separate_evals, "APICallLog", SimpleNamespace())
     monkeypatch.setattr(
         separate_evals,
-        "_get_accessible_eval_template",
+        "_get_accessible_eval_template_for_request",
         fail_access_check,
     )
 

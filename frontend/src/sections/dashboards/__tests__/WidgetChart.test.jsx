@@ -3,6 +3,7 @@ import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "src/utils/test-utils";
 import WidgetChart from "../WidgetChart";
 import {
+  AGGREGATION_POLL_MAX_ATTEMPTS,
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
 } from "src/utils/queryReadState";
@@ -480,7 +481,9 @@ describe("WidgetChart — queued exact refresh", () => {
     await act(async () => vi.advanceTimersByTimeAsync(500_000));
 
     const boundedRequestCount = h.query.mutate.mock.calls.length;
-    expect(boundedRequestCount).toBeLessThanOrEqual(13);
+    expect(boundedRequestCount).toBeLessThanOrEqual(
+      AGGREGATION_POLL_MAX_ATTEMPTS + 1,
+    );
     expect(screen.getByTestId("apex-line")).toBeInTheDocument();
     expect(screen.getByText(AGGREGATION_POLLING_PAUSED_MESSAGE)).toBeVisible();
     expect(

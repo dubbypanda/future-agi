@@ -18,14 +18,59 @@ const MULTI_VALUE_TYPES = new Set([
   "thumbs",
   "annotator",
 ]);
+
+// Keep exact typed attribute strings aligned with the retained-value contract.
+// The backend independently enforces the same byte ceiling; this client-side
+// guard prevents an oversized saved/manual value from becoming a query body.
+export const FILTER_STRING_MAX_UTF8_BYTES = 4 * 1024;
+export const TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES = 16 * 1024;
+
+export const getUtf8ByteLength = (value) =>
+  new TextEncoder().encode(String(value ?? "")).byteLength;
+
+export const truncateUtf8String = (value, maxUtf8Bytes) => {
+  const text = String(value ?? "");
+  if (getUtf8ByteLength(text) <= maxUtf8Bytes) return text;
+
+  let result = "";
+  let byteLength = 0;
+  for (const character of text) {
+    const characterBytes = getUtf8ByteLength(character);
+    if (byteLength + characterBytes > maxUtf8Bytes) break;
+    result += character;
+    byteLength += characterBytes;
+  }
+  return result;
+};
+
+const assertBoundedTypedAttributeStrings = (
+  filterValue,
+  attributeValueTypes,
+) => {
+  if (!Array.isArray(filterValue) || !Array.isArray(attributeValueTypes)) {
+    return;
+  }
+  filterValue.forEach((value, index) => {
+    if (
+      attributeValueTypes[index] === "string" &&
+      typeof value === "string" &&
+      getUtf8ByteLength(value) > TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES
+    ) {
+      throw new Error(
+        `SPAN_ATTRIBUTE string filter values must be at most ${TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES} UTF-8 bytes.`,
+      );
+    }
+  });
+};
 const API_FILTER_ITEM_KEYS = new Set([
   "column_id",
+  "property_id",
   "display_name",
   "source",
   "output_type",
   "filter_config",
 ]);
-const UI_FILTER_ITEM_KEYS = new Set(["id", "_meta", "col_type"]);
+const UI_FILTER_ITEM_KEYS = new Set(["id", "registryId", "_meta", "col_type"]);
 const API_FILTER_CONFIG_KEYS = new Set([
   "filter_type",
   "filter_op",
@@ -35,6 +80,8 @@ const API_FILTER_CONFIG_KEYS = new Set([
 ]);
 const STORED_FILTER_ITEM_KEY_ALIASES = {
   columnId: "column_id",
+  propertyId: "property_id",
+  registryId: "property_id",
   displayName: "display_name",
   outputType: "output_type",
   filterConfig: "filter_config",
@@ -172,6 +219,8 @@ export const buildApiFilterFromPanelRow = (row) => {
     return normalized.some(Boolean) ? normalized : undefined;
   })();
 
+  assertBoundedTypedAttributeStrings(filterValue, attributeValueTypes);
+
   if (!isAllowedFilterOperator(filterType, filterOp)) {
     throw new Error(
       `Unsupported filter operator "${filterOp}" for type "${filterType}".`,
@@ -180,6 +229,7 @@ export const buildApiFilterFromPanelRow = (row) => {
 
   return {
     column_id: row?.field,
+    ...(row?.registryId && { property_id: row.registryId }),
     ...(row?.fieldName && { display_name: row.fieldName }),
     filter_config: {
       filter_type: filterType,
@@ -269,6 +319,7 @@ export const serializeFilterForApi = (filter) => {
       );
     }
   }
+  assertBoundedTypedAttributeStrings(filterValue, attributeValueTypes);
   if (
     filterOp !== "is_null" &&
     filterOp !== "is_not_null" &&
@@ -283,6 +334,7 @@ export const serializeFilterForApi = (filter) => {
 
   return {
     column_id: columnId,
+    ...(filter.property_id && { property_id: filter.property_id }),
     ...(filter.display_name && { display_name: filter.display_name }),
     ...(filter.source && { source: filter.source }),
     ...(filter.output_type && { output_type: filter.output_type }),
