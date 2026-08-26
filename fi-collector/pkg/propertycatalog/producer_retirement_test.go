@@ -13,8 +13,8 @@ import (
 const (
 	pythonRetirementBuildToken = "66666666-6666-4666-8666-666666666666"
 	pythonRetirementHotStream  = "55555555-5555-4555-8555-555555555555"
-	pythonRetirementBuildLease = "7b39faf0e532c815df5c1f6dc8af67725afad4e37679e46df13456199c034a23"
-	pythonRetirementSHA        = "83791ce79fcd6cfe1e4f32f6cb98f763175fdf83e4f0b593c781c846eff20a94"
+	pythonRetirementBuildLease = "7a0fd1048887e6fc5122046a17381755f48e588cb467874e1402b48cf4deccc7"
+	pythonRetirementSHA        = "4313b4f96614cd60dac703929146aa802041ac19116109476f2e49bd3b68c634"
 )
 
 func pythonRetirementFixture(t *testing.T) []byte {

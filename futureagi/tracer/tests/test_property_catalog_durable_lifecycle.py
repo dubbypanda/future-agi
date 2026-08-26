@@ -1175,6 +1175,63 @@ def test_auto_schedule_selects_incremental_then_due_full_repair() -> None:
     )
 
 
+def test_span_definition_version_stays_monotonic_when_repair_window_widens() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    state = _State()
+    lifecycle = _lifecycle(
+        state=state,
+        clock=clock,
+        freezer=_Freezer(clock),
+        tokens=[TOKEN_A, TOKEN_B],
+    )
+    narrow_bounds = ConfiguredSourceBounds(
+        INITIAL_UNTIL - timedelta(hours=1),
+        INITIAL_UNTIL,
+    )
+    initial = lifecycle.prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=narrow_bounds,
+    )
+    initial_plan = initial.lease.build_plan
+    initial_definitions = next(
+        stream
+        for stream in initial_plan.streams
+        if stream.source_adapter is SourceAdapter.SPAN_ATTRIBUTE
+        and stream.role is ManifestStreamRole.DEFINITIONS
+    )
+    state.activate(initial, at=clock.current)
+
+    clock.current += timedelta(minutes=2)
+    repair = lifecycle.prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.FULL_REPAIR,
+        configured_bounds=_bounds(),
+    )
+    repair_plan = repair.lease.build_plan
+    repair_definitions = next(
+        stream
+        for stream in repair_plan.streams
+        if stream.source_adapter is SourceAdapter.SPAN_ATTRIBUTE
+        and stream.role is ManifestStreamRole.DEFINITIONS
+    )
+
+    assert (
+        repair_plan.source_scope.span_since_us < initial_plan.source_scope.span_since_us
+    )
+    assert repair_definitions.source_cutoff_label == (
+        "full_repair_span_definition_version_us"
+    )
+    assert (
+        repair_definitions.source_version_fence
+        == repair_plan.source_scope.span_until_us
+    )
+    assert (
+        repair_definitions.source_version_fence
+        > initial_definitions.source_version_fence
+    )
+
+
 def test_auto_schedule_promotes_project_scope_change_to_full_repair() -> None:
     clock = _Clock(INITIAL_UNTIL)
     state = _State()
@@ -1244,6 +1301,37 @@ def test_decoder_accepts_legacy_incremental_system_revision_marker() -> None:
     assert decoded.mode is LifecycleRunMode.INCREMENTAL
     assert decoded.prior_active_revision == initial.lease.catalog_revision
     assert decoded.cutoffs == incremental.cutoffs
+
+
+def test_decoder_accepts_legacy_span_definition_lower_bound_marker() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    lifecycle = _lifecycle(
+        state=_State(),
+        clock=clock,
+        freezer=_Freezer(clock),
+        tokens=[TOKEN_A],
+    )
+    initial = lifecycle.prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=_bounds(),
+    )
+    plan = initial.lease.build_plan
+    legacy_streams = tuple(
+        replace(
+            stream,
+            source_cutoff_label="initial_backfill_span_since_us",
+            source_version_fence=plan.source_scope.span_since_us,
+        )
+        if stream.source_adapter is SourceAdapter.SPAN_ATTRIBUTE
+        and stream.role is ManifestStreamRole.DEFINITIONS
+        else stream
+        for stream in plan.streams
+    )
+
+    decoded = _decode_plan_scope(replace(plan, streams=legacy_streams))
+
+    assert decoded.cutoffs == initial.cutoffs
 
 
 def test_two_successive_incremental_revisions_advance_frozen_cutoff() -> None:

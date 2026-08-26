@@ -1854,7 +1854,6 @@ def _planned_streams(
 ) -> tuple[BuildPlanStream, ...]:
     prefix = mode.value
     upper_us = _datetime_to_micros(cutoffs.snapshot_upper)
-    since_us = _datetime_to_micros(cutoffs.span_window.since)
 
     def stream_id(adapter: SourceAdapter, role: ManifestStreamRole) -> str:
         if role is ManifestStreamRole.HOT_VALUES:
@@ -1919,8 +1918,8 @@ def _planned_streams(
     span_values = (
         (
             ManifestStreamRole.DEFINITIONS,
-            f"{prefix}_span_since_us",
-            since_us,
+            f"{prefix}_span_definition_version_us",
+            upper_us,
         ),
         (
             ManifestStreamRole.HOT_VALUES,
@@ -1998,6 +1997,14 @@ def _decode_plan_scope(plan: RevisionBuildPlan) -> _DecodedPlanScope:
             # diagnosed/recovered after upgrading. New plans are emitted only
             # with the monotonic plus-epoch encoding.
             expected.add(f"{mode.value}_prior_active_revision")
+        if key == (
+            SourceAdapter.SPAN_ATTRIBUTE,
+            ManifestStreamRole.DEFINITIONS,
+        ):
+            # Decode reservations persisted before span-definition versions
+            # moved from the rolling window's lower bound to its monotonic
+            # upper cutoff. New plans never emit this legacy label.
+            expected.add(f"{mode.value}_span_since_us")
         if stream.source_cutoff_label not in expected:
             raise DurableLifecycleError(
                 f"build plan cutoff label is invalid for {key[0]}/{key[1]}"
@@ -2022,9 +2029,19 @@ def _decode_plan_scope(plan: RevisionBuildPlan) -> _DecodedPlanScope:
     ].source_version_fence
     if values_generation != audit_generation:
         raise DurableLifecycleError("span value and audit generations differ")
-    since_us = by_role[
+    since_us = plan.source_scope.span_since_us
+    span_definitions = by_role[
         (SourceAdapter.SPAN_ATTRIBUTE, ManifestStreamRole.DEFINITIONS)
-    ].source_version_fence
+    ]
+    if span_definitions.source_cutoff_label == f"{mode.value}_span_since_us":
+        if span_definitions.source_version_fence != since_us:
+            raise DurableLifecycleError(
+                "legacy span definition fence differs from source_scope"
+            )
+    elif span_definitions.source_version_fence != upper_us:
+        raise DurableLifecycleError(
+            "span definition version does not match the frozen upper cutoff"
+        )
     cutoffs = FrozenLifecycleCutoffs(
         snapshot_upper=_micros_to_datetime(upper_us),
         span_window=SourceWindow(
@@ -2033,10 +2050,7 @@ def _decode_plan_scope(plan: RevisionBuildPlan) -> _DecodedPlanScope:
         ),
         span_audit_generation=audit_generation,
     )
-    if (
-        plan.source_scope.span_since_us != since_us
-        or plan.source_scope.span_until_us != upper_us
-    ):
+    if plan.source_scope.span_until_us != upper_us:
         raise DurableLifecycleError(
             "build-plan source_scope differs from its stream cutoff window"
         )
@@ -2080,7 +2094,7 @@ def _expected_labels(
                 else f"{prefix}_prior_active_revision_plus_epoch"
             ),
             (SourceAdapter.SPAN_ATTRIBUTE, ManifestStreamRole.DEFINITIONS): (
-                f"{prefix}_span_since_us"
+                f"{prefix}_span_definition_version_us"
             ),
             (SourceAdapter.SPAN_ATTRIBUTE, ManifestStreamRole.HOT_VALUES): (
                 f"{prefix}_span_until_us"
@@ -2107,7 +2121,7 @@ def _label_suffixes(stream: BuildPlanStream) -> tuple[str, ...]:
     if stream.source_adapter in _RELATIONAL_ADAPTERS:
         return ("_postgres_until_us",)
     if stream.role is ManifestStreamRole.DEFINITIONS:
-        return ("_span_since_us",)
+        return ("_span_definition_version_us", "_span_since_us")
     if stream.role is ManifestStreamRole.HOT_VALUES:
         return ("_span_until_us",)
     return ("_span_audit_generation",)
