@@ -209,6 +209,7 @@ func setUnifiedPropertyCatalogEnv(t *testing.T) {
 	t.Setenv("FI_PROPERTY_CATALOG_EPOCH", "3")
 	t.Setenv("FI_PROPERTY_CATALOG_PROJECTION_VERSION", "1")
 	t.Setenv("FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID", "44444444-4444-4444-8444-444444444444")
+	t.Setenv(envPropertyCatalogWorkspaceScopeMode, "")
 	t.Setenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST", "22222222-2222-4222-8222-222222222222")
 	t.Setenv("FI_PROPERTY_CATALOG_REVISION_FENCE_FILE", filepath.Join(t.TempDir(), "revision-fence.json"))
 	t.Setenv("FI_PROPERTY_CATALOG_SPOOL_DIR", t.TempDir())
@@ -224,9 +225,54 @@ func TestUnifiedPropertyCatalogEnvironmentIsExplicitAndDefaultsToDevClientIdenti
 	}
 	if cfg.PropertyCatalog.Mode != propertycatalog.RuntimeKafka ||
 		cfg.PropertyCatalog.Environment != propertycatalog.DevelopmentEnvironment ||
+		cfg.PropertyCatalog.WorkspaceScopeMode != propertycatalog.WorkspaceScopeStatic ||
 		cfg.PropertyCatalog.ProjectionVersion != 1 || len(cfg.PropertyCatalog.WorkspaceAllowlist) != 1 ||
 		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-catalog-v1-dev" {
 		t.Fatalf("property catalog config=%+v", cfg.PropertyCatalog)
+	}
+}
+
+func TestUnifiedPropertyCatalogEnvironmentParsesFenceScopedDevelopmentMode(t *testing.T) {
+	setUnifiedPropertyCatalogEnv(t)
+	t.Setenv(envPropertyCatalogWorkspaceScopeMode, string(propertycatalog.WorkspaceScopeRevisionFence))
+	t.Setenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST", "")
+	var cfg rootConfig
+	if err := applyEnvOverrides(slog.Default(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PropertyCatalog.WorkspaceScopeMode != propertycatalog.WorkspaceScopeRevisionFence ||
+		len(cfg.PropertyCatalog.WorkspaceAllowlist) != 0 {
+		t.Fatalf("revision-fence environment config=%+v", cfg.PropertyCatalog)
+	}
+}
+
+func TestUnifiedPropertyCatalogEnvironmentRejectsUnsafeFenceScope(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		scopeMode     string
+		production    bool
+		keepAllowlist bool
+	}{
+		{name: "unknown mode", scopeMode: "dynamic"},
+		{name: "mixed static allowlist", scopeMode: string(propertycatalog.WorkspaceScopeRevisionFence), keepAllowlist: true},
+		{name: "production", scopeMode: string(propertycatalog.WorkspaceScopeRevisionFence), production: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setUnifiedPropertyCatalogEnv(t)
+			t.Setenv(envPropertyCatalogWorkspaceScopeMode, test.scopeMode)
+			if !test.keepAllowlist {
+				t.Setenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST", "")
+			}
+			if test.production {
+				t.Setenv("FI_PROPERTY_CATALOG_ENVIRONMENT", propertycatalog.ProductionEnvironment)
+				t.Setenv("FI_PROPERTY_CATALOG_DEV_ACK", "")
+				t.Setenv("FI_PROPERTY_CATALOG_PROD_ACK", propertycatalog.ProductionAcknowledgement)
+				t.Setenv("FI_PROPERTY_CATALOG_KAFKA_TOPIC", "futureagi.prod.property-catalog.v1")
+			}
+			if err := applyEnvOverrides(slog.Default(), &rootConfig{}); err == nil {
+				t.Fatal("unsafe fence-scoped environment was accepted")
+			}
+		})
 	}
 }
 

@@ -33,7 +33,8 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModesRequireEnvironmentSpecificA
 		t.Fatalf("mode=%q err=%v", mode, err)
 	}
 	defaults := cfg.WithDefaults()
-	if defaults.QueueDepth != defaultQueueDepth ||
+	if defaults.WorkspaceScopeMode != WorkspaceScopeStatic ||
+		defaults.QueueDepth != defaultQueueDepth ||
 		defaults.ShutdownTimeout != defaultShutdownTimeout ||
 		defaults.MaxChunkRows != defaultMaxChunkRows ||
 		defaults.Kafka.DeliveryTimeout != DefaultDeliveryTransportTimeout ||
@@ -78,6 +79,68 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModesRequireEnvironmentSpecificA
 			mutate(&candidate)
 			if err := candidate.Validate(); err == nil {
 				t.Fatal("unsafe runtime config was accepted")
+			}
+		})
+	}
+}
+
+func TestRuntimeConfigWorkspaceScopeDefaultsStaticAndFenceModeIsExplicit(t *testing.T) {
+	static := validRuntimeConfig(t)
+	if err := static.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if static.normalizedWorkspaceScopeMode() != WorkspaceScopeStatic ||
+		!static.WorkspaceAllowed(testWorkspace) ||
+		static.WorkspaceAllowed(testWorkspaceTwo) {
+		t.Fatalf("static workspace scope drifted: %+v", static)
+	}
+
+	fenceScoped := static
+	fenceScoped.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+	fenceScoped.WorkspaceAllowlist = nil
+	if err := fenceScoped.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if fenceScoped.WorkspaceAllowed(testWorkspace) ||
+		!fenceScoped.workspaceWithinConfiguredScope(testWorkspace) {
+		t.Fatalf("revision-fence scope became a static allowlist: %+v", fenceScoped)
+	}
+	fence := testRevisionFence(17, "building")
+	if !fenceScoped.fenceAllowsTenant(fence, testOrganization, testWorkspace) ||
+		fenceScoped.fenceAllowsTenant(fence, testOrganization, testWorkspaceTwo) {
+		t.Fatal("revision-fence scope did not require an exact tenant assignment")
+	}
+}
+
+func TestRuntimeConfigRejectsUnsafeWorkspaceScopeModes(t *testing.T) {
+	for name, mutate := range map[string]func(*RuntimeConfig){
+		"revision fence in production": func(c *RuntimeConfig) {
+			c.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+			c.WorkspaceAllowlist = nil
+			c.Environment = ProductionEnvironment
+			c.DevelopmentAcknowledgement = ""
+			c.ProductionAcknowledgement = ProductionAcknowledgement
+		},
+		"revision fence with static allowlist": func(c *RuntimeConfig) {
+			c.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+		},
+		"revision fence without exact dev acknowledgement": func(c *RuntimeConfig) {
+			c.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+			c.WorkspaceAllowlist = nil
+			c.DevelopmentAcknowledgement = "wrong"
+		},
+		"unknown workspace scope": func(c *RuntimeConfig) {
+			c.WorkspaceScopeMode = "dynamic"
+		},
+		"default static scope without allowlist": func(c *RuntimeConfig) {
+			c.WorkspaceAllowlist = nil
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := validRuntimeConfig(t)
+			mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("unsafe workspace scope was accepted")
 			}
 		})
 	}

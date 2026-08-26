@@ -122,7 +122,8 @@ func (r *HotRuntime) DrainProofs(ctx context.Context) ([]DrainProof, error) {
 
 	proofs := make([]DrainProof, 0, len(fences))
 	for _, fence := range fences {
-		if !r.cfg.WorkspaceAllowed(fence.WorkspaceID) || fence.CatalogEpoch != r.cfg.CatalogEpoch ||
+		if !r.cfg.fenceAllowsTenant(fence, fence.OrganizationID, fence.WorkspaceID) ||
+			fence.CatalogEpoch != r.cfg.CatalogEpoch ||
 			fence.ProjectionVersion != r.cfg.ProjectionVersion {
 			continue
 		}
@@ -350,7 +351,8 @@ func validateDrainProofScope(r *HotRuntime, proof DrainProof) error {
 		}
 	}
 	if proof.CatalogEpoch != r.cfg.CatalogEpoch || proof.CatalogRevision == 0 ||
-		proof.ProjectionVersion != r.cfg.ProjectionVersion || !r.cfg.WorkspaceAllowed(proof.WorkspaceID) ||
+		proof.ProjectionVersion != r.cfg.ProjectionVersion ||
+		!r.cfg.workspaceWithinConfiguredScope(proof.WorkspaceID) ||
 		proof.SourceAdapter != AdapterSpanAttribute || proof.ProducerStreamID != r.cfg.ProducerStreamID ||
 		!isLowerSHA256(proof.BuildLeaseSHA256) || !isLowerSHA256(proof.ObservedFenceSHA256) ||
 		!isLowerSHA256(proof.SourceDigest) || !isLowerSHA256(proof.EmittedDigest) ||

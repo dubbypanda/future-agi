@@ -321,7 +321,8 @@ func (p *acknowledgingPublisher) Publish(ctx context.Context, envelope WireEnvel
 	if err != nil {
 		return fmt.Errorf("propertycatalog: recheck build revision before publish: %w", err)
 	}
-	if fence.CatalogEpoch != snapshot.CatalogEpoch || fence.CatalogRevision != snapshot.CatalogRevision ||
+	if !p.cfg.fenceAllowsTenant(fence, snapshot.OrganizationID, snapshot.WorkspaceID) ||
+		fence.CatalogEpoch != snapshot.CatalogEpoch || fence.CatalogRevision != snapshot.CatalogRevision ||
 		fence.BuildToken != snapshot.BuildToken ||
 		fence.ProjectionVersion != snapshot.ProjectionVersion || fence.CatalogEpoch != p.cfg.CatalogEpoch ||
 		fence.ProjectionVersion != p.cfg.ProjectionVersion {
@@ -477,7 +478,8 @@ func (r *HotRuntime) reconstructTails(state *producerStateStore) error {
 	for key, checkpoint := range state.snapshot() {
 		if checkpoint.CatalogEpoch != r.cfg.CatalogEpoch || checkpoint.ProjectionVersion != r.cfg.ProjectionVersion ||
 			checkpoint.SourceAdapter != AdapterSpanAttribute ||
-			checkpoint.ProducerStreamID != r.cfg.ProducerStreamID || !r.cfg.WorkspaceAllowed(checkpoint.WorkspaceID) {
+			checkpoint.ProducerStreamID != r.cfg.ProducerStreamID ||
+			!r.cfg.workspaceWithinConfiguredScope(checkpoint.WorkspaceID) {
 			return errors.New("propertycatalog: durable producer state does not match the enabled build scope")
 		}
 		r.tails[key] = producerTail{
@@ -493,7 +495,8 @@ func (r *HotRuntime) reconstructTails(state *producerStateStore) error {
 		snapshot := envelope.Snapshot()
 		if snapshot.CatalogEpoch != r.cfg.CatalogEpoch || snapshot.ProjectionVersion != r.cfg.ProjectionVersion ||
 			snapshot.SourceAdapter != AdapterSpanAttribute ||
-			snapshot.ProducerStreamID != r.cfg.ProducerStreamID || !r.cfg.WorkspaceAllowed(snapshot.WorkspaceID) {
+			snapshot.ProducerStreamID != r.cfg.ProducerStreamID ||
+			!r.cfg.workspaceWithinConfiguredScope(snapshot.WorkspaceID) {
 			return errors.New("propertycatalog: durable spool envelope does not match the enabled build scope")
 		}
 		key := streamKey{
@@ -603,7 +606,7 @@ func (r *HotRuntime) admitSubmission(rows []ScopedSpan) (hotSubmission, error) {
 	for _, row := range rows {
 		if validateCanonicalUUID("admission organization", row.OrganizationID) != nil ||
 			validateCanonicalUUID("admission workspace", row.WorkspaceID) != nil ||
-			!r.cfg.WorkspaceAllowed(row.WorkspaceID) {
+			!r.cfg.workspaceWithinConfiguredScope(row.WorkspaceID) {
 			continue
 		}
 		scopeSet[hotTenantScope{row.OrganizationID, row.WorkspaceID}] = struct{}{}
@@ -638,7 +641,7 @@ func (r *HotRuntime) admitSubmission(rows []ScopedSpan) (hotSubmission, error) {
 		if err != nil {
 			return hotSubmission{}, err
 		}
-		if fence.OrganizationID != scope.organizationID || fence.WorkspaceID != scope.workspaceID ||
+		if !r.cfg.fenceAllowsTenant(fence, scope.organizationID, scope.workspaceID) ||
 			fence.Status != "building" || fence.CatalogEpoch != r.cfg.CatalogEpoch ||
 			fence.ProjectionVersion != r.cfg.ProjectionVersion {
 			return hotSubmission{}, errors.New("propertycatalog: build revision is not accepting hot admission")
@@ -658,7 +661,7 @@ func (r *HotRuntime) admitSubmission(rows []ScopedSpan) (hotSubmission, error) {
 	// Reject the whole submission before its pending-admission acceptance point
 	// if any otherwise-valid row would cross the signed project/time boundary.
 	for index, scoped := range rows {
-		key, seenAt, allowed, rowErr := hotRowScope(r.cfg, scoped)
+		key, seenAt, allowed, rowErr := hotRowScopeAssigned(r.cfg, scoped, submission.assignments)
 		if rowErr != nil || !allowed {
 			continue // existing invalid-row handling emits a durable activation poison
 		}
@@ -838,7 +841,8 @@ func (r *HotRuntime) observeDraining(ctx context.Context) error {
 		return err
 	}
 	for _, fence := range fences {
-		if fence.Status != "draining" || !r.cfg.WorkspaceAllowed(fence.WorkspaceID) ||
+		if fence.Status != "draining" ||
+			!r.cfg.fenceAllowsTenant(fence, fence.OrganizationID, fence.WorkspaceID) ||
 			fence.CatalogEpoch != r.cfg.CatalogEpoch || fence.ProjectionVersion != r.cfg.ProjectionVersion {
 			continue
 		}
@@ -944,7 +948,7 @@ func (r *HotRuntime) stageAssigned(
 			}] = struct{}{}
 		}
 	}
-	groups, collectionErrors := collectHotGroups(r.cfg, rows)
+	groups, collectionErrors := collectHotGroupsAssigned(r.cfg, rows, assignments)
 	for _, err := range collectionErrors {
 		r.reportGap(err)
 	}
@@ -1041,7 +1045,9 @@ func (r *HotRuntime) durablyStageGapAssigned(
 	for _, scoped := range rows {
 		if validateCanonicalUUID("gap organization", scoped.OrganizationID) != nil ||
 			validateCanonicalUUID("gap workspace", scoped.WorkspaceID) != nil ||
-			!r.cfg.WorkspaceAllowed(scoped.WorkspaceID) {
+			!r.cfg.tenantAllowedByConfigurationOrAssignment(
+				scoped.OrganizationID, scoped.WorkspaceID, assignments,
+			) {
 			continue
 		}
 		counts[tenantKey{scoped.OrganizationID, scoped.WorkspaceID}]++

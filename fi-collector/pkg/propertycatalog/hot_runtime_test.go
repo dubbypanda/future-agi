@@ -247,6 +247,111 @@ func TestHotAdmissionRejectsMixedProjectAndHalfOpenBoundaryAtomically(t *testing
 	}
 }
 
+func TestRevisionFenceWorkspaceScopeAdmitsOnlyExactCurrentFence(t *testing.T) {
+	cfg := validRuntimeConfig(t).WithDefaults()
+	cfg.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+	cfg.WorkspaceAllowlist = nil
+	provider, err := NewFileRevisionProvider(cfg.RevisionFenceFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider.now = func() time.Time {
+		value, _ := time.Parse(dateTime64Layout, "2026-08-14 12:00:00.000000")
+		return value
+	}
+	runtime, err := NewHotRuntime(cfg, provider, &recordingEnvelopePublisher{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := scopedHotRow(
+		testWorkspace, testProject,
+		hotRow(testProject, testSeen, map[string]string{"accepted": "fenced"}, map[string]float64{}),
+	)
+	if _, err := runtime.admitSubmission([]ScopedSpan{row}); err == nil {
+		t.Fatal("fence-scoped admission accepted traffic before a fence existed")
+	}
+
+	raw, err := EncodeRevisionFenceFile([]RevisionFence{testRevisionFence(17, "building")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg.RevisionFenceFile, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	submission, err := runtime.admitSubmission([]ScopedSpan{row})
+	if err != nil || len(submission.assignments) != 1 || len(submission.streams) != 1 {
+		t.Fatalf("exact fence admission=%+v err=%v", submission, err)
+	}
+	if err := runtime.completeSubmission(submission, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	unfenced := scopedHotRow(
+		testWorkspaceTwo, testProject,
+		hotRow(testProject, testSeen, map[string]string{"rejected": "unfenced"}, map[string]float64{}),
+	)
+	if _, err := runtime.admitSubmission([]ScopedSpan{unfenced}); err == nil ||
+		!strings.Contains(err.Error(), "no revision assignment") {
+		t.Fatalf("non-fenced tenant error=%v", err)
+	}
+}
+
+func TestRevisionFenceWorkspaceScopeRejectsMalformedAndExpiredFences(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		mutateRaw func([]byte) []byte
+		now       string
+		want      string
+	}{
+		{
+			name: "malformed digest",
+			mutateRaw: func(raw []byte) []byte {
+				return bytes.Replace(raw, []byte(`"catalog_revision":17`), []byte(`"catalog_revision":18`), 1)
+			},
+			now:  "2026-08-14 12:00:00.000000",
+			want: "digest",
+		},
+		{
+			name: "expired lease", mutateRaw: func(raw []byte) []byte { return raw },
+			now: "2026-08-14 12:03:00.000000", want: "expired",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := validRuntimeConfig(t).WithDefaults()
+			cfg.WorkspaceScopeMode = WorkspaceScopeRevisionFence
+			cfg.WorkspaceAllowlist = nil
+			raw, err := EncodeRevisionFenceFile([]RevisionFence{testRevisionFence(17, "building")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(cfg.RevisionFenceFile, test.mutateRaw(raw), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			provider, err := NewFileRevisionProvider(cfg.RevisionFenceFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			provider.now = func() time.Time {
+				value, _ := time.Parse(dateTime64Layout, test.now)
+				return value
+			}
+			runtime, err := NewHotRuntime(cfg, provider, &recordingEnvelopePublisher{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := scopedHotRow(
+				testWorkspace, testProject,
+				hotRow(testProject, testSeen, map[string]string{"rejected": test.name}, map[string]float64{}),
+			)
+			if submission, err := runtime.admitSubmission([]ScopedSpan{row}); err == nil ||
+				!strings.Contains(err.Error(), test.want) || len(submission.streams) != 0 ||
+				len(runtime.pendingAdmissions) != 0 {
+				t.Fatalf("invalid fence admission=%+v pending=%v err=%v", submission, runtime.pendingAdmissions, err)
+			}
+		})
+	}
+}
+
 func TestHotValuesRemainRevisionLocalAcrossObservationGap(t *testing.T) {
 	cfg := validRuntimeConfig(t).WithDefaults()
 	jan := "2026-01-10 12:00:00.000000"

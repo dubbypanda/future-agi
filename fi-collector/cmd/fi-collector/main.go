@@ -65,6 +65,7 @@ const (
 	envPropertyCatalogMaxSpoolBytes          = "FI_PROPERTY_CATALOG_MAX_SPOOL_BYTES"
 	envPropertyCatalogKafkaDeliveryTimeout   = "FI_PROPERTY_CATALOG_KAFKA_DELIVERY_TIMEOUT"
 	envPropertyCatalogKafkaClientID          = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
+	envPropertyCatalogWorkspaceScopeMode     = "FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE"
 )
 
 func main() {
@@ -530,6 +531,9 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 	}
 	if v := os.Getenv("FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID"); v != "" {
 		c.PropertyCatalog.ProducerStreamID = v
+	}
+	if v := os.Getenv(envPropertyCatalogWorkspaceScopeMode); v != "" {
+		c.PropertyCatalog.WorkspaceScopeMode = propertycatalog.WorkspaceScopeMode(v)
 	}
 	if v := os.Getenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST"); v != "" {
 		c.PropertyCatalog.WorkspaceAllowlist = splitNonempty(v)

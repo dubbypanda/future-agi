@@ -14,9 +14,19 @@ import (
 // delivery belongs to the bounded reconciler and is never available here.
 type RuntimeMode string
 
+// WorkspaceScopeMode controls how the hot producer identifies workspaces that
+// may be considered for admission. Static mode is the production-safe default.
+// Revision-fence mode exists only for fresh development installations where
+// workspace UUIDs do not exist when the collector process starts; a workspace
+// is still admitted only after its exact current revision fence is resolved.
+type WorkspaceScopeMode string
+
 const (
 	RuntimeDisabled RuntimeMode = "disabled"
 	RuntimeKafka    RuntimeMode = "kafka"
+
+	WorkspaceScopeStatic        WorkspaceScopeMode = "static"
+	WorkspaceScopeRevisionFence WorkspaceScopeMode = "revision_fence"
 
 	DevelopmentEnvironment = "development"
 	ProductionEnvironment  = "production"
@@ -76,6 +86,7 @@ type RuntimeConfig struct {
 	CatalogEpoch               uint16             `yaml:"catalog_epoch"`
 	ProjectionVersion          uint16             `yaml:"projection_version"`
 	ProducerStreamID           string             `yaml:"producer_stream_id"`
+	WorkspaceScopeMode         WorkspaceScopeMode `yaml:"workspace_scope_mode"`
 	WorkspaceAllowlist         []string           `yaml:"workspace_allowlist"`
 	RevisionFenceFile          string             `yaml:"revision_fence_file"`
 	SpoolDirectory             string             `yaml:"spool_directory"`
@@ -100,7 +111,17 @@ func (c RuntimeConfig) normalizedMode() RuntimeMode {
 	return RuntimeMode(strings.ToLower(strings.TrimSpace(string(c.Mode))))
 }
 
+func (c RuntimeConfig) normalizedWorkspaceScopeMode() WorkspaceScopeMode {
+	if c.WorkspaceScopeMode == "" {
+		return WorkspaceScopeStatic
+	}
+	return WorkspaceScopeMode(strings.ToLower(strings.TrimSpace(string(c.WorkspaceScopeMode))))
+}
+
 func (c RuntimeConfig) WithDefaults() RuntimeConfig {
+	if c.WorkspaceScopeMode == "" {
+		c.WorkspaceScopeMode = WorkspaceScopeStatic
+	}
 	if c.ReplayInterval == 0 {
 		c.ReplayInterval = defaultReplayInterval
 	}
@@ -186,22 +207,22 @@ func (c RuntimeConfig) Validate() error {
 			MaxShutdownTimeout,
 		)
 	}
-	if len(c.WorkspaceAllowlist) == 0 || len(c.WorkspaceAllowlist) > maxWorkspaceAllowlist {
-		return fmt.Errorf(
-			"propertycatalog: enabled runtime requires 1..%d allowlisted workspaces",
-			maxWorkspaceAllowlist,
-		)
-	}
-	if !slices.IsSorted(c.WorkspaceAllowlist) {
-		return errors.New("propertycatalog: workspace allowlist must be sorted")
-	}
-	for index, workspaceID := range c.WorkspaceAllowlist {
-		if err := validateCanonicalUUID(fmt.Sprintf("workspace allowlist %d", index), workspaceID); err != nil {
+	switch c.normalizedWorkspaceScopeMode() {
+	case WorkspaceScopeStatic:
+		if err := c.validateStaticWorkspaceAllowlist(); err != nil {
 			return err
 		}
-		if index > 0 && workspaceID == c.WorkspaceAllowlist[index-1] {
-			return errors.New("propertycatalog: workspace allowlist contains a duplicate")
+	case WorkspaceScopeRevisionFence:
+		if c.Environment != DevelopmentEnvironment ||
+			c.DevelopmentAcknowledgement != DevelopmentAcknowledgement ||
+			c.ProductionAcknowledgement != "" {
+			return errors.New("propertycatalog: revision_fence workspace scope is development-only")
 		}
+		if len(c.WorkspaceAllowlist) != 0 {
+			return errors.New("propertycatalog: revision_fence workspace scope rejects a static workspace allowlist")
+		}
+	default:
+		return fmt.Errorf("propertycatalog: invalid workspace scope mode %q", c.WorkspaceScopeMode)
 	}
 	if c.QueueDepth < 1 || c.QueueDepth > maxRuntimeQueueDepth ||
 		c.MaxSpansPerBatch < 1 || c.MaxSpansPerBatch > maxRuntimeSpansPerBatch ||
@@ -241,6 +262,27 @@ func (c RuntimeConfig) Validate() error {
 	return nil
 }
 
+func (c RuntimeConfig) validateStaticWorkspaceAllowlist() error {
+	if len(c.WorkspaceAllowlist) == 0 || len(c.WorkspaceAllowlist) > maxWorkspaceAllowlist {
+		return fmt.Errorf(
+			"propertycatalog: enabled runtime requires 1..%d allowlisted workspaces",
+			maxWorkspaceAllowlist,
+		)
+	}
+	if !slices.IsSorted(c.WorkspaceAllowlist) {
+		return errors.New("propertycatalog: workspace allowlist must be sorted")
+	}
+	for index, workspaceID := range c.WorkspaceAllowlist {
+		if err := validateCanonicalUUID(fmt.Sprintf("workspace allowlist %d", index), workspaceID); err != nil {
+			return err
+		}
+		if index > 0 && workspaceID == c.WorkspaceAllowlist[index-1] {
+			return errors.New("propertycatalog: workspace allowlist contains a duplicate")
+		}
+	}
+	return nil
+}
+
 func (c RuntimeConfig) validateEnvironmentAcknowledgement() error {
 	switch c.Environment {
 	case DevelopmentEnvironment:
@@ -267,5 +309,37 @@ func (c RuntimeConfig) SelectedMode() (RuntimeMode, error) {
 }
 
 func (c RuntimeConfig) WorkspaceAllowed(workspaceID string) bool {
-	return slices.Contains(c.WorkspaceAllowlist, workspaceID)
+	return c.normalizedWorkspaceScopeMode() == WorkspaceScopeStatic &&
+		slices.Contains(c.WorkspaceAllowlist, workspaceID)
+}
+
+// workspaceWithinConfiguredScope is deliberately not an admission decision.
+// In revision-fence mode it only permits bounded durable-state inspection; hot
+// traffic must additionally match a resolved current fence via fenceAllowsTenant.
+func (c RuntimeConfig) workspaceWithinConfiguredScope(workspaceID string) bool {
+	switch c.normalizedWorkspaceScopeMode() {
+	case WorkspaceScopeStatic:
+		return c.WorkspaceAllowed(workspaceID)
+	case WorkspaceScopeRevisionFence:
+		return c.Environment == DevelopmentEnvironment &&
+			c.DevelopmentAcknowledgement == DevelopmentAcknowledgement &&
+			c.ProductionAcknowledgement == "" && len(c.WorkspaceAllowlist) == 0 &&
+			validateCanonicalUUID("workspace scope", workspaceID) == nil
+	default:
+		return false
+	}
+}
+
+// fenceAllowsTenant is the authorization boundary for revision-fence scope.
+// The caller must supply the single current fence returned for this tenant;
+// comparing both tenant components prevents a provider from widening scope.
+func (c RuntimeConfig) fenceAllowsTenant(
+	fence RevisionFence, organizationID, workspaceID string,
+) bool {
+	if fence.OrganizationID != organizationID || fence.WorkspaceID != workspaceID ||
+		validateCanonicalUUID("fence-scoped organization", organizationID) != nil ||
+		!c.workspaceWithinConfiguredScope(workspaceID) {
+		return false
+	}
+	return true
 }

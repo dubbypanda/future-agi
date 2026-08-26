@@ -39,6 +39,12 @@ type hotGroup struct {
 }
 
 func collectHotGroups(cfg RuntimeConfig, rows []ScopedSpan) ([]hotGroup, []error) {
+	return collectHotGroupsAssigned(cfg, rows, nil)
+}
+
+func collectHotGroupsAssigned(
+	cfg RuntimeConfig, rows []ScopedSpan, assignments map[hotTenantScope]RevisionFence,
+) ([]hotGroup, []error) {
 	if len(rows) > cfg.MaxSpansPerBatch {
 		return nil, []error{fmt.Errorf("propertycatalog: canonical batch has %d spans, limit %d", len(rows), cfg.MaxSpansPerBatch)}
 	}
@@ -50,7 +56,7 @@ func collectHotGroups(cfg RuntimeConfig, rows []ScopedSpan) ([]hotGroup, []error
 	}
 	for index, scoped := range rows {
 		row := scoped.Row
-		key, seenAt, allowed, err := hotRowScope(cfg, scoped)
+		key, seenAt, allowed, err := hotRowScopeAssigned(cfg, scoped, assignments)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("propertycatalog: canonical span %d: %w", index, err))
 			continue
@@ -129,6 +135,12 @@ func collectHotGroups(cfg RuntimeConfig, rows []ScopedSpan) ([]hotGroup, []error
 }
 
 func hotRowScope(cfg RuntimeConfig, scoped ScopedSpan) (hotGroupKey, time.Time, bool, error) {
+	return hotRowScopeAssigned(cfg, scoped, nil)
+}
+
+func hotRowScopeAssigned(
+	cfg RuntimeConfig, scoped ScopedSpan, assignments map[hotTenantScope]RevisionFence,
+) (hotGroupKey, time.Time, bool, error) {
 	if scoped.ScopeError != "" {
 		return hotGroupKey{}, time.Time{}, false, fmt.Errorf("authenticated project/workspace proof failed: %s", scoped.ScopeError)
 	}
@@ -152,7 +164,7 @@ func hotRowScope(cfg RuntimeConfig, scoped ScopedSpan) (hotGroupKey, time.Time, 
 	if err := validateCanonicalUUID("project", projectID); err != nil {
 		return hotGroupKey{}, time.Time{}, false, err
 	}
-	if !cfg.WorkspaceAllowed(workspaceID) {
+	if !cfg.tenantAllowedByConfigurationOrAssignment(organizationID, workspaceID, assignments) {
 		return hotGroupKey{}, time.Time{}, false, nil
 	}
 	seenText, ok := row["start_time"].(string)
@@ -164,6 +176,19 @@ func hotRowScope(cfg RuntimeConfig, scoped ScopedSpan) (hotGroupKey, time.Time, 
 		return hotGroupKey{}, time.Time{}, false, errors.New("start_time is not canonical DateTime64(6)")
 	}
 	return hotGroupKey{organizationID, workspaceID, projectID}, seenAt, true, nil
+}
+
+func (c RuntimeConfig) tenantAllowedByConfigurationOrAssignment(
+	organizationID, workspaceID string, assignments map[hotTenantScope]RevisionFence,
+) bool {
+	if c.normalizedWorkspaceScopeMode() == WorkspaceScopeStatic {
+		return c.WorkspaceAllowed(workspaceID)
+	}
+	if c.normalizedWorkspaceScopeMode() != WorkspaceScopeRevisionFence || assignments == nil {
+		return false
+	}
+	fence, assigned := assignments[hotTenantScope{organizationID, workspaceID}]
+	return assigned && c.fenceAllowsTenant(fence, organizationID, workspaceID)
 }
 
 func hotAttributeMaps(row map[string]any) (attributecatalog.SpanAttributeMaps, bool) {
