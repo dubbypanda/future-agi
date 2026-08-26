@@ -24,6 +24,7 @@ from tracer.services.clickhouse.v2.property_catalog.coordinator import (
     REVISION_LEASE_SECONDS,
 )
 from tracer.services.clickhouse.v2.property_catalog.dev_rollout import (
+    DEV_CLOUD_DEPLOYMENT,
     DEV_INITIAL_BACKFILL_MAX_WALL_MS,
     DEV_ROLLOUT_ACK,
     DEV_SCHEDULED_RECONCILE_MAX_WALL_MS,
@@ -1550,6 +1551,34 @@ def test_rollout_rejects_non_dev_or_ambiguous_targets(
         _request(**overrides)
 
 
+@pytest.mark.parametrize("cloud_deployment", ("", DEV_CLOUD_DEPLOYMENT))
+def test_rollout_accepts_oss_empty_and_existing_dev_cloud(
+    cloud_deployment: str,
+) -> None:
+    request = _request(cloud_deployment=cloud_deployment)
+
+    assert request.environment == "development"
+    assert request.cloud_deployment == cloud_deployment
+    assert request.target_database == "th7247_catalog_dev_unit"
+    assert request.acknowledgement == DEV_ROLLOUT_ACK
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {"target_database": "futureagi"},
+        {"target_database": "th7247_catalog_prod"},
+        {"acknowledgement": "wrong"},
+        {"environment": "staging"},
+    ),
+)
+def test_oss_empty_cloud_keeps_exact_dev_isolation_gates(
+    overrides: dict[str, object],
+) -> None:
+    with pytest.raises(DevRolloutError):
+        _request(cloud_deployment="", **overrides)
+
+
 @pytest.mark.parametrize(
     "wall_ms",
     (True, DEV_STANDARD_MAX_WALL_MS, DEV_INITIAL_BACKFILL_MAX_WALL_MS + 1),
@@ -1759,6 +1788,73 @@ def test_runtime_settings_keep_standard_wall_capped_and_select_explicit_wall(
                 str(tmp_path),
                 wall_ms=DEV_STANDARD_MAX_WALL_MS + 1,
             ),
+            now=ATTESTED_AT,
+        )
+
+
+@pytest.mark.parametrize(
+    ("environment", "cloud_deployment", "request_cloud_deployment"),
+    (
+        ("development", None, ""),
+        ("development", DEV_CLOUD_DEPLOYMENT, DEV_CLOUD_DEPLOYMENT),
+        ("staging", DEV_CLOUD_DEPLOYMENT, DEV_CLOUD_DEPLOYMENT),
+    ),
+)
+def test_runtime_accepts_oss_empty_cloud_and_preserves_dev_cloud_behavior(
+    tmp_path: Any,
+    environment: str,
+    cloud_deployment: str | None,
+    request_cloud_deployment: str,
+) -> None:
+    settings_object = _runtime_settings(str(tmp_path))
+    settings_object.ENV_TYPE = environment
+    if cloud_deployment is None:
+        del settings_object.CLOUD_DEPLOYMENT
+    else:
+        settings_object.CLOUD_DEPLOYMENT = cloud_deployment
+
+    config = DevRuntimeConfig.from_settings(
+        _request(cloud_deployment=request_cloud_deployment),
+        settings_object,
+        now=ATTESTED_AT,
+    )
+
+    assert config.catalog.database == "th7247_catalog_dev_unit"
+
+
+@pytest.mark.parametrize(
+    (
+        "request_cloud_deployment",
+        "environment",
+        "cloud_deployment",
+        "message",
+    ),
+    (
+        ("", "development", DEV_CLOUD_DEPLOYMENT, "differs"),
+        (DEV_CLOUD_DEPLOYMENT, "development", None, "differs"),
+        ("", "staging", None, "only when ENV_TYPE=development"),
+        (DEV_CLOUD_DEPLOYMENT, "production", DEV_CLOUD_DEPLOYMENT, "non-DEV"),
+        ("", "production", None, "non-DEV"),
+    ),
+)
+def test_runtime_rejects_cloud_mismatches_staging_unset_and_production(
+    tmp_path: Any,
+    request_cloud_deployment: str,
+    environment: str,
+    cloud_deployment: str | None,
+    message: str,
+) -> None:
+    settings_object = _runtime_settings(str(tmp_path))
+    settings_object.ENV_TYPE = environment
+    if cloud_deployment is None:
+        del settings_object.CLOUD_DEPLOYMENT
+    else:
+        settings_object.CLOUD_DEPLOYMENT = cloud_deployment
+
+    with pytest.raises(PropertyCatalogDevRuntimeError, match=message):
+        DevRuntimeConfig.from_settings(
+            _request(cloud_deployment=request_cloud_deployment),
+            settings_object,
             now=ATTESTED_AT,
         )
 

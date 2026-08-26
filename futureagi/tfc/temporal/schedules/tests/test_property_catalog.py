@@ -128,10 +128,66 @@ def test_enabled_schedule_is_bounded_and_skips_overlap() -> None:
     )
 
 
+def test_enabled_schedule_accepts_oss_unset_cloud_in_exact_development() -> None:
+    settings_object = _settings(PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT="")
+    del settings_object.CLOUD_DEPLOYMENT
+
+    configuration = property_catalog.property_catalog_schedule_configuration(
+        settings_object
+    )
+
+    assert configuration.enabled is True
+    assert len(configuration.requests) == 1
+    assert configuration.requests[0].environment == "development"
+    assert configuration.requests[0].cloud_deployment == ""
+
+
+@pytest.mark.parametrize("environment", ("development", "staging"))
+def test_enabled_schedule_preserves_existing_dev_cloud_behavior(
+    environment: str,
+) -> None:
+    configuration = property_catalog.property_catalog_schedule_configuration(
+        _settings(ENV_TYPE=environment)
+    )
+
+    assert configuration.enabled is True
+    assert configuration.requests[0].cloud_deployment == "DEV"
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     (
-        ({"ENV_TYPE": "production", "CLOUD_DEPLOYMENT": "US"}, "non-DEV"),
+        ({"ENV_TYPE": "production", "CLOUD_DEPLOYMENT": "DEV"}, "non-DEV"),
+        (
+            {
+                "ENV_TYPE": "staging",
+                "CLOUD_DEPLOYMENT": "",
+                "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "",
+            },
+            "only when ENV_TYPE=development",
+        ),
+        (
+            {
+                "CLOUD_DEPLOYMENT": "",
+                "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "DEV",
+            },
+            "differs",
+        ),
+        (
+            {
+                "CLOUD_DEPLOYMENT": "DEV",
+                "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "",
+            },
+            "differs",
+        ),
+        (
+            {
+                "CLOUD_DEPLOYMENT": "",
+                "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "",
+                "PROPERTY_CATALOG_DEV_ENVIRONMENT": "staging",
+            },
+            "development-only",
+        ),
         ({"ENV_TYPE": "development", "CLOUD_DEPLOYMENT": "US"}, "requires"),
         ({"PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ()}, "allowlist"),
         (

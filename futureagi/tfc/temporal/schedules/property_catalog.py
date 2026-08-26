@@ -14,11 +14,14 @@ from tfc.temporal.drop_in import temporal_activity
 from tfc.temporal.property_catalog_queue import PROPERTY_CATALOG_TASK_QUEUE
 from tfc.temporal.schedules.config import ScheduleConfig
 from tracer.services.clickhouse.v2.property_catalog.dev_rollout import (
+    DEV_CONTROL_PLANE_ENVIRONMENTS,
     DEV_SCHEDULED_RECONCILE_MAX_WALL_MS,
     DEV_STANDARD_MAX_WALL_MS,
     DevRolloutError,
     DevRolloutRequest,
     configured_dev_rollout_request,
+    dev_control_plane_matches_request,
+    is_dev_control_plane_cloud_allowed,
     run_workspace_reconcile,
 )
 from tracer.services.clickhouse.v2.property_catalog.dev_runtime import (
@@ -76,13 +79,17 @@ def property_catalog_schedule_configuration(
 
     environment = str(getattr(settings_object, "ENV_TYPE", "")).strip().lower()
     cloud_deployment = str(getattr(settings_object, "CLOUD_DEPLOYMENT", "")).strip()
-    if environment not in {"dev", "development", "staging"}:
+    if environment not in DEV_CONTROL_PLANE_ENVIRONMENTS:
         raise PropertyCatalogScheduleError(
             "property catalog schedule refuses non-DEV ENV_TYPE"
         )
-    if cloud_deployment != "DEV":
+    if not is_dev_control_plane_cloud_allowed(
+        environment=environment,
+        cloud_deployment=cloud_deployment,
+    ):
         raise PropertyCatalogScheduleError(
-            "property catalog schedule requires CLOUD_DEPLOYMENT=DEV"
+            "property catalog schedule requires CLOUD_DEPLOYMENT=DEV, or an unset "
+            "CLOUD_DEPLOYMENT only when ENV_TYPE=development"
         )
     max_wall_ms = getattr(
         settings_object,
@@ -155,6 +162,19 @@ def property_catalog_schedule_configuration(
         )
     except (DevRolloutError, TypeError, ValueError) as exc:
         raise PropertyCatalogScheduleError(str(exc)) from exc
+    if any(
+        not dev_control_plane_matches_request(
+            environment=environment,
+            cloud_deployment=cloud_deployment,
+            request_environment=request.environment,
+            request_cloud_deployment=request.cloud_deployment,
+        )
+        for request in requests
+    ):
+        raise PropertyCatalogScheduleError(
+            "property catalog schedule ENV_TYPE/CLOUD_DEPLOYMENT differs from "
+            "the validated request"
+        )
     if any(request.initial_backfill_wall_ms is not None for request in requests):
         raise PropertyCatalogScheduleError(
             "property catalog schedule refuses an initial backfill wall"

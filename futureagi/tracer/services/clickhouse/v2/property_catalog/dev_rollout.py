@@ -34,6 +34,7 @@ DEV_ROLLOUT_ACK = "TH7247_UNIFIED_PROPERTY_CATALOG_DEV"
 DEV_DATABASE_PREFIX = "th7247_catalog_dev_"
 DEV_ENVIRONMENT = "development"
 DEV_CLOUD_DEPLOYMENT = "DEV"
+DEV_CONTROL_PLANE_ENVIRONMENTS = frozenset({"dev", DEV_ENVIRONMENT, "staging"})
 DEV_STANDARD_MAX_WALL_MS = settings.PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS
 DEV_INITIAL_BACKFILL_MAX_WALL_MS = (
     settings.PROPERTY_CATALOG_DEV_INITIAL_BACKFILL_MAX_WALL_MS
@@ -43,6 +44,46 @@ DEV_SCHEDULED_RECONCILE_MAX_WALL_MS = (
 )
 _DEV_IDENTITY_RE = re.compile(r"^dev:[a-z0-9][a-z0-9._:/-]{2,127}$")
 _SOURCE_DATABASE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def is_dev_control_plane_cloud_allowed(
+    *,
+    environment: str,
+    cloud_deployment: str,
+) -> bool:
+    """Admit the existing DEV marker or an exact OSS-local development scope."""
+
+    if environment not in DEV_CONTROL_PLANE_ENVIRONMENTS:
+        return False
+    return cloud_deployment == DEV_CLOUD_DEPLOYMENT or (
+        cloud_deployment == "" and environment == DEV_ENVIRONMENT
+    )
+
+
+def dev_control_plane_matches_request(
+    *,
+    environment: str,
+    cloud_deployment: str,
+    request_environment: str,
+    request_cloud_deployment: str,
+) -> bool:
+    """Require runtime and request scopes to agree without narrowing DEV aliases."""
+
+    if not is_dev_control_plane_cloud_allowed(
+        environment=environment,
+        cloud_deployment=cloud_deployment,
+    ):
+        return False
+    if request_environment != DEV_ENVIRONMENT or not is_dev_control_plane_cloud_allowed(
+        environment=request_environment,
+        cloud_deployment=request_cloud_deployment,
+    ):
+        return False
+    if cloud_deployment != request_cloud_deployment:
+        return False
+    return cloud_deployment == DEV_CLOUD_DEPLOYMENT or (
+        environment == request_environment == DEV_ENVIRONMENT
+    )
 
 
 class DevRolloutStage(StrEnum):
@@ -92,9 +133,13 @@ class DevRolloutRequest:
         )
         if self.environment != DEV_ENVIRONMENT:
             raise DevRolloutError("unified catalog rollout is development-only")
-        if self.cloud_deployment != DEV_CLOUD_DEPLOYMENT:
+        if not is_dev_control_plane_cloud_allowed(
+            environment=self.environment,
+            cloud_deployment=self.cloud_deployment,
+        ):
             raise DevRolloutError(
-                "unified catalog rollout requires CLOUD_DEPLOYMENT=DEV"
+                "unified catalog rollout requires CLOUD_DEPLOYMENT=DEV, or an "
+                "unset CLOUD_DEPLOYMENT only for OSS development"
             )
         identity = str(self.dev_identity or "")
         folded_identity = identity.casefold()
@@ -481,6 +526,7 @@ def _evidence(stage: DevRolloutStage, value: Mapping[str, Any]) -> DevRolloutEvi
 __all__ = [
     "ConfiguredDevRolloutRuntime",
     "DEV_CLOUD_DEPLOYMENT",
+    "DEV_CONTROL_PLANE_ENVIRONMENTS",
     "DEV_DATABASE_PREFIX",
     "DEV_ENVIRONMENT",
     "DEV_ROLLOUT_ACK",
@@ -496,6 +542,8 @@ __all__ = [
     "DevRolloutStage",
     "UnifiedDevRollout",
     "configured_dev_rollout_request",
+    "dev_control_plane_matches_request",
+    "is_dev_control_plane_cloud_allowed",
     "run_configured_dev_rollout",
     "run_scheduled_dev_rollout",
     "run_workspace_reconcile",

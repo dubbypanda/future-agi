@@ -50,11 +50,14 @@ from .coordinator import (
     PropertyCatalogCoordinatorError,
 )
 from .dev_rollout import (
+    DEV_CONTROL_PLANE_ENVIRONMENTS,
     DEV_INITIAL_BACKFILL_MAX_WALL_MS,
     DEV_SCHEDULED_RECONCILE_MAX_WALL_MS,
     DEV_STANDARD_MAX_WALL_MS,
     DevRolloutError,
     DevRolloutRequest,
+    dev_control_plane_matches_request,
+    is_dev_control_plane_cloud_allowed,
 )
 from .durable_lifecycle import (
     ClickHouseLifecycleStateReader,
@@ -988,13 +991,26 @@ class DevRuntimeConfig:
             raise TypeError("request must be a DevRolloutRequest")
         environment = str(getattr(settings_object, "ENV_TYPE", "")).strip().lower()
         cloud_deployment = str(getattr(settings_object, "CLOUD_DEPLOYMENT", "")).strip()
-        if environment not in {"dev", "development", "staging"}:
+        if environment not in DEV_CONTROL_PLANE_ENVIRONMENTS:
             raise PropertyCatalogDevRuntimeError(
                 "runtime refuses non-DEV ENV_TYPE before constructing a client"
             )
-        if cloud_deployment != "DEV":
+        if not is_dev_control_plane_cloud_allowed(
+            environment=environment,
+            cloud_deployment=cloud_deployment,
+        ):
             raise PropertyCatalogDevRuntimeError(
-                "runtime requires the actual CLOUD_DEPLOYMENT to equal DEV"
+                "runtime requires CLOUD_DEPLOYMENT=DEV, or an unset "
+                "CLOUD_DEPLOYMENT only when ENV_TYPE=development"
+            )
+        if not dev_control_plane_matches_request(
+            environment=environment,
+            cloud_deployment=cloud_deployment,
+            request_environment=request.environment,
+            request_cloud_deployment=request.cloud_deployment,
+        ):
+            raise PropertyCatalogDevRuntimeError(
+                "runtime ENV_TYPE/CLOUD_DEPLOYMENT differs from the validated request"
             )
         legacy = _mapping_setting(settings_object, "CLICKHOUSE")
         v2 = _mapping_setting(settings_object, "CLICKHOUSE_V2")
