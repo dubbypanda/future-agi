@@ -1,0 +1,77 @@
+eval_id: 222
+name: insurance_lead_qualification_completeness
+description: Evaluates whether the agent captures the qualification information required by the flow (needs, coverage type,
+  key details, consent/next step), aligns the recommendation to stated needs, and confirms critical details.
+criteria: "You are evaluating whether an insurance agent completely and correctly qualifies a lead.\n\n## Criteria\n\n1. Needs\
+  \ discovery: The agent elicits the customer's core needs and the qualifying details defined by its prompt (e.g. coverage\
+  \ type of interest, age/eligibility, existing coverage, budget or coverage amount) as applicable.\n   - Always: Asks the\
+  \ qualifying questions relevant to the product before recommending or routing.\n   - Never: Jumps to a pitch without understanding\
+  \ the need.\n2. Suitability: The agent aligns its recommendation or routing to the captured needs (no mismatched or one-size-fits-all\
+  \ pushing).\n3. Contact & consent / next step: The agent captures a valid next step - callback consent, contact-detail confirmation,\
+  \ appointment, or handoff - as authorized.\n4. Accuracy of capture: Information is read back or confirmed where it matters\
+  \ (names, numbers, coverage amounts).\n\n## Anti-bias Rules\n\n- If the customer refuses to share a field, the agent should\
+  \ ask appropriately once and is not penalized for the customer's refusal.\n- Missing a field that is not relevant to the\
+  \ stated product/flow is not a failure.\n- Correctly routing an already-qualified customer without re-asking everything\
+  \ is acceptable.\n\n## Scoring\n\n- Return PASS if the agent captures the qualification fields relevant to the flow, aligns\
+  \ to the customer's needs, and secures/attempts a valid, consented next step.\n- Return FAIL if the agent skips required\
+  \ qualification, mis-aligns the recommendation to stated needs, fails to confirm critical details, or does not secure/attempt\
+  \ a next step.\n\n## Input\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<conversation>{{conversation}}</conversation>"
+eval_tags:
+- Agents
+- Conversation
+- Insurance
+visible_ui: true
+permissions:
+  allow_edit: false
+  allow_copy: true
+choices:
+- Passed
+- Failed
+output_type_normalized: pass_fail
+pass_threshold: 0.5
+config:
+  required_keys:
+  - agent_prompt
+  - conversation
+  output: Pass/Fail
+  eval_type_id: AgentEvaluator
+  config: {}
+  config_params_desc:
+    agent_prompt: The insurance agent's system prompt (qualification flow and required fields)
+    conversation: The conversation to be evaluated
+  param_modalities:
+    agent_prompt:
+    - TEXT
+    - JSON
+    - LIST
+    - NUMBER
+    - BOOLEAN
+    - INTEGER
+    - FLOAT
+    - ARRAY
+    - DATETIME
+    conversation:
+    - TEXT
+    - AUDIO
+    - JSON
+    - LIST
+    - NUMBER
+    - BOOLEAN
+    - INTEGER
+    - FLOAT
+    - ARRAY
+    - DATETIME
+  rule_prompt: "You are evaluating whether an insurance agent completely and correctly qualifies a lead.\n\n## Criteria\n\n\
+    1. Needs discovery: The agent elicits the customer's core needs and the qualifying details defined by its prompt (e.g.\
+    \ coverage type of interest, age/eligibility, existing coverage, budget or coverage amount) as applicable.\n   - Always:\
+    \ Asks the qualifying questions relevant to the product before recommending or routing.\n   - Never: Jumps to a pitch\
+    \ without understanding the need.\n2. Suitability: The agent aligns its recommendation or routing to the captured needs\
+    \ (no mismatched or one-size-fits-all pushing).\n3. Contact & consent / next step: The agent captures a valid next step\
+    \ - callback consent, contact-detail confirmation, appointment, or handoff - as authorized.\n4. Accuracy of capture: Information\
+    \ is read back or confirmed where it matters (names, numbers, coverage amounts).\n\n## Anti-bias Rules\n\n- If the customer\
+    \ refuses to share a field, the agent should ask appropriately once and is not penalized for the customer's refusal.\n\
+    - Missing a field that is not relevant to the stated product/flow is not a failure.\n- Correctly routing an already-qualified\
+    \ customer without re-asking everything is acceptable.\n\n## Scoring\n\n- Return PASS if the agent captures the qualification\
+    \ fields relevant to the flow, aligns to the customer's needs, and secures/attempts a valid, consented next step.\n- Return\
+    \ FAIL if the agent skips required qualification, mis-aligns the recommendation to stated needs, fails to confirm critical\
+    \ details, or does not secure/attempt a next step.\n\n## Input\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<conversation>{{conversation}}</conversation>"

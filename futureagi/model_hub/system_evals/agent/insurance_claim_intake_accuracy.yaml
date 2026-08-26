@@ -1,0 +1,81 @@
+eval_id: 223
+name: insurance_claim_intake_accuracy
+description: Evaluates whether the agent runs first-notice-of-loss / claim intake correctly - captures required claim details,
+  follows/initiates the correct process, sets accurate expectations, and makes no coverage or settlement promises.
+criteria: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL) interaction.\n\
+  \n## Criteria\n\n1. Correct process: The agent follows the claim-intake steps defined by its prompt (identify policy/claimant,\
+  \ incident details, date/time/location, relevant specifics) and creates/initiates the claim or routes it correctly.\n2.\
+  \ Complete & accurate capture: The agent collects the required claim information and confirms critical details (names, dates,\
+  \ numbers) rather than assuming.\n   - Always: Reads back the date of loss and policy/claim number to confirm.\n   - Never:\
+  \ Records details without confirmation or skips required fields.\n3. No coverage/settlement promises: The agent does NOT\
+  \ promise the claim will be covered, state a payout amount, or pre-judge liability.\n   - Always: \"I'm logging the details;\
+  \ the claims team will assess it against your policy.\"\n   - Never: \"This will definitely be covered / you'll get $X.\"\
+  \n4. Expectation setting: The agent clearly explains what happens next and who will follow up.\n\n## Anti-bias Rules\n\n\
+  - The agent need not resolve the claim; correctly initiating and routing it with expectations set is success.\n- Expressing\
+  \ empathy while staying non-committal on coverage is the desired behavior, not a contradiction.\n- If the customer abandons\
+  \ the call before intake completes, do not penalize the agent for the missing fields.\n\n## Scoring\n\n- Return PASS if\
+  \ the agent captures required claim details accurately, follows/initiates the correct process, sets accurate next-step expectations,\
+  \ and makes no coverage or settlement promises.\n- Return FAIL if the agent misses required intake details, follows a wrong\
+  \ process, promises coverage/payout, pre-judges liability, or leaves the customer without clear next steps.\n\n## Input\n\
+  \n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<conversation>{{conversation}}</conversation>"
+eval_tags:
+- Agents
+- Conversation
+- Insurance
+visible_ui: true
+permissions:
+  allow_edit: false
+  allow_copy: true
+choices:
+- Passed
+- Failed
+output_type_normalized: pass_fail
+pass_threshold: 0.5
+config:
+  required_keys:
+  - agent_prompt
+  - conversation
+  output: Pass/Fail
+  eval_type_id: AgentEvaluator
+  config: {}
+  config_params_desc:
+    agent_prompt: The insurance agent's system prompt (claim intake / FNOL process)
+    conversation: The conversation to be evaluated
+  param_modalities:
+    agent_prompt:
+    - TEXT
+    - JSON
+    - LIST
+    - NUMBER
+    - BOOLEAN
+    - INTEGER
+    - FLOAT
+    - ARRAY
+    - DATETIME
+    conversation:
+    - TEXT
+    - AUDIO
+    - JSON
+    - LIST
+    - NUMBER
+    - BOOLEAN
+    - INTEGER
+    - FLOAT
+    - ARRAY
+    - DATETIME
+  rule_prompt: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL)\
+    \ interaction.\n\n## Criteria\n\n1. Correct process: The agent follows the claim-intake steps defined by its prompt (identify\
+    \ policy/claimant, incident details, date/time/location, relevant specifics) and creates/initiates the claim or routes\
+    \ it correctly.\n2. Complete & accurate capture: The agent collects the required claim information and confirms critical\
+    \ details (names, dates, numbers) rather than assuming.\n   - Always: Reads back the date of loss and policy/claim number\
+    \ to confirm.\n   - Never: Records details without confirmation or skips required fields.\n3. No coverage/settlement promises:\
+    \ The agent does NOT promise the claim will be covered, state a payout amount, or pre-judge liability.\n   - Always: \"\
+    I'm logging the details; the claims team will assess it against your policy.\"\n   - Never: \"This will definitely be\
+    \ covered / you'll get $X.\"\n4. Expectation setting: The agent clearly explains what happens next and who will follow\
+    \ up.\n\n## Anti-bias Rules\n\n- The agent need not resolve the claim; correctly initiating and routing it with expectations\
+    \ set is success.\n- Expressing empathy while staying non-committal on coverage is the desired behavior, not a contradiction.\n\
+    - If the customer abandons the call before intake completes, do not penalize the agent for the missing fields.\n\n## Scoring\n\
+    \n- Return PASS if the agent captures required claim details accurately, follows/initiates the correct process, sets accurate\
+    \ next-step expectations, and makes no coverage or settlement promises.\n- Return FAIL if the agent misses required intake\
+    \ details, follows a wrong process, promises coverage/payout, pre-judges liability, or leaves the customer without clear\
+    \ next steps.\n\n## Input\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<conversation>{{conversation}}</conversation>"
