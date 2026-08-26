@@ -29,8 +29,8 @@ def _settings(**overrides: Any) -> SimpleNamespace:
         "ENV_TYPE": "development",
         "CLOUD_DEPLOYMENT": "",
         "PROPERTY_CATALOG_DEV_SOURCE_DATABASE": "default",
-        "PROPERTY_CATALOG_DEV_TARGET_DATABASE": "th7247_catalog_dev_oss",
-        "PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "th7247_catalog_dev_oss",
+        "PROPERTY_CATALOG_DEV_TARGET_DATABASE": "property_catalog_dev_oss",
+        "PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "property_catalog_dev_oss",
         "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS": 1_200_000,
         "PROPERTY_CATALOG_DEV_REVISION_FENCE_FILE": "/runtime/fence.json",
         "PROPERTY_CATALOG_DEV_DRAIN_PROOF_FILE": (
@@ -59,7 +59,7 @@ def _environ(**overrides: str) -> dict[str, str]:
 def _config() -> subject.OssSupervisorConfig:
     return subject.OssSupervisorConfig(
         source_database="default",
-        target_database="th7247_catalog_dev_oss",
+        target_database="property_catalog_dev_oss",
         catalog_epoch=7,
         projection_version=3,
         producer_stream_id=PRODUCER,
@@ -94,15 +94,15 @@ def _scope(
         (
             {"PROPERTY_CATALOG_DEV_TARGET_DATABASE": "default"},
             {},
-            "isolated th7247_catalog_dev_",
+            "isolated property_catalog_dev_",
         ),
         (
-            {"PROPERTY_CATALOG_DEV_SOURCE_DATABASE": "th7247_catalog_dev_oss"},
+            {"PROPERTY_CATALOG_DEV_SOURCE_DATABASE": "property_catalog_dev_oss"},
             {},
             "must differ",
         ),
         (
-            {"PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "th7247_catalog_dev_other"},
+            {"PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "property_catalog_dev_other"},
             {},
             "must equal",
         ),
@@ -133,7 +133,7 @@ def test_supervisor_gate_accepts_only_bounded_explicit_local_configuration() -> 
 
     assert config == subject.OssSupervisorConfig(
         source_database="default",
-        target_database="th7247_catalog_dev_oss",
+        target_database="property_catalog_dev_oss",
         catalog_epoch=7,
         projection_version=3,
         producer_stream_id=PRODUCER,

@@ -6,7 +6,7 @@ set -eu
 # tables, and dedicated local identities. It never mutates source tables.
 
 SOURCE_DATABASE=${PROPERTY_CATALOG_SOURCE_DATABASE:-${CH25_DATABASE:-default}}
-TARGET_DATABASE=${PROPERTY_CATALOG_TARGET_DATABASE:-th7247_catalog_dev_oss}
+TARGET_DATABASE=${PROPERTY_CATALOG_TARGET_DATABASE:-property_catalog_dev_oss}
 CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
 CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-9000}
 SCHEMA_DIRECTORY=${PROPERTY_CATALOG_SCHEMA_DIRECTORY:-/property-catalog-schema}
@@ -36,7 +36,7 @@ case "$TARGET_DATABASE" in
     ;;
 esac
 case "$TARGET_DATABASE" in
-  th7247_catalog_dev_?* ) ;;
+  property_catalog_dev_?* ) ;;
   * )
     echo >&2 "PROPERTY_CATALOG_TARGET_DATABASE must use the isolated DEV prefix"
     exit 64

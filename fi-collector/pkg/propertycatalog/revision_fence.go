@@ -64,6 +64,12 @@ type FileRevisionProvider struct {
 	now  func() time.Time
 }
 
+// ErrRevisionNotAssigned is the typed, non-corruption result for a valid
+// revision-fence inventory that simply has no current entry for a tenant. It
+// must remain distinguishable from an unreadable, malformed, or expired fence
+// file, all of which are operational failures and must fail closed.
+var ErrRevisionNotAssigned = errors.New("propertycatalog: no revision assignment for tenant scope")
+
 func NewFileRevisionProvider(path string) (*FileRevisionProvider, error) {
 	if path == "" || !filepath.IsAbs(path) {
 		return nil, errors.New("propertycatalog: revision fence path must be absolute")
@@ -112,7 +118,10 @@ func (p *FileRevisionProvider) CurrentRevision(
 			return fence, nil
 		}
 	}
-	return RevisionFence{}, errors.New("propertycatalog: no revision assignment for tenant scope")
+	return RevisionFence{}, fmt.Errorf(
+		"%w: organization=%s workspace=%s",
+		ErrRevisionNotAssigned, organizationID, workspaceID,
+	)
 }
 
 func (p *FileRevisionProvider) CurrentRevisions(ctx context.Context) ([]RevisionFence, error) {

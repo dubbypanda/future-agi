@@ -16,7 +16,7 @@ import (
 
 const (
 	maxCatalogInsertBytes    = 16 << 20
-	devCatalogDatabasePrefix = "th7247_catalog_dev_"
+	devCatalogDatabasePrefix = "property_catalog_dev_"
 	prodCatalogDatabaseName  = "property_catalog"
 )
 

@@ -30,8 +30,8 @@ from .publisher import (
 from .reconciler import ReconcileMode
 from .source_adapters import DefinitionSourceAdapter
 
-DEV_ROLLOUT_ACK = "TH7247_UNIFIED_PROPERTY_CATALOG_DEV"
-DEV_DATABASE_PREFIX = "th7247_catalog_dev_"
+DEV_ROLLOUT_ACK = "PROPERTY_CATALOG_DEV_ROLLOUT"
+DEV_DATABASE_PREFIX = "property_catalog_dev_"
 DEV_ENVIRONMENT = "development"
 DEV_CLOUD_DEPLOYMENT = "DEV"
 DEV_CONTROL_PLANE_ENVIRONMENTS = frozenset({"dev", DEV_ENVIRONMENT, "staging"})

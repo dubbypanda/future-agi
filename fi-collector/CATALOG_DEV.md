@@ -4,17 +4,15 @@
 > This guide covers the legacy `FI_CATALOG_MODE` span-attribute catalog only.
 > It is not an end-to-end guide for the unified property catalog. For
 > `FI_PROPERTY_CATALOG_MODE`, use the canonical
-> [DEV Docker property-catalog guide](../deploy/dev/property-catalog-docker/README.md),
-> which runs the producer and `fi-property-catalog-consumer`, joins both
-> required Docker networks, and uses a deployment-scoped property-catalog
-> topic.
+> [candidate/sequencer Core contract](PROPERTY_CATALOG_SEQUENCER.md). Any DEV
+> Docker bundle must implement that two-topic, singleton-owner topology.
 
 Do not enable `FI_CATALOG_MODE` and `FI_PROPERTY_CATALOG_MODE` together. The
 two paths use different consumers and wire contracts:
 
 | Path | Producer mode | Consumer | Topic | End-to-end DEV guide |
 | --- | --- | --- | --- | --- |
-| Legacy span attributes | `FI_CATALOG_MODE` | `fi-catalog-consumer` | `th7247.dev.span-attribute-catalog.v1` | This document |
+| Legacy span attributes | `FI_CATALOG_MODE` | `fi-catalog-consumer` | `property-catalog.dev.span-attribute-catalog.v1` | This document |
 | Unified properties | `FI_PROPERTY_CATALOG_MODE` | `fi-property-catalog-consumer` | `futureagi.dev.property-catalog.<deployment_id>` | [`deploy/dev/property-catalog-docker/`](../deploy/dev/property-catalog-docker/README.md) |
 
 This catalog is additive. Its runtime is disabled by default, and production
@@ -27,7 +25,7 @@ or another pre-existing table.
 Schema files `025_span_attribute_catalog.sql` and
 `026_span_attribute_catalog_delivery.sql` create six independent tables. The
 dev harness applies their six pinned `CREATE TABLE` statements directly to a
-new `th7247_catalog_dev_*` database; it does not invoke the normal schema runner
+new `property_catalog_dev_*` database; it does not invoke the normal schema runner
 or write `schema_versions`.
 
 Production currently has one shard and three replicas. A future, separately
@@ -75,8 +73,8 @@ create the legacy topic:
 docker compose -f fi-collector/docker-compose.catalog-kafka.dev.yml up -d
 ```
 
-The broker uses Docker network `th7247_catalog_dev`. Container clients must
-join that network and use `th7247-catalog-kafka-dev:9092`; the advertised
+The broker uses Docker network `property-catalog-dev`. Container clients must
+join that network and use `property-catalog-kafka-dev:9092`; the advertised
 `127.0.0.1:29092` listener is only for clients running directly on the host.
 
 Only for the legacy `FI_CATALOG_MODE` qualification, create its six-partition
@@ -84,7 +82,7 @@ topic with the explicit profile and acknowledgement:
 
 ```sh
 env \
-  TH7247_LEGACY_SPAN_ATTRIBUTE_CATALOG_ACK=TH7247_ACK_LEGACY_SPAN_ATTRIBUTE_CATALOG_ONLY \
+  PROPERTY_CATALOG_LEGACY_SPAN_ATTRIBUTE_ACK=PROPERTY_CATALOG_ACK_LEGACY_SPAN_ATTRIBUTE_ONLY \
   docker compose \
     -f fi-collector/docker-compose.catalog-kafka.dev.yml \
     --profile legacy-span-attribute-catalog up -d

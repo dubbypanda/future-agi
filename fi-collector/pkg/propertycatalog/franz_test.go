@@ -59,6 +59,7 @@ func TestFranzConsumerIsManualCommitOneRecordAndMemoryBounded(t *testing.T) {
 	wantFetchBytes := int32(MaxRecordBytes + kafkaRecordOverheadAllowance)
 	if client.OptValue(kgo.DisableAutoCommit) != true ||
 		client.OptValue(kgo.BlockRebalanceOnPoll) != true ||
+		client.OptValue(kgo.FetchIsolationLevel) != int8(1) ||
 		client.OptValue(kgo.MaxConcurrentFetches) != 1 ||
 		client.OptValue(kgo.FetchMaxBytes) != wantFetchBytes ||
 		client.OptValue(kgo.FetchMaxPartitionBytes) != wantFetchBytes {
@@ -68,5 +69,75 @@ func TestFranzConsumerIsManualCommitOneRecordAndMemoryBounded(t *testing.T) {
 			client.OptValue(kgo.MaxConcurrentFetches), client.OptValue(kgo.FetchMaxBytes),
 			client.OptValue(kgo.FetchMaxPartitionBytes),
 		)
+	}
+}
+
+func TestFranzOrderedProducerUsesFixedTransactionalFence(t *testing.T) {
+	producer, err := NewFranzProducer(FranzProducerConfig{
+		Brokers: []string{"kafka:9092"}, Topic: "property-catalog-v1-dev",
+		ClientID: "sequencer-output", DeliveryTimeout: time.Second,
+		TransactionalID: "property-catalog-single-owner-v1", TransactionTimeout: 20 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer producer.Close()
+	writer := producer.writer.(*franzRecordWriter)
+	if !writer.transactional {
+		t.Fatal("ordered output writer is not transactional")
+	}
+	transactionalValues := writer.client.OptValues(kgo.TransactionalID)
+	if len(transactionalValues) != 2 || transactionalValues[1] != true {
+		t.Fatalf("transactional values=%v", transactionalValues)
+	}
+	transactionalID, ok := transactionalValues[0].(*string)
+	if !ok || transactionalID == nil || *transactionalID != "property-catalog-single-owner-v1" ||
+		writer.client.OptValue(kgo.TransactionTimeout) != 20*time.Second {
+		t.Fatalf("transactional ID=%v timeout=%v", transactionalValues[0], writer.client.OptValue(kgo.TransactionTimeout))
+	}
+}
+
+func TestFranzCandidateProducerAndSourceAreBoundedAndStaticallyFenced(t *testing.T) {
+	producer, err := NewFranzCandidateProducer(FranzProducerConfig{
+		Brokers: []string{"kafka:9092"}, Topic: "property-candidates-v1-dev",
+		ClientID: "candidate-producer", DeliveryTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer producer.Close()
+	writer := producer.writer.(*franzRecordWriter)
+	if writer.transactional || writer.client.OptValue(kgo.MaxBufferedBytes) != int64(MaxCandidateRecordBytes) {
+		t.Fatalf("candidate writer transactional=%v bytes=%v", writer.transactional, writer.client.OptValue(kgo.MaxBufferedBytes))
+	}
+
+	source, err := NewFranzCandidateSource(FranzCandidateSourceConfig{
+		Brokers: []string{"kafka:9092"}, Topic: "property-candidates-v1-dev",
+		GroupID: "property-candidate-sequencer", ClientID: "candidate-consumer",
+		InstanceID: "property-catalog-singleton-v1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	franzSource := source.(*franzManualSource)
+	instanceValues := franzSource.client.OptValues(kgo.InstanceID)
+	wantFetch := int32(MaxCandidateRecordBytes + kafkaRecordOverheadAllowance)
+	if len(instanceValues) != 2 || instanceValues[0] != "property-catalog-singleton-v1" ||
+		instanceValues[1] != true || franzSource.client.OptValue(kgo.DisableAutoCommit) != true ||
+		franzSource.client.OptValue(kgo.BlockRebalanceOnPoll) != true ||
+		franzSource.client.OptValue(kgo.FetchIsolationLevel) != int8(1) ||
+		franzSource.client.OptValue(kgo.FetchMaxBytes) != wantFetch {
+		t.Fatalf("unsafe candidate source instance=%v fetch=%v", instanceValues, franzSource.client.OptValue(kgo.FetchMaxBytes))
+	}
+}
+
+func TestFranzCandidateSourceRejectsMissingFixedInstanceIdentity(t *testing.T) {
+	err := ValidateFranzCandidateSourceConfig(FranzCandidateSourceConfig{
+		Brokers: []string{"kafka:9092"}, Topic: "property-candidates-v1-dev",
+		GroupID: "property-candidate-sequencer", ClientID: "candidate-consumer",
+	})
+	if err == nil {
+		t.Fatal("candidate source accepted a dynamic process identity")
 	}
 }

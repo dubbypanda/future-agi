@@ -9,21 +9,27 @@ import (
 	"time"
 )
 
-// RuntimeMode is intentionally narrower than the pre-release attribute
-// catalog switch. The unified hot path is Kafka-only; direct ClickHouse
-// delivery belongs to the bounded reconciler and is never available here.
+// RuntimeMode separates autoscaled candidate emission from the singleton that
+// owns the ordered hot stream. "kafka" is deliberately the safe collector
+// mode: it may publish deterministic candidates but can never allocate a
+// catalog sequence. The direct mode exists only for explicit development
+// compatibility. RuntimeSequencer is accepted only by the dedicated command.
 type RuntimeMode string
 
 // WorkspaceScopeMode controls how the hot producer identifies workspaces that
-// may be considered for admission. Static mode is the production-safe default.
-// Revision-fence mode exists only for fresh development installations where
-// workspace UUIDs do not exist when the collector process starts; a workspace
-// is still admitted only after its exact current revision fence is resolved.
+// may be considered for admission. Static mode is the default. Revision-fence
+// mode is also safe for the singleton sequencer because every candidate is
+// admitted only after its exact current, signed tenant fence is resolved. The
+// autoscaled collector candidate emitter does not use either mode as an
+// authorization boundary; it receives authenticated scope from canonical
+// ingestion and never allocates an ordered stream.
 type WorkspaceScopeMode string
 
 const (
-	RuntimeDisabled RuntimeMode = "disabled"
-	RuntimeKafka    RuntimeMode = "kafka"
+	RuntimeDisabled               RuntimeMode = "disabled"
+	RuntimeKafka                  RuntimeMode = "kafka"
+	RuntimeDirectKafkaDevelopment RuntimeMode = "direct_kafka_development"
+	RuntimeSequencer              RuntimeMode = "sequencer"
 
 	WorkspaceScopeStatic        WorkspaceScopeMode = "static"
 	WorkspaceScopeRevisionFence WorkspaceScopeMode = "revision_fence"
@@ -32,34 +38,37 @@ const (
 	ProductionEnvironment  = "production"
 	// DevelopmentAcknowledgement is deliberately long and version-specific so
 	// copying only FI_PROPERTY_CATALOG_MODE cannot activate the writer.
-	DevelopmentAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY"
+	DevelopmentAcknowledgement = "PROPERTY_CATALOG_V1_DEV_ONLY"
 	// ProductionAcknowledgement is deliberately distinct from the DEV gate. A
 	// copied DEV deployment cannot target the production-only catalog prefix.
 	ProductionAcknowledgement = "UNIFIED_PROPERTY_CATALOG_V1_PRODUCTION"
 
-	defaultReplayInterval               = time.Second
-	defaultShutdownTimeout              = 10 * time.Second
-	defaultQueueDepth                   = 64
-	defaultMaxSpansPerBatch             = 20_000
-	defaultMaxKeysPerSpan               = 128
-	defaultMaxArrayMembersPerSpan       = 256
-	defaultMaxEncodedBytesPerSpan       = 64 << 10
-	defaultMaxChunkRows                 = 2_000
-	defaultMaxChunkBytes                = 256 << 10
-	defaultMaxSpoolFiles                = 10_000
-	defaultMaxSpoolBytes          int64 = 512 << 20
+	defaultReplayInterval                = time.Second
+	defaultShutdownTimeout               = 10 * time.Second
+	defaultQueueDepth                    = 64
+	defaultMaxSpansPerBatch              = 20_000
+	defaultMaxKeysPerSpan                = 128
+	defaultMaxArrayMembersPerSpan        = 256
+	defaultMaxEncodedBytesPerSpan        = 64 << 10
+	defaultMaxChunkRows                  = 2_000
+	defaultMaxChunkBytes                 = 256 << 10
+	defaultMaxSpoolFiles                 = 10_000
+	defaultMaxSpoolBytes           int64 = 512 << 20
+	defaultMaxCandidateSpans             = 512
+	defaultMaxCandidateRecordBytes       = 512 << 10
 
 	maxReplayInterval = 30 * time.Second
 	// MaxShutdownTimeout is shared by environment parsing and runtime validation
 	// so the accepted operational range has one source of truth.
-	MaxShutdownTimeout            = 2 * time.Minute
-	maxRuntimeQueueDepth          = 1_024
-	maxRuntimeSpansPerBatch       = 100_000
-	maxRuntimeKeysPerSpan         = 4_096
-	maxRuntimeArrayMembers        = 16_384
-	maxRuntimeSpoolFiles          = 1_000_000
-	maxRuntimeSpoolBytes    int64 = 1 << 40
-	maxWorkspaceAllowlist         = 256
+	MaxShutdownTimeout             = 2 * time.Minute
+	maxRuntimeQueueDepth           = 1_024
+	maxRuntimeSpansPerBatch        = 100_000
+	maxRuntimeKeysPerSpan          = 4_096
+	maxRuntimeArrayMembers         = 16_384
+	maxRuntimeSpoolFiles           = 1_000_000
+	maxRuntimeSpoolBytes     int64 = 1 << 40
+	maxWorkspaceAllowlist          = 256
+	maxRuntimeCandidateSpans       = 20_000
 
 	// MaxKafkaBrokers is the reviewed producer/consumer broker-list bound.
 	MaxKafkaBrokers = 16
@@ -67,6 +76,10 @@ const (
 	MaxKafkaIdentityBytes = 255
 	// MaxKafkaTopicBytes is Kafka's protocol topic-name ceiling.
 	MaxKafkaTopicBytes = 249
+	// MaxCandidateRecordBytes leaves transport overhead below the ordered
+	// envelope ceiling while keeping one candidate receipt independently
+	// bounded on disk and in memory.
+	MaxCandidateRecordBytes = 512 << 10
 )
 
 type KafkaRuntimeConfig struct {
@@ -101,6 +114,8 @@ type RuntimeConfig struct {
 	MaxChunkBytes              int                `yaml:"max_chunk_bytes"`
 	MaxSpoolFiles              int                `yaml:"max_spool_files"`
 	MaxSpoolBytes              int64              `yaml:"max_spool_bytes"`
+	MaxCandidateSpans          int                `yaml:"max_candidate_spans"`
+	MaxCandidateBytes          int                `yaml:"max_candidate_bytes"`
 	Kafka                      KafkaRuntimeConfig `yaml:"kafka"`
 }
 
@@ -155,15 +170,29 @@ func (c RuntimeConfig) WithDefaults() RuntimeConfig {
 	if c.MaxSpoolBytes == 0 {
 		c.MaxSpoolBytes = defaultMaxSpoolBytes
 	}
+	if c.MaxCandidateSpans == 0 {
+		c.MaxCandidateSpans = defaultMaxCandidateSpans
+	}
+	if c.MaxCandidateBytes == 0 {
+		c.MaxCandidateBytes = defaultMaxCandidateRecordBytes
+	}
 	if c.Kafka.DeliveryTimeout == 0 {
 		c.Kafka.DeliveryTimeout = DefaultDeliveryTransportTimeout
 	}
 	if c.Kafka.ClientID == "" {
 		switch c.Environment {
 		case DevelopmentEnvironment:
-			c.Kafka.ClientID = "fi-collector-property-catalog-v1-dev"
+			if c.normalizedMode() == RuntimeKafka {
+				c.Kafka.ClientID = "fi-collector-property-candidate-v1-dev"
+			} else {
+				c.Kafka.ClientID = "fi-property-catalog-sequencer-output-v1-dev"
+			}
 		case ProductionEnvironment:
-			c.Kafka.ClientID = "fi-collector-property-catalog-v1-prod"
+			if c.normalizedMode() == RuntimeKafka {
+				c.Kafka.ClientID = "fi-collector-property-candidate-v1-prod"
+			} else {
+				c.Kafka.ClientID = "fi-property-catalog-sequencer-output-v1-prod"
+			}
 		}
 	}
 	return c
@@ -174,7 +203,7 @@ func (c RuntimeConfig) Validate() error {
 	switch mode {
 	case RuntimeDisabled:
 		return nil
-	case RuntimeKafka:
+	case RuntimeKafka, RuntimeDirectKafkaDevelopment, RuntimeSequencer:
 	default:
 		return fmt.Errorf("propertycatalog: invalid runtime mode %q", c.Mode)
 	}
@@ -182,8 +211,38 @@ func (c RuntimeConfig) Validate() error {
 	if err := c.validateEnvironmentAcknowledgement(); err != nil {
 		return err
 	}
+	if c.MaxSpansPerBatch < 1 || c.MaxSpansPerBatch > maxRuntimeSpansPerBatch ||
+		c.MaxKeysPerSpan < 1 || c.MaxKeysPerSpan > maxRuntimeKeysPerSpan ||
+		c.MaxArrayMembersPerSpan < 1 || c.MaxArrayMembersPerSpan > maxRuntimeArrayMembers ||
+		c.MaxEncodedBytesPerSpan < 1 || c.MaxEncodedBytesPerSpan > MaxChunkBytes ||
+		c.MaxCandidateSpans < 1 || c.MaxCandidateSpans > maxRuntimeCandidateSpans ||
+		c.MaxCandidateBytes < 1 || c.MaxCandidateBytes > MaxCandidateRecordBytes {
+		return errors.New("propertycatalog: candidate build/record bounds are outside hard limits")
+	}
+	if err := c.validateKafka(); err != nil {
+		return err
+	}
 	if c.CatalogEpoch == 0 || c.ProjectionVersion == 0 {
 		return errors.New("propertycatalog: enabled runtime requires positive epoch and projection version")
+	}
+	// Candidate mode also owns a bounded asynchronous queue and a bounded
+	// shutdown drain. Validate both before its early return so an invalid queue
+	// depth cannot panic make(chan), and a broker outage can never inherit an
+	// unbounded collector shutdown contract.
+	if c.QueueDepth < 1 || c.QueueDepth > maxRuntimeQueueDepth {
+		return errors.New("propertycatalog: runtime queue depth is outside hard limits")
+	}
+	if c.ShutdownTimeout <= 0 || c.ShutdownTimeout > MaxShutdownTimeout {
+		return fmt.Errorf(
+			"propertycatalog: shutdown timeout must be in (0,%s]",
+			MaxShutdownTimeout,
+		)
+	}
+	if mode == RuntimeKafka {
+		return nil
+	}
+	if mode == RuntimeDirectKafkaDevelopment && c.Environment != DevelopmentEnvironment {
+		return errors.New("propertycatalog: direct ordered Kafka mode is development-only")
 	}
 	if err := validateCanonicalUUID("producer stream", c.ProducerStreamID); err != nil {
 		return err
@@ -201,22 +260,18 @@ func (c RuntimeConfig) Validate() error {
 			maxReplayInterval,
 		)
 	}
-	if c.ShutdownTimeout <= 0 || c.ShutdownTimeout > MaxShutdownTimeout {
-		return fmt.Errorf(
-			"propertycatalog: shutdown timeout must be in (0,%s]",
-			MaxShutdownTimeout,
-		)
-	}
 	switch c.normalizedWorkspaceScopeMode() {
 	case WorkspaceScopeStatic:
 		if err := c.validateStaticWorkspaceAllowlist(); err != nil {
 			return err
 		}
 	case WorkspaceScopeRevisionFence:
-		if c.Environment != DevelopmentEnvironment ||
-			c.DevelopmentAcknowledgement != DevelopmentAcknowledgement ||
-			c.ProductionAcknowledgement != "" {
-			return errors.New("propertycatalog: revision_fence workspace scope is development-only")
+		if mode == RuntimeDirectKafkaDevelopment && (c.Environment != DevelopmentEnvironment ||
+			c.DevelopmentAcknowledgement != DevelopmentAcknowledgement || c.ProductionAcknowledgement != "") {
+			return errors.New("propertycatalog: direct revision_fence workspace scope is development-only")
+		}
+		if mode != RuntimeDirectKafkaDevelopment && mode != RuntimeSequencer {
+			return errors.New("propertycatalog: revision_fence workspace scope requires the singleton sequencer")
 		}
 		if len(c.WorkspaceAllowlist) != 0 {
 			return errors.New("propertycatalog: revision_fence workspace scope rejects a static workspace allowlist")
@@ -224,17 +279,16 @@ func (c RuntimeConfig) Validate() error {
 	default:
 		return fmt.Errorf("propertycatalog: invalid workspace scope mode %q", c.WorkspaceScopeMode)
 	}
-	if c.QueueDepth < 1 || c.QueueDepth > maxRuntimeQueueDepth ||
-		c.MaxSpansPerBatch < 1 || c.MaxSpansPerBatch > maxRuntimeSpansPerBatch ||
-		c.MaxKeysPerSpan < 1 || c.MaxKeysPerSpan > maxRuntimeKeysPerSpan ||
-		c.MaxArrayMembersPerSpan < 1 || c.MaxArrayMembersPerSpan > maxRuntimeArrayMembers ||
-		c.MaxEncodedBytesPerSpan < 1 || c.MaxEncodedBytesPerSpan > MaxChunkBytes ||
-		c.MaxChunkRows < 1 || c.MaxChunkRows > MaxRowsPerChunk ||
+	if c.MaxChunkRows < 1 || c.MaxChunkRows > MaxRowsPerChunk ||
 		c.MaxChunkBytes < 1 || c.MaxChunkBytes > MaxChunkBytes ||
 		c.MaxSpoolFiles < 1 || c.MaxSpoolFiles > maxRuntimeSpoolFiles ||
 		c.MaxSpoolBytes < 1 || c.MaxSpoolBytes > maxRuntimeSpoolBytes {
 		return errors.New("propertycatalog: runtime queue/build/chunk/spool bounds are outside hard limits")
 	}
+	return nil
+}
+
+func (c RuntimeConfig) validateKafka() error {
 	if c.Kafka.DeliveryTimeout <= 0 || c.Kafka.DeliveryTimeout > MaxDeliveryTimeout {
 		return fmt.Errorf(
 			"propertycatalog: Kafka delivery timeout must be in (0,%s]",
@@ -321,9 +375,17 @@ func (c RuntimeConfig) workspaceWithinConfiguredScope(workspaceID string) bool {
 	case WorkspaceScopeStatic:
 		return c.WorkspaceAllowed(workspaceID)
 	case WorkspaceScopeRevisionFence:
-		return c.Environment == DevelopmentEnvironment &&
+		exactEnvironmentGate := (c.Environment == DevelopmentEnvironment &&
 			c.DevelopmentAcknowledgement == DevelopmentAcknowledgement &&
-			c.ProductionAcknowledgement == "" && len(c.WorkspaceAllowlist) == 0 &&
+			c.ProductionAcknowledgement == "") ||
+			(c.Environment == ProductionEnvironment &&
+				c.ProductionAcknowledgement == ProductionAcknowledgement &&
+				c.DevelopmentAcknowledgement == "")
+		return exactEnvironmentGate &&
+			(c.normalizedMode() == RuntimeSequencer ||
+				(c.normalizedMode() == RuntimeDirectKafkaDevelopment &&
+					c.Environment == DevelopmentEnvironment)) &&
+			len(c.WorkspaceAllowlist) == 0 &&
 			validateCanonicalUUID("workspace scope", workspaceID) == nil
 	default:
 		return false

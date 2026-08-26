@@ -29,12 +29,13 @@ it is not the unified property-catalog application stack. Its optional topic
 initializer is retained only for the legacy `FI_CATALOG_MODE` span-attribute
 catalog.
 
-For `FI_PROPERTY_CATALOG_MODE`, follow the canonical
-[unified property-catalog DEV Docker guide](../deploy/dev/property-catalog-docker/README.md).
-That bundle explicitly keeps `FI_CATALOG_MODE=disabled`, enables
-`FI_PROPERTY_CATALOG_MODE=kafka`, starts both `fi-collector` and
-`fi-property-catalog-consumer`, attaches them to the application and Kafka
-networks, and uses a deployment-scoped property-catalog topic.
+For `FI_PROPERTY_CATALOG_MODE`, start with the
+[production-safe candidate/sequencer contract](PROPERTY_CATALOG_SEQUENCER.md).
+The safe topology requires autoscaled candidate-emitting collectors, one
+`fi-property-catalog-sequencer`, a distinct ordered topic, and the existing
+`fi-property-catalog-consumer`. A broker plus consumer is not an end-to-end
+pipeline. Deployment-specific development instructions must satisfy that Core
+contract before activation.
 
 For the non-EE component matrix, default-on stack contract, fail-closed
 activation/read gates, and repository-local verification commands, see

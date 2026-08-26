@@ -48,6 +48,10 @@ type StreamCheckpoint struct {
 	DeliveryCount  uint64
 	SourceDigest   string
 	EmittedDigest  string
+	// LastSourceBatchDigest is local producer evidence used to make the
+	// candidate receipt -> ordered spool handoff idempotent across a crash. It is
+	// intentionally absent from ClickHouse-derived consumer checkpoints.
+	LastSourceBatchDigest string `json:",omitempty"`
 }
 
 type streamKey struct {

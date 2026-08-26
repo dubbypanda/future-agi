@@ -1,35 +1,44 @@
 # Unified property catalog: OSS/local compatibility
 
-This page defines the authoritative non-EE setup for the unified property
-catalog. The root OSS `docker-compose.yml` starts the unified Kafka pipeline by
-default. No `ee.*` package is required.
+This page defines the non-EE requirements for the unified property catalog. No
+`ee.*` package is required. The authoritative Core transport and durability
+contract is [PROPERTY_CATALOG_SEQUENCER.md](PROPERTY_CATALOG_SEQUENCER.md).
+
+> [!IMPORTANT]
+> A previous one-topic arrangement in which autoscaled collectors produced
+> ordered envelopes directly is no longer production-safe. An OSS deployment
+> is complete only if it provides a candidate topic, the singleton
+> `fi-property-catalog-sequencer` with persistent state, a distinct ordered
+> topic, and `fi-property-catalog-consumer`. Updating Compose/deployment files
+> is intentionally outside this Core-only change; do not infer that an older
+> root Compose file satisfies the new contract.
 
 ## Keep the two catalog paths separate
 
 | Path | Producer switch | Consumer | Purpose |
 | --- | --- | --- | --- |
-| Unified property catalog | `FI_PROPERTY_CATALOG_MODE` | `fi-property-catalog-consumer` | System, eval, annotation, dataset, simulation, and span-attribute properties |
+| Unified property catalog | `FI_PROPERTY_CATALOG_MODE` | `fi-property-catalog-sequencer` then `fi-property-catalog-consumer` | System, eval, annotation, dataset, simulation, and span-attribute properties |
 | Legacy span attributes | `FI_CATALOG_MODE` | `fi-catalog-consumer` | Pre-release span-attribute-only catalog |
 
 Never enable both switches in one collector. Root OSS keeps
-`FI_CATALOG_MODE=disabled` and defaults `FI_PROPERTY_CATALOG_MODE=kafka`. The
-topic initializer in `docker-compose.catalog-kafka.dev.yml` remains a separate,
-profile-gated legacy harness; root OSS creates only
-`futureagi.oss.property-catalog.v1` unless that unified topic is overridden.
+`FI_CATALOG_MODE` must remain `disabled`. `FI_PROPERTY_CATALOG_MODE=kafka` now
+means candidate emission on collectors. The topic initializer in
+`docker-compose.catalog-kafka.dev.yml` remains a separate, profile-gated legacy
+harness and is not sufficient for the unified two-topic pipeline.
 
 ## Authoritative local arrangement
 
 There are two deliberate arrangements:
 
-1. The root `docker-compose.yml` is the one-command OSS path. It starts an
-   internal KRaft broker, creates the unified topic, creates one isolated
-   `th7247_catalog_dev_*` database with the six pinned tables, provisions
-   separate source/control/consumer/ledger/API identities, runs the unified
-   consumer, enables the unified producer in development-only
-   `revision_fence` scope, and starts the read-only workspace supervisor. The
-   supervisor discovers local workspaces and projects from PostgreSQL, opens
-   bounded revisions, and runs initial or incremental reconciliation. A tenant
-   is admitted to the producer only while its exact current fence is present.
+1. The root `docker-compose.yml` is intended to be the one-command OSS path.
+   Before it may claim compatibility, a separate deployment change must add
+   both unified topics, the singleton sequencer with an exclusive persistent
+   volume and fixed owner identities, the ordered consumer, the isolated
+   tables/identities, and the read-only workspace supervisor. The supervisor
+   discovers local workspaces and projects from PostgreSQL, opens bounded
+   revisions, and runs initial or incremental reconciliation. The sequencer,
+   not collector replicas, admits a tenant only while its exact current fence
+   is present.
 2. The checked-in
    [`deploy/dev/property-catalog-docker` bundle](../deploy/dev/property-catalog-docker/README.md).
    is the stricter operator-driven qualification path. Despite its directory
@@ -53,7 +62,7 @@ The root stack preserves the same boundaries with local defaults. All secrets,
 Kafka retention/partitions, polling intervals, lifecycle walls, epoch,
 projection, producer stream, source database, and isolated target database are
 environment-overridable. The target database must retain the
-`th7247_catalog_dev_` prefix. The bootstrap scripts reject source/target
+`property_catalog_dev_` prefix. The bootstrap scripts reject source/target
 identity, unknown database names, malformed credentials, and any target that
 does not contain exactly the six pinned tables.
 
@@ -70,22 +79,28 @@ performed only after activation and an explicit workspace allowlist.
 | PostgreSQL | Authoritative relational sources for eval templates/configs, simulation eval configs, annotation labels, and dataset columns |
 | Source ClickHouse | Authoritative spans and historical span attributes |
 | Python reconciler/operator | Opens a bounded `building` revision, projects relational and historical span definitions/values, writes control evidence, and publishes the revision fence |
-| `fi-collector` | Produces live span-attribute value envelopes only while an allowlisted revision fence accepts hot admission |
-| Kafka | Dedicated transport for unified hot envelopes; it is not the legacy topic |
+| `fi-collector` | Produces deterministic, unsequenced live span-attribute candidates globally after canonical writes; it owns no revision or ordered state |
+| Candidate Kafka topic | Workspace-keyed bounded candidates from every collector replica |
+| `fi-property-catalog-sequencer` | Sole owner of revision admission, sequence, stream, drain, receipts, dedupe, and ordered-envelope spool state |
+| Ordered Kafka topic | Transactional ordered envelopes; distinct from the candidate topic |
 | `fi-property-catalog-consumer` | Validates sequence and lease evidence, then writes catalog data and the delivery ledger |
 | Isolated ClickHouse catalog | Six additive tables: definitions, attribute values, checkpoints, activations, deliveries, and source streams |
 | Backend definition/value APIs | Remain off until an explicit admitted `shadow` or `read` configuration targets the isolated catalog |
 
 Relational changes are reflected by the next successful reconcile, not by the
-Go hot path. New span attributes use the Kafka path while the revision is
-`building`; activation makes the completed revision visible to definition and
-value readers.
+Go hot path. New span attributes are admitted by the sequencer only while the
+workspace has a matching `building` fence. Candidates outside that rollout
+are durably counted/skipped so one dark workspace cannot livelock the
+singleton; reconciliation recovers them. Activation makes the completed
+revision visible to definition and value readers.
 
 ## Repository-local verification
 
 Run these commands from the repository root. They do not contact production.
 
-Confirm the OSS Compose contract:
+After the separate Compose integration lands, confirm its service contract.
+The following older check is not sufficient unless it is extended to assert
+the sequencer, two distinct topics, fixed identities, and persistent state:
 
 ```bash
 docker compose -f docker-compose.yml config --services
@@ -116,11 +131,11 @@ supervisor must remain running. Before any workspace exists the producer may
 have no fence. Do not create an empty fence file: the supervisor publishes the
 first canonical fence after onboarding creates a workspace and project.
 
-Build and test both Go processes:
+Build and test all three Go processes:
 
 ```bash
 cd fi-collector
-go build ./cmd/fi-collector ./cmd/fi-property-catalog-consumer
+go build ./cmd/fi-collector ./cmd/fi-property-catalog-sequencer ./cmd/fi-property-catalog-consumer
 go test ./...
 docker build -t futureagi/fi-collector:property-catalog-oss-audit .
 cd ..

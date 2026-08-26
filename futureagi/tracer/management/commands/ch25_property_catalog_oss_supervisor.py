@@ -57,7 +57,7 @@ from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileM
 logger = logging.getLogger(__name__)
 
 OSS_SUPERVISOR_ACK_ENV = "PROPERTY_CATALOG_OSS_SUPERVISOR_ACK"
-OSS_SUPERVISOR_ACK = "TH7247_UNIFIED_PROPERTY_CATALOG_OSS_SUPERVISOR_V1"
+OSS_SUPERVISOR_ACK = "PROPERTY_CATALOG_OSS_SUPERVISOR_V1"
 OSS_SUPERVISOR_POLL_SECONDS_ENV = "PROPERTY_CATALOG_OSS_SUPERVISOR_POLL_SECONDS"
 OSS_CATALOG_EPOCH_ENV = "PROPERTY_CATALOG_DEV_CATALOG_EPOCH"
 OSS_PROJECTION_VERSION_ENV = "PROPERTY_CATALOG_DEV_PROJECTION_VERSION"
@@ -261,7 +261,7 @@ def _supervisor_config(
         require_dev_catalog_database(target_database)
     except PropertyCatalogPublishError as exc:
         raise OssPropertyCatalogSupervisorError(
-            "OSS target must match the isolated th7247_catalog_dev_* database boundary"
+            "OSS target must match the isolated property_catalog_dev_* database boundary"
         ) from exc
     if not source_database or source_database == target_database:
         raise OssPropertyCatalogSupervisorError(

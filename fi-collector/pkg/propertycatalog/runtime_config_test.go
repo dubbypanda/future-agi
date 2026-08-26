@@ -14,7 +14,7 @@ func validRuntimeConfig(t *testing.T, workspaces ...string) RuntimeConfig {
 		workspaces = []string{testWorkspace}
 	}
 	return RuntimeConfig{
-		Mode: RuntimeKafka, Environment: DevelopmentEnvironment,
+		Mode: RuntimeDirectKafkaDevelopment, Environment: DevelopmentEnvironment,
 		DevelopmentAcknowledgement: DevelopmentAcknowledgement,
 		CatalogEpoch:               3, ProjectionVersion: 1, ProducerStreamID: testStream,
 		WorkspaceAllowlist: workspaces,
@@ -29,7 +29,7 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModesRequireEnvironmentSpecificA
 		t.Fatalf("zero mode=%q err=%v", mode, err)
 	}
 	cfg := validRuntimeConfig(t)
-	if mode, err := cfg.SelectedMode(); err != nil || mode != RuntimeKafka {
+	if mode, err := cfg.SelectedMode(); err != nil || mode != RuntimeDirectKafkaDevelopment {
 		t.Fatalf("mode=%q err=%v", mode, err)
 	}
 	defaults := cfg.WithDefaults()
@@ -38,18 +38,31 @@ func TestRuntimeConfigDefaultsDisabledAndEnabledModesRequireEnvironmentSpecificA
 		defaults.ShutdownTimeout != defaultShutdownTimeout ||
 		defaults.MaxChunkRows != defaultMaxChunkRows ||
 		defaults.Kafka.DeliveryTimeout != DefaultDeliveryTransportTimeout ||
-		defaults.Kafka.ClientID != "fi-collector-property-catalog-v1-dev" {
+		defaults.Kafka.ClientID != "fi-property-catalog-sequencer-output-v1-dev" {
 		t.Fatalf("defaults=%+v", defaults)
 	}
 	production := cfg
+	production.Mode = RuntimeSequencer
 	production.Environment = ProductionEnvironment
 	production.DevelopmentAcknowledgement = ""
 	production.ProductionAcknowledgement = ProductionAcknowledgement
-	if mode, err := production.SelectedMode(); err != nil || mode != RuntimeKafka {
+	if mode, err := production.SelectedMode(); err != nil || mode != RuntimeSequencer {
 		t.Fatalf("production mode=%q err=%v", mode, err)
 	}
-	if clientID := production.WithDefaults().Kafka.ClientID; clientID != "fi-collector-property-catalog-v1-prod" {
+	if clientID := production.WithDefaults().Kafka.ClientID; clientID != "fi-property-catalog-sequencer-output-v1-prod" {
 		t.Fatalf("production client ID=%q", clientID)
+	}
+	candidate := cfg
+	candidate.Mode = RuntimeKafka
+	candidate.ProducerStreamID = ""
+	candidate.WorkspaceAllowlist = nil
+	candidate.RevisionFenceFile = ""
+	candidate.SpoolDirectory = ""
+	if mode, err := candidate.SelectedMode(); err != nil || mode != RuntimeKafka {
+		t.Fatalf("candidate mode=%q err=%v", mode, err)
+	}
+	if clientID := candidate.WithDefaults().Kafka.ClientID; clientID != "fi-collector-property-candidate-v1-dev" {
+		t.Fatalf("candidate client ID=%q", clientID)
 	}
 
 	for name, mutate := range map[string]func(*RuntimeConfig){

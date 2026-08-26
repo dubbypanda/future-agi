@@ -14,11 +14,13 @@ import (
 )
 
 const (
-	producerStateFormat   = "futureagi.property-catalog-producer-state"
-	producerStateVersion  = uint16(2)
-	producerStateFileName = "producer-ack-state-v2.json"
-	maxProducerStateBytes = 4 << 20
-	emptySHA256           = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	producerStateFormat         = "futureagi.property-catalog-producer-state"
+	producerStateVersion        = uint16(3)
+	producerStateFileName       = "producer-ack-state-v3.json"
+	legacyProducerStateVersion  = uint16(2)
+	legacyProducerStateFileName = "producer-ack-state-v2.json"
+	maxProducerStateBytes       = 4 << 20
+	emptySHA256                 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
 type producerStateDocument struct {
@@ -42,7 +44,10 @@ func loadProducerState(directory string) (*producerStateStore, error) {
 	}
 	raw, err := os.ReadFile(store.path)
 	if errors.Is(err, os.ErrNotExist) {
-		return store, nil
+		raw, err = os.ReadFile(filepath.Join(directory, legacyProducerStateFileName))
+		if errors.Is(err, os.ErrNotExist) {
+			return store, nil
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("propertycatalog: read producer state: %w", err)
@@ -65,7 +70,8 @@ func loadProducerState(directory string) (*producerStateStore, error) {
 	if err != nil || !bytes.Equal(canonical, body) {
 		return nil, errors.New("propertycatalog: producer state is not canonical JSON")
 	}
-	if document.Format != producerStateFormat || document.Version != producerStateVersion {
+	if document.Format != producerStateFormat ||
+		(document.Version != producerStateVersion && document.Version != legacyProducerStateVersion) {
 		return nil, errors.New("propertycatalog: producer state format/version is unsupported")
 	}
 	for index, checkpoint := range document.Checkpoints {
@@ -97,6 +103,7 @@ func (s *producerStateStore) acknowledge(snapshot EnvelopeSnapshot) error {
 		SourceRows: snapshot.Payload.SourceRows, DefinitionRows: snapshot.Payload.DefinitionRows,
 		ValueRows: snapshot.Payload.ValueRows, TombstoneRows: snapshot.Payload.TombstoneRows,
 		DeliveryCount: 1, SourceDigest: emptySHA256,
+		LastSourceBatchDigest: snapshot.Payload.SourceBatchDigest,
 		EmittedDigest: framedSHA256(
 			"futureagi.property-catalog.emitted-stream.v1", emptySHA256, snapshot.PayloadSHA256,
 		),
@@ -349,12 +356,13 @@ func (p *acknowledgingPublisher) Publish(ctx context.Context, envelope WireEnvel
 }
 
 type producerTail struct {
-	sequence   uint64
-	payload    string
-	envelope   string
-	projection uint16
-	terminal   bool
-	gapSeen    bool
+	sequence    uint64
+	payload     string
+	envelope    string
+	projection  uint16
+	terminal    bool
+	gapSeen     bool
+	sourceBatch string
 }
 
 type preparedDrain struct {
@@ -423,8 +431,9 @@ func NewHotRuntime(
 		return nil, err
 	}
 	lister, listsRevisions := revisions.(RevisionLister)
-	if mode != RuntimeKafka || revisions == nil || downstream == nil || !listsRevisions {
-		return nil, errors.New("propertycatalog: hot runtime requires Kafka mode, revision provider, and publisher")
+	if (mode != RuntimeSequencer && mode != RuntimeDirectKafkaDevelopment) ||
+		revisions == nil || downstream == nil || !listsRevisions {
+		return nil, errors.New("propertycatalog: hot runtime requires singleton or explicit development-direct mode, revision provider, and publisher")
 	}
 	cfg = cfg.WithDefaults()
 	spool, err := NewSpool(SpoolConfig{
@@ -485,6 +494,7 @@ func (r *HotRuntime) reconstructTails(state *producerStateStore) error {
 		r.tails[key] = producerTail{
 			checkpoint.Sequence, checkpoint.PayloadSHA256, checkpoint.EnvelopeID,
 			checkpoint.ProjectionVersion, checkpoint.Terminal, checkpoint.GapSeen,
+			checkpoint.LastSourceBatchDigest,
 		}
 	}
 	pending, err := r.spool.PendingEnvelopes()
@@ -521,6 +531,7 @@ func (r *HotRuntime) reconstructTails(state *producerStateStore) error {
 			snapshot.Sequence, snapshot.PayloadSHA256, snapshot.EnvelopeID,
 			snapshot.ProjectionVersion, snapshot.Terminal,
 			tail.gapSeen || snapshot.Payload.Outcome == OutcomeGap,
+			snapshot.Payload.SourceBatchDigest,
 		}
 	}
 	return nil
@@ -596,6 +607,123 @@ func (r *HotRuntime) EnqueueCanonicalSpans(rows []ScopedSpan) error {
 		}
 		return errors.New("propertycatalog: bounded hot runtime queue is full; durable revision gap staged")
 	}
+}
+
+// AcceptCandidate is the singleton sequencing boundary. It returns only after
+// the candidate has become an immutable fsynced ordered-envelope spool entry,
+// or after proving that the exact candidate is already the durable stream
+// tail. Autoscaled collectors never call this method.
+func (r *HotRuntime) AcceptCandidate(candidate WireCandidate) (bool, error) {
+	if r == nil {
+		return false, errors.New("propertycatalog: nil hot runtime")
+	}
+	if r.cfg.normalizedMode() != RuntimeSequencer {
+		return false, errors.New("propertycatalog: candidate admission requires singleton sequencer mode")
+	}
+	select {
+	case <-r.stop:
+		return false, errors.New("propertycatalog: hot runtime is stopped")
+	default:
+	}
+	snapshot := candidate.Snapshot()
+	if snapshot.CatalogEpoch != r.cfg.CatalogEpoch ||
+		snapshot.ProjectionVersion != r.cfg.ProjectionVersion {
+		return false, errors.New("propertycatalog: candidate epoch/projection does not match sequencer")
+	}
+	group, err := candidate.hotGroup()
+	if err != nil {
+		return false, err
+	}
+	fence, err := r.revisions.CurrentRevision(
+		context.Background(), snapshot.OrganizationID, snapshot.WorkspaceID,
+	)
+	if err != nil {
+		if errors.Is(err, ErrRevisionNotAssigned) {
+			return false, candidateNotAdmitted(snapshot, CandidateNoCurrentBuildFence)
+		}
+		return false, err
+	}
+	if !r.cfg.fenceAllowsTenant(fence, snapshot.OrganizationID, snapshot.WorkspaceID) {
+		return false, candidateNotAdmitted(snapshot, CandidateWorkspaceNotInRollout)
+	}
+	if fence.Status != "building" {
+		return false, candidateNotAdmitted(snapshot, CandidateNoCurrentBuildFence)
+	}
+	if fence.CatalogEpoch != r.cfg.CatalogEpoch ||
+		fence.ProjectionVersion != r.cfg.ProjectionVersion {
+		return false, errors.New("propertycatalog: candidate conflicts with build fence epoch/projection")
+	}
+	if err := validateHotFenceObservation(fence, group.key, group.firstSeen, group.lastSeen); err != nil {
+		return false, candidateNotAdmitted(snapshot, CandidateOutsideBuildSourceScope)
+	}
+	key := streamKey{
+		organizationID: snapshot.OrganizationID, workspaceID: snapshot.WorkspaceID,
+		epoch: fence.CatalogEpoch, revision: fence.CatalogRevision, buildToken: fence.BuildToken,
+		adapter: AdapterSpanAttribute, streamID: r.cfg.ProducerStreamID,
+	}
+
+	r.mu.Lock()
+	tail, exists := r.tails[key]
+	if exists && tail.sourceBatch == snapshot.CandidateID {
+		r.mu.Unlock()
+		if err := r.persistDrainProofs(context.Background()); err != nil {
+			return false, fmt.Errorf("propertycatalog: persist duplicate candidate proof: %w", err)
+		}
+		return true, nil
+	}
+	if tail.terminal {
+		r.mu.Unlock()
+		return false, errors.New("propertycatalog: terminal stream rejects candidate admission")
+	}
+	sequence, previous := uint64(1), ZeroSHA256
+	if exists {
+		if tail.sequence == ^uint64(0) {
+			r.mu.Unlock()
+			return false, errors.New("propertycatalog: candidate stream sequence is exhausted")
+		}
+		sequence, previous = tail.sequence+1, tail.payload
+	}
+	envelope, issueErr := buildHotEnvelopeWithSourceDigest(
+		r.cfg, fence, group, snapshot.CandidateID, sequence, previous,
+	)
+	if issueErr == nil {
+		var current RevisionFence
+		current, issueErr = r.revisions.CurrentRevision(
+			context.Background(), snapshot.OrganizationID, snapshot.WorkspaceID,
+		)
+		if errors.Is(issueErr, ErrRevisionNotAssigned) {
+			issueErr = candidateNotAdmitted(snapshot, CandidateNoCurrentBuildFence)
+		} else if issueErr == nil && current.Status != "building" {
+			issueErr = candidateNotAdmitted(snapshot, CandidateNoCurrentBuildFence)
+		} else if issueErr == nil && (current.FenceSHA256 != fence.FenceSHA256 ||
+			current.BuildToken != fence.BuildToken || current.CatalogRevision != fence.CatalogRevision) {
+			// A different building fence is a race, not a skip: retrying can bind
+			// this still-durable candidate to the new current build. Keeping its
+			// receipt prevents a silent gap if fence rotation was malformed.
+			issueErr = errors.New("propertycatalog: build revision rotated during candidate staging")
+		}
+	}
+	if issueErr == nil {
+		issueErr = r.spool.Enqueue(envelope)
+	}
+	if issueErr == nil {
+		issued := envelope.Snapshot()
+		r.tails[key] = producerTail{
+			sequence: issued.Sequence, payload: issued.PayloadSHA256,
+			envelope: issued.EnvelopeID, projection: issued.ProjectionVersion,
+			terminal:    issued.Terminal,
+			gapSeen:     tail.gapSeen || issued.Payload.Outcome == OutcomeGap,
+			sourceBatch: snapshot.CandidateID,
+		}
+	}
+	r.mu.Unlock()
+	if issueErr != nil {
+		return false, issueErr
+	}
+	if err := r.persistDrainProofs(context.Background()); err != nil {
+		return false, fmt.Errorf("propertycatalog: persist candidate admission proof: %w", err)
+	}
+	return false, nil
 }
 
 func (r *HotRuntime) admitSubmission(rows []ScopedSpan) (hotSubmission, error) {
@@ -921,6 +1049,7 @@ func (r *HotRuntime) observeDraining(ctx context.Context) error {
 			r.tails[key] = producerTail{
 				snapshot.Sequence, snapshot.PayloadSHA256, snapshot.EnvelopeID,
 				snapshot.ProjectionVersion, true, tail.gapSeen,
+				snapshot.Payload.SourceBatchDigest,
 			}
 		}
 		r.mu.Unlock()
@@ -1019,6 +1148,7 @@ func (r *HotRuntime) stageAssigned(
 				snapshot.Sequence, snapshot.PayloadSHA256, snapshot.EnvelopeID,
 				snapshot.ProjectionVersion, snapshot.Terminal,
 				tail.gapSeen || snapshot.Payload.Outcome == OutcomeGap,
+				snapshot.Payload.SourceBatchDigest,
 			}
 		}
 		r.mu.Unlock()
@@ -1119,6 +1249,7 @@ func (r *HotRuntime) durablyStageGapAssigned(
 			r.tails[key] = producerTail{
 				snapshot.Sequence, snapshot.PayloadSHA256, snapshot.EnvelopeID,
 				snapshot.ProjectionVersion, false, true,
+				snapshot.Payload.SourceBatchDigest,
 			}
 		}
 		r.mu.Unlock()

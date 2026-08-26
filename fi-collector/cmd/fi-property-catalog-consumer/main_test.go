@@ -23,16 +23,16 @@ func validEnvironment() map[string]string {
 		envEnvironment:        propertycatalog.DevelopmentEnvironment,
 		envDevAck:             propertycatalog.DevelopmentAcknowledgement,
 		envClickHouseURL:      "http://catalog-clickhouse:8123",
-		envClickHouseDatabase: "th7247_catalog_dev_consumer_test",
+		envClickHouseDatabase: "property_catalog_dev_consumer_test",
 		envClickHouseUsername: "property-writer",
 		envClickHousePassword: "write-secret",
 		envLedgerURL:          "http://catalog-clickhouse:8123",
-		envLedgerDatabase:     "th7247_catalog_dev_consumer_test",
+		envLedgerDatabase:     "property_catalog_dev_consumer_test",
 		envLedgerUsername:     "property-ledger-reader",
 		envLedgerPassword:     "read-secret",
 		envKafkaBrokers:       "kafka-1:9092,kafka-2:9092",
-		envKafkaTopic:         "th7247.property-catalog.v1.dev",
-		envKafkaGroup:         "th7247.property-catalog.consumer.v1.dev",
+		envKafkaTopic:         "property-catalog.v1.dev",
+		envKafkaGroup:         "property-catalog.consumer.v1.dev",
 	}
 }
 
@@ -127,7 +127,7 @@ func TestProductionConsumerRequiresExactGateMatchingDatabaseAndLedgerSeed(t *tes
 
 	for name, mutate := range map[string]func(map[string]string){
 		"dev database": func(values map[string]string) {
-			values[envClickHouseDatabase] = "th7247_catalog_dev_wrong"
+			values[envClickHouseDatabase] = "property_catalog_dev_wrong"
 		},
 		"dev acknowledgement": func(values map[string]string) {
 			values[envDevAck] = propertycatalog.DevelopmentAcknowledgement
@@ -223,7 +223,7 @@ func TestKnownEmptyModeProvesEmptyLedgerBeforeKafka(t *testing.T) {
 		) (runningConsumer, error) {
 			consumerCalls++
 			if cfg.CheckpointLoader != loader || handler == nil || validator == nil ||
-				cfg.Topic != "th7247.property-catalog.v1.dev" {
+				cfg.Topic != "property-catalog.v1.dev" {
 				t.Fatalf("consumer config=%+v handler=%v validator=%v", cfg, handler, validator)
 			}
 			return runner, nil

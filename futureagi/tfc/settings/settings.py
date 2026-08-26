@@ -1175,7 +1175,7 @@ PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
 )
 PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
 _PROPERTY_CATALOG_DATABASE_PATTERNS = {
-    "dev": re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z"),
+    "dev": re.compile(r"\Aproperty_catalog_dev_[a-z0-9][a-z0-9_]*\Z"),
     "prod": re.compile(r"\Aproperty_catalog\Z"),
 }
 

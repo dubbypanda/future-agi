@@ -209,7 +209,7 @@ def _runtime_settings(
         PROPERTY_CATALOG_DEV_WRITE_CH_PORT=9000,
         PROPERTY_CATALOG_DEV_WRITE_CH_USER="catalog_writer",
         PROPERTY_CATALOG_DEV_WRITE_CH_PASSWORD="test-writer",
-        PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE="th7247_catalog_dev_unit",
+        PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE="property_catalog_dev_unit",
         PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME="catalog-dev-01",
         PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME="source-dev-01",
         PROPERTY_CATALOG_DEV_EXPECTED_PG_DATABASE="futureagi_dev",
@@ -245,7 +245,7 @@ def _request(**overrides: object) -> DevRolloutRequest:
         "cloud_deployment": "DEV",
         "dev_identity": "dev:unit-local",
         "source_database": "source_ch25",
-        "target_database": "th7247_catalog_dev_unit",
+        "target_database": "property_catalog_dev_unit",
         "acknowledgement": DEV_ROLLOUT_ACK,
     }
     values.update(overrides)
@@ -264,7 +264,7 @@ def _unit_runtime_config(
             port=9000,
             user="catalog_writer",
             password="test",
-            database="th7247_catalog_dev_unit",
+            database="property_catalog_dev_unit",
             server_enforced_readonly=False,
         ),
         source=NativeConnectionConfig(
@@ -383,7 +383,7 @@ def test_dry_run_is_zero_io_and_exposes_exact_six_table_plan() -> None:
     PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT="DEV",
     PROPERTY_CATALOG_DEV_IDENTITY="dev:unit-local",
     PROPERTY_CATALOG_DEV_SOURCE_DATABASE="source_ch25",
-    PROPERTY_CATALOG_DEV_TARGET_DATABASE="th7247_catalog_dev_unit",
+    PROPERTY_CATALOG_DEV_TARGET_DATABASE="property_catalog_dev_unit",
     PROPERTY_CATALOG_DEV_ACKNOWLEDGEMENT=DEV_ROLLOUT_ACK,
     PROPERTY_CATALOG_DEV_RUNTIME_FACTORY="must.not.be.imported.on.dry.run",
 )
@@ -405,7 +405,7 @@ def test_management_command_defaults_to_zero_io_dry_run() -> None:
     PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT="DEV",
     PROPERTY_CATALOG_DEV_IDENTITY="dev:unit-local",
     PROPERTY_CATALOG_DEV_SOURCE_DATABASE="source_ch25",
-    PROPERTY_CATALOG_DEV_TARGET_DATABASE="th7247_catalog_dev_unit",
+    PROPERTY_CATALOG_DEV_TARGET_DATABASE="property_catalog_dev_unit",
     PROPERTY_CATALOG_DEV_ACKNOWLEDGEMENT=DEV_ROLLOUT_ACK,
 )
 def test_management_command_maps_explicit_initial_backfill_wall() -> None:
@@ -434,7 +434,7 @@ def test_management_command_maps_explicit_initial_backfill_wall() -> None:
     PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT="DEV",
     PROPERTY_CATALOG_DEV_IDENTITY="dev:unit-local",
     PROPERTY_CATALOG_DEV_SOURCE_DATABASE="source_ch25",
-    PROPERTY_CATALOG_DEV_TARGET_DATABASE="th7247_catalog_dev_unit",
+    PROPERTY_CATALOG_DEV_TARGET_DATABASE="property_catalog_dev_unit",
     PROPERTY_CATALOG_DEV_ACKNOWLEDGEMENT=DEV_ROLLOUT_ACK,
     PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS=1_200_000,
 )
@@ -478,7 +478,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
     statements = catalog_dev_schema._load_pinned_statements()
     tables = tuple(
         (
-            "th7247_catalog_dev_unit",
+            "property_catalog_dev_unit",
             statement.table,
             statement.engine,
             statement.sql,
@@ -560,7 +560,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "DEV",
         "PROPERTY_CATALOG_DEV_IDENTITY": "dev:unit-local",
         "PROPERTY_CATALOG_DEV_SOURCE_DATABASE": "source_ch25",
-        "PROPERTY_CATALOG_DEV_TARGET_DATABASE": "th7247_catalog_dev_unit",
+        "PROPERTY_CATALOG_DEV_TARGET_DATABASE": "property_catalog_dev_unit",
         "PROPERTY_CATALOG_DEV_ACKNOWLEDGEMENT": DEV_ROLLOUT_ACK,
         "PROPERTY_CATALOG_DEV_RUNTIME_FACTORY": (
             "tracer.services.clickhouse.v2.property_catalog.dev_runtime."
@@ -570,7 +570,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         "PROPERTY_CATALOG_DEV_WRITE_CH_PORT": 9000,
         "PROPERTY_CATALOG_DEV_WRITE_CH_USER": "catalog_writer",
         "PROPERTY_CATALOG_DEV_WRITE_CH_PASSWORD": "test-writer",
-        "PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "th7247_catalog_dev_unit",
+        "PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE": "property_catalog_dev_unit",
         "PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME": "catalog-dev-01",
         "PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME": "source-dev-01",
         "PROPERTY_CATALOG_DEV_EXPECTED_PG_DATABASE": "futureagi_dev",
@@ -596,7 +596,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
         ),
         "PROPERTY_CATALOG_DEV_MUTATION_LOCK_DIRECTORY": shared,
         "PROPERTY_CATALOG_DEV_SIDECAR_ACK": (
-            "TH7247_PROPERTY_CATALOG_PYTHON_GO_SIDECAR_V1"
+            "PROPERTY_CATALOG_PYTHON_GO_SIDECAR_V1"
         ),
         "PROPERTY_CATALOG_DEV_MAX_WALL_MS": 100_000,
     }
@@ -632,7 +632,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
     assert set(created) == {
         "default",
         "source_ch25",
-        "th7247_catalog_dev_unit",
+        "property_catalog_dev_unit",
     }
     catalog_timeouts = tuple(
         timeout_ms
@@ -655,7 +655,7 @@ def test_native_catalog_client_uses_configured_state_store_timeout_ceiling(
     )
 
     class Driver:
-        database = "th7247_catalog_dev_unit"
+        database = "property_catalog_dev_unit"
         server_enforced_readonly = False
 
         def execute_read(
@@ -672,9 +672,9 @@ def test_native_catalog_client_uses_configured_state_store_timeout_ceiling(
 
     client = dev_runtime.NativeCatalogClient(
         Driver(),  # type: ignore[arg-type]
-        database="th7247_catalog_dev_unit",
+        database="property_catalog_dev_unit",
     )
-    sql = "SELECT count() AS rows FROM `th7247_catalog_dev_unit`.`property_catalog_activations`"
+    sql = "SELECT count() AS rows FROM `property_catalog_dev_unit`.`property_catalog_activations`"
 
     assert client.query(sql, {}, timeout_ms=7_500) == ({"rows": 1},)
     with pytest.raises(
@@ -791,7 +791,7 @@ def test_factory_rejects_provenance_before_target_client_or_runtime_stage(
             port=9000,
             user="catalog_writer",
             password="test",
-            database="th7247_catalog_dev_unit",
+            database="property_catalog_dev_unit",
             server_enforced_readonly=False,
         ),
         source=NativeConnectionConfig(
@@ -1030,7 +1030,7 @@ def test_foreign_allowlisted_project_with_spans_is_rejected_before_target_or_sta
         factory(_request(execute=True))
 
     assert constructed == ["default", "source_ch25"]
-    assert "th7247_catalog_dev_unit" not in constructed
+    assert "property_catalog_dev_unit" not in constructed
     assert source_span_reads == []
 
 
@@ -1569,11 +1569,11 @@ def test_concrete_scheduled_incremental_uses_auto_and_fenced_resume_skips_source
         {"dev_identity": "dev:production"},
         {"dev_identity": "dev:live-west"},
         {"source_database": "source-db"},
-        {"source_database": "th7247_catalog_dev_unit"},
+        {"source_database": "property_catalog_dev_unit"},
         {"target_database": "futureagi"},
-        {"target_database": "th7247_catalog_prod"},
-        {"target_database": "TH7247_CATALOG_DEV_UNIT"},
-        {"target_database": "th7247_catalog_dev_unit-x"},
+        {"target_database": "property_catalog_prod"},
+        {"target_database": "PROPERTY_CATALOG_DEV_UNIT"},
+        {"target_database": "property_catalog_dev_unit-x"},
         {"target_database": "production_dev"},
         {"acknowledgement": "wrong"},
         {"execute": True, "status": True},
@@ -1596,7 +1596,7 @@ def test_rollout_accepts_oss_empty_and_existing_dev_cloud(
 
     assert request.environment == "development"
     assert request.cloud_deployment == cloud_deployment
-    assert request.target_database == "th7247_catalog_dev_unit"
+    assert request.target_database == "property_catalog_dev_unit"
     assert request.acknowledgement == DEV_ROLLOUT_ACK
 
 
@@ -1604,7 +1604,7 @@ def test_rollout_accepts_oss_empty_and_existing_dev_cloud(
     "overrides",
     (
         {"target_database": "futureagi"},
-        {"target_database": "th7247_catalog_prod"},
+        {"target_database": "property_catalog_prod"},
         {"acknowledgement": "wrong"},
         {"environment": "staging"},
     ),
@@ -1710,7 +1710,7 @@ def test_dev_runtime_requires_v2_shared_proof_and_temporal_headroom(
             port=9000,
             user="catalog_writer",
             password="test",
-            database="th7247_catalog_dev_unit",
+            database="property_catalog_dev_unit",
             server_enforced_readonly=False,
         ),
         source=NativeConnectionConfig(
@@ -1856,7 +1856,7 @@ def test_runtime_accepts_oss_empty_cloud_and_preserves_dev_cloud_behavior(
         now=ATTESTED_AT,
     )
 
-    assert config.catalog.database == "th7247_catalog_dev_unit"
+    assert config.catalog.database == "property_catalog_dev_unit"
 
 
 @pytest.mark.parametrize(
@@ -2034,7 +2034,7 @@ def test_concrete_runtime_publishes_prior_retirement_then_opens_all_streams(
             port=9000,
             user="catalog_writer",
             password="test",
-            database="th7247_catalog_dev_unit",
+            database="property_catalog_dev_unit",
             server_enforced_readonly=False,
         ),
         source=NativeConnectionConfig(
@@ -2061,7 +2061,7 @@ def test_concrete_runtime_publishes_prior_retirement_then_opens_all_streams(
     )
 
     class CatalogClient:
-        catalog_database = "th7247_catalog_dev_unit"
+        catalog_database = "property_catalog_dev_unit"
 
     class SpanReader:
         def freeze(self, **kwargs: Any) -> FrozenSpanSource:
@@ -2459,7 +2459,7 @@ def test_activation_value_inventory_joins_exact_anchor_lineage_and_current_build
     }
 
     class CatalogClient:
-        catalog_database = "th7247_catalog_dev_unit"
+        catalog_database = "property_catalog_dev_unit"
 
         def __init__(self) -> None:
             self.sql = ""

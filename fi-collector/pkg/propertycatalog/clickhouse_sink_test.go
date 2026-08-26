@@ -24,7 +24,7 @@ func TestClickHouseSinkPinsOnlyNewCatalogTablesAndExactColumns(t *testing.T) {
 			t.Fatalf("body=%q err=%v", body, err)
 		}
 		queries = append(queries, request.URL.Query().Get("query"))
-		if got := request.URL.Query().Get("database"); got != "th7247_catalog_dev_sink_test" {
+		if got := request.URL.Query().Get("database"); got != "property_catalog_dev_sink_test" {
 			t.Fatalf("request database=%q", got)
 		}
 		return &http.Response{
@@ -32,7 +32,7 @@ func TestClickHouseSinkPinsOnlyNewCatalogTablesAndExactColumns(t *testing.T) {
 		}, nil
 	})
 	sink, err := NewClickHouseSink(ClickHouseSinkConfig{
-		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test",
+		URL: "http://clickhouse:8123", Database: "property_catalog_dev_sink_test",
 		Environment: DevelopmentEnvironment,
 		Username:    "property_writer", Password: "secret", RequestTimeout: time.Second,
 		RoundTripper: transport,
@@ -74,19 +74,19 @@ func TestClickHouseSinkPinsOnlyNewCatalogTablesAndExactColumns(t *testing.T) {
 
 func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T) {
 	for _, cfg := range []ClickHouseSinkConfig{
-		{URL: "http://clickhouse:8123/?query=DROP", Database: "th7247_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123/?query=DROP", Database: "property_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "catalog;DROP", Environment: DevelopmentEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: ""},
+		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_sink_test", Environment: DevelopmentEnvironment, Username: ""},
 		{URL: "http://clickhouse:8123", Database: "futureagi", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "default", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "system", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog", Environment: DevelopmentEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_real", Environment: ProductionEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_real", Environment: ProductionEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog", Environment: "staging", Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog_backup", Environment: ProductionEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_", Environment: DevelopmentEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_Bad", Environment: DevelopmentEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "TH7247_catalog_dev_bad", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_Bad", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "PROPERTY_catalog_dev_bad", Environment: DevelopmentEnvironment, Username: "writer"},
 	} {
 		if _, err := NewClickHouseSink(cfg); err == nil {
 			t.Fatalf("unsafe sink config accepted: %+v", cfg)
@@ -94,7 +94,7 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 	}
 	called := false
 	sink, err := NewClickHouseSink(ClickHouseSinkConfig{
-		URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_sink_test", Username: "writer",
+		URL: "http://clickhouse:8123", Database: "property_catalog_dev_sink_test", Username: "writer",
 		Environment: DevelopmentEnvironment,
 		RoundTripper: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			called = true

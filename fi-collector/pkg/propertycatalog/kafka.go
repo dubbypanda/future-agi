@@ -84,6 +84,20 @@ func (p *Producer) Close() {
 	}
 }
 
+// FenceOwner establishes the broker-side transactional producer epoch before
+// the sequencer starts consuming candidates. A previous process using the same
+// fixed transactional identity can no longer publish ordered envelopes.
+func (p *Producer) FenceOwner(ctx context.Context) error {
+	if p == nil || p.writer == nil || ctx == nil {
+		return errors.New("propertycatalog: owner fencing requires a producer and context")
+	}
+	fencer, ok := p.writer.(interface{ FenceOwner(context.Context) error })
+	if !ok {
+		return errors.New("propertycatalog: ordered producer does not implement owner fencing")
+	}
+	return fencer.FenceOwner(ctx)
+}
+
 type Handler interface {
 	Deliver(context.Context, Delivery) error
 }

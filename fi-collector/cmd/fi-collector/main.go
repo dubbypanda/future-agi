@@ -63,6 +63,8 @@ const (
 	envPropertyCatalogMaxChunkBytes          = "FI_PROPERTY_CATALOG_MAX_CHUNK_BYTES"
 	envPropertyCatalogMaxSpoolFiles          = "FI_PROPERTY_CATALOG_MAX_SPOOL_FILES"
 	envPropertyCatalogMaxSpoolBytes          = "FI_PROPERTY_CATALOG_MAX_SPOOL_BYTES"
+	envPropertyCatalogMaxCandidateSpans      = "FI_PROPERTY_CATALOG_MAX_CANDIDATE_SPANS"
+	envPropertyCatalogMaxCandidateBytes      = "FI_PROPERTY_CATALOG_MAX_CANDIDATE_BYTES"
 	envPropertyCatalogKafkaDeliveryTimeout   = "FI_PROPERTY_CATALOG_KAFKA_DELIVERY_TIMEOUT"
 	envPropertyCatalogKafkaClientID          = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
 	envPropertyCatalogWorkspaceScopeMode     = "FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE"
@@ -199,8 +201,49 @@ func main() {
 	}
 	var propertyRuntime *propertycatalog.HotRuntime
 	var propertyProducer *propertycatalog.Producer
+	var propertyCandidateProducer *propertycatalog.CandidateProducer
+	var propertyCandidateWriter *propertycatalog.CandidateWriter
 	var stopPropertyRuntime context.CancelFunc
-	if propertyMode == propertycatalog.RuntimeKafka {
+	var stopPropertyCandidates context.CancelFunc
+	switch propertyMode {
+	case propertycatalog.RuntimeDisabled:
+	case propertycatalog.RuntimeKafka:
+		propertyCandidateProducer, err = propertycatalog.NewFranzCandidateProducer(
+			propertycatalog.FranzProducerConfig{
+				Brokers:         cfg.PropertyCatalog.Kafka.Brokers,
+				Topic:           cfg.PropertyCatalog.Kafka.Topic,
+				ClientID:        cfg.PropertyCatalog.Kafka.ClientID,
+				DeliveryTimeout: cfg.PropertyCatalog.Kafka.DeliveryTimeout,
+			},
+		)
+		if err != nil {
+			log.Error("property catalog candidate producer init failed", "err", err)
+			os.Exit(1)
+		}
+		var writerErr error
+		propertyCandidateWriter, writerErr = propertycatalog.NewCandidateWriter(
+			cfg.PropertyCatalog, propertyCandidateProducer,
+		)
+		if writerErr != nil {
+			propertyCandidateProducer.Close()
+			log.Error("property catalog candidate writer init failed", "err", writerErr)
+			os.Exit(1)
+		}
+		// Candidate publication is deliberately decoupled from canonical span
+		// draining. Server.drainNow only performs deterministic bounded
+		// projection plus a non-blocking queue handoff; Kafka latency lives on
+		// this independent worker context.
+		candidateCtx, stopCandidates := context.WithCancel(context.Background())
+		stopPropertyCandidates = stopCandidates
+		if err := propertyCandidateWriter.Start(candidateCtx); err != nil {
+			stopCandidates()
+			propertyCandidateProducer.Close()
+			log.Error("property catalog candidate writer start failed", "err", err)
+			os.Exit(1)
+		}
+		opts = append(opts, server.WithPropertyCatalogWriter(propertyCandidateWriter))
+		go logPropertyCandidateGaps(candidateCtx, propertyCandidateWriter, log)
+	case propertycatalog.RuntimeDirectKafkaDevelopment:
 		revisions, providerErr := propertycatalog.NewFileRevisionProvider(cfg.PropertyCatalog.RevisionFenceFile)
 		if providerErr != nil {
 			log.Error("property catalog revision provider init failed", "err", providerErr)
@@ -232,6 +275,12 @@ func main() {
 		}
 		opts = append(opts, server.WithPropertyCatalogWriter(propertyRuntime))
 		go logPropertyCatalogGaps(propertyCtx, propertyRuntime, log)
+	case propertycatalog.RuntimeSequencer:
+		log.Error("property catalog sequencer mode is valid only in fi-property-catalog-sequencer")
+		os.Exit(1)
+	default:
+		log.Error("unsupported property catalog mode", "mode", propertyMode)
+		os.Exit(1)
 	}
 	srv := server.New(cfg.Server, writer, authenticator, usageEmitter, metering, opts...)
 	var catalogReplayDone chan struct{}
@@ -293,8 +342,26 @@ func main() {
 		stopShutdown()
 		stopPropertyRuntime()
 	}
+	if propertyCandidateWriter != nil {
+		shutdownCtx, stopShutdown := context.WithTimeout(
+			context.Background(),
+			cfg.PropertyCatalog.ShutdownTimeout,
+		)
+		if err := propertyCandidateWriter.Shutdown(shutdownCtx); err != nil {
+			log.Warn(
+				"property catalog candidate shutdown left reconciliation work",
+				"err", err,
+			)
+		}
+		stopShutdown()
+		stopPropertyCandidates()
+		drainPropertyCandidateGaps(propertyCandidateWriter, log)
+	}
 	if propertyProducer != nil {
 		propertyProducer.Close()
+	}
+	if propertyCandidateProducer != nil {
+		propertyCandidateProducer.Close()
 	}
 	if kafkaProducer != nil {
 		kafkaProducer.Close()
@@ -567,6 +634,8 @@ func applyEnvOverrides(log *slog.Logger, c *rootConfig) error {
 		positiveIntOverride(envPropertyCatalogMaxChunkRows, &c.PropertyCatalog.MaxChunkRows),
 		positiveIntOverride(envPropertyCatalogMaxChunkBytes, &c.PropertyCatalog.MaxChunkBytes),
 		positiveIntOverride(envPropertyCatalogMaxSpoolFiles, &c.PropertyCatalog.MaxSpoolFiles),
+		positiveIntOverride(envPropertyCatalogMaxCandidateSpans, &c.PropertyCatalog.MaxCandidateSpans),
+		positiveIntOverride(envPropertyCatalogMaxCandidateBytes, &c.PropertyCatalog.MaxCandidateBytes),
 	); err != nil {
 		return err
 	}
@@ -621,6 +690,34 @@ func logPropertyCatalogGaps(ctx context.Context, runtime *propertycatalog.HotRun
 			if err != nil {
 				log.Warn("property catalog delivery gap", "err", err)
 			}
+		}
+	}
+}
+
+func logPropertyCandidateGaps(
+	ctx context.Context, writer *propertycatalog.CandidateWriter, log *slog.Logger,
+) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-writer.Gaps():
+			if err != nil {
+				log.Warn("property catalog candidate gap; canonical reconciliation will recover", "err", err)
+			}
+		}
+	}
+}
+
+func drainPropertyCandidateGaps(writer *propertycatalog.CandidateWriter, log *slog.Logger) {
+	for {
+		select {
+		case err := <-writer.Gaps():
+			if err != nil {
+				log.Warn("property catalog candidate gap; canonical reconciliation will recover", "err", err)
+			}
+		default:
+			return
 		}
 	}
 }

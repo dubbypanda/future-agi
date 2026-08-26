@@ -150,6 +150,15 @@ x-backend-env: &backend-env
   FUTURE_AGI_CLOUD_API_KEY: ${FUTURE_AGI_CLOUD_API_KEY:-}
   FUTURE_AGI_CLOUD_API_URL: ${FUTURE_AGI_CLOUD_API_URL:-https://api.futureagi.com}
   TEMPORAL_TEST_EXECUTION_ENABLED: ${TEMPORAL_TEST_EXECUTION_ENABLED:-true}
+x-fi-collector-image: &fi-collector-image
+  # OSS installs build this image from the checked-out source. Keeping a
+  # dedicated local tag prevents an old registry `latest` image from masking
+  # a missing property-catalog consumer binary.
+  image: futureagi/fi-collector:${FI_COLLECTOR_VERSION:-local}
+  build:
+    context: ./fi-collector
+    dockerfile: Dockerfile
+
 services:
   # ==========================================================================
   # Application
@@ -489,7 +498,7 @@ services:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "9000"
       PROPERTY_CATALOG_SOURCE_DATABASE: ${CH25_DATABASE:-${CH_DATABASE:-default}}
-      PROPERTY_CATALOG_TARGET_DATABASE: ${PROPERTY_CATALOG_DATABASE:-th7247_catalog_dev_oss}
+      PROPERTY_CATALOG_TARGET_DATABASE: ${PROPERTY_CATALOG_DATABASE:-property_catalog_dev_oss}
       PROPERTY_CATALOG_SOURCE_PASSWORD: ${PROPERTY_CATALOG_SOURCE_PASSWORD:-oss-catalog-source-local-only}
       PROPERTY_CATALOG_CONTROL_PASSWORD: ${PROPERTY_CATALOG_CONTROL_PASSWORD:-oss-catalog-control-local-only}
       PROPERTY_CATALOG_CONSUMER_PASSWORD: ${PROPERTY_CATALOG_CONSUMER_PASSWORD:-oss-catalog-consumer-local-only}
@@ -543,6 +552,8 @@ services:
     image: apache/kafka-native:4.1.0
     hostname: property-catalog-kafka
     restart: unless-stopped
+    cpus: "${PROPERTY_CATALOG_KAFKA_CPUS:-1.0}"
+    mem_limit: "${PROPERTY_CATALOG_KAFKA_MEMORY:-1G}"
     depends_on:
       property-catalog-kafka-volume-init:
         condition: service_completed_successfully
@@ -565,6 +576,7 @@ services:
       KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: "1"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: "${PROPERTY_CATALOG_KAFKA_HEAP_OPTS:--Xms256m -Xmx512m}"
       KAFKA_MESSAGE_MAX_BYTES: "1048576"
       KAFKA_REPLICA_FETCH_MAX_BYTES: "1048576"
       KAFKA_LOG_RETENTION_HOURS: ${PROPERTY_CATALOG_KAFKA_RETENTION_HOURS:-72}
@@ -577,6 +589,11 @@ services:
       timeout: 5s
       retries: 30
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "${PROPERTY_CATALOG_KAFKA_CPUS:-1.0}"
+          memory: "${PROPERTY_CATALOG_KAFKA_MEMORY:-1G}"
 
   property-catalog-topic-init:
     image: apache/kafka:4.1.0
@@ -615,7 +632,9 @@ services:
   # backend. See docs/CH25_MIGRATION.md.
   # ==========================================================================
   fi-collector:
-    image: futureagi/fi-collector:${FUTURE_AGI_VERSION:-latest}
+    <<: *fi-collector-image
+    cpus: "${FI_COLLECTOR_CPUS:-1.0}"
+    mem_limit: "${FI_COLLECTOR_MEMORY:-1G}"
     ports:
       - "127.0.0.1:${FI_COLLECTOR_OTLP_PORT:-4317}:4317"
       - "127.0.0.1:${FI_COLLECTOR_OTLP_HTTP_PORT:-4318}:4318"
@@ -628,7 +647,7 @@ services:
       FI_CATALOG_MODE: ${FI_CATALOG_MODE:-disabled}
       FI_PROPERTY_CATALOG_MODE: ${FI_PROPERTY_CATALOG_MODE:-kafka}
       FI_PROPERTY_CATALOG_ENVIRONMENT: development
-      FI_PROPERTY_CATALOG_DEV_ACK: TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY
+      FI_PROPERTY_CATALOG_DEV_ACK: PROPERTY_CATALOG_V1_DEV_ONLY
       FI_PROPERTY_CATALOG_EPOCH: ${PROPERTY_CATALOG_EPOCH:-1}
       FI_PROPERTY_CATALOG_PROJECTION_VERSION: ${PROPERTY_CATALOG_PROJECTION_VERSION:-1}
       FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID: ${PROPERTY_CATALOG_PRODUCER_STREAM_ID:-9e43cac3-65f0-50b1-991d-4e582aa2cc84}
@@ -668,22 +687,29 @@ services:
         condition: service_completed_successfully
       property-catalog-runtime-volume-init:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "${FI_COLLECTOR_CPUS:-1.0}"
+          memory: "${FI_COLLECTOR_MEMORY:-1G}"
     restart: unless-stopped
 
   fi-property-catalog-consumer:
-    image: futureagi/fi-collector:${FUTURE_AGI_VERSION:-latest}
+    <<: *fi-collector-image
+    cpus: "${PROPERTY_CATALOG_CONSUMER_CPUS:-0.5}"
+    mem_limit: "${PROPERTY_CATALOG_CONSUMER_MEMORY:-512M}"
     entrypoint: ["/usr/local/bin/fi-property-catalog-consumer"]
     command: ["--seed-from-delivery-ledger"]
     environment:
       FI_PROPERTY_CATALOG_CONSUMER_MODE: kafka
       FI_PROPERTY_CATALOG_ENVIRONMENT: development
-      FI_PROPERTY_CATALOG_DEV_ACK: TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY
+      FI_PROPERTY_CATALOG_DEV_ACK: PROPERTY_CATALOG_V1_DEV_ONLY
       FI_PROPERTY_CATALOG_CH_URL: http://clickhouse:8123
-      FI_PROPERTY_CATALOG_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-th7247_catalog_dev_oss}
+      FI_PROPERTY_CATALOG_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-property_catalog_dev_oss}
       FI_PROPERTY_CATALOG_CH_USERNAME: property_catalog_oss_consumer
       FI_PROPERTY_CATALOG_CH_PASSWORD: ${PROPERTY_CATALOG_CONSUMER_PASSWORD:-oss-catalog-consumer-local-only}
       FI_PROPERTY_CATALOG_LEDGER_CH_URL: http://clickhouse:8123
-      FI_PROPERTY_CATALOG_LEDGER_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-th7247_catalog_dev_oss}
+      FI_PROPERTY_CATALOG_LEDGER_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-property_catalog_dev_oss}
       FI_PROPERTY_CATALOG_LEDGER_CH_USERNAME: property_catalog_oss_ledger
       FI_PROPERTY_CATALOG_LEDGER_CH_PASSWORD: ${PROPERTY_CATALOG_LEDGER_PASSWORD:-oss-catalog-ledger-local-only}
       FI_PROPERTY_CATALOG_KAFKA_BROKERS: property-catalog-kafka:9092
@@ -694,12 +720,32 @@ services:
         condition: service_completed_successfully
       property-catalog-topic-init:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "${PROPERTY_CATALOG_CONSUMER_CPUS:-0.5}"
+          memory: "${PROPERTY_CATALOG_CONSUMER_MEMORY:-512M}"
     restart: unless-stopped
 
   property-catalog-supervisor:
     image: futureagi/future-agi:${FUTURE_AGI_VERSION:-latest}
+    cpus: "${PROPERTY_CATALOG_SUPERVISOR_CPUS:-0.5}"
+    mem_limit: "${PROPERTY_CATALOG_SUPERVISOR_MEMORY:-768M}"
     working_dir: /app/backend
-    entrypoint: ["python", "manage.py", "ch25_property_catalog_oss_supervisor"]
+    # Run one bounded cycle at a time so a failed cycle exits non-zero and the
+    # container restart policy exposes the failure. The former long-running
+    # command caught cycle errors internally, which made a frozen catalog look
+    # healthy to Compose and to the installer.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        ready_file=/tmp/property-catalog-supervisor.ready
+        rm -f "$${ready_file}"
+        while true; do
+          python manage.py ch25_property_catalog_oss_supervisor --once
+          : > "$${ready_file}"
+          sleep "$${PROPERTY_CATALOG_OSS_SUPERVISOR_POLL_SECONDS}"
+        done
     environment:
       <<: *backend-env
       ENV_TYPE: development
@@ -734,15 +780,15 @@ services:
       # contract. Keep these names aligned with Django settings and with the
       # collector's shared revision-fence path; unknown OSS-only aliases would
       # make the fail-closed supervisor restart forever.
-      PROPERTY_CATALOG_OSS_SUPERVISOR_ACK: TH7247_UNIFIED_PROPERTY_CATALOG_OSS_SUPERVISOR_V1
+      PROPERTY_CATALOG_OSS_SUPERVISOR_ACK: PROPERTY_CATALOG_OSS_SUPERVISOR_V1
       PROPERTY_CATALOG_OSS_SUPERVISOR_POLL_SECONDS: ${PROPERTY_CATALOG_POLL_SECONDS:-60}
       PROPERTY_CATALOG_DEV_SOURCE_DATABASE: ${CH25_DATABASE:-${CH_DATABASE:-default}}
-      PROPERTY_CATALOG_DEV_TARGET_DATABASE: ${PROPERTY_CATALOG_DATABASE:-th7247_catalog_dev_oss}
+      PROPERTY_CATALOG_DEV_TARGET_DATABASE: ${PROPERTY_CATALOG_DATABASE:-property_catalog_dev_oss}
       PROPERTY_CATALOG_DEV_WRITE_CH_HOST: clickhouse
       PROPERTY_CATALOG_DEV_WRITE_CH_PORT: "9000"
       PROPERTY_CATALOG_DEV_WRITE_CH_USER: property_catalog_oss_control
       PROPERTY_CATALOG_DEV_WRITE_CH_PASSWORD: ${PROPERTY_CATALOG_CONTROL_PASSWORD:-oss-catalog-control-local-only}
-      PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-th7247_catalog_dev_oss}
+      PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE: ${PROPERTY_CATALOG_DATABASE:-property_catalog_dev_oss}
       PROPERTY_CATALOG_DEV_CATALOG_EPOCH: ${PROPERTY_CATALOG_EPOCH:-1}
       PROPERTY_CATALOG_DEV_PROJECTION_VERSION: ${PROPERTY_CATALOG_PROJECTION_VERSION:-1}
       PROPERTY_CATALOG_DEV_HOT_PRODUCER_STREAM_ID: ${PROPERTY_CATALOG_PRODUCER_STREAM_ID:-9e43cac3-65f0-50b1-991d-4e582aa2cc84}
@@ -759,6 +805,12 @@ services:
       - /tmp:rw,noexec,nosuid,nodev,size=128m,mode=1770,uid=65532,gid=65532
       - /app/backend/logs:rw,noexec,nosuid,nodev,size=64m,mode=0770,uid=65532,gid=65532
       - /app/backend/tfc/logs:rw,noexec,nosuid,nodev,size=64m,mode=0770,uid=65532,gid=65532
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/property-catalog-supervisor.ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 120
+      start_period: 10s
     volumes:
       - fi-collector-data:/var/lib/fi-collector
     depends_on:
@@ -770,6 +822,11 @@ services:
         condition: service_started
       property-catalog-runtime-volume-init:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "${PROPERTY_CATALOG_SUPERVISOR_CPUS:-0.5}"
+          memory: "${PROPERTY_CATALOG_SUPERVISOR_MEMORY:-768M}"
     restart: unless-stopped
 
   redis:

@@ -119,7 +119,7 @@ func TestCatalogEnvironmentOverridesAreFailClosedAndExclusive(t *testing.T) {
 	t.Setenv("FI_CATALOG_PRODUCER_STREAM_ID", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 	t.Setenv("FI_CATALOG_SPOOL_DIR", t.TempDir())
 	t.Setenv("FI_CATALOG_CH_URL", "http://clickhouse:8123")
-	t.Setenv("FI_CATALOG_CH_DATABASE", "th7247_catalog_dev")
+	t.Setenv("FI_CATALOG_CH_DATABASE", "property_catalog_dev")
 	t.Setenv("FI_CATALOG_CH_USERNAME", "catalog_dev")
 	var cfg rootConfig
 	if err := applyEnvOverrides(slog.Default(), &cfg); err != nil {
@@ -152,7 +152,7 @@ func TestCatalogEnvironmentRejectsInvalidEpochAndMixedModes(t *testing.T) {
 	t.Setenv("FI_CATALOG_PRODUCER_STREAM_ID", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 	t.Setenv("FI_CATALOG_SPOOL_DIR", t.TempDir())
 	t.Setenv("FI_CATALOG_CH_URL", "http://clickhouse:8123")
-	t.Setenv("FI_CATALOG_CH_DATABASE", "th7247_catalog_dev")
+	t.Setenv("FI_CATALOG_CH_DATABASE", "property_catalog_dev")
 	t.Setenv("FI_CATALOG_CH_USERNAME", "catalog_dev")
 	t.Setenv("FI_CATALOG_KAFKA_BROKERS", "kafka-a:9092,kafka-b:9092")
 	t.Setenv("FI_CATALOG_KAFKA_TOPIC", "catalog")
@@ -227,13 +227,14 @@ func TestUnifiedPropertyCatalogEnvironmentIsExplicitAndDefaultsToDevClientIdenti
 		cfg.PropertyCatalog.Environment != propertycatalog.DevelopmentEnvironment ||
 		cfg.PropertyCatalog.WorkspaceScopeMode != propertycatalog.WorkspaceScopeStatic ||
 		cfg.PropertyCatalog.ProjectionVersion != 1 || len(cfg.PropertyCatalog.WorkspaceAllowlist) != 1 ||
-		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-catalog-v1-dev" {
+		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-candidate-v1-dev" {
 		t.Fatalf("property catalog config=%+v", cfg.PropertyCatalog)
 	}
 }
 
 func TestUnifiedPropertyCatalogEnvironmentParsesFenceScopedDevelopmentMode(t *testing.T) {
 	setUnifiedPropertyCatalogEnv(t)
+	t.Setenv("FI_PROPERTY_CATALOG_MODE", string(propertycatalog.RuntimeDirectKafkaDevelopment))
 	t.Setenv(envPropertyCatalogWorkspaceScopeMode, string(propertycatalog.WorkspaceScopeRevisionFence))
 	t.Setenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST", "")
 	var cfg rootConfig
@@ -260,6 +261,7 @@ func TestUnifiedPropertyCatalogEnvironmentRejectsUnsafeFenceScope(t *testing.T) 
 		t.Run(test.name, func(t *testing.T) {
 			setUnifiedPropertyCatalogEnv(t)
 			t.Setenv(envPropertyCatalogWorkspaceScopeMode, test.scopeMode)
+			t.Setenv("FI_PROPERTY_CATALOG_MODE", string(propertycatalog.RuntimeDirectKafkaDevelopment))
 			if !test.keepAllowlist {
 				t.Setenv("FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST", "")
 			}
@@ -288,7 +290,7 @@ func TestUnifiedPropertyCatalogAcceptsOnlyExactProductionGate(t *testing.T) {
 	}
 	if cfg.PropertyCatalog.Environment != propertycatalog.ProductionEnvironment ||
 		cfg.PropertyCatalog.ProductionAcknowledgement != propertycatalog.ProductionAcknowledgement ||
-		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-catalog-v1-prod" {
+		cfg.PropertyCatalog.Kafka.ClientID != "fi-collector-property-candidate-v1-prod" {
 		t.Fatalf("production property catalog config=%+v", cfg.PropertyCatalog)
 	}
 }
@@ -306,6 +308,8 @@ func TestUnifiedPropertyCatalogOperationalLimitsAreEnvironmentOverridable(t *tes
 	t.Setenv(envPropertyCatalogMaxChunkBytes, "131072")
 	t.Setenv(envPropertyCatalogMaxSpoolFiles, "5000")
 	t.Setenv(envPropertyCatalogMaxSpoolBytes, "268435456")
+	t.Setenv(envPropertyCatalogMaxCandidateSpans, "256")
+	t.Setenv(envPropertyCatalogMaxCandidateBytes, "262144")
 	t.Setenv(envPropertyCatalogKafkaDeliveryTimeout, "4s")
 
 	var cfg rootConfig
@@ -319,7 +323,8 @@ func TestUnifiedPropertyCatalogOperationalLimitsAreEnvironmentOverridable(t *tes
 		property.MaxArrayMembersPerSpan != 96 ||
 		property.MaxEncodedBytesPerSpan != 32768 || property.MaxChunkRows != 1000 ||
 		property.MaxChunkBytes != 131072 || property.MaxSpoolFiles != 5000 ||
-		property.MaxSpoolBytes != 268435456 ||
+		property.MaxSpoolBytes != 268435456 || property.MaxCandidateSpans != 256 ||
+		property.MaxCandidateBytes != 262144 ||
 		property.Kafka.DeliveryTimeout != 4*time.Second {
 		t.Fatalf("property catalog limits=%+v", property)
 	}

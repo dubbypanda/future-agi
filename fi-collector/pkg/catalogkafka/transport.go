@@ -46,7 +46,8 @@ type Record struct {
 }
 
 // RecordWriter must return only after Kafka has acknowledged or rejected the
-// record. An asynchronous implementation violates this interface contract.
+// record, and must return promptly when ctx is canceled. An asynchronous or
+// cancellation-ignoring implementation violates this interface contract.
 type RecordWriter interface {
 	WriteRecord(context.Context, Record) error
 	Close()

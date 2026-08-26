@@ -23,7 +23,7 @@ from tracer.services.clickhouse.v2.property_catalog.reader import PropertyCatalo
 CONFIG = PropertyCatalogConnectionConfig(
     host="catalog.internal",
     port=9440,
-    database="th7247_catalog_dev_clean",
+    database="property_catalog_dev_clean",
     user="property_catalog_reader",
     password="not-logged",
 )
@@ -36,10 +36,10 @@ def _read_settings(**overrides):
         "CLOUD_DEPLOYMENT": "DEV",
         "PROPERTY_CATALOG_DEV_READ_ACK": (PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT),
         "PROPERTY_CATALOG_PROD_READ_ACK": "",
-        "PROPERTY_CATALOG_DATABASE": "th7247_catalog_dev_clean",
+        "PROPERTY_CATALOG_DATABASE": "property_catalog_dev_clean",
         "PROPERTY_CATALOG_CH_HOST": "catalog.internal",
         "PROPERTY_CATALOG_CH_PORT": 9440,
-        "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_dev_clean",
+        "PROPERTY_CATALOG_CH_DATABASE": "property_catalog_dev_clean",
         "PROPERTY_CATALOG_CH_USER": "property_catalog_reader",
         "PROPERTY_CATALOG_CH_PASSWORD": "not-logged",
         "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ("workspace-1",),
@@ -96,7 +96,7 @@ def test_property_catalog_table_allowlist_is_exact():
 
 def test_property_catalog_connection_requires_isolated_dev_identity():
     CONFIG.validate(
-        qualifier_database="th7247_catalog_dev_clean",
+        qualifier_database="property_catalog_dev_clean",
         source_users={"application_reader"},
     )
 
@@ -111,15 +111,15 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
 
     with pytest.raises(ValueError):
         CONFIG.validate(
-            qualifier_database="th7247_catalog_dev_clean",
+            qualifier_database="property_catalog_dev_clean",
             source_users={"property_catalog_reader"},
         )
 
     for unsafe_database in (
         "catalog_dev_test",
         "production_dev_backup",
-        "TH7247_CATALOG_DEV_UPPER",
-        "th7247_catalog_dev_bad-name",
+        "PROPERTY_CATALOG_DEV_UPPER",
+        "property_catalog_dev_bad-name",
     ):
         with pytest.raises(ValueError):
             PropertyCatalogConnectionConfig(
@@ -222,8 +222,8 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
         ),
         (
             {
-                "PROPERTY_CATALOG_DATABASE": "th7247_catalog_dev_clean",
-                "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_dev_clean",
+                "PROPERTY_CATALOG_DATABASE": "property_catalog_dev_clean",
+                "PROPERTY_CATALOG_CH_DATABASE": "property_catalog_dev_clean",
             },
             "namespace does not match",
         ),
@@ -283,7 +283,7 @@ def test_property_catalog_dev_admission_rejects_production_cross_wiring(override
 @pytest.mark.parametrize(
     ("database", "deployment"),
     [
-        ("th7247_catalog_dev_clean", "dev"),
+        ("property_catalog_dev_clean", "dev"),
         ("property_catalog", "prod"),
     ],
 )
@@ -299,7 +299,7 @@ def test_property_catalog_database_validator_accepts_exact_namespaces(
     ("database", "deployment"),
     [
         ("property_catalog", "dev"),
-        ("th7247_catalog_dev_clean", "prod"),
+        ("property_catalog_dev_clean", "prod"),
         ("property_catalog_backup", "prod"),
         ("PROPERTY_CATALOG", "prod"),
     ],
@@ -319,7 +319,7 @@ def test_property_catalog_executor_reads_only_allowlisted_qualified_tables():
     )
 
     result = executor.execute(
-        "SELECT status FROM `th7247_catalog_dev_clean`.property_catalog_activations",
+        "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations",
         {},
         timeout_ms=1_500,
         settings={"max_result_rows": 2, "max_result_bytes": 1024},
@@ -333,10 +333,10 @@ def test_property_catalog_executor_reads_only_allowlisted_qualified_tables():
 @pytest.mark.parametrize(
     "query",
     [
-        "SELECT * FROM `th7247_catalog_dev_clean`.spans",
-        "SELECT * FROM `th7247_catalog_dev_clean`.span_attribute_key_catalog",
+        "SELECT * FROM `property_catalog_dev_clean`.spans",
+        "SELECT * FROM `property_catalog_dev_clean`.span_attribute_key_catalog",
         "SELECT * FROM property_definition_catalog",
-        "INSERT INTO `th7247_catalog_dev_clean`.property_definition_catalog VALUES ()",
+        "INSERT INTO `property_catalog_dev_clean`.property_definition_catalog VALUES ()",
         "SELECT * FROM `other_dev`.property_definition_catalog",
     ],
 )
@@ -366,7 +366,7 @@ def test_property_catalog_executor_uses_one_shrinking_wall():
         client_factory=lambda _config: client,
         clock=lambda: next(ticks),
     )
-    query = "SELECT status FROM `th7247_catalog_dev_clean`.property_catalog_activations"
+    query = "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations"
 
     executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})
     executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})
@@ -398,7 +398,7 @@ def test_property_catalog_executor_honors_smaller_request_owned_wall():
     )
 
     executor.execute(
-        "SELECT status FROM `th7247_catalog_dev_clean`.property_catalog_activations",
+        "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations",
         {},
         timeout_ms=2_000,
         settings={"max_result_rows": 1},
@@ -410,13 +410,13 @@ def test_property_catalog_executor_honors_smaller_request_owned_wall():
 
 def test_property_catalog_reader_sql_stays_inside_physical_allowlist():
     reader = PropertyCatalogReader(
-        SimpleExecutor(), catalog_database="th7247_catalog_dev_clean"
+        SimpleExecutor(), catalog_database="property_catalog_dev_clean"
     )
 
     for query in (reader._activation_sql, reader._conflict_sql, reader._page_sql):
         _validate_catalog_query(
             query,
-            database="th7247_catalog_dev_clean",
+            database="property_catalog_dev_clean",
             allowed_tables=PROPERTY_CATALOG_TABLES,
         )
 

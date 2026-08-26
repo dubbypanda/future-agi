@@ -108,8 +108,8 @@ call_command(
     cloud_deployment="",
     dev_identity="dev:property-catalog/oss-proof",
     source_database="futureagi",
-    target_database="th7247_catalog_dev_oss_proof",
-    acknowledgement="TH7247_UNIFIED_PROPERTY_CATALOG_DEV",
+    target_database="property_catalog_dev_oss_proof",
+    acknowledgement="PROPERTY_CATALOG_DEV_ROLLOUT",
     stdout=output,
 )
 assert '"zero_io":true' in output.getvalue()
@@ -190,7 +190,7 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
         in topic["environment"]["PROPERTY_CATALOG_KAFKA_TOPIC"]
     )
     topic_command = "\n".join(topic["command"])
-    assert "th7247.dev.span-attribute-catalog.v1" not in topic_command
+    assert "property-catalog.dev.span-attribute-catalog.v1" not in topic_command
 
     consumer = services["fi-property-catalog-consumer"]
     assert consumer["entrypoint"] == ["/usr/local/bin/fi-property-catalog-consumer"]
@@ -198,7 +198,7 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
     consumer_environment = consumer["environment"]
     assert consumer_environment["FI_PROPERTY_CATALOG_CONSUMER_MODE"] == "kafka"
     assert consumer_environment["FI_PROPERTY_CATALOG_CH_DATABASE"].endswith(
-        ":-th7247_catalog_dev_oss}"
+        ":-property_catalog_dev_oss}"
     )
     assert (
         consumer_environment["FI_PROPERTY_CATALOG_CH_USERNAME"]
@@ -222,13 +222,13 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
     assert supervisor["environment"]["PROPERTY_CATALOG_READ_MODE"] == "off"
     assert (
         supervisor["environment"]["PROPERTY_CATALOG_OSS_SUPERVISOR_ACK"]
-        == "TH7247_UNIFIED_PROPERTY_CATALOG_OSS_SUPERVISOR_V1"
+        == "PROPERTY_CATALOG_OSS_SUPERVISOR_V1"
     )
     assert supervisor["environment"]["PROPERTY_CATALOG_DEV_SOURCE_DATABASE"].endswith(
         ":-default}}"
     )
     assert supervisor["environment"]["PROPERTY_CATALOG_DEV_TARGET_DATABASE"].endswith(
-        ":-th7247_catalog_dev_oss}"
+        ":-property_catalog_dev_oss}"
     )
     assert (
         supervisor["environment"]["PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE"]
@@ -253,7 +253,7 @@ def test_oss_bootstrap_scripts_cannot_mutate_source_data() -> None:
 
     assert "CREATE DATABASE IF NOT EXISTS" in clickhouse
     assert "CREATE TABLE IF NOT EXISTS" not in clickhouse  # pinned SQL owns DDL
-    assert "th7247_catalog_dev_" in clickhouse
+    assert "property_catalog_dev_" in clickhouse
     assert r"GRANT SELECT ON \`$SOURCE_DATABASE\`.spans" in clickhouse
     assert r"GRANT SELECT, INSERT ON \`$TARGET_DATABASE\`.*" in clickhouse
     assert "ALTER TABLE" not in clickhouse

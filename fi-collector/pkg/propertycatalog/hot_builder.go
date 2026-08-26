@@ -45,8 +45,28 @@ func collectHotGroups(cfg RuntimeConfig, rows []ScopedSpan) ([]hotGroup, []error
 func collectHotGroupsAssigned(
 	cfg RuntimeConfig, rows []ScopedSpan, assignments map[hotTenantScope]RevisionFence,
 ) ([]hotGroup, []error) {
-	if len(rows) > cfg.MaxSpansPerBatch {
-		return nil, []error{fmt.Errorf("propertycatalog: canonical batch has %d spans, limit %d", len(rows), cfg.MaxSpansPerBatch)}
+	return collectHotGroupsWithScope(rows, cfg.MaxSpansPerBatch, func(scoped ScopedSpan) (hotGroupKey, time.Time, bool, error) {
+		return hotRowScopeAssigned(cfg, scoped, assignments)
+	}, cfg)
+}
+
+type hotScopeResolver func(ScopedSpan) (hotGroupKey, time.Time, bool, error)
+
+// collectHotGroupsWithScope owns the bounded attribute projection once while
+// allowing the caller to supply the admission boundary. Collector-side
+// candidate creation uses authenticated canonical scope only; the singleton
+// sequencer uses the signed revision fence before issuing an ordered envelope.
+func collectHotGroupsWithScope(
+	rows []ScopedSpan,
+	maxSpans int,
+	resolve hotScopeResolver,
+	cfg RuntimeConfig,
+) ([]hotGroup, []error) {
+	if resolve == nil {
+		return nil, []error{errors.New("propertycatalog: canonical batch requires a scope resolver")}
+	}
+	if len(rows) > maxSpans {
+		return nil, []error{fmt.Errorf("propertycatalog: canonical batch has %d spans, limit %d", len(rows), maxSpans)}
 	}
 	groups := make(map[hotGroupKey]*hotGroup)
 	errs := make([]error, 0)
@@ -56,7 +76,7 @@ func collectHotGroupsAssigned(
 	}
 	for index, scoped := range rows {
 		row := scoped.Row
-		key, seenAt, allowed, err := hotRowScopeAssigned(cfg, scoped, assignments)
+		key, seenAt, allowed, err := resolve(scoped)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("propertycatalog: canonical span %d: %w", index, err))
 			continue
@@ -141,41 +161,56 @@ func hotRowScope(cfg RuntimeConfig, scoped ScopedSpan) (hotGroupKey, time.Time, 
 func hotRowScopeAssigned(
 	cfg RuntimeConfig, scoped ScopedSpan, assignments map[hotTenantScope]RevisionFence,
 ) (hotGroupKey, time.Time, bool, error) {
+	key, seenAt, err := authenticatedHotRowScope(scoped)
+	if err != nil {
+		return hotGroupKey{}, time.Time{}, false, err
+	}
+	if !cfg.tenantAllowedByConfigurationOrAssignment(
+		key.organizationID, key.workspaceID, assignments,
+	) {
+		return hotGroupKey{}, time.Time{}, false, nil
+	}
+	return key, seenAt, true, nil
+}
+
+// authenticatedHotRowScope validates only evidence already bound to the
+// canonical span write. It intentionally does not consult a collector-local
+// revision or workspace allowlist: autoscaled collectors may publish
+// unsequenced candidates, while the singleton sequencer owns revision
+// admission and ordered stream state.
+func authenticatedHotRowScope(scoped ScopedSpan) (hotGroupKey, time.Time, error) {
 	if scoped.ScopeError != "" {
-		return hotGroupKey{}, time.Time{}, false, fmt.Errorf("authenticated project/workspace proof failed: %s", scoped.ScopeError)
+		return hotGroupKey{}, time.Time{}, fmt.Errorf("authenticated project/workspace proof failed: %s", scoped.ScopeError)
 	}
 	row := scoped.Row
 	organizationID := scoped.OrganizationID
 	workspaceID := scoped.WorkspaceID
 	rowOrganizationID, ok := row["org_id"].(string)
 	if !ok || rowOrganizationID != organizationID {
-		return hotGroupKey{}, time.Time{}, false, errors.New("canonical org_id does not match authenticated scope")
+		return hotGroupKey{}, time.Time{}, errors.New("canonical org_id does not match authenticated scope")
 	}
 	projectID, ok := row["project_id"].(string)
 	if !ok {
-		return hotGroupKey{}, time.Time{}, false, errors.New("project_id is absent or not a string")
+		return hotGroupKey{}, time.Time{}, errors.New("project_id is absent or not a string")
 	}
 	if err := validateCanonicalUUID("organization", organizationID); err != nil {
-		return hotGroupKey{}, time.Time{}, false, err
+		return hotGroupKey{}, time.Time{}, err
 	}
 	if err := validateCanonicalUUID("workspace", workspaceID); err != nil {
-		return hotGroupKey{}, time.Time{}, false, err
+		return hotGroupKey{}, time.Time{}, err
 	}
 	if err := validateCanonicalUUID("project", projectID); err != nil {
-		return hotGroupKey{}, time.Time{}, false, err
-	}
-	if !cfg.tenantAllowedByConfigurationOrAssignment(organizationID, workspaceID, assignments) {
-		return hotGroupKey{}, time.Time{}, false, nil
+		return hotGroupKey{}, time.Time{}, err
 	}
 	seenText, ok := row["start_time"].(string)
 	if !ok {
-		return hotGroupKey{}, time.Time{}, false, errors.New("start_time is absent or not a string")
+		return hotGroupKey{}, time.Time{}, errors.New("start_time is absent or not a string")
 	}
 	seenAt, err := time.Parse(dateTime64Layout, seenText)
 	if err != nil || seenAt.Format(dateTime64Layout) != seenText {
-		return hotGroupKey{}, time.Time{}, false, errors.New("start_time is not canonical DateTime64(6)")
+		return hotGroupKey{}, time.Time{}, errors.New("start_time is not canonical DateTime64(6)")
 	}
-	return hotGroupKey{organizationID, workspaceID, projectID}, seenAt, true, nil
+	return hotGroupKey{organizationID, workspaceID, projectID}, seenAt, nil
 }
 
 func (c RuntimeConfig) tenantAllowedByConfigurationOrAssignment(
@@ -282,12 +317,27 @@ func buildHotEnvelope(
 	sequence uint64,
 	previousPayloadSHA256 string,
 ) (WireEnvelope, error) {
+	return buildHotEnvelopeWithSourceDigest(
+		cfg, fence, group, hotGroupDigest(group), sequence, previousPayloadSHA256,
+	)
+}
+
+func buildHotEnvelopeWithSourceDigest(
+	cfg RuntimeConfig,
+	fence RevisionFence,
+	group hotGroup,
+	sourceBatchDigest string,
+	sequence uint64,
+	previousPayloadSHA256 string,
+) (WireEnvelope, error) {
 	if err := validateHotFenceObservation(
 		fence, group.key, group.firstSeen, group.lastSeen,
 	); err != nil {
 		return WireEnvelope{}, err
 	}
-	fingerprint := hotGroupDigest(group)
+	if !isLowerSHA256(sourceBatchDigest) {
+		return WireEnvelope{}, errors.New("propertycatalog: hot source batch digest must be lowercase SHA-256")
+	}
 	values := make([]AttributeValueRow, 0, len(group.values))
 	valueKeys := make([]string, 0, len(group.values))
 	for key := range group.values {
@@ -301,7 +351,7 @@ func buildHotEnvelope(
 		values = append(values, row)
 	}
 	payload, err := BuildPayload(
-		nil, values, cfg.MaxChunkRows, cfg.MaxChunkBytes, group.spans, fingerprint,
+		nil, values, cfg.MaxChunkRows, cfg.MaxChunkBytes, group.spans, sourceBatchDigest,
 	)
 	if err != nil {
 		return WireEnvelope{}, err
@@ -315,7 +365,7 @@ func buildHotEnvelope(
 		CatalogEpoch: fence.CatalogEpoch, CatalogRevision: fence.CatalogRevision,
 		BuildToken:        fence.BuildToken,
 		ProjectionVersion: fence.ProjectionVersion, SourceAdapter: AdapterSpanAttribute,
-		SourceVersion: sequence, SourceFingerprint: fingerprint,
+		SourceVersion: sequence, SourceFingerprint: sourceBatchDigest,
 		ProducerStreamID: cfg.ProducerStreamID, Sequence: sequence,
 		PreviousPayloadSHA256: previousPayloadSHA256, Payload: payload,
 	})

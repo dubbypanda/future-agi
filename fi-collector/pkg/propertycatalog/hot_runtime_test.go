@@ -55,7 +55,7 @@ func (p *mutableRevisionProvider) CurrentRevision(_ context.Context, organizatio
 	defer p.mu.Unlock()
 	fence, ok := p.fences[organizationID+"/"+workspaceID]
 	if !ok {
-		return RevisionFence{}, errors.New("no revision fence")
+		return RevisionFence{}, ErrRevisionNotAssigned
 	}
 	return fence, nil
 }
