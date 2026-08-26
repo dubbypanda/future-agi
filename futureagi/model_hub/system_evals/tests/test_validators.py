@@ -357,3 +357,124 @@ def test_meteor_one_empty_reports_missing():
     r = _meteor_full_path("the cat sat", "")
     assert r["score"] == 0.0
     assert "missing" in r["reason"].lower()
+
+
+# ---------------------------------------------------------------------------
+# intake_field_accuracy
+# ---------------------------------------------------------------------------
+
+
+def _intake(output, expected, **kwargs):
+    ev = _load_eval("intake_field_accuracy")
+    return ev(None, output, expected, None, **kwargs)
+
+
+def test_intake_perfect_capture():
+    rec = {"first_name": "Jane", "phone": "5551234567", "zip": "94107"}
+    assert _intake(rec, rec)["score"] == 1.0
+
+
+def test_intake_partial_credit_is_proportional():
+    gold = {"a": "1", "b": "2", "c": "3", "d": "4"}
+    got = {"a": "1", "b": "2", "c": "x", "d": "y"}
+    assert _intake(got, gold)["score"] == 0.5
+
+
+def test_intake_number_formatting_is_ignored():
+    # ASR and formatting render spoken numbers inconsistently; the eval must not
+    # punish an agent for separators it never chose.
+    gold = {"phone": "5551234567", "policy": "AB-12-34"}
+    got = {"phone": "(555) 123-4567", "policy": "AB 12 34"}
+    assert _intake(got, gold)["score"] == 1.0
+
+
+def test_intake_case_and_whitespace_ignored():
+    assert _intake({"name": "  jane   DOE "}, {"name": "Jane Doe"})["score"] == 1.0
+
+
+def test_intake_exact_mode_respects_formatting():
+    gold, got = {"phone": "5551234567"}, {"phone": "(555) 123-4567"}
+    assert _intake(got, gold, normalize=False)["score"] == 0.0
+
+
+def test_intake_missing_field_scores_zero_for_that_field():
+    r = _intake({"a": "1"}, {"a": "1", "b": "2"})
+    assert r["score"] == 0.5
+    assert "missing" in r["reason"].lower()
+
+
+def test_intake_critical_field_gate_forces_zero():
+    gold = {"a": "1", "b": "2", "c": "3", "policy_number": "XYZ"}
+    got = {"a": "1", "b": "2", "c": "3", "policy_number": "WRONG"}
+    r = _intake(got, gold, critical_fields=["policy_number"])
+    assert r["score"] == 0.0, (
+        "a wrong critical field must gate to 0 despite 75% of fields correct"
+    )
+    assert "policy_number" in r["reason"]
+
+
+def test_intake_critical_gate_ignores_non_critical_errors():
+    gold = {"a": "1", "policy_number": "XYZ"}
+    got = {"a": "WRONG", "policy_number": "XYZ"}
+    assert _intake(got, gold, critical_fields=["policy_number"])["score"] == 0.5
+
+
+def test_intake_missing_critical_field_also_gates():
+    r = _intake(
+        {"a": "1"},
+        {"a": "1", "policy_number": "XYZ"},
+        critical_fields=["policy_number"],
+    )
+    assert r["score"] == 0.0
+
+
+def test_intake_field_weights_shift_the_score():
+    gold = {"minor": "1", "major": "2"}
+    got = {"minor": "WRONG", "major": "2"}
+    # major correct, minor wrong -> 3/(1+3) with major weighted 3
+    assert _intake(got, gold, field_weights={"major": 3})["score"] == 0.75
+
+
+def test_intake_accepts_json_strings():
+    import json
+
+    gold = {"a": "1", "b": "2"}
+    assert _intake(json.dumps(gold), json.dumps(gold))["score"] == 1.0
+
+
+def test_intake_accepts_list_of_field_value_entries():
+    gold = [{"field": "a", "value": "1"}, {"field": "b", "value": "2"}]
+    got = [{"field": "a", "value": "1"}, {"field": "b", "value": "2"}]
+    assert _intake(got, gold)["score"] == 1.0
+
+
+def test_intake_extra_captured_fields_are_ignored():
+    # The gold record defines the scored set; extra capture is not penalised.
+    assert _intake({"a": "1", "spurious": "x"}, {"a": "1"})["score"] == 1.0
+
+
+def test_intake_empty_gold_scores_one():
+    assert _intake({"a": "1"}, {})["score"] == 1.0
+
+
+def test_intake_placeholder_values_count_as_missing():
+    r = _intake({"a": "N/A"}, {"a": "1"})
+    assert r["score"] == 0.0
+    assert "missing" in r["reason"].lower()
+
+
+def test_intake_string_critical_fields_are_parsed():
+    gold, got = {"a": "1", "p": "X"}, {"a": "1", "p": "Y"}
+    assert _intake(got, gold, critical_fields="p")["score"] == 0.0
+    assert _intake(got, gold, critical_fields="a, p")["score"] == 0.0
+
+
+def test_intake_distinct_names_do_not_falsely_match():
+    # Text values keep word boundaries, so a mis-split name is still a miss.
+    assert _intake({"name": "Johns Mith"}, {"name": "John Smith"})["score"] == 0.0
+
+
+def test_intake_identifier_separators_fully_ignored():
+    gold = {"policy": "AB-12-34", "amount": "$1,200.50", "dob": "03/15/1985"}
+    got = {"policy": "AB 12 34", "amount": "1200.50", "dob": "03-15-1985"}
+    assert _intake(got, gold)["score"] == 1.0

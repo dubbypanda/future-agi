@@ -1,0 +1,99 @@
+eval_id: 225
+name: intake_field_accuracy
+description: Scores a structured record an agent captured during a call against a gold record, field by field. Returns weighted
+  per-field accuracy, with an optional critical-field gate that forces 0 when any must-get-right field is wrong or missing.
+  Values are compared format-insensitively, so phone, account and reference numbers spoken and transcribed with different
+  separators still match.
+criteria: 'Measures how accurately an agent captured a structured intake record against a gold record: weighted per-field
+  accuracy, with a configurable critical-field gate.'
+eval_tags:
+- Agents
+- Voice
+- Accuracy
+visible_ui: true
+permissions:
+  allow_edit: false
+  allow_copy: true
+output_type_normalized: percentage
+pass_threshold: 0.5
+config:
+  required_keys:
+  - output
+  - expected
+  output: score
+  eval_type_id: CustomCodeEval
+  config: {}
+  function_params_schema:
+    critical_fields:
+      type: array
+      items:
+        type: string
+      default: []
+    field_weights:
+      type: object
+      default: {}
+    normalize:
+      type: boolean
+      default: true
+  config_params_desc:
+    output: The intake record the agent captured - a JSON object of field/value pairs, or a list of {field, value} entries
+    expected: The gold intake record for the same call, in the same shape. The fields present here define what is scored
+    critical_fields: Field names that must be exactly right. If any is wrong or missing the eval returns 0 regardless of the
+      other fields
+    field_weights: 'Optional per-field weights, e.g. {"policy_number": 3}. Fields default to a weight of 1'
+    normalize: Compare values format-insensitively. Case and surrounding whitespace are always ignored. Any value containing
+      a digit is treated as an identifier (phone, policy or account number, date, amount) and compared with all separators
+      stripped, so "(555) 123-4567" and "555-123-4567" agree. Pure-text values keep their word boundaries. Dates are separator-insensitive
+      only, so supply them in a consistent format. Set false for exact string comparison
+  param_modalities:
+    output:
+    - TEXT
+    - JSON
+    - LIST
+    - ARRAY
+    expected:
+    - TEXT
+    - JSON
+    - LIST
+    - ARRAY
+  code: "def evaluate(input, output, expected, context, **kwargs):\n    import json\n    import re\n\n    _EMPTY = {\"\",\
+    \ \"none\", \"null\", \"n/a\", \"na\", \"nil\", \"unknown\", \"not provided\", \"not given\"}\n\n    def _record(val):\n\
+    \        \"\"\"Coerce a record into {field: value}. Accepts a dict, a JSON string of\n        one, or a list of {field|name|key,\
+    \ value} entries.\"\"\"\n        if val is None:\n            return {}\n        if isinstance(val, str):\n          \
+    \  val = val.strip()\n            if not val:\n                return {}\n            try:\n                val = json.loads(val)\n\
+    \            except (json.JSONDecodeError, ValueError):\n                return {}\n        if isinstance(val, dict):\n\
+    \            return {str(k): v for k, v in val.items()}\n        if isinstance(val, list):\n            rec = {}\n   \
+    \         for item in val:\n                if isinstance(item, dict):\n                    key = item.get(\"field\",\
+    \ item.get(\"name\", item.get(\"key\")))\n                    if key is not None:\n                        rec[str(key)]\
+    \ = item.get(\"value\")\n            return rec\n        return {}\n\n    def _norm(val, normalize):\n        if val is\
+    \ None:\n            return \"\"\n        s = str(val).strip()\n        if not normalize:\n            return s\n    \
+    \    s = re.sub(r\"\\s+\", \" \", s.casefold())\n        if s in _EMPTY:\n            return \"\"\n        # Any value\
+    \ carrying a digit is treated as an identifier - phone, policy or\n        # account number, date, amount - and compared\
+    \ with every separator removed,\n        # because the formatting comes from the transcriber, not the agent. Pure\n  \
+    \      # text keeps its word boundaries so two distinct names stay distinct.\n        if re.search(r\"\\d\", s):\n   \
+    \         return re.sub(r\"[^a-z0-9]\", \"\", s)\n        return re.sub(r\"\\s+\", \" \", re.sub(r\"[^a-z0-9]\", \" \"\
+    , s)).strip()\n\n    def _as_list(val):\n        if val is None:\n            return []\n        if isinstance(val, (list,\
+    \ tuple, set)):\n            return [str(v) for v in val]\n        if isinstance(val, str):\n            s = val.strip()\n\
+    \            if not s:\n                return []\n            try:\n                parsed = json.loads(s)\n        \
+    \        if isinstance(parsed, list):\n                    return [str(v) for v in parsed]\n            except (json.JSONDecodeError,\
+    \ ValueError):\n                pass\n            return [p.strip() for p in s.split(\",\") if p.strip()]\n        return\
+    \ [str(val)]\n\n    gold = _record(kwargs.get(\"expected\", expected))\n    captured = _record(kwargs.get(\"output\",\
+    \ output))\n\n    if not gold:\n        return {\"score\": 1.0, \"reason\": \"No expected fields supplied; nothing to\
+    \ score.\"}\n\n    weights = kwargs.get(\"field_weights\")\n    if isinstance(weights, str):\n        try:\n         \
+    \   weights = json.loads(weights)\n        except (json.JSONDecodeError, ValueError):\n            weights = {}\n    if\
+    \ not isinstance(weights, dict):\n        weights = {}\n\n    critical = set(_as_list(kwargs.get(\"critical_fields\")))\n\
+    \n    normalize = kwargs.get(\"normalize\", True)\n    if isinstance(normalize, str):\n        normalize = normalize.strip().casefold()\
+    \ not in (\"false\", \"0\", \"no\", \"off\")\n\n    total = 0.0\n    earned = 0.0\n    incorrect = []\n    missing = []\n\
+    \    failed_critical = []\n\n    for field, gold_value in gold.items():\n        try:\n            weight = float(weights.get(field,\
+    \ 1.0))\n        except (TypeError, ValueError):\n            weight = 1.0\n        weight = max(weight, 0.0)\n      \
+    \  total += weight\n\n        want = _norm(gold_value, normalize)\n        got = _norm(captured.get(field), normalize)\n\
+    \n        if want == got:\n            earned += weight\n            continue\n        if field not in captured or got\
+    \ == \"\":\n            missing.append(field)\n        else:\n            incorrect.append(field)\n        if field in\
+    \ critical:\n            failed_critical.append(field)\n\n    if total <= 0:\n        return {\"score\": 1.0, \"reason\"\
+    : \"All expected fields carry zero weight; nothing to score.\"}\n\n    score = earned / total\n\n    if failed_critical:\n\
+    \        return {\n            \"score\": 0.0,\n            \"reason\": (\n                f\"Critical field gate failed\
+    \ on: {', '.join(sorted(failed_critical))}. \"\n                f\"Weighted accuracy before the gate was {score:.4f}.\"\
+    \n            ),\n        }\n\n    parts = [\n        f\"Weighted field accuracy: {score:.4f} \"\n        f\"({earned:.2f}/{total:.2f}\
+    \ over {len(gold)} expected fields)\"\n    ]\n    if incorrect:\n        parts.append(\"incorrect: \" + \", \".join(sorted(incorrect)[:10]))\n\
+    \    if missing:\n        parts.append(\"missing: \" + \", \".join(sorted(missing)[:10]))\n    return {\"score\": float(score),\
+    \ \"reason\": \". \".join(parts) + \".\"}\n"
