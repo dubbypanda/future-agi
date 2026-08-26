@@ -99,6 +99,7 @@ jobs:
       CH_DATABASE: test_tfc
       PYTHONHASHSEED: "0"
       FI_CH25_SCHEMA_APPLY_STRICT: "1"
+      NLTK_DATA: ${{ runner.temp }}/nltk_data
       EE_CHECKOUT_PATH: .ee-cloud-source
       EE_PACKAGE_PATH: futureagi/ee/cloud
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
@@ -172,6 +173,9 @@ jobs:
 
       - name: Install dependencies (overlaps with service startup)
         run: uv sync --frozen
+
+      - name: Install verified NLTK corpora
+        run: uv run python bin/install_nltk_data.py
 
       - name: Gate on service health
         # Blocks until every service is healthy; no need to wait on the

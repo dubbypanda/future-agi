@@ -29,6 +29,14 @@ PACKAGES = {
         "taggers/averaged_perceptron_tagger_eng.zip",
         "6025f530624335c67d6547d44757b357b4e79bae030a0383e9887a92c1718f0b",
     ),
+    # NLTK 3.8.x resolves ``pos_tag`` through the legacy resource name while
+    # NLTK 3.9+ resolves the language-specific ``*_eng`` package above.  The
+    # backend image and the uv test environment currently span both versions,
+    # so keep both pinned archives until every runtime uses the same NLTK line.
+    "taggers/averaged_perceptron_tagger": (
+        "taggers/averaged_perceptron_tagger.zip",
+        "e1f13cf2532daadfd6f3bc481a49859f0b8ea6432ccdcd83e6a49a5f19008de9",
+    ),
     "corpora/wordnet": (
         "corpora/wordnet.zip",
         "cbda5ea6eef7f36a97a43d4a75f85e07fccbb4f23657d27b4ccbc93e2646ab59",

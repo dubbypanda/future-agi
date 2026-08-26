@@ -39,6 +39,10 @@ def test_nltk_archives_are_revision_and_checksum_pinned() -> None:
         "corpora/stopwords",
         "tokenizers/punkt",
         "tokenizers/punkt_tab",
+        "taggers/averaged_perceptron_tagger_eng",
+        "taggers/averaged_perceptron_tagger",
+        "corpora/wordnet",
+        "corpora/omw-1.4",
     }
 
     for _, expected_sha256 in install_nltk_data.PACKAGES.values():
@@ -92,7 +96,8 @@ def test_install_verification_uses_only_the_fresh_destination(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     import nltk
-    from nltk.corpus import stopwords
+    from nltk.corpus import stopwords, wordnet
+    from nltk.stem import WordNetLemmatizer
 
     payload = io.BytesIO()
     with zipfile.ZipFile(payload, "w") as archive:
@@ -115,6 +120,13 @@ def test_install_verification_uses_only_the_fresh_destination(
         "word_tokenize",
         lambda _: ["Future", "AGI", "image", "verification"],
     )
+    monkeypatch.setattr(nltk, "pos_tag", lambda _: [("Future", "NN")])
+    monkeypatch.setattr(
+        WordNetLemmatizer,
+        "lemmatize",
+        lambda _self, _word, _pos="n": "car",
+    )
+    monkeypatch.setattr(wordnet, "synsets", lambda _word, lang: [lang])
 
     try:
         install_nltk_data.install()

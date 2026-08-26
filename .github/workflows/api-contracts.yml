@@ -217,6 +217,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       REDIS_LOCK_URL: redis://localhost:6379/2
       TESTING: "false"
+      NLTK_DATA: ${{ runner.temp }}/nltk_data
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN }}
       EE_CHECKOUT_PATH: .ee-cloud-source
       EE_PACKAGE_PATH: futureagi/ee/cloud
@@ -311,6 +312,9 @@ jobs:
 
       - name: Install backend dependencies
         run: uv sync --frozen
+
+      - name: Install verified NLTK corpora
+        run: uv run python bin/install_nltk_data.py
 
       - name: Apply ClickHouse test schema
         run: >
