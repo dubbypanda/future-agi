@@ -3780,7 +3780,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                             else None
                         )
                         cursor_window_mode = None
-                        if configured_snapshot_window is not None:
+                        if configured_snapshot_window is not None and not cursor_token:
                             cursor_window_mode = CATALOG_SNAPSHOT_MODE
                         batch_query = {
                             "metric_name": metric_name,
