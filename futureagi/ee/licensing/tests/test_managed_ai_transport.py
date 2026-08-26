@@ -293,6 +293,15 @@ class TestManagedClientsCloudEndToEnd:
     async def test_falcon_client_on_cloud_uses_internal_gateway(self):
         from ee.falcon_ai.llm_client import FalconLLMClient
 
+        stream_call = {}
+
+        async def _fake_stream(**kwargs):
+            stream_call.update(kwargs)
+            yield {
+                "choices": [{"delta": {"content": "falcon"}}],
+                "usage": {},
+            }
+
         with (
             patch("ee.usage.deployment.DeploymentMode.is_cloud", return_value=True),
             patch(
@@ -300,11 +309,9 @@ class TestManagedClientsCloudEndToEnd:
                 side_effect=_internal_setting,
             ),
             patch(
-                "httpx.post",
-                return_value=_ok_response(
-                    {"choices": [{"message": {"content": "falcon"}}], "usage": {}}
-                ),
-            ) as mock_post,
+                "ee.licensing.managed_ai.dispatch_managed_stream",
+                side_effect=_fake_stream,
+            ),
             patch(
                 "ee.licensing.activation_client.get_service_token"
             ) as mock_get_token,
@@ -321,8 +328,9 @@ class TestManagedClientsCloudEndToEnd:
         assert any(
             c["choices"][0]["delta"].get("content") == "falcon" for c in chunks
         )
-        assert _posted_url(mock_post) == "http://agentcc-gateway:8080/v1/chat/completions"
-        assert _posted_auth(mock_post) == "Bearer internal-key"
+        assert stream_call["url"] == ("http://agentcc-gateway:8080/v1/chat/completions")
+        assert stream_call["api_key"] == "internal-key"
+        assert stream_call["json_body"]["stream"] is True
         mock_get_token.assert_not_called()
 
     def test_turing_client_on_cloud_uses_internal_gateway(self):
