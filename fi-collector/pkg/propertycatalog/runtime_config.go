@@ -35,7 +35,7 @@ const (
 	DevelopmentAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_DEV_ONLY"
 	// ProductionAcknowledgement is deliberately distinct from the DEV gate. A
 	// copied DEV deployment cannot target the production-only catalog prefix.
-	ProductionAcknowledgement = "TH7247_UNIFIED_PROPERTY_CATALOG_V1_PRODUCTION"
+	ProductionAcknowledgement = "UNIFIED_PROPERTY_CATALOG_V1_PRODUCTION"
 
 	defaultReplayInterval               = time.Second
 	defaultShutdownTimeout              = 10 * time.Second
