@@ -118,6 +118,108 @@ describe("WidgetEditor filter-value picker", () => {
     document.body.removeChild(anchorEl);
   });
 
+  it("bounds oversized exact attribute values before lookup or selection", () => {
+    useResolvedFilterOptionsMock.mockReturnValue({
+      options: [],
+      isLoading: false,
+      isError: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      continuationKey: null,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      queryReadState: "complete",
+      cursorChainStopped: false,
+      retryFreshPage: vi.fn(),
+      isRetryingFreshPage: false,
+      refetch: vi.fn(),
+    });
+    const anchorEl = document.createElement("button");
+    document.body.appendChild(anchorEl);
+
+    render(
+      <FilterValuePickerPopup
+        anchorEl={anchorEl}
+        filter={{
+          id: "long.attribute",
+          type: "custom_attribute",
+          dataType: "string",
+          value: [],
+        }}
+        onClose={vi.fn()}
+        onApply={vi.fn()}
+        source="traces"
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search..."), {
+      target: { value: "x".repeat(16 * 1024 + 2) },
+    });
+
+    expect(screen.getByPlaceholderText("Search...")).toHaveValue(
+      "x".repeat(16 * 1024 + 1),
+    );
+    expect(
+      screen.getByText(/no longer than 16,384 UTF-8 bytes/i),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector("[data-widget-filter-exact-value]"),
+    ).not.toBeInTheDocument();
+    expect(useResolvedFilterOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "long.attribute" }),
+      "traces",
+      false,
+      "",
+      "",
+    );
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("ellipsizes long valid values while retaining the full text as a title", () => {
+    const longValue = "metadata.".repeat(100);
+    useResolvedFilterOptionsMock.mockReturnValue({
+      options: [{ value: longValue, label: longValue, type: "string" }],
+      isLoading: false,
+      isError: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      continuationKey: null,
+      isFetchingNextPage: false,
+      isFetchNextPageError: false,
+      queryReadState: "complete",
+      cursorChainStopped: false,
+      retryFreshPage: vi.fn(),
+      isRetryingFreshPage: false,
+      refetch: vi.fn(),
+    });
+    const anchorEl = document.createElement("button");
+    document.body.appendChild(anchorEl);
+
+    render(
+      <FilterValuePickerPopup
+        anchorEl={anchorEl}
+        filter={{
+          id: "long.attribute",
+          type: "custom_attribute",
+          dataType: "string",
+          value: [],
+        }}
+        onClose={vi.fn()}
+        onApply={vi.fn()}
+        source="traces"
+      />,
+    );
+
+    expect(screen.getByTitle(longValue)).toHaveStyle({
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+
+    document.body.removeChild(anchorEl);
+  });
+
   it("automatically loads each new cursor once while the end remains visible", async () => {
     const intersection = installIntersectionObserver();
     const firstPage = deferred();

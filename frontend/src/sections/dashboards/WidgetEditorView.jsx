@@ -79,9 +79,12 @@ import {
 import useCanEditDashboard from "./hooks/useCanEditDashboard";
 import {
   coerceFilterValue,
+  FILTER_STRING_MAX_UTF8_BYTES,
+  getUtf8ByteLength,
   isAllowedFilterOperator,
   normalizeColumnType,
   normalizeFilterType,
+  TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES,
 } from "src/api/contracts/filter-contract";
 import {
   FILTER_VALUE_SEARCH_DEBOUNCE_MS,
@@ -1740,6 +1743,13 @@ export function FilterValuePickerPopup({
   // Backend search (custom attributes) reaches values outside the fetched
   // page and the default lookback; the client-side filter below stays as the
   // instant layer on top of whatever is already loaded.
+  const exactValueMaxUtf8Bytes =
+    filter?.type === "custom_attribute"
+      ? TYPED_ATTRIBUTE_STRING_FILTER_MAX_UTF8_BYTES
+      : FILTER_STRING_MAX_UTF8_BYTES;
+  const exactSearchValue = search.trim();
+  const exactSearchValueTooLong =
+    getUtf8ByteLength(exactSearchValue) > exactValueMaxUtf8Bytes;
   const debouncedSearch = useDebounce(search, FILTER_VALUE_SEARCH_DEBOUNCE_MS);
   const {
     options,
@@ -1755,13 +1765,22 @@ export function FilterValuePickerPopup({
     retryFreshPage,
     isRetryingFreshPage,
     refetch,
-  } = useResolvedFilterOptions(filter, source, true, debouncedSearch, search);
-  const retryValues = retryFreshPage || refetch;
-  const readMessage = getFilterValueReadMessage(
-    isError ? "error" : queryReadState,
+  } = useResolvedFilterOptions(
+    filter,
+    source,
+    !exactSearchValueTooLong,
+    exactSearchValueTooLong ? "" : debouncedSearch,
+    exactSearchValueTooLong ? "" : search,
   );
+  const retryValues = retryFreshPage || refetch;
+  const readMessage = exactSearchValueTooLong
+    ? `Enter a value no longer than ${exactValueMaxUtf8Bytes.toLocaleString(
+        "en-US",
+      )} UTF-8 bytes.`
+    : getFilterValueReadMessage(isError ? "error" : queryReadState);
 
   const filteredOptions = useMemo(() => {
+    if (exactSearchValueTooLong) return [];
     if (!search) return options;
     const q = search.toLowerCase();
     return options.filter((option) =>
@@ -1771,8 +1790,7 @@ export function FilterValuePickerPopup({
           .includes(q),
       ),
     );
-  }, [options, search]);
-  const exactSearchValue = search.trim();
+  }, [exactSearchValueTooLong, options, search]);
   const searchMatchesLoadedOption = options.some((option) =>
     [option?.value, option?.label].some(
       (candidate) =>
@@ -1782,7 +1800,7 @@ export function FilterValuePickerPopup({
     ),
   );
   const canSpecifyExactValue = Boolean(
-    exactSearchValue && !searchMatchesLoadedOption,
+    exactSearchValue && !exactSearchValueTooLong && !searchMatchesLoadedOption,
   );
 
   const toggleValue = (value, valueType) => {
@@ -1871,7 +1889,14 @@ export function FilterValuePickerPopup({
               fullWidth
               placeholder="Search..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(
+                  String(e.target.value ?? "").slice(
+                    0,
+                    exactValueMaxUtf8Bytes + 1,
+                  ),
+                )
+              }
               autoFocus
               InputProps={{
                 startAdornment: (
@@ -1967,7 +1992,12 @@ export function FilterValuePickerPopup({
                   checked={isSelected(exactSearchValue, exactValueType)}
                   sx={{ p: 0 }}
                 />
-                <Typography variant="body2" sx={{ fontSize: "13px" }}>
+                <Typography
+                  variant="body2"
+                  noWrap
+                  title={`Specify: ${exactSearchValue}`}
+                  sx={{ minWidth: 0, fontSize: "13px" }}
+                >
                   Specify: <strong>{exactSearchValue}</strong>
                 </Typography>
               </Box>
@@ -2020,7 +2050,12 @@ export function FilterValuePickerPopup({
                     checked={isSelected(opt.value, optionStorageType(opt))}
                     sx={{ p: 0 }}
                   />
-                  <Typography variant="body2" sx={{ fontSize: "13px" }}>
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    title={String(opt.label ?? opt.value ?? "")}
+                    sx={{ minWidth: 0, fontSize: "13px" }}
+                  >
                     {opt.label || opt.value}
                   </Typography>
                 </Box>
@@ -7554,12 +7589,7 @@ export default function WidgetEditorView() {
                 fullWidth
                 placeholder={`Search ${pickerMode === "metric" ? "metrics" : pickerMode === "metric_filter" ? "filter attributes" : pickerMode === "filter" ? "filter attributes" : "breakdown attributes"}...`}
                 value={pickerSearch}
-                onChange={(e) => {
-                  setPickerSearch(e.target.value);
-                  // A new text scope starts in All. An explicit category click
-                  // after typing remains authoritative until the text changes.
-                  setPickerCategory("all");
-                }}
+                onChange={(e) => setPickerSearch(e.target.value)}
                 autoFocus
                 InputProps={{
                   startAdornment: (
