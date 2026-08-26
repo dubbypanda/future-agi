@@ -1,5 +1,12 @@
 # Unified property catalog on the DEV Docker host
 
+This is the canonical end-to-end DEV path for
+`FI_PROPERTY_CATALOG_MODE=kafka`. The rendered producer always sets
+`FI_CATALOG_MODE=disabled`; do not combine the unified and legacy modes. The
+collector's [`CATALOG_DEV.md`](../../../fi-collector/CATALOG_DEV.md) and its
+optional `th7247.dev.span-attribute-catalog.v1` topic cover the legacy
+span-attribute catalog, not this path.
+
 This bundle renders a new, isolated Compose project for the supplied DEV VM.
 It does not replace, restart, reconfigure, or depend on any current Compose
 service. It attaches new containers to the two existing external DEV networks.
@@ -189,9 +196,18 @@ create only the missing exact topic. The `apache/kafka-native` broker image does
 not include the administration scripts, so use the separately installed
 `apache/kafka` CLI image on the broker's existing Docker network:
 
+Start only the broker infrastructure if it is not already running. The legacy
+topic initializer is profile-gated and is not started by this command:
+
+```bash
+docker compose \
+  -f fi-collector/docker-compose.catalog-kafka.dev.yml \
+  up -d volume-init kafka
+```
+
 ```bash
 TOPIC=futureagi.dev.property-catalog.kartik-0815a
-KAFKA_NETWORK=th7247-catalog-dev_default
+KAFKA_NETWORK=th7247_catalog_dev
 KAFKA_CLI_IMAGE=apache/kafka:4.1.0
 KAFKA_BROKER=th7247-catalog-kafka-dev:9092
 

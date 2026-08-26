@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import contextlib
 import copy
 import dataclasses
@@ -10,12 +11,10 @@ import os
 import sys
 import tempfile
 import unittest
-import ast
 from pathlib import Path
 from unittest import mock
 
 import yaml
-
 
 _MODULE_PATH = Path(__file__).with_name("render.py")
 _SPEC = importlib.util.spec_from_file_location(
@@ -416,6 +415,40 @@ class RenderTests(unittest.TestCase):
         self.assertIn("NO_STARTUP_DB_MUTATIONS=true", readme)
         self.assertIn("property-catalog-operator --execute", readme)
         self.assertNotIn("register_temporal_schedules", readme)
+
+    def test_runbooks_separate_unified_and_legacy_catalog_paths(self) -> None:
+        repository = Path(__file__).parents[3]
+        unified_readme = (
+            Path(__file__).with_name("README.md").read_text(encoding="utf-8")
+        )
+        collector_readme = (repository / "fi-collector" / "README.md").read_text(
+            encoding="utf-8"
+        )
+        legacy_readme = (repository / "fi-collector" / "CATALOG_DEV.md").read_text(
+            encoding="utf-8"
+        )
+        legacy_compose = yaml.safe_load(
+            (
+                repository / "fi-collector" / "docker-compose.catalog-kafka.dev.yml"
+            ).read_text(encoding="utf-8")
+        )
+
+        self.assertIn("FI_PROPERTY_CATALOG_MODE=kafka", unified_readme)
+        self.assertIn("FI_CATALOG_MODE=disabled", unified_readme)
+        self.assertIn("KAFKA_NETWORK=th7247_catalog_dev", unified_readme)
+        self.assertNotIn("KAFKA_NETWORK=th7247-catalog-dev_default", unified_readme)
+        self.assertIn(
+            "../deploy/dev/property-catalog-docker/README.md", collector_readme
+        )
+        self.assertIn("legacy `FI_CATALOG_MODE`", legacy_readme)
+        self.assertIn("`FI_PROPERTY_CATALOG_MODE`", legacy_readme)
+
+        topic_init = legacy_compose["services"]["topic-init"]
+        self.assertEqual(topic_init["profiles"], ["legacy-span-attribute-catalog"])
+        topic_command = "\n".join(topic_init["command"])
+        self.assertIn("TH7247_ACK_LEGACY_SPAN_ATTRIBUTE_CATALOG_ONLY", topic_command)
+        self.assertIn("th7247.dev.span-attribute-catalog.v1", topic_command)
+        self.assertNotIn("futureagi.dev.property-catalog", topic_command)
 
 
 class HostPreflightTests(unittest.TestCase):

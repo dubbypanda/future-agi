@@ -1,8 +1,12 @@
 name: th7247-catalog-dev
 
-# Development-only Kafka transport for the span-attribute catalog. This file
-# is intentionally standalone and is never referenced by production compose or
-# Helm values. Production catalog mode remains disabled.
+# Development-only Kafka broker shared by the catalog qualification harnesses.
+# This file does NOT run either catalog producer or consumer. Its topic-init
+# service is the legacy FI_CATALOG_MODE span-attribute topic and is hidden
+# behind an explicit profile and acknowledgement. For the unified
+# FI_PROPERTY_CATALOG_MODE path, follow:
+#   deploy/dev/property-catalog-docker/README.md
+# This file is never referenced by production Compose or Helm values.
 services:
   volume-init:
     image: apache/kafka-native:4.1.0
@@ -60,26 +64,32 @@ services:
   topic-init:
     image: apache/kafka:4.1.0
     restart: "no"
+    profiles: ["legacy-span-attribute-catalog"]
     depends_on:
       kafka:
         condition: service_healthy
     network_mode: service:kafka
+    environment:
+      TH7247_LEGACY_SPAN_ATTRIBUTE_CATALOG_ACK: >-
+        ${TH7247_LEGACY_SPAN_ATTRIBUTE_CATALOG_ACK:-}
+    entrypoint: ["/bin/sh", "-ec"]
     command:
-      - /opt/kafka/bin/kafka-topics.sh
-      - --bootstrap-server
-      - th7247-catalog-kafka-dev:9092
-      - --create
-      - --if-not-exists
-      - --topic
-      - th7247.dev.span-attribute-catalog.v1
-      - --partitions
-      - "6"
-      - --replication-factor
-      - "1"
-      - --config
-      - retention.ms=259200000
-      - --config
-      - max.message.bytes=1048576
+      - |
+        if [ "$${TH7247_LEGACY_SPAN_ATTRIBUTE_CATALOG_ACK}" != \
+          "TH7247_ACK_LEGACY_SPAN_ATTRIBUTE_CATALOG_ONLY" ]; then
+          echo >&2 "Refusing to create the legacy span-attribute topic."
+          echo >&2 "Unified property catalog developers must follow deploy/dev/property-catalog-docker/README.md."
+          exit 64
+        fi
+        exec /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server th7247-catalog-kafka-dev:9092 \
+          --create \
+          --if-not-exists \
+          --topic th7247.dev.span-attribute-catalog.v1 \
+          --partitions 6 \
+          --replication-factor 1 \
+          --config retention.ms=259200000 \
+          --config max.message.bytes=1048576
     labels: *dev-labels
 
 volumes:
