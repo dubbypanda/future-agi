@@ -45,8 +45,8 @@ func productionEnvironment() map[string]string {
 	values[envEnvironment] = propertycatalog.ProductionEnvironment
 	delete(values, envDevAck)
 	values[envProdAck] = propertycatalog.ProductionAcknowledgement
-	values[envClickHouseDatabase] = "th7247_catalog_prod_20260823a"
-	values[envLedgerDatabase] = "th7247_catalog_prod_20260823a"
+	values[envClickHouseDatabase] = "property_catalog"
+	values[envLedgerDatabase] = "property_catalog"
 	values[envKafkaTopic] = "futureagi.prod.property-catalog.v1"
 	values[envKafkaGroup] = "futureagi.prod.property-catalog.consumer.v1"
 	return values
@@ -114,7 +114,7 @@ func TestProductionConsumerRequiresExactGateMatchingDatabaseAndLedgerSeed(t *tes
 		t.Fatal(err)
 	}
 	if cfg.write.Environment != propertycatalog.ProductionEnvironment ||
-		cfg.write.Database != "th7247_catalog_prod_20260823a" ||
+		cfg.write.Database != "property_catalog" ||
 		cfg.kafka.ClientID != "fi-property-catalog-consumer-v1-prod" ||
 		cfg.seed != seedDeliveryLedger {
 		t.Fatalf("production config=%+v", cfg)

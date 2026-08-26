@@ -80,9 +80,10 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 		{URL: "http://clickhouse:8123", Database: "futureagi", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "default", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "system", Environment: DevelopmentEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_prod_real", Environment: DevelopmentEnvironment, Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_real", Environment: ProductionEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "th7247_catalog_prod_real", Environment: "staging", Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog", Environment: "staging", Username: "writer"},
+		{URL: "http://clickhouse:8123", Database: "property_catalog_backup", Environment: ProductionEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "th7247_catalog_dev_Bad", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "TH7247_catalog_dev_bad", Environment: DevelopmentEnvironment, Username: "writer"},
@@ -111,9 +112,9 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 	}
 }
 
-func TestClickHouseSinkAcceptsOnlyMatchingProductionCatalogPrefix(t *testing.T) {
+func TestClickHouseSinkAcceptsOnlyStableProductionCatalogName(t *testing.T) {
 	if _, err := NewClickHouseSink(ClickHouseSinkConfig{
-		URL: "https://clickhouse:8443", Database: "th7247_catalog_prod_20260823a",
+		URL: "https://clickhouse:8443", Database: "property_catalog",
 		Environment: ProductionEnvironment, Username: "property_writer",
 	}); err != nil {
 		t.Fatal(err)

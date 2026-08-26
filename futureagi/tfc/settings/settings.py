@@ -1158,7 +1158,7 @@ PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
 PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
 _PROPERTY_CATALOG_DATABASE_PATTERNS = {
     "dev": re.compile(r"\Ath7247_catalog_dev_[a-z0-9][a-z0-9_]*\Z"),
-    "prod": re.compile(r"\Ath7247_catalog_prod_[a-z0-9_]+\Z"),
+    "prod": re.compile(r"\Aproperty_catalog\Z"),
 }
 
 
@@ -1178,7 +1178,7 @@ def property_catalog_read_deployment(
         normalized_environment == "staging" and normalized_cloud == "DEV"
     ):
         return "dev"
-    if normalized_environment == "production" and normalized_cloud != "DEV":
+    if normalized_environment in {"prod", "production"} and normalized_cloud != "DEV":
         return "prod"
     raise ValueError(
         "unified property catalog reads require an explicitly supported DEV "
@@ -1199,7 +1199,7 @@ def validate_property_catalog_database(
         or len(database.encode("utf-8")) > 128
     ):
         raise ValueError(
-            "property catalog database must be an isolated TH-7247 identifier"
+            "property catalog database must be an isolated catalog identifier"
         )
     matches = {
         candidate
@@ -1208,7 +1208,7 @@ def validate_property_catalog_database(
     }
     if len(matches) != 1:
         raise ValueError(
-            "property catalog database must be an isolated TH-7247 identifier"
+            "property catalog database must be an isolated catalog identifier"
         )
     resolved_deployment = next(iter(matches))
     if deployment is not None and deployment != resolved_deployment:

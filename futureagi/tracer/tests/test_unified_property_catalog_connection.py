@@ -56,11 +56,22 @@ def _prod_settings(**overrides):
         "CLOUD_DEPLOYMENT": "US",
         "PROPERTY_CATALOG_DEV_READ_ACK": "",
         "PROPERTY_CATALOG_PROD_READ_ACK": (PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT),
-        "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_clean",
-        "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_prod_clean",
+        "PROPERTY_CATALOG_DATABASE": "property_catalog",
+        "PROPERTY_CATALOG_CH_DATABASE": "property_catalog",
     }
     values.update(overrides)
     return _read_settings(**values)
+
+
+@pytest.mark.parametrize("environment_type", ["prod", "production"])
+def test_property_catalog_connection_accepts_supported_production_env_aliases(
+    environment_type,
+):
+    config = PropertyCatalogConnectionConfig.from_settings(
+        _prod_settings(ENV_TYPE=environment_type)
+    )
+
+    assert config.database == "property_catalog"
 
 
 class FakeClient:
@@ -133,9 +144,9 @@ def test_property_catalog_connection_admits_bounded_production_reads(read_mode):
         _prod_settings(PROPERTY_CATALOG_READ_MODE=read_mode)
     )
 
-    assert config.database == "th7247_catalog_prod_clean"
+    assert config.database == "property_catalog"
     config.validate(
-        qualifier_database="th7247_catalog_prod_clean",
+        qualifier_database="property_catalog",
         source_users={"source_v1", "source_v2"},
         deployment="prod",
     )
@@ -149,7 +160,7 @@ def test_property_catalog_connection_accepts_maximum_production_allowlist():
     )
 
     assert PropertyCatalogConnectionConfig.from_settings(source).database == (
-        "th7247_catalog_prod_clean"
+        "property_catalog"
     )
 
 
@@ -192,7 +203,7 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
-        ({"ENV_TYPE": "prod"}, "supported DEV or production"),
+        ({"ENV_TYPE": "local"}, "supported DEV or production"),
         ({"ENV_TYPE": "staging", "CLOUD_DEPLOYMENT": "US"}, "supported DEV"),
         ({"CLOUD_DEPLOYMENT": "DEV"}, "supported DEV or production"),
         (
@@ -218,7 +229,7 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
         ),
         (
             {
-                "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_qualifier",
+                "PROPERTY_CATALOG_DATABASE": "property_catalog_backup",
             },
             "qualifier and connection databases must match",
         ),
@@ -253,8 +264,8 @@ def test_property_catalog_production_admission_fails_closed(overrides, message):
     "overrides",
     [
         {
-            "PROPERTY_CATALOG_DATABASE": "th7247_catalog_prod_clean",
-            "PROPERTY_CATALOG_CH_DATABASE": "th7247_catalog_prod_clean",
+            "PROPERTY_CATALOG_DATABASE": "property_catalog",
+            "PROPERTY_CATALOG_CH_DATABASE": "property_catalog",
         },
         {
             "PROPERTY_CATALOG_DEV_READ_ACK": "",
@@ -273,8 +284,7 @@ def test_property_catalog_dev_admission_rejects_production_cross_wiring(override
     ("database", "deployment"),
     [
         ("th7247_catalog_dev_clean", "dev"),
-        ("th7247_catalog_prod_clean", "prod"),
-        ("th7247_catalog_prod__", "prod"),
+        ("property_catalog", "prod"),
     ],
 )
 def test_property_catalog_database_validator_accepts_exact_namespaces(
@@ -288,11 +298,10 @@ def test_property_catalog_database_validator_accepts_exact_namespaces(
 @pytest.mark.parametrize(
     ("database", "deployment"),
     [
-        ("th7247_catalog_prod_clean", "dev"),
+        ("property_catalog", "dev"),
         ("th7247_catalog_dev_clean", "prod"),
-        ("th7247_catalog_prod_", "prod"),
-        ("th7247_catalog_prod_BAD", "prod"),
-        ("th7247_catalog_prod_bad-name", "prod"),
+        ("property_catalog_backup", "prod"),
+        ("PROPERTY_CATALOG", "prod"),
     ],
 )
 def test_property_catalog_database_validator_rejects_cross_wiring_and_unsafe_names(

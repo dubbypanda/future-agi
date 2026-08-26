@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	maxCatalogInsertBytes     = 16 << 20
-	devCatalogDatabasePrefix  = "th7247_catalog_dev_"
-	prodCatalogDatabasePrefix = "th7247_catalog_prod_"
+	maxCatalogInsertBytes    = 16 << 20
+	devCatalogDatabasePrefix = "th7247_catalog_dev_"
+	prodCatalogDatabaseName  = "property_catalog"
 )
 
 var definitionColumns = []string{
@@ -74,7 +74,7 @@ func NewClickHouseSink(cfg ClickHouseSinkConfig) (*ClickHouseSink, error) {
 	}
 	if !safeClickHouseDatabase(cfg.Environment, cfg.Database) {
 		return nil, errors.New(
-			"propertycatalog: ClickHouse database must match the exact environment-specific isolated catalog prefix",
+			"propertycatalog: ClickHouse database must match the exact environment-specific isolated catalog name",
 		)
 	}
 	if cfg.Username == "" || strings.TrimSpace(cfg.Username) != cfg.Username || len(cfg.Username) > 255 {
@@ -181,23 +181,22 @@ func (s *ClickHouseSink) insert(ctx context.Context, table string, columns []str
 }
 
 func safeClickHouseDatabase(environment, value string) bool {
-	prefix := ""
 	switch environment {
 	case DevelopmentEnvironment:
-		prefix = devCatalogDatabasePrefix
+		if len(value) <= len(devCatalogDatabasePrefix) || len(value) > 128 ||
+			!strings.HasPrefix(value, devCatalogDatabasePrefix) {
+			return false
+		}
+		for index, char := range value[len(devCatalogDatabasePrefix):] {
+			if char > unicode.MaxASCII || (!(char >= 'a' && char <= 'z') &&
+				!(char >= '0' && char <= '9') && char != '_') || (index == 0 && char == '_') {
+				return false
+			}
+		}
+		return true
 	case ProductionEnvironment:
-		prefix = prodCatalogDatabasePrefix
+		return value == prodCatalogDatabaseName
 	default:
 		return false
 	}
-	if len(value) <= len(prefix) || len(value) > 128 || !strings.HasPrefix(value, prefix) {
-		return false
-	}
-	for index, char := range value[len(prefix):] {
-		if char > unicode.MaxASCII || (!(char >= 'a' && char <= 'z') &&
-			!(char >= '0' && char <= '9') && char != '_') || (index == 0 && char == '_') {
-			return false
-		}
-	}
-	return true
 }

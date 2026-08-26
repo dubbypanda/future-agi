@@ -80,11 +80,11 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
 def test_property_reader_accepts_isolated_production_database_namespace() -> None:
     reader = PropertyCatalogReader(
         FakeExecutor([]),
-        catalog_database="th7247_catalog_prod_reader",
+        catalog_database="property_catalog",
     )
 
-    assert "`th7247_catalog_prod_reader`" in reader._activation_sql
-    assert "`th7247_catalog_prod_reader`" in reader._page_sql
+    assert "`property_catalog`" in reader._activation_sql
+    assert "`property_catalog`" in reader._page_sql
 
 
 def _scope(*, project_ids=(PROJECT_ID,), workspace_scope=False):

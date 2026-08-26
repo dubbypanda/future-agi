@@ -74,11 +74,11 @@ def test_clickhouse25_aggregate_inputs_are_raw_qualified() -> None:
 def test_property_value_reader_accepts_isolated_production_database_namespace() -> None:
     reader = PropertyCatalogValueReader(
         FakeExecutor([]),
-        catalog_database="th7247_catalog_prod_values",
+        catalog_database="property_catalog",
     )
 
-    assert "`th7247_catalog_prod_values`" in reader._activation_sql
-    assert "`th7247_catalog_prod_values`" in reader._value_page_sql
+    assert "`property_catalog`" in reader._activation_sql
+    assert "`property_catalog`" in reader._value_page_sql
 
 
 def test_value_rank_casts_qualified_raw_enum8_before_string_alias_rewrite() -> None:
