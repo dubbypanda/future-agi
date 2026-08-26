@@ -79,11 +79,6 @@ def _install_common(monkeypatch):
     )
     monkeypatch.setattr(
         dashboard_view,
-        "catalog_dev_snapshot_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        dashboard_view,
         "load_attribute_cursor_seen_state",
         lambda reference, **_kwargs: AttributeCursorSeenState(
             tuple(reference), state_id=None
@@ -158,6 +153,7 @@ def test_fixed_model_uses_catalog_page_size_and_fails_closed_on_catalog_cursor(
     assert calls[0]["window_start"] == SNAPSHOT_START
     assert calls[0]["window_end"] == SNAPSHOT_END
 
+    monkeypatch.setattr(dashboard_view, "catalog_dev_snapshot_window", lambda: None)
     resumed = _invoke({**params, "cursor": payload["next_cursor"]})
     assert resumed.status_code == 503
     assert resumed["X-FutureAGI-Attribute-Catalog"] == "fallback"
@@ -224,6 +220,7 @@ def test_batched_model_catalog_advances_past_64_and_deduplicates_values(
     first = _invoke(params)
     assert first.status_code == 200
     first_payload = first.data["result"]
+    monkeypatch.setattr(dashboard_view, "catalog_dev_snapshot_window", lambda: None)
     second = _invoke({**params, "cursor": first_payload["next_cursor"]})
     assert second.status_code == 200
     second_payload = second.data["result"]
