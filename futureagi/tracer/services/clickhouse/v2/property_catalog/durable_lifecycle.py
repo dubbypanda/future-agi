@@ -40,12 +40,19 @@ from .activation import (
     RevisionLease,
     StreamDrainProof,
 )
-from .codec import canonical_json, canonical_json_sha256, canonical_uuid, require_sha256
+from .codec import (
+    ZERO_UUID,
+    canonical_json,
+    canonical_json_sha256,
+    canonical_uuid,
+    require_sha256,
+)
 from .models import SourceAdapter
 from .publisher import SharedCatalogDeadline, require_dev_catalog_database
 from .qualification import CheckpointStatus
 from .reconciler import CheckpointWrite, ReconcileMode
 from .runtime_limits import RUNTIME_LIMITS
+from .source_adapters import SourceKeysetCursor
 
 _SOURCE_STREAM_TABLE = "property_catalog_source_streams"
 _ACTIVATION_TABLE = "property_catalog_activations"
@@ -1389,7 +1396,10 @@ class ClickHouseLifecycleStateReader:
                     role=plan_stream.role,
                     producer_stream_id=plan_stream.producer_stream_id,
                     source_version_fence=plan_stream.source_version_fence,
-                    watermark=checkpoint.watermark,
+                    watermark=_persisted_active_watermark(
+                        checkpoint,
+                        snapshot_cutoff=decoded_plan.cutoffs.snapshot_upper,
+                    ),
                     checkpoint_state_sha256=checkpoint.checkpoint.state_sha256,
                 )
             )
@@ -1841,6 +1851,39 @@ def _lower_watermarks(
                 f"active {adapter} checkpoint has no incremental watermark"
             )
     return result
+
+
+def _persisted_active_watermark(
+    checkpoint: CheckpointWrite,
+    *,
+    snapshot_cutoff: datetime,
+) -> str:
+    """Normalize only a provably empty legacy relational checkpoint.
+
+    Older reconciler builds could activate a terminal relational stream with
+    an empty watermark when its frozen snapshot contained zero rows.  The
+    immutable build plan retains the exact snapshot cutoff, so that one legacy
+    shape can be recovered without mutating persisted control-plane evidence.
+    Every other blank relational watermark remains corruption and fails closed.
+    """
+
+    if checkpoint.watermark:
+        return checkpoint.watermark
+    value = checkpoint.checkpoint
+    if value.source_adapter not in _RELATIONAL_ADAPTERS:
+        return ""
+    if (
+        value.status is CheckpointStatus.COMPLETE
+        and value.terminal
+        and value.source_count == 0
+        and value.gap_count == 0
+        and value.poison_count == 0
+        and value.conflict_count == 0
+    ):
+        return SourceKeysetCursor(snapshot_cutoff, ZERO_UUID).encode()
+    raise DurableLifecycleError(
+        f"active {value.source_adapter} checkpoint has no incremental watermark"
+    )
 
 
 def _planned_streams(

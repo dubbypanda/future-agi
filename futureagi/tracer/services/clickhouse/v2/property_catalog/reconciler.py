@@ -51,6 +51,15 @@ MAX_ENVELOPE_ROWS = RUNTIME_LIMITS.reconcile_max_envelope_rows
 DEFAULT_MAX_ENVELOPE_BYTES = RUNTIME_LIMITS.reconcile_default_max_envelope_bytes
 MAX_ENVELOPE_BYTES = RUNTIME_LIMITS.reconcile_max_envelope_bytes
 _MAX_UINT64 = (1 << 64) - 1
+_RELATIONAL_ADAPTERS = frozenset(
+    {
+        SourceAdapter.EVAL_TEMPLATE,
+        SourceAdapter.EVAL_CONFIG,
+        SourceAdapter.SIMULATION_EVAL_CONFIG,
+        SourceAdapter.ANNOTATION_LABEL,
+        SourceAdapter.DATASET_COLUMN,
+    }
+)
 
 
 class ReconcileMode(StrEnum):
@@ -287,7 +296,21 @@ class PropertyCatalogReconciler:
         candidate_watermark = (
             snapshot.records[-1].cursor.encode()
             if snapshot.records
-            else progress.watermark or request.lower_watermark
+            else (
+                # A terminal empty page still proves that this immutable
+                # snapshot contains no source rows through its frozen cutoff.
+                # Persist that cutoff as a valid keyset cursor so a newly
+                # activated empty relational stream can seed the next
+                # incremental revision, and an unchanged stream advances
+                # instead of rescanning its old overlap forever.
+                SourceKeysetCursor(
+                    request.context.snapshot_cutoff,
+                    ZERO_UUID,
+                ).encode()
+                if snapshot.terminal
+                and adapter.source_adapter in _RELATIONAL_ADAPTERS
+                else progress.watermark or request.lower_watermark
+            )
         )
         segment_watermark = _max_cursor(progress.watermark, candidate_watermark)
 

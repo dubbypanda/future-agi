@@ -15,6 +15,7 @@ from tracer.services.clickhouse.v2.property_catalog.activation import (
     StreamDrainProof,
 )
 from tracer.services.clickhouse.v2.property_catalog.codec import (
+    ZERO_UUID,
     canonical_json,
     canonical_json_sha256,
 )
@@ -40,6 +41,7 @@ from tracer.services.clickhouse.v2.property_catalog.durable_lifecycle import (
     WorkspaceCatalogScope,
     _activation_state,
     _decode_plan_scope,
+    _persisted_active_watermark,
     _uint,
 )
 from tracer.services.clickhouse.v2.property_catalog.models import SourceAdapter
@@ -50,6 +52,9 @@ from tracer.services.clickhouse.v2.property_catalog.qualification import (
 from tracer.services.clickhouse.v2.property_catalog.reconciler import (
     CheckpointWrite,
     ReconcileMode,
+)
+from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
+    SourceKeysetCursor,
 )
 from tracer.services.clickhouse.v2.property_catalog.span_source import FrozenSpanSource
 
@@ -1383,6 +1388,104 @@ def test_two_successive_incremental_revisions_advance_frozen_cutoff() -> None:
     assert second.prior_active is not None
     assert second.prior_active.lineage_anchor.active_revisions_since == 1
     assert second.lineage_anchor_revision == initial.lease.catalog_revision
+
+
+def test_incremental_rejects_arbitrary_blank_active_stream_evidence() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    state = _State()
+    lifecycle = _lifecycle(
+        state=state,
+        clock=clock,
+        freezer=_Freezer(clock),
+        tokens=[TOKEN_A, TOKEN_B],
+    )
+    initial = lifecycle.prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=_bounds(),
+    )
+    state.activate(initial, at=clock.current)
+    assert state.active is not None
+    state.active = replace(
+        state.active,
+        streams=tuple(
+            replace(stream, watermark="")
+            if stream.source_adapter is SourceAdapter.SIMULATION_EVAL_CONFIG
+            and stream.role is ManifestStreamRole.DEFINITIONS
+            else stream
+            for stream in state.active.streams
+        ),
+    )
+
+    clock.current += timedelta(minutes=2)
+    with pytest.raises(DurableLifecycleError, match="no incremental watermark"):
+        lifecycle.prepare(
+            scope=_scope(),
+            mode=LifecycleRunMode.INCREMENTAL,
+            configured_bounds=_bounds(),
+        )
+
+
+def test_persisted_empty_relational_checkpoint_uses_frozen_cutoff_watermark() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    prepared = _lifecycle(
+        state=_State(),
+        clock=clock,
+        freezer=_Freezer(clock),
+        tokens=[TOKEN_A],
+    ).prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=_bounds(),
+    )
+    checkpoint = next(
+        value
+        for value in _complete_checkpoints(prepared)
+        if value.checkpoint.source_adapter
+        is SourceAdapter.SIMULATION_EVAL_CONFIG
+    )
+
+    normalized = _persisted_active_watermark(
+        replace(checkpoint, watermark=""),
+        snapshot_cutoff=prepared.cutoffs.snapshot_upper,
+    )
+
+    assert SourceKeysetCursor.decode(normalized) == SourceKeysetCursor(
+        prepared.cutoffs.snapshot_upper,
+        ZERO_UUID,
+    )
+
+
+def test_persisted_nonempty_relational_checkpoint_with_blank_watermark_fails() -> None:
+    clock = _Clock(INITIAL_UNTIL)
+    prepared = _lifecycle(
+        state=_State(),
+        clock=clock,
+        freezer=_Freezer(clock),
+        tokens=[TOKEN_A],
+    ).prepare(
+        scope=_scope(),
+        mode=LifecycleRunMode.INITIAL_BACKFILL,
+        configured_bounds=_bounds(),
+    )
+    checkpoint = next(
+        value
+        for value in _complete_checkpoints(prepared)
+        if value.checkpoint.source_adapter
+        is SourceAdapter.SIMULATION_EVAL_CONFIG
+    )
+    corrupt = replace(
+        checkpoint,
+        checkpoint=replace(checkpoint.checkpoint, source_count=1),
+        watermark="",
+        processed_rows=1,
+    )
+
+    with pytest.raises(DurableLifecycleError, match="no incremental watermark"):
+        _persisted_active_watermark(
+            corrupt,
+            snapshot_cutoff=prepared.cutoffs.snapshot_upper,
+        )
 
 
 def test_incremental_fails_before_bounded_lineage_loses_daily_anchor() -> None:

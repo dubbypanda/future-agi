@@ -3,9 +3,10 @@ from __future__ import annotations
 import base64
 import hashlib
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from tracer.services.clickhouse.v2.property_catalog.codec import ZERO_UUID
 from tracer.services.clickhouse.v2.property_catalog.models import (
     PropertyCatalogEnvelope,
     PropertyCategory,
@@ -29,6 +30,7 @@ from tracer.services.clickhouse.v2.property_catalog.reconciler import (
     CheckpointWrite,
     EnvelopeBudget,
     PropertyCatalogReconciler,
+    ReconcileMode,
     ReconcileRequest,
     _project_records,
     _starting_progress,
@@ -38,6 +40,7 @@ from tracer.services.clickhouse.v2.property_catalog.source_adapters import (
     DatasetColumnSourceAdapter,
     PropertySourceDeadlineExceeded,
     SourceDefinitionRecord,
+    SourceKeysetCursor,
     SourceReadBudget,
     SourceSnapshot,
     _dataset_column_definition,
@@ -273,6 +276,53 @@ def _dataset_request() -> ReconcileRequest:
         producer_stream_id=STREAM,
         emitted_at=NOW,
         source_version=2,
+    )
+
+
+def test_empty_relational_full_repair_persists_frozen_cutoff_watermark() -> None:
+    adapter = DatasetColumnSourceAdapter(page_loader=lambda **_kwargs: ())
+    publisher = _ExactWirePublisher()
+    checkpoints = _CheckpointSink()
+    reconciler = PropertyCatalogReconciler(
+        publisher=publisher,  # type: ignore[arg-type]
+        checkpoint_writer=checkpoints,  # type: ignore[arg-type]
+        current_bindings=_EmptyCurrentBindings(),
+    )
+
+    result = reconciler.reconcile(
+        adapter,
+        replace(_dataset_request(), mode=ReconcileMode.FULL_REPAIR),
+    )
+
+    assert result.complete is True
+    assert result.checkpoint_write.checkpoint.source_count == 0
+    assert result.envelopes[-1].terminal is True
+    assert SourceKeysetCursor.decode(result.checkpoint_write.watermark) == (
+        SourceKeysetCursor(NOW, ZERO_UUID)
+    )
+
+
+def test_empty_relational_incremental_advances_to_frozen_cutoff() -> None:
+    prior = SourceKeysetCursor(NOW - timedelta(minutes=2), ZERO_UUID).encode()
+    adapter = DatasetColumnSourceAdapter(page_loader=lambda **_kwargs: ())
+    reconciler = PropertyCatalogReconciler(
+        publisher=_ExactWirePublisher(),  # type: ignore[arg-type]
+        checkpoint_writer=_CheckpointSink(),  # type: ignore[arg-type]
+        current_bindings=_EmptyCurrentBindings(),
+    )
+
+    result = reconciler.reconcile(
+        adapter,
+        replace(
+            _dataset_request(),
+            lower_watermark=prior,
+            incremental_overlap_seconds=0,
+        ),
+    )
+
+    assert result.complete is True
+    assert SourceKeysetCursor.decode(result.checkpoint_write.watermark) == (
+        SourceKeysetCursor(NOW, ZERO_UUID)
     )
 
 
