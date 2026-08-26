@@ -26,8 +26,8 @@ from urllib.parse import unquote, urlsplit
 
 import yaml
 
-
 FORMAT = "futureagi.property-catalog-dev-docker"
+OSS_FORMAT = "futureagi.property-catalog-oss-dev-docker"
 VERSION = 1
 RUNTIME_UID = 65_532
 RUNTIME_GID = 65_532
@@ -211,6 +211,7 @@ class DeploymentConfig:
     postgres_user: str
     postgres_server_address: str
     postgres_server_port: int
+    runtime_profile: str = "dev_cloud"
 
     @property
     def root(self) -> Path:
@@ -354,8 +355,9 @@ def load_config(path: os.PathLike[str] | str) -> DeploymentConfig:
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         raise DeploymentValidationError(f"cannot read configuration: {exc}") from exc
     top = _mapping(raw, "configuration", _TOP_LEVEL_FIELDS)
-    if top["format"] != FORMAT or top["version"] != VERSION:
+    if top["format"] not in {FORMAT, OSS_FORMAT} or top["version"] != VERSION:
         raise DeploymentValidationError("configuration format/version is not supported")
+    runtime_profile = "oss" if top["format"] == OSS_FORMAT else "dev_cloud"
 
     deployment_id = _text(top["deployment_id"], "deployment_id", limit=40)
     if _SAFE_DEPLOYMENT_RE.fullmatch(
@@ -488,14 +490,20 @@ def load_config(path: os.PathLike[str] | str) -> DeploymentConfig:
             "provenance.postgres_server_address must be canonical"
         )
 
+    operator_image = _image(
+        images["operator"], "images.operator", required_token="th7247"
+    )
+    if runtime_profile == "oss" and "oss" not in operator_image.lower():
+        raise DeploymentValidationError(
+            "images.operator must identify the reviewed OSS backend image"
+        )
+
     result = DeploymentConfig(
         deployment_id=deployment_id,
         collector_image=_local_image_id(
             images["collector_runtime"], "images.collector_runtime"
         ),
-        operator_image=_image(
-            images["operator"], "images.operator", required_token="th7247"
-        ),
+        operator_image=operator_image,
         host_root=host_root,
         organization_id=_uuid4(
             workspace["organization_id"], "workspace.organization_id"
@@ -559,6 +567,7 @@ def load_config(path: os.PathLike[str] | str) -> DeploymentConfig:
         postgres_server_port=_port(
             provenance["postgres_server_port"], "provenance.postgres_server_port"
         ),
+        runtime_profile=runtime_profile,
     )
     if _SAFE_IDENTIFIER_RE.fullmatch(result.postgres_database) is None:
         raise DeploymentValidationError(
@@ -601,6 +610,7 @@ def _common_service(config: DeploymentConfig, component: str) -> dict[str, Any]:
             "futureagi.public-routing": "disabled",
             "futureagi.schedule": "disabled",
             "futureagi.read-mode": "off",
+            "futureagi.property-catalog-runtime-profile": config.runtime_profile,
         },
     }
 
@@ -616,9 +626,10 @@ def _bind(source: Path, target: str, *, read_only: bool) -> dict[str, Any]:
 
 
 def _operator_environment(config: DeploymentConfig) -> dict[str, str]:
+    cloud_deployment = "" if config.runtime_profile == "oss" else "DEV"
     return {
         "ENV_TYPE": "development",
-        "CLOUD_DEPLOYMENT": "DEV",
+        "CLOUD_DEPLOYMENT": cloud_deployment,
         "DJANGO_SETTINGS_MODULE": "tfc.settings.settings",
         "SERVICE_TYPE": "bootstrap",
         "STARTUP_DB_MUTATION_MODE": "operator",
@@ -647,7 +658,7 @@ def _operator_environment(config: DeploymentConfig) -> dict[str, str]:
         "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": config.workspace_id,
         "PROPERTY_CATALOG_DEV_PROJECT_ALLOWLIST": ",".join(config.project_ids),
         "PROPERTY_CATALOG_DEV_ENVIRONMENT": "development",
-        "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": "DEV",
+        "PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT": cloud_deployment,
         "PROPERTY_CATALOG_DEV_IDENTITY": config.dev_identity,
         "PROPERTY_CATALOG_DEV_SOURCE_DATABASE": config.source_database,
         "PROPERTY_CATALOG_DEV_TARGET_DATABASE": config.target_database,
@@ -927,6 +938,8 @@ def _validate_compose(compose: Any, config: DeploymentConfig) -> None:
             or labels.get("futureagi.public-routing") != "disabled"
             or labels.get("futureagi.schedule") != "disabled"
             or labels.get("futureagi.read-mode") != "off"
+            or labels.get("futureagi.property-catalog-runtime-profile")
+            != config.runtime_profile
         ):
             raise DeploymentValidationError(
                 f"rendered service {name} safety labels drifted"
@@ -1017,6 +1030,7 @@ def _validate_compose(compose: Any, config: DeploymentConfig) -> None:
         "ch25_property_catalog_dev_rollout",
     ]
     operator_environment = operator.get("environment", {})
+    expected_cloud_deployment = "" if config.runtime_profile == "oss" else "DEV"
     if (
         operator.get("profiles") != ["operator"]
         or operator.get("restart") != "no"
@@ -1028,6 +1042,10 @@ def _validate_compose(compose: Any, config: DeploymentConfig) -> None:
         or operator_environment.get("SENTRY_ENABLED") != "false"
         or operator_environment.get("OTEL_ENABLED") != "false"
         or operator_environment.get("FUTURE_AGI_TELEMETRY_DISABLED") != "true"
+        or operator_environment.get("CLOUD_DEPLOYMENT")
+        != expected_cloud_deployment
+        or operator_environment.get("PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT")
+        != expected_cloud_deployment
         or operator_environment.get("PROPERTY_CATALOG_READ_MODE") != "off"
         or operator_environment.get("PROPERTY_CATALOG_DEV_RECONCILE_ENABLED") != "false"
         or operator_environment.get("PROPERTY_CATALOG_DEV_OTLP_TRAFFIC_AUTHORIZED")

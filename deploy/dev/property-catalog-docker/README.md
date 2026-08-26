@@ -31,9 +31,19 @@ There is also one opt-in `operator` profile. It runs
 backend image and exits. It is not a Temporal worker and cannot register a
 schedule. With no extra argument it performs the command's zero-I/O dry run.
 
+The renderer accepts two explicit runtime profiles. The existing
+`futureagi.property-catalog-dev-docker` format retains the DEV-cloud-shaped
+operator. The `futureagi.property-catalog-oss-dev-docker` format requires a
+reviewed `th7247-oss-*` operator image built from `Dockerfile.oss` and keeps
+both `CLOUD_DEPLOYMENT` and `PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT` unset.
+This stricter qualification bundle is independent of the root OSS stack,
+which now default-enables its own isolated unified Kafka/catalog pipeline.
+
 ## Fixed safety boundary
 
-- Environment is exactly `development`; cloud deployment is exactly `DEV`.
+- Environment is exactly `development`. Cloud deployment is exactly `DEV` for
+  the DEV-cloud profile and exactly unset for the OSS profile; the renderer
+  rejects a mismatch.
 - The source database is exactly `futureagi`.
 - The only writable catalog target is
   `th7247_catalog_dev_<deployment-id-with-underscores>`.
@@ -160,6 +170,11 @@ Copy `config.example.yaml` to a reviewed file outside the checkout and replace
 every `REPLACE_*` value. The example already carries Kartik's exact DEV
 organization, workspace, dense/sparse test projects, 365-day window, and
 isolated target name.
+
+For an OSS-built operator, copy `config.oss.example.yaml` instead and build the
+referenced operator image from `Dockerfile.oss`. The qualification source must
+have been initialized with `CH25_DATABASE=futureagi`; do not rename or repoint
+an existing self-host database merely to satisfy this qualification contract.
 
 ```bash
 CONFIG=/home/ubuntu/th7247-kartik-0815a/reviewed-config.yaml

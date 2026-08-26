@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import hashlib
 import importlib.util
 import sys
@@ -116,6 +117,22 @@ class ExistingSteadyRendererTests(unittest.TestCase):
             self.assertNotIn("ports", service)
             self.assertNotIn("expose", service)
         self.assertEqual(control["command"][1], task_queue)
+
+    def test_oss_profile_preserves_unset_cloud_in_steady_state(self) -> None:
+        config = dataclasses.replace(
+            _config(),
+            operator_image="th7247-oss-current-select:review-a",
+            runtime_profile="oss",
+        )
+        base = bootstrap.render_compose(config)
+        digest = _digest("active oss bootstrap")
+        overlay = steady.render_overlay(base, activation_sha256=digest)
+        for service in overlay["services"].values():
+            environment = service["environment"]
+            self.assertEqual(environment["CLOUD_DEPLOYMENT"], "")
+            self.assertEqual(
+                environment["PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT"], ""
+            )
 
     def test_rejects_placeholder_or_invalid_activation(self) -> None:
         base = bootstrap.render_compose(_config())

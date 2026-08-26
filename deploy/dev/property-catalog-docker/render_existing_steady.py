@@ -25,6 +25,12 @@ TASK_QUEUE_PREFIX = "property_catalog_dev_sidecar_"
 SCHEDULED_RECONCILE_WALL_MS = "1200000"
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _TARGET_RE = re.compile(r"th7247_catalog_dev_[a-z0-9][a-z0-9_]*")
+_PROJECT_NAME_RE = re.compile(
+    r"th7247-property-catalog-[a-z0-9][a-z0-9-]{2,39}"
+)
+_PRODUCTION_TOKEN_RE = re.compile(
+    r"(?:^|[-._/:])(prod|production|live)(?:$|[-._/:])", re.I
+)
 _UUID_RE = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 )
@@ -66,10 +72,12 @@ def _load_base(path: Path) -> Mapping[str, Any]:
         raise SteadyStateRenderError(f"cannot read bootstrap Compose: {exc}") from exc
     top = _mapping(raw, "bootstrap Compose")
     name = top.get("name")
-    if not isinstance(name, str) or not name.startswith(
-        "th7247-property-catalog-kartik-"
+    if (
+        not isinstance(name, str)
+        or _PROJECT_NAME_RE.fullmatch(name) is None
+        or _PRODUCTION_TOKEN_RE.search(name)
     ):
-        raise SteadyStateRenderError("bootstrap Compose project is outside Kartik DEV")
+        raise SteadyStateRenderError("bootstrap Compose project is outside isolated DEV")
     services = _mapping(top.get("services"), "bootstrap services")
     if set(services) != {
         "property-catalog-producer",
@@ -82,11 +90,14 @@ def _load_base(path: Path) -> Mapping[str, Any]:
 
 def _validate_bootstrap_operator(operator: Mapping[str, Any]) -> None:
     environment = _mapping(operator.get("environment"), "operator environment")
+    cloud_deployment = environment.get("CLOUD_DEPLOYMENT")
     if (
         operator.get("profiles") != ["operator"]
         or operator.get("restart") != "no"
         or environment.get("ENV_TYPE") != "development"
-        or environment.get("CLOUD_DEPLOYMENT") != "DEV"
+        or cloud_deployment not in {"", "DEV"}
+        or environment.get("PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT")
+        != cloud_deployment
         or environment.get("PROPERTY_CATALOG_READ_MODE") != "off"
         or environment.get("PROPERTY_CATALOG_DEV_RECONCILE_ENABLED") != "false"
         or environment.get("PROPERTY_CATALOG_DEV_OTLP_TRAFFIC_AUTHORIZED") != "false"

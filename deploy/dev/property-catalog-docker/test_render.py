@@ -290,6 +290,8 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(environment["SENTRY_ENABLED"], "false")
         self.assertEqual(environment["OTEL_ENABLED"], "false")
         self.assertEqual(environment["FUTURE_AGI_TELEMETRY_DISABLED"], "true")
+        self.assertEqual(environment["CLOUD_DEPLOYMENT"], "DEV")
+        self.assertEqual(environment["PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT"], "DEV")
         self.assertEqual(environment["PROPERTY_CATALOG_READ_MODE"], "off")
         self.assertEqual(environment["SPAN_ATTRIBUTE_CATALOG_READ_MODE"], "off")
         self.assertEqual(
@@ -326,6 +328,37 @@ class RenderTests(unittest.TestCase):
             workload.DeploymentValidationError, "only the producer"
         ):
             workload._validate_compose(mounted, config)
+
+    def test_oss_profile_keeps_cloud_unset_and_requires_oss_image(self) -> None:
+        raw = copy.deepcopy(_raw())
+        raw["format"] = workload.OSS_FORMAT
+        raw["images"]["operator"] = "th7247-oss-current-select:0815a"
+        with tempfile.TemporaryDirectory() as temporary:
+            config = workload.load_config(_write_config(Path(temporary), raw))
+        self.assertEqual(config.runtime_profile, "oss")
+        compose = workload.render_compose(config)
+        operator = compose["services"]["property-catalog-operator"]
+        environment = operator["environment"]
+        self.assertEqual(environment["CLOUD_DEPLOYMENT"], "")
+        self.assertEqual(environment["PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT"], "")
+        self.assertEqual(
+            operator["labels"]["futureagi.property-catalog-runtime-profile"],
+            "oss",
+        )
+
+        tampered = copy.deepcopy(compose)
+        tampered["services"]["property-catalog-operator"]["environment"][
+            "CLOUD_DEPLOYMENT"
+        ] = "DEV"
+        with self.assertRaisesRegex(workload.DeploymentValidationError, "operator"):
+            workload._validate_compose(tampered, config)
+
+        raw["images"]["operator"] = "th7247-current-select:0815a"
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(
+                workload.DeploymentValidationError, "OSS backend image"
+            ):
+                workload.load_config(_write_config(Path(temporary), raw))
 
     def test_config_rejects_unknown_duplicate_prod_and_scope_drift(self) -> None:
         cases: list[dict[str, object]] = []
@@ -406,9 +439,12 @@ class RenderTests(unittest.TestCase):
             self.assertIn("rejected", stderr.getvalue())
 
     def test_example_is_fail_closed_and_runbook_keeps_schedule_absent(self) -> None:
-        example = Path(__file__).with_name("config.example.yaml")
-        with self.assertRaisesRegex(workload.DeploymentValidationError, "placeholder"):
-            workload.load_config(example)
+        for filename in ("config.example.yaml", "config.oss.example.yaml"):
+            example = Path(__file__).with_name(filename)
+            with self.subTest(filename=filename), self.assertRaisesRegex(
+                workload.DeploymentValidationError, "placeholder"
+            ):
+                workload.load_config(example)
         readme = Path(__file__).with_name("README.md").read_text(encoding="utf-8")
         self.assertIn("SERVICE_TYPE=bootstrap", readme)
         self.assertIn("STARTUP_DB_MUTATION_MODE=operator", readme)
