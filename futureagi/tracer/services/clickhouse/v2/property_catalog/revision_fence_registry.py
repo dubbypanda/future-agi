@@ -221,6 +221,59 @@ class AtomicMultiTenantFenceFile:
             else:
                 os.close(descriptor)
 
+    def reconcile_authorized_workspaces(
+        self,
+        workspace_ids: Sequence[str],
+    ) -> int:
+        """Remove stale authorization entries under the shared writer lock.
+
+        Authorized live assignments and terminal ``fenced`` assignments are
+        retained.  Expired building/draining assignments and every assignment
+        outside the current workspace inventory are removed.  The complete
+        existing document is still validated before any replacement or
+        unlink, so malformed state can never be repaired by overwriting it.
+        """
+
+        authorized = _validated_workspace_inventory(workspace_ids)
+        observed_at = _validated_now(self._now())
+        descriptor = self._open_lock()
+        locked = False
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            locked = True
+            current = self._read_unlocked(
+                now=observed_at,
+                allow_expired=True,
+            )
+            retained = tuple(
+                document
+                for document in current
+                if document["workspace_id"] in authorized
+                and not _is_expired_live_fence(document, now=observed_at)
+            )
+            removed = len(current) - len(retained)
+            if removed == 0:
+                return 0
+            if retained:
+                self._write_unlocked(_encode_documents(retained, now=observed_at))
+            else:
+                self._remove_unlocked()
+            return removed
+        except RevisionFenceRegistryError:
+            raise
+        except OSError as exc:
+            raise RevisionFenceRegistryError(
+                "revision fence registry reconciliation failed"
+            ) from exc
+        finally:
+            if locked:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+                finally:
+                    os.close(descriptor)
+            else:
+                os.close(descriptor)
+
     def _open_lock(self) -> int:
         flags = os.O_CREAT | os.O_RDWR
         flags |= getattr(os, "O_CLOEXEC", 0)
@@ -335,14 +388,7 @@ class AtomicMultiTenantFenceFile:
             descriptor = -1
             os.replace(temporary, self._path)
             keep = False
-            directory_flags = os.O_RDONLY
-            directory_flags |= getattr(os, "O_CLOEXEC", 0)
-            directory_flags |= getattr(os, "O_DIRECTORY", 0)
-            directory_fd = os.open(self._path.parent, directory_flags)
-            try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
+            self._fsync_parent_directory()
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
@@ -351,6 +397,25 @@ class AtomicMultiTenantFenceFile:
                     temporary.unlink()
                 except FileNotFoundError:
                     pass
+
+    def _remove_unlocked(self) -> None:
+        try:
+            os.unlink(self._path)
+        except FileNotFoundError as exc:
+            raise RevisionFenceRegistryError(
+                "revision fence registry changed before removal"
+            ) from exc
+        self._fsync_parent_directory()
+
+    def _fsync_parent_directory(self) -> None:
+        directory_flags = os.O_RDONLY
+        directory_flags |= getattr(os, "O_CLOEXEC", 0)
+        directory_flags |= getattr(os, "O_DIRECTORY", 0)
+        directory_fd = os.open(self._path.parent, directory_flags)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
 
 
 def _encode_documents(
@@ -562,6 +627,37 @@ def _validated_now(value: datetime) -> datetime:
 
 def _tenant_key(document: Mapping[str, Any]) -> tuple[str, str]:
     return str(document["organization_id"]), str(document["workspace_id"])
+
+
+def _validated_workspace_inventory(values: Sequence[str]) -> frozenset[str]:
+    if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
+        raise TypeError("authorized workspace inventory must be a sequence")
+    if len(values) > MAX_REVISION_FENCE_ENTRIES:
+        raise RevisionFenceRegistryError(
+            "authorized workspace inventory exceeds 256 entries"
+        )
+    canonical_values: list[str] = []
+    for value in values:
+        if type(value) is not str:
+            raise RevisionFenceRegistryError(
+                "authorized workspace inventory contains a non-string value"
+            )
+        try:
+            canonical = canonical_uuid(value, field="authorized workspace_id")
+        except ValueError as exc:
+            raise RevisionFenceRegistryError(
+                "authorized workspace inventory contains an invalid UUID"
+            ) from exc
+        if canonical != value:
+            raise RevisionFenceRegistryError(
+                "authorized workspace inventory is not canonical"
+            )
+        canonical_values.append(canonical)
+    if len(set(canonical_values)) != len(canonical_values):
+        raise RevisionFenceRegistryError(
+            "authorized workspace inventory contains duplicates"
+        )
+    return frozenset(canonical_values)
 
 
 def _positive_uint(value: Any, bits: int, field: str) -> None:

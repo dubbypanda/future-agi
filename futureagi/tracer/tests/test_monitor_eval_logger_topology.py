@@ -6,9 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tracer.services.clickhouse.query_builders.monitor_metrics import (
-    EVALUATION_METRICS,
-)
+from tracer.models.monitor import MonitorMetricTypeChoices
 from tracer.services.clickhouse.v2.query_builders.monitor_metrics import (
     MonitorMetricsQueryBuilderV2,
 )
@@ -33,13 +31,13 @@ def _builder() -> MonitorMetricsQueryBuilderV2:
     "build_query",
     (
         lambda builder: builder.build_metric_value_query(
-            EVALUATION_METRICS, START, END
+            MonitorMetricTypeChoices.EVALUATION_METRICS, START, END
         ),
         lambda builder: builder.build_historical_stats_query(
-            EVALUATION_METRICS, START, END
+            MonitorMetricTypeChoices.EVALUATION_METRICS, START, END
         ),
         lambda builder: builder.build_time_series_query(
-            EVALUATION_METRICS, START, END, 3600
+            MonitorMetricTypeChoices.EVALUATION_METRICS, START, END, 3600
         ),
     ),
     ids=("value", "historical", "time-series"),

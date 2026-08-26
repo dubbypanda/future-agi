@@ -94,6 +94,7 @@ from .publisher import (
     PROPERTY_CATALOG_TABLES,
     CatalogWriteLease,
     ClickHouseEnvelopePublisher,
+    PropertyCatalogPublishError,
     SharedCatalogDeadline,
     require_catalog_database,
     require_dev_catalog_database,
@@ -177,6 +178,8 @@ _MAX_PROJECTS = RUNTIME_LIMITS.max_projects
 _MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS = (
     settings.PROPERTY_CATALOG_INITIAL_BACKFILL_LEASE_HEADROOM_MS
 )
+MAX_EXPECTED_CLICKHOUSE_HOSTNAMES = 16
+MAX_CLICKHOUSE_GRANT_EVIDENCE_ROWS = 256
 _CLICKHOUSE_PROVENANCE_SQL = """
 SELECT
     hostName(),
@@ -187,6 +190,13 @@ SELECT
 FROM system.settings
 WHERE name = 'readonly'
 """
+_CLICKHOUSE_WRITER_GRANTS_SQL = "SHOW GRANTS FOR CURRENT_USER"
+_DIRECT_TABLE_GRANT_RE = re.compile(
+    r"^GRANT (?P<access>SELECT|INSERT)(?:, (?P<second>SELECT|INSERT))? "
+    r"ON `?(?P<database>[A-Za-z_][A-Za-z0-9_]*)`?\."
+    r"`?(?P<table>[A-Za-z_][A-Za-z0-9_]*)`? "
+    r"TO `?(?P<user>[A-Za-z_][A-Za-z0-9_]*)`?$"
+)
 _POSTGRES_PROVENANCE_SQL = """
 SELECT
     current_database(),
@@ -534,15 +544,36 @@ class DevProvenanceExpectation:
     postgres_user: str
     postgres_server_address: str
     postgres_server_port: int
+    writer_clickhouse_hostnames: tuple[str, ...] | list[str] = ()
+    source_clickhouse_hostnames: tuple[str, ...] | list[str] = ()
 
     def __post_init__(self) -> None:
-        for field_name in (
-            "writer_clickhouse_hostname",
-            "source_clickhouse_hostname",
-            "postgres_database",
-            "postgres_user",
-        ):
+        for field_name in ("postgres_database", "postgres_user"):
             _provenance_text(getattr(self, field_name), field_name)
+        writer_hostnames = _clickhouse_hostname_allowlist(
+            singular=self.writer_clickhouse_hostname,
+            plural=self.writer_clickhouse_hostnames,
+            field_name="writer_clickhouse_hostnames",
+        )
+        source_hostnames = _clickhouse_hostname_allowlist(
+            singular=self.source_clickhouse_hostname,
+            plural=self.source_clickhouse_hostnames,
+            field_name="source_clickhouse_hostnames",
+        )
+        object.__setattr__(self, "writer_clickhouse_hostnames", writer_hostnames)
+        object.__setattr__(self, "source_clickhouse_hostnames", source_hostnames)
+        if len(writer_hostnames) == 1:
+            object.__setattr__(
+                self,
+                "writer_clickhouse_hostname",
+                writer_hostnames[0],
+            )
+        if len(source_hostnames) == 1:
+            object.__setattr__(
+                self,
+                "source_clickhouse_hostname",
+                source_hostnames[0],
+            )
         object.__setattr__(
             self,
             "postgres_server_address",
@@ -662,6 +693,7 @@ class DevProvenanceObservation:
     writer_clickhouse: ClickHouseDevIdentity
     source_clickhouse: ClickHouseDevIdentity
     postgres: PostgresDevIdentity
+    writer_clickhouse_grants: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.writer_clickhouse, ClickHouseDevIdentity):
@@ -670,6 +702,21 @@ class DevProvenanceObservation:
             raise TypeError("source_clickhouse must be ClickHouseDevIdentity")
         if not isinstance(self.postgres, PostgresDevIdentity):
             raise TypeError("postgres must be PostgresDevIdentity")
+        grants = tuple(
+            sorted(
+                _provenance_text(value, "ClickHouse writer grant")
+                for value in self.writer_clickhouse_grants
+            )
+        )
+        if len(grants) > MAX_CLICKHOUSE_GRANT_EVIDENCE_ROWS:
+            raise PropertyCatalogDevRuntimeError(
+                "ClickHouse writer grant evidence exceeds the bounded row limit"
+            )
+        if len(set(grants)) != len(grants):
+            raise PropertyCatalogDevRuntimeError(
+                "ClickHouse writer grant evidence contains duplicates"
+            )
+        object.__setattr__(self, "writer_clickhouse_grants", grants)
 
 
 @dataclass(frozen=True, slots=True)
@@ -696,6 +743,7 @@ class DevProvenanceEvidence:
             "postgres": self.observation.postgres.as_dict(),
             "source_clickhouse": self.observation.source_clickhouse.as_dict(),
             "writer_clickhouse": self.observation.writer_clickhouse.as_dict(),
+            "writer_clickhouse_grants": list(self.observation.writer_clickhouse_grants),
         }
         if self.project_tenant_authorization is not None:
             payload["project_tenant_authorization"] = (
@@ -1161,6 +1209,16 @@ class DevRuntimeConfig:
                 f"[1, {DEV_STANDARD_MAX_WALL_MS}] ms; "
                 "only --initial-backfill-wall-ms may extend an explicit backfill"
             )
+        writer_clickhouse_hostnames = _expected_clickhouse_hostnames_setting(
+            settings_object,
+            plural_name="PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAMES",
+            singular_name="PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME",
+        )
+        source_clickhouse_hostnames = _expected_clickhouse_hostnames_setting(
+            settings_object,
+            plural_name="PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAMES",
+            singular_name="PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME",
+        )
         return cls(
             catalog=catalog,
             source=source,
@@ -1207,13 +1265,15 @@ class DevRuntimeConfig:
                 "PROPERTY_CATALOG_DEV_SIDECAR_ACK",
             ),
             provenance_expectation=DevProvenanceExpectation(
-                writer_clickhouse_hostname=_required_text(
-                    settings_object,
-                    "PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME",
+                writer_clickhouse_hostname=(
+                    writer_clickhouse_hostnames[0]
+                    if len(writer_clickhouse_hostnames) == 1
+                    else ""
                 ),
-                source_clickhouse_hostname=_required_text(
-                    settings_object,
-                    "PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME",
+                source_clickhouse_hostname=(
+                    source_clickhouse_hostnames[0]
+                    if len(source_clickhouse_hostnames) == 1
+                    else ""
                 ),
                 postgres_database=_required_text(
                     settings_object,
@@ -1235,6 +1295,8 @@ class DevRuntimeConfig:
                     ),
                     "PROPERTY_CATALOG_DEV_EXPECTED_PG_SERVER_PORT",
                 ),
+                writer_clickhouse_hostnames=writer_clickhouse_hostnames,
+                source_clickhouse_hostnames=source_clickhouse_hostnames,
             ),
             span_page_rows=_strict_positive_int_setting(
                 settings_object,
@@ -1284,6 +1346,11 @@ def _default_dev_provenance_probe(
             require_server_readonly=True,
         ),
         postgres=_postgres_dev_identity(),
+        writer_clickhouse_grants=(
+            _clickhouse_writer_grants(writer_driver)
+            if config.deployment == "prod"
+            else ()
+        ),
     )
 
 
@@ -1322,6 +1389,30 @@ def _clickhouse_dev_identity(
         readonly_value=_observed_uint(row[3], "ClickHouse readonly value", maximum=2),
         readonly_locked=_observed_bool(row[4], "ClickHouse readonly lock"),
     )
+
+
+def _clickhouse_writer_grants(
+    driver: NativeClickHouseDriver,
+) -> tuple[str, ...]:
+    """Read the authenticated writer's own grants without SHOW ACCESS."""
+
+    rows = driver.execute(_CLICKHOUSE_WRITER_GRANTS_SQL)
+    if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
+        raise PropertyCatalogDevRuntimeError(
+            "ClickHouse writer grant query returned an invalid result"
+        )
+    grants: list[str] = []
+    for row in rows:
+        if not isinstance(row, Sequence) or isinstance(row, (str, bytes)):
+            raise PropertyCatalogDevRuntimeError(
+                "ClickHouse writer grant query returned an invalid row"
+            )
+        if len(row) != 1:
+            raise PropertyCatalogDevRuntimeError(
+                "ClickHouse writer grant query returned an incomplete row"
+            )
+        grants.append(_observed_text(row[0], "ClickHouse writer grant"))
+    return tuple(grants)
 
 
 def _postgres_dev_identity() -> PostgresDevIdentity:
@@ -1633,11 +1724,11 @@ def _project_tenant_authorization_contract_sha256(
                     config.provenance_expectation.postgres_server_port
                 ),
                 "postgres_user": config.provenance_expectation.postgres_user,
-                "source_clickhouse_hostname": (
-                    config.provenance_expectation.source_clickhouse_hostname
+                "source_clickhouse_hostnames": list(
+                    config.provenance_expectation.source_clickhouse_hostnames
                 ),
-                "writer_clickhouse_hostname": (
-                    config.provenance_expectation.writer_clickhouse_hostname
+                "writer_clickhouse_hostnames": list(
+                    config.provenance_expectation.writer_clickhouse_hostnames
                 ),
             },
             "revision_fence_file": config.revision_fence_file,
@@ -1652,6 +1743,7 @@ def _project_tenant_authorization_contract_sha256(
             "postgres": observation.postgres.as_dict(),
             "source_clickhouse": observation.source_clickhouse.as_dict(),
             "writer_clickhouse": observation.writer_clickhouse.as_dict(),
+            "writer_clickhouse_grants": list(observation.writer_clickhouse_grants),
         },
         "request": {
             "acknowledgement": request.acknowledgement,
@@ -1711,7 +1803,7 @@ def _validate_dev_provenance(
     postgres = observation.postgres
     checks = (
         (
-            writer.hostname == expected.writer_clickhouse_hostname,
+            writer.hostname in expected.writer_clickhouse_hostnames,
             "writer_clickhouse_hostname",
         ),
         (
@@ -1721,7 +1813,7 @@ def _validate_dev_provenance(
         (writer.user == config.catalog.user, "writer_clickhouse_user"),
         (writer.readonly_value == 0, "writer_clickhouse_readonly"),
         (
-            source.hostname == expected.source_clickhouse_hostname,
+            source.hostname in expected.source_clickhouse_hostnames,
             "source_clickhouse_hostname",
         ),
         (source.database == config.source.database, "source_clickhouse_database"),
@@ -1754,7 +1846,57 @@ def _validate_dev_provenance(
         raise PropertyCatalogDevRuntimeError(
             "remote DEV provenance mismatch: " + ", ".join(mismatches)
         )
+    if config.deployment == "prod":
+        _validate_production_writer_grants(
+            observation.writer_clickhouse_grants,
+            database=config.catalog.database,
+            user=config.catalog.user,
+        )
     return DevProvenanceEvidence(observation=observation, attested_at=attested_at)
+
+
+def _validate_production_writer_grants(
+    grants: Sequence[str],
+    *,
+    database: str,
+    user: str,
+) -> None:
+    """Require direct table-exact DML grants for the isolated catalog only."""
+
+    require_prod_catalog_database(database)
+    if _IDENTIFIER_RE.fullmatch(user) is None:
+        raise PropertyCatalogDevRuntimeError(
+            "production ClickHouse writer user must be one safe identifier"
+        )
+    observed: set[tuple[str, str]] = set()
+    for grant in grants:
+        match = _DIRECT_TABLE_GRANT_RE.fullmatch(grant)
+        if match is None:
+            raise PropertyCatalogDevRuntimeError(
+                "production ClickHouse writer has a non-catalog or delegated grant"
+            )
+        if match.group("database") != database or match.group("user") != user:
+            raise PropertyCatalogDevRuntimeError(
+                "production ClickHouse writer grant identity is outside the catalog"
+            )
+        table = match.group("table")
+        if table not in PROPERTY_CATALOG_TABLES:
+            raise PropertyCatalogDevRuntimeError(
+                "production ClickHouse writer grant targets a non-catalog table"
+            )
+        access = {match.group("access")}
+        if match.group("second") is not None:
+            access.add(match.group("second"))
+        if access != {"SELECT", "INSERT"}:
+            raise PropertyCatalogDevRuntimeError(
+                "production ClickHouse writer requires SELECT and INSERT together"
+            )
+        observed.add((database, table))
+    expected = {(database, table) for table in PROPERTY_CATALOG_TABLES}
+    if observed != expected or len(grants) != len(expected):
+        raise PropertyCatalogDevRuntimeError(
+            "production ClickHouse writer grants must cover every catalog table exactly"
+        )
 
 
 class NativeCatalogClient:
@@ -1951,13 +2093,17 @@ class NativeSchemaClient:
         target_database: str,
         control_database: str,
         client_for_database: Callable[[str], NativeClickHouseDriver],
-        deployment: str = "dev",
+        deployment: str,
     ) -> None:
         if deployment not in {"dev", "prod"}:
             raise PropertyCatalogDevRuntimeError(
                 "schema client deployment must be dev or prod"
             )
-        self._target_database = require_catalog_database(target_database)
+        self._target_database = (
+            require_dev_catalog_database(target_database)
+            if deployment == "dev"
+            else require_prod_catalog_database(target_database)
+        )
         self._deployment = deployment
         if (
             _IDENTIFIER_RE.fullmatch(control_database) is None
@@ -2487,9 +2633,10 @@ class CheckedInPropertyCatalogDevRuntime:
         self._refresh_project_tenant_authorization()
         if not isinstance(mode, ReconcileMode):
             raise TypeError("mode must be a ReconcileMode")
-        verify_dev_catalog_schema(
+        verify_runtime_catalog_schema(
             self.schema_client,
             target_database=request.target_database,
+            deployment=self.config.deployment,
         )
         lifecycle_mode = (
             LifecycleRunMode.AUTO
@@ -3654,6 +3801,7 @@ ProjectTenantBindingProbe = Callable[
     [tuple[str, ...], PostgresDevIdentity],
     Sequence[PostgresProjectTenantBinding],
 ]
+CancellationProbe = Callable[[], bool]
 
 
 class PropertyCatalogDevRuntimeFactory:
@@ -3672,6 +3820,7 @@ class PropertyCatalogDevRuntimeFactory:
         ),
         provenance_probe: DevProvenanceProbe | None = None,
         project_tenant_binding_probe: ProjectTenantBindingProbe | None = None,
+        cancellation_probe: CancellationProbe = lambda: False,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         new_build_token: Callable[[], str] = lambda: str(uuid.uuid4()),
     ) -> None:
@@ -3691,6 +3840,9 @@ class PropertyCatalogDevRuntimeFactory:
         self._project_tenant_binding_probe = (
             project_tenant_binding_probe or _postgres_project_tenant_bindings
         )
+        if not callable(cancellation_probe):
+            raise TypeError("cancellation_probe must be callable")
+        self._cancellation_probe = cancellation_probe
         self._now = now
         self._new_build_token = new_build_token
 
@@ -3698,6 +3850,10 @@ class PropertyCatalogDevRuntimeFactory:
         self,
         request: DevRolloutRequest,
     ) -> CheckedInPropertyCatalogDevRuntime:
+        if isinstance(request, ProductionRolloutRequest):
+            raise TypeError(
+                "DEV runtime factory does not accept ProductionRolloutRequest"
+            )
         if not isinstance(request, DevRolloutRequest):
             raise TypeError("request must be a DevRolloutRequest")
         if not request.execute and not request.status:
@@ -3783,7 +3939,10 @@ class PropertyCatalogDevRuntimeFactory:
                 explicit_initial_backfill=config.explicit_initial_backfill_wall,
             )
             serializer = self._serializer_factory(config.mutation_lock_directory)
-            deadline = SharedCatalogDeadline(wall_ms=config.rollout_wall_ms)
+            deadline = SharedCatalogDeadline(
+                wall_ms=config.rollout_wall_ms,
+                cancelled=self._cancellation_probe,
+            )
             state_store = ClickHouseCatalogStateStore(
                 catalog_client,
                 database=config.catalog.database,
@@ -3887,6 +4046,7 @@ class PropertyCatalogProductionRuntimeFactory(PropertyCatalogDevRuntimeFactory):
         ),
         provenance_probe: DevProvenanceProbe | None = None,
         project_tenant_binding_probe: ProjectTenantBindingProbe | None = None,
+        cancellation_probe: CancellationProbe = lambda: False,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         new_build_token: Callable[[], str] = lambda: str(uuid.uuid4()),
     ) -> None:
@@ -3903,6 +4063,7 @@ class PropertyCatalogProductionRuntimeFactory(PropertyCatalogDevRuntimeFactory):
             producer_retirement_sink_factory=producer_retirement_sink_factory,
             provenance_probe=provenance_probe,
             project_tenant_binding_probe=project_tenant_binding_probe,
+            cancellation_probe=cancellation_probe,
             now=now,
             new_build_token=new_build_token,
         )
@@ -3954,10 +4115,18 @@ def require_checked_in_property_catalog_dev_runtime(
         not isinstance(runtime, CheckedInPropertyCatalogDevRuntime)
         or runtime._factory_authority is not _RUNTIME_FACTORY_AUTHORITY
         or not runtime._scope_locked
+        or isinstance(runtime.bound_request, ProductionRolloutRequest)
+        or runtime.config.deployment != "dev"
     ):
         raise PropertyCatalogDevRuntimeError(
             "configured runtime did not return the reviewed checked-in DEV runtime"
         )
+    try:
+        require_dev_catalog_database(runtime.config.catalog.database)
+    except PropertyCatalogPublishError as exc:
+        raise PropertyCatalogDevRuntimeError(
+            "configured runtime did not return the reviewed checked-in DEV runtime"
+        ) from exc
     return runtime
 
 
@@ -4508,6 +4677,60 @@ def _provenance_text(value: Any, field_name: str) -> str:
             f"{field_name} must be one bounded exact identity"
         )
     return value
+
+
+def _clickhouse_hostname_allowlist(
+    *,
+    singular: Any,
+    plural: Any,
+    field_name: str,
+) -> tuple[str, ...]:
+    if not isinstance(plural, (tuple, list)):
+        raise PropertyCatalogDevRuntimeError(
+            f"{field_name} must be an exact tuple or list"
+        )
+    values = tuple(plural)
+    if singular:
+        singular_hostname = _provenance_text(
+            singular,
+            field_name.removesuffix("s"),
+        )
+        if values and singular_hostname not in values:
+            raise PropertyCatalogDevRuntimeError(
+                f"{field_name} conflicts with its singular compatibility setting"
+            )
+        if not values:
+            values = (singular_hostname,)
+    if (
+        not values
+        or len(values) > MAX_EXPECTED_CLICKHOUSE_HOSTNAMES
+        or any(not isinstance(value, str) for value in values)
+    ):
+        raise PropertyCatalogDevRuntimeError(
+            f"{field_name} must contain 1..{MAX_EXPECTED_CLICKHOUSE_HOSTNAMES} "
+            "exact hostnames"
+        )
+    canonical = tuple(sorted(_provenance_text(value, field_name) for value in values))
+    if len(set(canonical)) != len(canonical):
+        raise PropertyCatalogDevRuntimeError(
+            f"{field_name} must contain unique exact hostnames"
+        )
+    return canonical
+
+
+def _expected_clickhouse_hostnames_setting(
+    settings_object: Any,
+    *,
+    plural_name: str,
+    singular_name: str,
+) -> tuple[str, ...]:
+    plural = getattr(settings_object, plural_name, ())
+    singular = getattr(settings_object, singular_name, "")
+    return _clickhouse_hostname_allowlist(
+        singular=singular,
+        plural=plural,
+        field_name=plural_name,
+    )
 
 
 def _observed_text(value: Any, field_name: str) -> str:

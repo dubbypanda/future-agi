@@ -116,6 +116,16 @@ def _publish_in_process(path: str, index: int, start: object) -> None:
     registry.publish(_assignment(index))
 
 
+def _reconcile_in_process(
+    path: str,
+    workspace_ids: tuple[str, ...],
+    start: object,
+) -> None:
+    start.wait(30)  # type: ignore[attr-defined]
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    registry.reconcile_authorized_workspaces(workspace_ids)
+
+
 def test_python_registry_bytes_match_go_file_revision_provider_fixture() -> None:
     assignment = _go_fixture_assignment()
     raw = encode_revision_fence_registry((assignment,), now=NOW)
@@ -161,6 +171,64 @@ def test_registry_preserves_other_tenants_sorts_and_replaces_only_target(
         next(row for row in after if row["workspace_id"] == later.workspace_id)
         == later.document
     )
+
+
+def test_reconcile_removes_deauthorized_workspaces_and_unlinks_empty_registry(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    retained = _assignment(1)
+    removed = _assignment(2)
+    registry.publish(retained)
+    registry.publish(removed)
+
+    assert registry.reconcile_authorized_workspaces((retained.workspace_id,)) == 1
+    assert decode_revision_fence_registry(path.read_bytes(), now=NOW) == (
+        retained.document,
+    )
+
+    assert registry.reconcile_authorized_workspaces((_uuid(99_999),)) == 1
+    assert not path.exists()
+
+
+def test_reconcile_retains_authorized_live_and_terminal_fences(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    live = _assignment(1)
+    terminal = _assignment(
+        2,
+        status="fenced",
+        issued_at=NOW - timedelta(minutes=5),
+        expires_at=NOW - timedelta(minutes=1),
+        drain_deadline=NOW - timedelta(seconds=1),
+        fenced_sequence=9,
+    )
+    deauthorized_terminal = _assignment(
+        3,
+        status="fenced",
+        issued_at=NOW - timedelta(minutes=5),
+        expires_at=NOW - timedelta(minutes=1),
+        drain_deadline=NOW - timedelta(seconds=1),
+        fenced_sequence=11,
+    )
+    registry.publish(live)
+    registry.publish(terminal)
+    registry.publish(deauthorized_terminal)
+
+    assert (
+        registry.reconcile_authorized_workspaces(
+            (live.workspace_id, terminal.workspace_id)
+        )
+        == 1
+    )
+    documents = decode_revision_fence_registry(path.read_bytes(), now=NOW)
+    assert [(value["workspace_id"], value["status"]) for value in documents] == [
+        (live.workspace_id, "building"),
+        (terminal.workspace_id, "fenced"),
+    ]
 
 
 def test_corruption_fails_closed_without_overwriting_existing_bytes(
@@ -338,6 +406,22 @@ def test_stale_registry_recovery_still_rejects_corruption(tmp_path: Path) -> Non
     assert path.read_bytes() == raw
 
 
+def test_scope_reconciliation_does_not_overwrite_corrupt_registry(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    registry.publish(_assignment(1))
+    corrupt = path.read_bytes().replace(b'"status":"building"', b'"status":"active"')
+    path.write_bytes(corrupt)
+    path.chmod(0o600)
+
+    with pytest.raises(RevisionFenceRegistryError, match="status"):
+        registry.reconcile_authorized_workspaces(())
+
+    assert path.read_bytes() == corrupt
+
+
 def test_entry_and_byte_limits_fail_without_replacing_registry(
     tmp_path: Path,
 ) -> None:
@@ -353,6 +437,14 @@ def test_entry_and_byte_limits_fail_without_replacing_registry(
     with pytest.raises(RevisionFenceRegistryError, match="1..256"):
         registry.publish(_assignment(MAX_REVISION_FENCE_ENTRIES + 1))
     assert path.read_bytes() == original
+
+    assert (
+        registry.reconcile_authorized_workspaces((assignments[0].workspace_id,))
+        == MAX_REVISION_FENCE_ENTRIES - 1
+    )
+    reclaimed = _assignment(MAX_REVISION_FENCE_ENTRIES + 1)
+    registry.publish(reclaimed)
+    assert len(decode_revision_fence_registry(path.read_bytes(), now=NOW)) == 2
 
     projects = tuple(_uuid(100_000 + index) for index in range(256))
     oversized = tuple(
@@ -393,3 +485,44 @@ def test_concurrent_processes_preserve_every_tenant_update(tmp_path: Path) -> No
         _assignment(index).workspace_id for index in range(1, 9)
     )
     assert os.stat(path).st_size <= MAX_REVISION_FENCE_BYTES
+
+
+def test_concurrent_publish_and_scope_reconcile_share_process_lock(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    retained = _assignment(1)
+    removed = _assignment(2)
+    incoming = _assignment(3)
+    registry.publish(retained)
+    registry.publish(removed)
+
+    context = multiprocessing.get_context("spawn")
+    start = context.Event()
+    processes = (
+        context.Process(
+            target=_publish_in_process,
+            args=(str(path), 3, start),
+        ),
+        context.Process(
+            target=_reconcile_in_process,
+            args=(
+                str(path),
+                (retained.workspace_id, incoming.workspace_id),
+                start,
+            ),
+        ),
+    )
+    for process in processes:
+        process.start()
+    start.set()
+    for process in processes:
+        process.join(45)
+
+    assert [process.exitcode for process in processes] == [0, 0]
+    documents = decode_revision_fence_registry(path.read_bytes(), now=NOW)
+    assert [document["workspace_id"] for document in documents] == [
+        retained.workspace_id,
+        incoming.workspace_id,
+    ]

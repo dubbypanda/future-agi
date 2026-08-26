@@ -47,6 +47,7 @@ from tracer.services.clickhouse.v2.property_catalog.dev_runtime import (
     DevProvenanceObservation,
     DevRuntimeConfig,
     NativeConnectionConfig,
+    NativeSchemaClient,
     PostgresDevIdentity,
     PostgresProjectTenantBinding,
     ProjectTenantAuthorization,
@@ -71,6 +72,7 @@ from tracer.services.clickhouse.v2.property_catalog.durable_lifecycle import (
 from tracer.services.clickhouse.v2.property_catalog.models import SourceAdapter
 from tracer.services.clickhouse.v2.property_catalog.publisher import (
     CatalogWriteLease,
+    PropertyCatalogPublishError,
     SharedCatalogDeadline,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileMode
@@ -595,9 +597,7 @@ def test_management_command_status_uses_checked_in_factory_with_fake_clients(
             f"{shared}/producer-state-retirements-v1.json"
         ),
         "PROPERTY_CATALOG_DEV_MUTATION_LOCK_DIRECTORY": shared,
-        "PROPERTY_CATALOG_DEV_SIDECAR_ACK": (
-            "PROPERTY_CATALOG_PYTHON_GO_SIDECAR_V1"
-        ),
+        "PROPERTY_CATALOG_DEV_SIDECAR_ACK": ("PROPERTY_CATALOG_PYTHON_GO_SIDECAR_V1"),
         "PROPERTY_CATALOG_DEV_MAX_WALL_MS": 100_000,
     }
     probe_calls: list[tuple[str, str]] = []
@@ -686,6 +686,7 @@ def test_native_catalog_client_uses_configured_state_store_timeout_ceiling(
 
 def test_remote_provenance_validation_freezes_exact_dev_evidence() -> None:
     config = SimpleNamespace(
+        deployment="dev",
         provenance_expectation=_provenance_expectation(),
         catalog_control_database="default",
         catalog=SimpleNamespace(user="catalog_writer"),
@@ -704,6 +705,197 @@ def test_remote_provenance_validation_freezes_exact_dev_evidence() -> None:
     assert payload["source_clickhouse"]["readonly_locked"] is True
     assert payload["postgres"]["writable_relation_count"] == 0
     assert len(payload["attestation_sha256"]) == 64
+    assert config.provenance_expectation.writer_clickhouse_hostnames == (
+        "catalog-dev-01",
+    )
+    assert config.provenance_expectation.source_clickhouse_hostnames == (
+        "source-dev-01",
+    )
+
+
+def test_remote_provenance_accepts_exact_replica_hostname_membership() -> None:
+    expectation = DevProvenanceExpectation(
+        writer_clickhouse_hostname="",
+        source_clickhouse_hostname="",
+        postgres_database="futureagi_dev",
+        postgres_user="property_catalog_reader",
+        postgres_server_address="10.20.30.40",
+        postgres_server_port=5432,
+        writer_clickhouse_hostnames=[
+            "catalog-dev-03",
+            "catalog-dev-01",
+            "catalog-dev-02",
+        ],
+        source_clickhouse_hostnames=(
+            "source-dev-03",
+            "source-dev-01",
+            "source-dev-02",
+        ),
+    )
+    config = SimpleNamespace(
+        deployment="dev",
+        provenance_expectation=expectation,
+        catalog_control_database="default",
+        catalog=SimpleNamespace(user="catalog_writer"),
+        source=SimpleNamespace(database="source_ch25", user="source_reader"),
+    )
+    observation = replace(
+        _provenance_observation(),
+        writer_clickhouse=replace(
+            _provenance_observation().writer_clickhouse,
+            hostname="catalog-dev-02",
+        ),
+        source_clickhouse=replace(
+            _provenance_observation().source_clickhouse,
+            hostname="source-dev-03",
+        ),
+    )
+
+    evidence = _validate_dev_provenance(
+        config=config,  # type: ignore[arg-type]
+        observation=observation,
+        attested_at=ATTESTED_AT,
+    )
+
+    assert expectation.writer_clickhouse_hostnames == (
+        "catalog-dev-01",
+        "catalog-dev-02",
+        "catalog-dev-03",
+    )
+    assert expectation.source_clickhouse_hostnames == (
+        "source-dev-01",
+        "source-dev-02",
+        "source-dev-03",
+    )
+    assert evidence.observation == observation
+
+
+@pytest.mark.parametrize(
+    ("hostnames", "message"),
+    (
+        ((), "must contain 1..16"),
+        (("catalog-dev-01", "catalog-dev-01"), "unique exact hostnames"),
+        (
+            tuple(f"catalog-dev-{index:02d}" for index in range(17)),
+            "must contain 1..16",
+        ),
+    ),
+)
+def test_replica_hostname_allowlist_is_bounded_nonempty_and_unique(
+    hostnames: tuple[str, ...],
+    message: str,
+) -> None:
+    with pytest.raises(PropertyCatalogDevRuntimeError, match=message):
+        DevProvenanceExpectation(
+            writer_clickhouse_hostname="",
+            source_clickhouse_hostname="source-dev-01",
+            postgres_database="futureagi_dev",
+            postgres_user="property_catalog_reader",
+            postgres_server_address="10.20.30.40",
+            postgres_server_port=5432,
+            writer_clickhouse_hostnames=hostnames,
+        )
+
+
+def test_runtime_settings_accept_plural_replica_hostnames_and_reject_conflicts(
+    tmp_path: Any,
+) -> None:
+    settings_object = _runtime_settings(str(tmp_path))
+    settings_object.PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME = ""
+    settings_object.PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME = ""
+    settings_object.PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAMES = [
+        "catalog-dev-03",
+        "catalog-dev-01",
+        "catalog-dev-02",
+    ]
+    settings_object.PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAMES = (
+        "source-dev-03",
+        "source-dev-01",
+        "source-dev-02",
+    )
+
+    config = DevRuntimeConfig.from_settings(
+        _request(execute=True),
+        settings_object,
+        now=ATTESTED_AT,
+    )
+
+    assert config.provenance_expectation.writer_clickhouse_hostnames == (
+        "catalog-dev-01",
+        "catalog-dev-02",
+        "catalog-dev-03",
+    )
+    assert config.provenance_expectation.source_clickhouse_hostnames == (
+        "source-dev-01",
+        "source-dev-02",
+        "source-dev-03",
+    )
+
+    settings_object.PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME = (
+        "unlisted-catalog-host"
+    )
+    with pytest.raises(PropertyCatalogDevRuntimeError, match="conflicts"):
+        DevRuntimeConfig.from_settings(
+            _request(execute=True),
+            settings_object,
+            now=ATTESTED_AT,
+        )
+
+
+def test_native_schema_client_requires_explicit_deployment() -> None:
+    with pytest.raises(TypeError, match="deployment"):
+        NativeSchemaClient(  # type: ignore[call-arg]
+            target_database="property_catalog_dev_unit",
+            control_database="default",
+            client_for_database=lambda _database: object(),  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    ("deployment", "target_database", "message"),
+    (
+        ("dev", "property_catalog", r"must match \^property_catalog_dev_"),
+        (
+            "prod",
+            "property_catalog_dev_unit",
+            "production catalog database must be exactly",
+        ),
+    ),
+)
+def test_native_schema_client_rejects_cross_deployment_database(
+    deployment: str,
+    target_database: str,
+    message: str,
+) -> None:
+    with pytest.raises(PropertyCatalogPublishError, match=message):
+        NativeSchemaClient(
+            target_database=target_database,
+            control_database="default",
+            client_for_database=lambda _database: object(),  # type: ignore[arg-type]
+            deployment=deployment,
+        )
+
+
+@pytest.mark.parametrize(
+    ("deployment", "target_database"),
+    (
+        ("dev", "property_catalog_dev_unit"),
+        ("prod", "property_catalog"),
+    ),
+)
+def test_native_schema_client_accepts_only_matching_deployment_database(
+    deployment: str,
+    target_database: str,
+) -> None:
+    client = NativeSchemaClient(
+        target_database=target_database,
+        control_database="default",
+        client_for_database=lambda _database: object(),  # type: ignore[arg-type]
+        deployment=deployment,
+    )
+
+    assert client._target_database == target_database  # noqa: SLF001
+    assert client._deployment == deployment  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -1528,7 +1720,18 @@ def test_concrete_scheduled_incremental_uses_auto_and_fenced_resume_skips_source
     def forbidden_source(*_args: Any, **_kwargs: Any) -> object:
         raise AssertionError("fenced scheduled recovery must not read a source")
 
-    monkeypatch.setattr(dev_runtime, "verify_dev_catalog_schema", lambda *_a, **_k: {})
+    schema_verifications: list[tuple[str, str]] = []
+
+    def verify_schema(
+        _client: object,
+        *,
+        target_database: str,
+        deployment: str,
+    ) -> dict[str, object]:
+        schema_verifications.append((target_database, deployment))
+        return {}
+
+    monkeypatch.setattr(dev_runtime, "verify_runtime_catalog_schema", verify_schema)
     monkeypatch.setattr(
         CheckedInPropertyCatalogDevRuntime, "_prepare_revision", prepare
     )
@@ -1551,6 +1754,7 @@ def test_concrete_scheduled_incremental_uses_auto_and_fenced_resume_skips_source
     result = runtime.reconcile_workspace(request, mode=ReconcileMode.INCREMENTAL)
 
     assert seen == [LifecycleRunMode.AUTO]
+    assert schema_verifications == [("property_catalog_dev_unit", "dev")]
     assert result == {
         "activated": True,
         "build_lease_sha256": "a" * 64,

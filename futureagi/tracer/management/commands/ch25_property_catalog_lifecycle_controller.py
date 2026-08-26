@@ -56,6 +56,9 @@ from tracer.services.clickhouse.v2.property_catalog.publisher import (
     require_prod_catalog_database,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileMode
+from tracer.services.clickhouse.v2.property_catalog.revision_fence_registry import (
+    AtomicMultiTenantFenceFile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +83,7 @@ class ControllerConfig:
     scheduled_reconcile_wall_ms: int
     span_window_days: int
     health_file: str
+    revision_fence_file: str
     bootstrap_enabled: bool
     repair_expired_incomplete: bool
 
@@ -311,6 +315,15 @@ def controller_config(*, settings_object: Any) -> ControllerConfig:
         runtime_directory,
         "health file",
     )
+    revision_fence_file = _runtime_file(
+        getattr(
+            settings_object,
+            "PROPERTY_CATALOG_LIFECYCLE_REVISION_FENCE_FILE",
+            "",
+        ),
+        runtime_directory,
+        "revision fence file",
+    )
     return ControllerConfig(
         cloud_deployment=cloud,
         source_database=source,
@@ -336,6 +349,7 @@ def controller_config(*, settings_object: Any) -> ControllerConfig:
             366,
         ),
         health_file=health_file,
+        revision_fence_file=revision_fence_file,
         bootstrap_enabled=(
             getattr(
                 settings_object,
@@ -423,6 +437,18 @@ def run_cycle(
     stop: threading.Event,
     on_error: Callable[[str, Exception], None],
 ) -> CycleResult:
+    authorized_workspaces = tuple(
+        sorted((*skipped, *(scope.workspace_id for scope in scopes)))
+    )
+    if authorized_workspaces != config.workspace_ids:
+        raise ProductionLifecycleControllerError(
+            "cycle workspace scope inventory does not match the exact allowlist"
+        )
+    if not status_only and not stop.is_set():
+        AtomicMultiTenantFenceFile(
+            config.revision_fence_file,
+            now=lambda: now,
+        ).reconcile_authorized_workspaces(authorized_workspaces)
     processed: list[str] = []
     failures: dict[str, str] = {}
     for scope in scopes:
@@ -435,6 +461,7 @@ def run_cycle(
                 config=config,
                 now=now,
                 status_only=status_only,
+                stop=stop,
             )
         except Exception as exc:
             failures[scope.workspace_id] = str(exc)
@@ -456,7 +483,9 @@ def run_workspace(
     config: ControllerConfig,
     now: datetime,
     status_only: bool,
+    stop: threading.Event | None = None,
 ) -> Mapping[str, Any]:
+    cancellation_probe = stop.is_set if stop is not None else lambda: False
     proxy = workspace_settings_overlay(
         settings_object=settings_object,
         config=config,
@@ -473,6 +502,7 @@ def run_workspace(
         request=status_request,
         proxy=proxy,
         scope=scope,
+        cancellation_probe=cancellation_probe,
     ) as status_runtime:
         status_result = run_configured_production_rollout(
             request=status_request,
@@ -492,7 +522,12 @@ def run_workspace(
             config=config,
             scheduled_reconcile_wall_ms=config.scheduled_reconcile_wall_ms,
         )
-        with managed_runtime(request=request, proxy=proxy, scope=scope) as runtime:
+        with managed_runtime(
+            request=request,
+            proxy=proxy,
+            scope=scope,
+            cancellation_probe=cancellation_probe,
+        ) as runtime:
             return run_workspace_reconcile(
                 request=request,
                 runtime=runtime,
@@ -503,7 +538,12 @@ def run_workspace(
             "workspace has no active catalog revision and production bootstrap is disabled"
         )
     request = rollout_request(scope=scope, proxy=proxy, config=config)
-    with managed_runtime(request=request, proxy=proxy, scope=scope) as runtime:
+    with managed_runtime(
+        request=request,
+        proxy=proxy,
+        scope=scope,
+        cancellation_probe=cancellation_probe,
+    ) as runtime:
         result = run_configured_production_rollout(request=request, runtime=runtime)
     return result.as_dict()
 
@@ -514,10 +554,12 @@ def managed_runtime(
     request: ProductionRolloutRequest,
     proxy: SettingsOverlay,
     scope: WorkspaceScope,
+    cancellation_probe: Callable[[], bool] = lambda: False,
 ) -> Iterator[Any]:
     runtime = PropertyCatalogProductionRuntimeFactory(
         settings_object=proxy,
         project_tenant_binding_probe=legacy_aware_project_probe(scope),
+        cancellation_probe=cancellation_probe,
     )(request)
     runtime = require_checked_in_property_catalog_production_runtime(runtime)
     try:
@@ -600,8 +642,14 @@ def workspace_settings_overlay(
         "PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME": configured(
             "EXPECTED_WRITE_CH_HOSTNAME"
         ),
+        "PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAMES": configured(
+            "EXPECTED_WRITE_CH_HOSTNAMES", ()
+        ),
         "PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAME": configured(
             "EXPECTED_SOURCE_CH_HOSTNAME"
+        ),
+        "PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAMES": configured(
+            "EXPECTED_SOURCE_CH_HOSTNAMES", ()
         ),
         "PROPERTY_CATALOG_DEV_EXPECTED_PG_DATABASE": configured("EXPECTED_PG_DATABASE"),
         "PROPERTY_CATALOG_DEV_EXPECTED_PG_USER": configured("EXPECTED_PG_USER"),

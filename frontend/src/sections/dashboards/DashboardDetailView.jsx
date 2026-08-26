@@ -97,6 +97,7 @@ function computeRows(widgets) {
 const widgetPropType = PropTypes.shape({
   id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   name: PropTypes.string,
+  description: PropTypes.string,
   position: PropTypes.number,
   width: PropTypes.number,
   height: PropTypes.number,

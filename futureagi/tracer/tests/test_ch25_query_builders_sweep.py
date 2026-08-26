@@ -14,7 +14,12 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 # v2 builders under test
+from tracer.services.clickhouse.v2.query_builders.monitor_metrics import (
+    MonitorMetricsQueryBuilderV2,
+)
 from tracer.services.clickhouse.v2.query_builders.session_list import (
     SessionListQueryBuilderV2,
 )
@@ -53,14 +58,29 @@ LEGACY_REF_RE = re.compile(
 )
 
 
-def _assert_no_legacy(sql: str, label: str) -> None:
-    """Fail with helpful context if a legacy column is REFERENCED (not aliased) in v2 SQL."""
+def _assert_no_legacy(
+    sql: str,
+    label: str,
+    *,
+    allow_legacy_eval_cdc: bool = False,
+) -> None:
+    """Fail when migrated-span SQL still references a legacy column.
+
+    Evaluation metric queries intentionally join the not-yet-migrated
+    ``model_hub_eval_logger`` source.  Its qualified PeerDB CDC columns remain
+    valid; the exception is deliberately limited to known eval-table aliases.
+    """
     for match in LEGACY_REF_RE.finditer(sql):
         # The regex's lookbehind only checks the IMMEDIATELY preceding 3 chars;
         # also reject any token preceded by `AS <whitespace>+` (any indent).
         tail = sql[max(0, match.start() - 8) : match.start()]
         if tail.rstrip().lower().endswith(" as"):
             continue  # alias position, ignore
+        qualified_tail = sql[max(0, match.start() - 32) : match.start()]
+        if allow_legacy_eval_cdc and qualified_tail.endswith(
+            ("eval_scan.", "latest_eval.", "raw_eval_logger.")
+        ):
+            continue
         start = max(0, match.start() - 50)
         end = min(len(sql), match.end() + 50)
         raise AssertionError(
@@ -233,7 +253,11 @@ def test_monitor_metrics_v2_value_no_legacy(metric_type):
     sql, _ = _monitor_builder().build_metric_value_query(
         metric_type, datetime(2026, 8, 1), datetime(2026, 8, 8)
     )
-    _assert_no_legacy(sql, f"MonitorMetrics.value[{metric_type}]")
+    _assert_no_legacy(
+        sql,
+        f"MonitorMetrics.value[{metric_type}]",
+        allow_legacy_eval_cdc=metric_type == "evaluation_metrics",
+    )
     assert "SETTINGS" in sql, f"v2 settings missing on value[{metric_type}]"
 
 
@@ -244,7 +268,11 @@ def test_monitor_metrics_v2_historical_no_legacy(metric_type):
     sql, _ = _monitor_builder().build_historical_stats_query(
         metric_type, datetime(2026, 8, 1), datetime(2026, 8, 8), interval_kind="hour"
     )
-    _assert_no_legacy(sql, f"MonitorMetrics.historical[{metric_type}]")
+    _assert_no_legacy(
+        sql,
+        f"MonitorMetrics.historical[{metric_type}]",
+        allow_legacy_eval_cdc=metric_type == "evaluation_metrics",
+    )
     assert "SETTINGS" in sql, f"v2 settings missing on historical[{metric_type}]"
 
 
@@ -255,5 +283,9 @@ def test_monitor_metrics_v2_time_series_no_legacy(metric_type):
     sql, _ = _monitor_builder().build_time_series_query(
         metric_type, datetime(2026, 8, 1), datetime(2026, 8, 8), 3600
     )
-    _assert_no_legacy(sql, f"MonitorMetrics.time_series[{metric_type}]")
+    _assert_no_legacy(
+        sql,
+        f"MonitorMetrics.time_series[{metric_type}]",
+        allow_legacy_eval_cdc=metric_type == "evaluation_metrics",
+    )
     assert "SETTINGS" in sql, f"v2 settings missing on time_series[{metric_type}]"

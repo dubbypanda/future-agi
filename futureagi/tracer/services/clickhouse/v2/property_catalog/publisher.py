@@ -186,6 +186,7 @@ class SharedCatalogDeadline:
 
     wall_ms: int = RUNTIME_LIMITS.publisher_wall_ms
     clock: Callable[[], float] = monotonic
+    cancelled: Callable[[], bool] = lambda: False
     _deadline: float = 0.0
 
     def __post_init__(self) -> None:
@@ -196,11 +197,15 @@ class SharedCatalogDeadline:
             raise ValueError(
                 f"catalog wall_ms must be in [1, {RUNTIME_LIMITS.deadline_max_wall_ms}]"
             )
+        if not callable(self.cancelled):
+            raise TypeError("catalog cancellation probe must be callable")
         self._deadline = self.clock() + self.wall_ms / 1_000
 
     def remaining_ms(self, *, cap_ms: int = RUNTIME_LIMITS.publisher_wall_ms) -> int:
         if type(cap_ms) is not int or cap_ms < 1:
             raise ValueError("catalog deadline cap_ms must be positive")
+        if self.cancelled():
+            raise PropertyCatalogPublishError("catalog operation was cancelled")
         remaining = int((self._deadline - self.clock()) * 1_000)
         if remaining < 1:
             raise PropertyCatalogPublishError("catalog operation deadline exceeded")

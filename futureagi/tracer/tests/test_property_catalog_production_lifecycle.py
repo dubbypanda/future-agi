@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -12,17 +13,30 @@ import pytest
 from tracer.management.commands import (
     ch25_property_catalog_lifecycle_controller as subject,
 )
+from tracer.services.clickhouse.v2.property_catalog import dev_runtime
 from tracer.services.clickhouse.v2.property_catalog.dev_rollout import (
     DEV_ROLLOUT_ACK,
     DevRolloutError,
     DevRolloutRequest,
 )
 from tracer.services.clickhouse.v2.property_catalog.dev_runtime import (
+    _RUNTIME_FACTORY_AUTHORITY,
+    CheckedInPropertyCatalogDevRuntime,
+    PropertyCatalogDevRuntimeError,
+    PropertyCatalogDevRuntimeFactory,
     PropertyCatalogProductionRuntimeFactory,
+    _validate_production_writer_grants,
+    require_checked_in_property_catalog_dev_runtime,
+)
+from tracer.services.clickhouse.v2.property_catalog.durable_lifecycle import (
+    ReservationStatus,
 )
 from tracer.services.clickhouse.v2.property_catalog.production_rollout import (
     PRODUCTION_LIFECYCLE_ACK,
     ProductionRolloutRequest,
+)
+from tracer.services.clickhouse.v2.property_catalog.publisher import (
+    PROPERTY_CATALOG_TABLES,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileMode
 from tracer.services.clickhouse.v2.property_catalog.revision_fence_registry import (
@@ -87,8 +101,16 @@ def _settings(tmp_path: Path, **overrides: Any) -> SimpleNamespace:
         "PROPERTY_CATALOG_LIFECYCLE_PRODUCER_RETIREMENT_FILE": str(
             tmp_path / "producer-state-retirements-v1.json"
         ),
-        "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_WRITE_CH_HOSTNAME": "catalog-0",
-        "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_SOURCE_CH_HOSTNAME": "spans-0",
+        "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_WRITE_CH_HOSTNAMES": (
+            "catalog-0",
+            "catalog-1",
+            "catalog-2",
+        ),
+        "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_SOURCE_CH_HOSTNAMES": (
+            "spans-0",
+            "spans-1",
+            "spans-2",
+        ),
         "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_DATABASE": "futureagi",
         "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_USER": "catalog_source_reader",
         "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_ADDRESS": "10.0.0.1",
@@ -146,13 +168,225 @@ def test_production_factory_defaults_to_multi_tenant_fence_registry() -> None:
     assert factory._fence_sink_factory is AtomicMultiTenantFenceFile  # noqa: SLF001
 
 
+def _exact_writer_grants() -> tuple[str, ...]:
+    return tuple(
+        f"GRANT SELECT, INSERT ON property_catalog.{table} TO catalog_writer"
+        for table in sorted(PROPERTY_CATALOG_TABLES)
+    )
+
+
+def test_production_writer_accepts_only_exact_direct_catalog_grants() -> None:
+    _validate_production_writer_grants(
+        _exact_writer_grants(),
+        database="property_catalog",
+        user="catalog_writer",
+    )
+
+
+@pytest.mark.parametrize(
+    "grants",
+    (
+        _exact_writer_grants()[:-1],
+        (
+            *_exact_writer_grants()[:-1],
+            "GRANT SELECT, INSERT ON property_catalog.* TO catalog_writer",
+        ),
+        (
+            *_exact_writer_grants()[:-1],
+            "GRANT SELECT ON property_catalog.property_definition_catalog "
+            "TO catalog_writer",
+        ),
+        (
+            *_exact_writer_grants(),
+            "GRANT CREATE TABLE ON property_catalog.* TO catalog_writer",
+        ),
+        (
+            *_exact_writer_grants()[:-1],
+            "GRANT SELECT, INSERT ON spans.spans TO catalog_writer",
+        ),
+        (
+            *_exact_writer_grants()[:-1],
+            "GRANT SELECT, INSERT ON property_catalog.property_definition_catalog "
+            "TO catalog_writer WITH GRANT OPTION",
+        ),
+        (
+            *_exact_writer_grants()[:-1],
+            "GRANT property_catalog_writer_role TO catalog_writer",
+        ),
+    ),
+)
+def test_production_writer_rejects_missing_broad_or_delegated_grants(
+    grants: tuple[str, ...],
+) -> None:
+    with pytest.raises(PropertyCatalogDevRuntimeError, match="production ClickHouse"):
+        _validate_production_writer_grants(
+            grants,
+            database="property_catalog",
+            user="catalog_writer",
+        )
+
+
+def test_dev_factory_rejects_production_request_before_settings_or_clients() -> None:
+    clients: list[str] = []
+
+    def forbidden_client(config: Any) -> object:
+        clients.append(config.database)
+        raise AssertionError("production request must fail before client construction")
+
+    factory = PropertyCatalogDevRuntimeFactory(
+        settings_object=object(),
+        native_client_factory=forbidden_client,  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(TypeError, match="does not accept ProductionRolloutRequest"):
+        factory(_production_request())
+
+    assert clients == []
+
+
+def _forged_checked_in_runtime(
+    *,
+    request: DevRolloutRequest,
+    deployment: str,
+    database: str,
+) -> CheckedInPropertyCatalogDevRuntime:
+    runtime = object.__new__(CheckedInPropertyCatalogDevRuntime)
+    object.__setattr__(runtime, "bound_request", request)
+    object.__setattr__(
+        runtime,
+        "config",
+        SimpleNamespace(
+            deployment=deployment,
+            catalog=SimpleNamespace(database=database),
+        ),
+    )
+    object.__setattr__(runtime, "_factory_authority", _RUNTIME_FACTORY_AUTHORITY)
+    object.__setattr__(runtime, "_scope_locked", True)
+    return runtime
+
+
+def _dev_request() -> DevRolloutRequest:
+    return DevRolloutRequest(
+        organization_id=ORG,
+        workspace_id=WORKSPACE,
+        environment="development",
+        cloud_deployment="DEV",
+        dev_identity="dev:unit-controller",
+        source_database="spans",
+        target_database="property_catalog_dev_unit",
+        acknowledgement=DEV_ROLLOUT_ACK,
+        execute=True,
+    )
+
+
+def test_dev_runtime_guard_rejects_every_production_cross_wire() -> None:
+    invalid = (
+        _forged_checked_in_runtime(
+            request=_production_request(),
+            deployment="prod",
+            database="property_catalog",
+        ),
+        _forged_checked_in_runtime(
+            request=_dev_request(),
+            deployment="prod",
+            database="property_catalog",
+        ),
+        _forged_checked_in_runtime(
+            request=_dev_request(),
+            deployment="dev",
+            database="property_catalog",
+        ),
+    )
+
+    for runtime in invalid:
+        with pytest.raises(
+            PropertyCatalogDevRuntimeError,
+            match="reviewed checked-in DEV runtime",
+        ):
+            require_checked_in_property_catalog_dev_runtime(runtime)
+
+    valid = _forged_checked_in_runtime(
+        request=_dev_request(),
+        deployment="dev",
+        database="property_catalog_dev_unit",
+    )
+    assert require_checked_in_property_catalog_dev_runtime(valid) is valid
+
+
 def test_controller_config_is_production_exact_and_bootstrap_off(
     tmp_path: Path,
 ) -> None:
     config = subject.controller_config(settings_object=_settings(tmp_path))
     assert config.target_database == "property_catalog"
     assert config.workspace_ids == (WORKSPACE,)
+    assert config.revision_fence_file == str(tmp_path / "revision-fence.json")
     assert config.bootstrap_enabled is False
+
+
+def test_mutating_cycle_reconciles_exact_workspace_inventory_first(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings_object = _settings(tmp_path)
+    config = subject.controller_config(settings_object=settings_object)
+    calls: list[tuple[str, object, tuple[str, ...]]] = []
+
+    class FakeFenceFile:
+        def __init__(self, path: str, *, now: object) -> None:
+            self.path = path
+            self.now = now
+
+        def reconcile_authorized_workspaces(
+            self,
+            workspace_ids: tuple[str, ...],
+        ) -> int:
+            calls.append((self.path, self.now, workspace_ids))
+            return 0
+
+    monkeypatch.setattr(subject, "AtomicMultiTenantFenceFile", FakeFenceFile)
+    monkeypatch.setattr(subject, "run_workspace", lambda **_kwargs: {})
+    result = subject.run_cycle(
+        scopes=(_scope(),),
+        skipped=(),
+        settings_object=settings_object,
+        config=config,
+        now=datetime(2026, 8, 26, 12, tzinfo=UTC),
+        status_only=False,
+        stop=threading.Event(),
+        on_error=lambda _workspace_id, _exc: None,
+    )
+
+    assert result.processed == (WORKSPACE,)
+    assert len(calls) == 1
+    assert calls[0][0] == config.revision_fence_file
+    assert calls[0][2] == config.workspace_ids
+
+
+def test_status_only_cycle_does_not_reconcile_fence_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings_object = _settings(tmp_path)
+    config = subject.controller_config(settings_object=settings_object)
+
+    class UnexpectedFenceFile:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            raise AssertionError("status-only cycle attempted a fence mutation")
+
+    monkeypatch.setattr(subject, "AtomicMultiTenantFenceFile", UnexpectedFenceFile)
+    monkeypatch.setattr(subject, "run_workspace", lambda **_kwargs: {})
+    result = subject.run_cycle(
+        scopes=(_scope(),),
+        skipped=(),
+        settings_object=settings_object,
+        config=config,
+        now=datetime(2026, 8, 26, 12, tzinfo=UTC),
+        status_only=True,
+        stop=threading.Event(),
+        on_error=lambda _workspace_id, _exc: None,
+    )
+
+    assert result.processed == (WORKSPACE,)
 
 
 @pytest.mark.parametrize(
@@ -188,6 +422,16 @@ def test_workspace_overlay_binds_prod_settings_to_shared_runtime(
 
     assert overlay.PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE == "property_catalog"
     assert overlay.PROPERTY_CATALOG_DEV_PROJECT_ALLOWLIST == (PROJECT,)
+    assert overlay.PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAMES == (
+        "catalog-0",
+        "catalog-1",
+        "catalog-2",
+    )
+    assert overlay.PROPERTY_CATALOG_DEV_EXPECTED_SOURCE_CH_HOSTNAMES == (
+        "spans-0",
+        "spans-1",
+        "spans-2",
+    )
     assert overlay.PROPERTY_CATALOG_DEV_SPAN_UNTIL == "2026-08-26T12:00:00Z"
     assert overlay.PROPERTY_CATALOG_DEV_SPAN_SINCE == "2025-08-25T12:00:00Z"
 
@@ -230,11 +474,14 @@ def test_active_workspace_runs_incremental_reconcile(
     settings_object = _settings(tmp_path)
     config = subject.controller_config(settings_object=settings_object)
     runtimes: list[object] = []
+    cancellation_probes: list[Any] = []
+    stop = threading.Event()
 
     @contextmanager
-    def fake_runtime(**_kwargs: Any):
+    def fake_runtime(**kwargs: Any):
         runtime = object()
         runtimes.append(runtime)
+        cancellation_probes.append(kwargs["cancellation_probe"])
         yield runtime
 
     status_result = SimpleNamespace(
@@ -259,11 +506,70 @@ def test_active_workspace_runs_incremental_reconcile(
         config=config,
         now=datetime(2026, 8, 26, 12, tzinfo=UTC),
         status_only=False,
+        stop=stop,
     )
 
     assert result == {"reconciled": True}
     assert observed["mode"] is ReconcileMode.INCREMENTAL
     assert len(runtimes) == 2
+    assert all(probe() is False for probe in cancellation_probes)
+    stop.set()
+    assert all(probe() is True for probe in cancellation_probes)
+
+
+def test_production_incremental_reconcile_uses_production_schema_verifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _production_request()
+    schema_calls: list[tuple[str, str]] = []
+    execution = SimpleNamespace(
+        prepared=SimpleNamespace(
+            reservation_status=ReservationStatus.FENCED,
+            lifecycle_mode="auto",
+            lineage_anchor_revision=7,
+        ),
+        qualification=SimpleNamespace(qualified=True),
+        lease=SimpleNamespace(build_lease_sha256="a" * 64),
+    )
+
+    def verify_schema(
+        _client: object,
+        *,
+        target_database: str,
+        deployment: str,
+    ) -> dict[str, object]:
+        schema_calls.append((target_database, deployment))
+        return {}
+
+    monkeypatch.setattr(dev_runtime, "verify_runtime_catalog_schema", verify_schema)
+    monkeypatch.setattr(
+        CheckedInPropertyCatalogDevRuntime,
+        "_validate_mutation_request",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        CheckedInPropertyCatalogDevRuntime,
+        "_refresh_project_tenant_authorization",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        CheckedInPropertyCatalogDevRuntime,
+        "_prepare_revision",
+        lambda *_args, **_kwargs: execution,
+    )
+    monkeypatch.setattr(
+        CheckedInPropertyCatalogDevRuntime,
+        "activate",
+        lambda *_args, **_kwargs: {"activated": True},
+    )
+    runtime = object.__new__(CheckedInPropertyCatalogDevRuntime)
+    object.__setattr__(runtime, "config", SimpleNamespace(deployment="prod"))
+    object.__setattr__(runtime, "schema_client", object())
+
+    result = runtime.reconcile_workspace(request, mode=ReconcileMode.INCREMENTAL)
+
+    assert schema_calls == [("property_catalog", "prod")]
+    assert result["activated"] is True
 
 
 def test_inactive_workspace_requires_separate_bootstrap_gate(

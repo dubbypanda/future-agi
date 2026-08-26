@@ -1334,3 +1334,22 @@ def test_project_move_changes_every_paged_and_aggregate_audit_hash_input() -> No
 
     for sql in (paged, aggregate):
         assert sql.count("toJSONString(tuple(project_id, observation_type") == 4
+
+
+def test_shared_catalog_deadline_fails_closed_when_cancelled() -> None:
+    cancelled = False
+    deadline = SharedCatalogDeadline(
+        wall_ms=8_500,
+        cancelled=lambda: cancelled,
+    )
+
+    assert deadline.remaining_ms(cap_ms=500) > 0
+    cancelled = True
+
+    with pytest.raises(PropertyCatalogPublishError, match="cancelled"):
+        deadline.remaining_ms(cap_ms=500)
+
+
+def test_shared_catalog_deadline_requires_callable_cancellation_probe() -> None:
+    with pytest.raises(TypeError, match="cancellation probe"):
+        SharedCatalogDeadline(wall_ms=8_500, cancelled=False)  # type: ignore[arg-type]
