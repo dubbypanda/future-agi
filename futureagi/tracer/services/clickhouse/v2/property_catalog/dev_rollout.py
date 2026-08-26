@@ -104,6 +104,74 @@ class DevRolloutError(RuntimeError):
     """The configured lifecycle cannot prove its isolated DEV boundary."""
 
 
+def validate_rollout_request_common(request: Any) -> None:
+    """Validate deployment-independent rollout fields before any client exists."""
+
+    object.__setattr__(
+        request,
+        "organization_id",
+        canonical_uuid(request.organization_id, field="organization_id"),
+    )
+    object.__setattr__(
+        request,
+        "workspace_id",
+        canonical_uuid(request.workspace_id, field="workspace_id"),
+    )
+    if (
+        not isinstance(request.source_database, str)
+        or _SOURCE_DATABASE_RE.fullmatch(request.source_database) is None
+    ):
+        raise DevRolloutError("source_database must be one safe identifier")
+    if request.source_database == request.target_database:
+        raise DevRolloutError("source and isolated catalog databases must differ")
+    if (
+        type(request.execute) is not bool
+        or type(request.status) is not bool
+        or type(request.repair_expired_incomplete) is not bool
+    ):
+        raise DevRolloutError(
+            "execute, status, and repair_expired_incomplete must be bools"
+        )
+    if request.execute and request.status:
+        raise DevRolloutError("execute and status are mutually exclusive")
+    if request.repair_expired_incomplete and (not request.execute or request.status):
+        raise DevRolloutError("expired incomplete repair requires explicit --execute")
+    if request.initial_backfill_wall_ms is not None:
+        if (
+            type(request.initial_backfill_wall_ms) is not int
+            or not DEV_STANDARD_MAX_WALL_MS
+            < request.initial_backfill_wall_ms
+            <= DEV_INITIAL_BACKFILL_MAX_WALL_MS
+        ):
+            raise DevRolloutError(
+                "explicit initial backfill wall must be in "
+                f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+                f"{DEV_INITIAL_BACKFILL_MAX_WALL_MS}] ms"
+            )
+        if not request.execute or request.status:
+            raise DevRolloutError("explicit initial backfill wall requires --execute")
+    if request.scheduled_reconcile_wall_ms is not None:
+        if (
+            type(request.scheduled_reconcile_wall_ms) is not int
+            or not DEV_STANDARD_MAX_WALL_MS
+            < request.scheduled_reconcile_wall_ms
+            <= DEV_SCHEDULED_RECONCILE_MAX_WALL_MS
+        ):
+            raise DevRolloutError(
+                "explicit scheduled reconcile wall must be in "
+                f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+                f"{DEV_SCHEDULED_RECONCILE_MAX_WALL_MS}] ms"
+            )
+        if not request.execute or request.status:
+            raise DevRolloutError(
+                "explicit scheduled reconcile wall requires execute mode"
+            )
+        if request.initial_backfill_wall_ms is not None:
+            raise DevRolloutError(
+                "initial backfill and scheduled reconcile walls are mutually exclusive"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class DevRolloutRequest:
     organization_id: str
@@ -121,16 +189,7 @@ class DevRolloutRequest:
     repair_expired_incomplete: bool = False
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "organization_id",
-            canonical_uuid(self.organization_id, field="organization_id"),
-        )
-        object.__setattr__(
-            self,
-            "workspace_id",
-            canonical_uuid(self.workspace_id, field="workspace_id"),
-        )
+        validate_rollout_request_common(self)
         if self.environment != DEV_ENVIRONMENT:
             raise DevRolloutError("unified catalog rollout is development-only")
         if not is_dev_control_plane_cloud_allowed(
@@ -151,74 +210,16 @@ class DevRolloutRequest:
             raise DevRolloutError(
                 "unified catalog rollout requires a pinned non-production dev identity"
             )
-        if (
-            not isinstance(self.source_database, str)
-            or _SOURCE_DATABASE_RE.fullmatch(self.source_database) is None
-        ):
-            raise DevRolloutError("source_database must be one safe identifier")
         try:
             require_dev_catalog_database(self.target_database)
         except PropertyCatalogPublishError as exc:
             raise DevRolloutError(
                 "target_database must be an exact lowercase isolated DEV identifier"
             ) from exc
-        if self.source_database == self.target_database:
-            raise DevRolloutError("source and isolated catalog databases must differ")
         if self.acknowledgement != DEV_ROLLOUT_ACK:
             raise DevRolloutError(
                 "the exact unified DEV rollout acknowledgement is required"
             )
-        if (
-            type(self.execute) is not bool
-            or type(self.status) is not bool
-            or type(self.repair_expired_incomplete) is not bool
-        ):
-            raise DevRolloutError(
-                "execute, status, and repair_expired_incomplete must be bools"
-            )
-        if self.execute and self.status:
-            raise DevRolloutError("execute and status are mutually exclusive")
-        if self.repair_expired_incomplete and (not self.execute or self.status):
-            raise DevRolloutError(
-                "expired incomplete repair requires explicit --execute"
-            )
-        if self.initial_backfill_wall_ms is not None:
-            if (
-                type(self.initial_backfill_wall_ms) is not int
-                or not DEV_STANDARD_MAX_WALL_MS
-                < self.initial_backfill_wall_ms
-                <= DEV_INITIAL_BACKFILL_MAX_WALL_MS
-            ):
-                raise DevRolloutError(
-                    "explicit initial backfill wall must be in "
-                    f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
-                    f"{DEV_INITIAL_BACKFILL_MAX_WALL_MS}] ms"
-                )
-            if not self.execute or self.status:
-                raise DevRolloutError(
-                    "explicit initial backfill wall requires --execute"
-                )
-        if self.scheduled_reconcile_wall_ms is not None:
-            if (
-                type(self.scheduled_reconcile_wall_ms) is not int
-                or not DEV_STANDARD_MAX_WALL_MS
-                < self.scheduled_reconcile_wall_ms
-                <= DEV_SCHEDULED_RECONCILE_MAX_WALL_MS
-            ):
-                raise DevRolloutError(
-                    "explicit scheduled reconcile wall must be in "
-                    f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
-                    f"{DEV_SCHEDULED_RECONCILE_MAX_WALL_MS}] ms"
-                )
-            if not self.execute or self.status:
-                raise DevRolloutError(
-                    "explicit scheduled reconcile wall requires execute mode"
-                )
-            if self.initial_backfill_wall_ms is not None:
-                raise DevRolloutError(
-                    "initial backfill and scheduled reconcile walls are mutually "
-                    "exclusive"
-                )
 
     @property
     def mode(self) -> DevRolloutMode:
@@ -547,4 +548,5 @@ __all__ = [
     "run_configured_dev_rollout",
     "run_scheduled_dev_rollout",
     "run_workspace_reconcile",
+    "validate_rollout_request_common",
 ]

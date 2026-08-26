@@ -872,7 +872,35 @@ def verify_catalog_dev_schema(
 ) -> str:
     """Read-only proof that the target already is the exact pinned six tables."""
 
-    _validate_target_database(target_database)
+    return verify_catalog_schema(
+        client,
+        target_database=target_database,
+        deployment="dev",
+    )
+
+
+def verify_catalog_schema(
+    client: CatalogDevClickHouseClient,
+    *,
+    target_database: str,
+    deployment: str,
+) -> str:
+    """Read-only proof of the pinned schema in an admitted catalog namespace.
+
+    Production is deliberately verify-only.  Schema creation remains confined
+    to :func:`apply_catalog_dev_schema` and the isolated ``property_catalog_dev_*``
+    namespace.
+    """
+
+    if deployment == "dev":
+        _validate_target_database(target_database)
+    elif deployment == "prod":
+        if target_database != "property_catalog":
+            raise CatalogDevSchemaError(
+                "production catalog database must be exactly 'property_catalog'"
+            )
+    else:
+        raise CatalogDevSchemaError("catalog schema deployment must be dev or prod")
     statements = _load_pinned_statements()
     version = _server_version(client)
     snapshot = _snapshot_tables(client)
@@ -886,7 +914,8 @@ def verify_catalog_dev_schema(
     _validate_unified_property_schema(target)
     evidence = {
         "clickhouse_version": version,
-        "development_only": True,
+        "deployment": deployment,
+        "development_only": deployment == "dev",
         "schema_action": "verified_existing",
         "statements": [
             {

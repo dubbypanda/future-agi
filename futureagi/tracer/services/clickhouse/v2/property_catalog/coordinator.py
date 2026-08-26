@@ -41,7 +41,7 @@ from .publisher import (
     PROPERTY_CATALOG_TABLES,
     CatalogWriteLease,
     SharedCatalogDeadline,
-    require_dev_catalog_database,
+    require_catalog_database,
 )
 from .runtime_limits import RUNTIME_LIMITS
 
@@ -326,7 +326,7 @@ class ClickHouseRevisionCoordinator:
         timeout_ms: int = COORDINATOR_TIMEOUT_MS,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
-        require_dev_catalog_database(database)
+        require_catalog_database(database)
         if getattr(client, "catalog_database", None) != database:
             raise ValueError("coordinator client database identity mismatch")
         if not callable(getattr(serializer, "serialize", None)):
@@ -1500,7 +1500,7 @@ class ClickHouseRevisionCoordinator:
         )
 
     def _validate_target(self) -> None:
-        require_dev_catalog_database(self._database)
+        require_catalog_database(self._database)
         if getattr(self._client, "catalog_database", None) != self._database:
             raise PropertyCatalogCoordinatorError(
                 "coordinator client database identity changed"
@@ -1705,7 +1705,7 @@ def _row_identity(row: Mapping[str, Any]) -> str:
 
 
 def _qualified(database: str, table: str) -> str:
-    require_dev_catalog_database(database)
+    require_catalog_database(database)
     if table not in PROPERTY_CATALOG_TABLES:
         raise PropertyCatalogCoordinatorError("coordinator table is not allowlisted")
     return f"`{database}`.`{table}`"

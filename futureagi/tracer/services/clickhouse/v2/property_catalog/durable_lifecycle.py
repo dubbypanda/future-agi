@@ -48,7 +48,7 @@ from .codec import (
     require_sha256,
 )
 from .models import SourceAdapter
-from .publisher import SharedCatalogDeadline, require_dev_catalog_database
+from .publisher import SharedCatalogDeadline, require_catalog_database
 from .qualification import CheckpointStatus
 from .reconciler import CheckpointWrite, ReconcileMode
 from .runtime_limits import RUNTIME_LIMITS
@@ -1265,7 +1265,7 @@ class ClickHouseLifecycleStateReader:
         deadline: SharedCatalogDeadline | None = None,
         timeout_ms: int = 8_500,
     ) -> None:
-        require_dev_catalog_database(database)
+        require_catalog_database(database)
         if getattr(client, "catalog_database", None) != database:
             raise ValueError("lifecycle client database identity mismatch")
         if not callable(getattr(checkpoint_store, "load_checkpoint_write", None)):
@@ -1769,7 +1769,7 @@ class ClickHouseLifecycleStateReader:
         sql: str,
         params: Mapping[str, Any],
     ) -> Sequence[Mapping[str, Any]]:
-        require_dev_catalog_database(self._database)
+        require_catalog_database(self._database)
         if getattr(self._client, "catalog_database", None) != self._database:
             raise DurableLifecycleError("lifecycle client database identity changed")
         timeout_ms = self._timeout_ms

@@ -1548,6 +1548,167 @@ PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS = _bounded_env_int(
         ]
     ),
 )
+
+# Production lifecycle controller.  This is a distinct write-capable process,
+# disabled by default, with a dedicated ClickHouse writer and server-enforced
+# read-only source identities.  The management command repeats every gate.
+_property_catalog_lifecycle_enabled_raw = (
+    os.getenv("PROPERTY_CATALOG_LIFECYCLE_ENABLED", "false").strip().lower()
+)
+if _property_catalog_lifecycle_enabled_raw not in {"true", "false"}:
+    raise ValueError("PROPERTY_CATALOG_LIFECYCLE_ENABLED must be exactly true or false")
+PROPERTY_CATALOG_LIFECYCLE_ENABLED = _property_catalog_lifecycle_enabled_raw == "true"
+_property_catalog_lifecycle_bootstrap_enabled_raw = (
+    os.getenv("PROPERTY_CATALOG_LIFECYCLE_BOOTSTRAP_ENABLED", "false").strip().lower()
+)
+if _property_catalog_lifecycle_bootstrap_enabled_raw not in {"true", "false"}:
+    raise ValueError(
+        "PROPERTY_CATALOG_LIFECYCLE_BOOTSTRAP_ENABLED must be exactly true or false"
+    )
+PROPERTY_CATALOG_LIFECYCLE_BOOTSTRAP_ENABLED = (
+    _property_catalog_lifecycle_bootstrap_enabled_raw == "true"
+)
+_property_catalog_lifecycle_repair_expired_raw = (
+    os.getenv(
+        "PROPERTY_CATALOG_LIFECYCLE_REPAIR_EXPIRED_INCOMPLETE",
+        "false",
+    )
+    .strip()
+    .lower()
+)
+if _property_catalog_lifecycle_repair_expired_raw not in {"true", "false"}:
+    raise ValueError(
+        "PROPERTY_CATALOG_LIFECYCLE_REPAIR_EXPIRED_INCOMPLETE must be exactly "
+        "true or false"
+    )
+PROPERTY_CATALOG_LIFECYCLE_REPAIR_EXPIRED_INCOMPLETE = (
+    _property_catalog_lifecycle_repair_expired_raw == "true"
+)
+PROPERTY_CATALOG_LIFECYCLE_ACK = os.getenv("PROPERTY_CATALOG_LIFECYCLE_ACK", "").strip()
+PROPERTY_CATALOG_LIFECYCLE_IDENTITY = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_IDENTITY", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_SOURCE_DATABASE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_SOURCE_DATABASE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_TARGET_DATABASE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_TARGET_DATABASE", "property_catalog"
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_HOST = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_HOST", ""
+).strip()
+_property_catalog_lifecycle_write_ch_port_raw = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_PORT", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_USER = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_USER", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_PASSWORD = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_PASSWORD", ""
+)
+PROPERTY_CATALOG_LIFECYCLE_EXPECTED_WRITE_CH_HOSTNAME = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_WRITE_CH_HOSTNAME", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_EXPECTED_SOURCE_CH_HOSTNAME = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_SOURCE_CH_HOSTNAME", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_DATABASE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_DATABASE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_USER = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_USER", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_ADDRESS = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_ADDRESS", ""
+).strip()
+_property_catalog_lifecycle_expected_pg_port_raw = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_PORT", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_CATALOG_EPOCH = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_CATALOG_EPOCH", 0, minimum=0, maximum=65_535
+)
+PROPERTY_CATALOG_LIFECYCLE_PROJECTION_VERSION = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_PROJECTION_VERSION",
+    0,
+    minimum=0,
+    maximum=65_535,
+)
+PROPERTY_CATALOG_LIFECYCLE_PRODUCER_STREAM_ID = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_PRODUCER_STREAM_ID", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_REVISION_FENCE_FILE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_REVISION_FENCE_FILE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_DRAIN_PROOF_FILE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_DRAIN_PROOF_FILE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_PRODUCER_RETIREMENT_FILE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_PRODUCER_RETIREMENT_FILE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_RUNTIME_DIRECTORY = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_RUNTIME_DIRECTORY", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_HEALTH_FILE = os.getenv(
+    "PROPERTY_CATALOG_LIFECYCLE_HEALTH_FILE", ""
+).strip()
+PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST = tuple(
+    sorted(
+        {
+            value.strip()
+            for value in os.getenv(
+                "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST", ""
+            ).split(",")
+            if value.strip()
+        }
+    )
+)
+PROPERTY_CATALOG_LIFECYCLE_POLL_SECONDS = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_POLL_SECONDS", 60, minimum=5, maximum=3_600
+)
+PROPERTY_CATALOG_LIFECYCLE_FAILURE_BACKOFF_SECONDS = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_FAILURE_BACKOFF_SECONDS",
+    30,
+    minimum=5,
+    maximum=3_600,
+)
+PROPERTY_CATALOG_LIFECYCLE_SPAN_WINDOW_DAYS = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_SPAN_WINDOW_DAYS", 366, minimum=1, maximum=366
+)
+PROPERTY_CATALOG_LIFECYCLE_MAX_WALL_MS = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_MAX_WALL_MS",
+    int(_runtime_numeric_settings["PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS"]),
+    minimum=100,
+    maximum=int(_runtime_numeric_settings["PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS"]),
+)
+PROPERTY_CATALOG_LIFECYCLE_SCHEDULED_RECONCILE_WALL_MS = _bounded_env_int(
+    "PROPERTY_CATALOG_LIFECYCLE_SCHEDULED_RECONCILE_WALL_MS",
+    int(
+        _runtime_numeric_settings["PROPERTY_CATALOG_RECONCILE_DEFAULT_EXTENDED_WALL_MS"]
+    ),
+    minimum=int(_runtime_numeric_settings["PROPERTY_CATALOG_DEV_STANDARD_MAX_WALL_MS"])
+    + 1,
+    maximum=int(
+        _runtime_numeric_settings[
+            "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_MAX_WALL_MS"
+        ]
+    ),
+)
+try:
+    PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_PORT = (
+        int(_property_catalog_lifecycle_write_ch_port_raw)
+        if _property_catalog_lifecycle_write_ch_port_raw
+        else 0
+    )
+except ValueError:
+    PROPERTY_CATALOG_LIFECYCLE_WRITE_CH_PORT = 0
+try:
+    PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_PORT = (
+        int(_property_catalog_lifecycle_expected_pg_port_raw)
+        if _property_catalog_lifecycle_expected_pg_port_raw
+        else 0
+    )
+except ValueError:
+    PROPERTY_CATALOG_LIFECYCLE_EXPECTED_PG_SERVER_PORT = 0
 del _runtime_numeric_settings
 PROPERTY_CATALOG_READ_DEPLOYMENT = validate_property_catalog_read_admission(
     read_mode=PROPERTY_CATALOG_READ_MODE,

@@ -41,6 +41,7 @@ PROPERTY_CATALOG_TABLES = frozenset(
     }
 )
 DEV_CATALOG_DATABASE_RE = re.compile(r"^property_catalog_dev_[a-z0-9][a-z0-9_]*$")
+PROD_CATALOG_DATABASE = "property_catalog"
 _ENVELOPE_WRITE_TABLES = frozenset(
     {
         "property_definition_catalog",
@@ -219,7 +220,7 @@ class ClickHouseEnvelopePublisher:
     wall_ms: int = RUNTIME_LIMITS.publisher_wall_ms
 
     def __post_init__(self) -> None:
-        require_dev_catalog_database(self.database)
+        require_catalog_database(self.database)
         if not 1 <= self.wall_ms <= RUNTIME_LIMITS.publisher_wall_ms:
             raise PropertyCatalogPublishError(
                 f"publisher wall must be in (0, {RUNTIME_LIMITS.publisher_wall_ms}] ms"
@@ -417,7 +418,7 @@ class ClickHouseEnvelopePublisher:
         return True
 
     def _validate_target(self) -> None:
-        require_dev_catalog_database(self.database)
+        require_catalog_database(self.database)
         if getattr(self.client, "catalog_database", None) != self.database:
             raise PropertyCatalogPublishError(
                 "publisher client database does not match the isolated DEV target"
@@ -590,7 +591,7 @@ class ClickHouseEnvelopePublisher:
 
 
 def _qualified(database: str, table: str) -> str:
-    require_dev_catalog_database(database)
+    require_catalog_database(database)
     if table not in PROPERTY_CATALOG_TABLES:
         raise PropertyCatalogPublishError("forbidden property catalog table")
     return f"`{database}`.`{table}`"
@@ -717,13 +718,34 @@ def require_dev_catalog_database(database: str) -> str:
     return database
 
 
+def require_prod_catalog_database(database: str) -> str:
+    """Return the one production catalog identifier or fail closed."""
+
+    if database != PROD_CATALOG_DATABASE:
+        raise PropertyCatalogPublishError(
+            f"production catalog database must be exactly {PROD_CATALOG_DATABASE!r}"
+        )
+    return database
+
+
+def require_catalog_database(database: str) -> str:
+    """Return an explicitly isolated DEV or production catalog identifier."""
+
+    if database == PROD_CATALOG_DATABASE:
+        return database
+    return require_dev_catalog_database(database)
+
+
 __all__ = [
     "PROPERTY_CATALOG_TABLES",
     "DEV_CATALOG_DATABASE_RE",
+    "PROD_CATALOG_DATABASE",
     "CatalogPublishClient",
     "CatalogWriteLease",
     "ClickHouseEnvelopePublisher",
     "PropertyCatalogPublishError",
     "SharedCatalogDeadline",
     "require_dev_catalog_database",
+    "require_prod_catalog_database",
+    "require_catalog_database",
 ]

@@ -45,7 +45,7 @@ from .proof_limits import (
 from .publisher import (
     PROPERTY_CATALOG_TABLES,
     SharedCatalogDeadline,
-    require_dev_catalog_database,
+    require_catalog_database,
 )
 from .qualification import CatalogCheckpoint, CheckpointStatus, RevisionRequirement
 from .reconciler import CheckpointWrite, CurrentBindingReader
@@ -1190,7 +1190,7 @@ class ClickHouseCurrentBindingReader(CurrentBindingReader):
 
 def _validate_client(client: CatalogStateClient, database: str) -> None:
     try:
-        require_dev_catalog_database(database)
+        require_catalog_database(database)
     except ValueError as exc:
         raise ValueError(
             "control-plane access requires an isolated DEV catalog database"
@@ -1205,7 +1205,7 @@ def _validate_client(client: CatalogStateClient, database: str) -> None:
 
 def _qualified(database: str, table: str) -> str:
     try:
-        require_dev_catalog_database(database)
+        require_catalog_database(database)
     except RuntimeError as exc:
         raise PropertyCatalogStateError("invalid DEV catalog database") from exc
     if table not in PROPERTY_CATALOG_TABLES:

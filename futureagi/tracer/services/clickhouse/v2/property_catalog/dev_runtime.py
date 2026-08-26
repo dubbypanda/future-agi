@@ -84,13 +84,20 @@ from .producer_retirement import (
     AtomicProducerStateRetirementFile,
     ProducerStateRetirement,
 )
+from .production_rollout import (
+    PRODUCTION_CLOUD_DEPLOYMENTS,
+    PRODUCTION_ENVIRONMENT,
+    ProductionRolloutRequest,
+)
 from .projection import PostgresReadBudget, PostgresSnapshotContext
 from .publisher import (
     PROPERTY_CATALOG_TABLES,
     CatalogWriteLease,
     ClickHouseEnvelopePublisher,
     SharedCatalogDeadline,
+    require_catalog_database,
     require_dev_catalog_database,
+    require_prod_catalog_database,
 )
 from .qualification import (
     CatalogCheckpoint,
@@ -156,6 +163,10 @@ DEV_SIDECAR_ACK = "PROPERTY_CATALOG_PYTHON_GO_SIDECAR_V1"
 CHECKED_IN_DEV_RUNTIME_FACTORY_PATH = (
     "tracer.services.clickhouse.v2.property_catalog.dev_runtime."
     "configured_property_catalog_dev_runtime"
+)
+CHECKED_IN_PRODUCTION_RUNTIME_FACTORY_PATH = (
+    "tracer.services.clickhouse.v2.property_catalog.dev_runtime."
+    "configured_property_catalog_production_runtime"
 )
 _DRAIN_PROOF_FILENAME = "producer-drain-proof-v2.json"
 _MAX_DRAIN_PROOF_BYTES = RUNTIME_LIMITS.drain_proof_max_bytes
@@ -821,6 +832,7 @@ class DevRuntimeConfig:
     span_until: datetime
     sidecar_acknowledgement: str
     provenance_expectation: DevProvenanceExpectation
+    deployment: str = "dev"
     span_page_rows: int = DEV_CANONICAL_SPAN_PAGE_ROWS
     rollout_wall_ms: int = DEV_STANDARD_MAX_WALL_MS
     catalog_control_database: str = "default"
@@ -847,7 +859,14 @@ class DevRuntimeConfig:
     def __post_init__(self) -> None:
         if not isinstance(self.provenance_expectation, DevProvenanceExpectation):
             raise TypeError("provenance_expectation must be DevProvenanceExpectation")
-        require_dev_catalog_database(self.catalog.database)
+        if self.deployment == "dev":
+            require_dev_catalog_database(self.catalog.database)
+        elif self.deployment == "prod":
+            require_prod_catalog_database(self.catalog.database)
+        else:
+            raise PropertyCatalogDevRuntimeError(
+                "catalog runtime deployment must be dev or prod"
+            )
         if self.catalog.server_enforced_readonly:
             raise PropertyCatalogDevRuntimeError(
                 "catalog writes require an explicitly write-capable identity"
@@ -1016,30 +1035,43 @@ class DevRuntimeConfig:
         """Load only explicit DEV writer settings plus the CH25 source route."""
 
         if not isinstance(request, DevRolloutRequest):
-            raise TypeError("request must be a DevRolloutRequest")
+            raise TypeError("request must satisfy the checked-in rollout contract")
+        production = isinstance(request, ProductionRolloutRequest)
         environment = str(getattr(settings_object, "ENV_TYPE", "")).strip().lower()
         cloud_deployment = str(getattr(settings_object, "CLOUD_DEPLOYMENT", "")).strip()
-        if environment not in DEV_CONTROL_PLANE_ENVIRONMENTS:
-            raise PropertyCatalogDevRuntimeError(
-                "runtime refuses non-DEV ENV_TYPE before constructing a client"
-            )
-        if not is_dev_control_plane_cloud_allowed(
-            environment=environment,
-            cloud_deployment=cloud_deployment,
-        ):
-            raise PropertyCatalogDevRuntimeError(
-                "runtime requires CLOUD_DEPLOYMENT=DEV, or an unset "
-                "CLOUD_DEPLOYMENT only when ENV_TYPE=development"
-            )
-        if not dev_control_plane_matches_request(
-            environment=environment,
-            cloud_deployment=cloud_deployment,
-            request_environment=request.environment,
-            request_cloud_deployment=request.cloud_deployment,
-        ):
-            raise PropertyCatalogDevRuntimeError(
-                "runtime ENV_TYPE/CLOUD_DEPLOYMENT differs from the validated request"
-            )
+        if production:
+            if (
+                environment not in {"prod", PRODUCTION_ENVIRONMENT}
+                or cloud_deployment not in PRODUCTION_CLOUD_DEPLOYMENTS
+                or request.environment != PRODUCTION_ENVIRONMENT
+                or request.cloud_deployment != cloud_deployment
+            ):
+                raise PropertyCatalogDevRuntimeError(
+                    "production runtime ENV_TYPE/CLOUD_DEPLOYMENT differs from the "
+                    "validated production request"
+                )
+        else:
+            if environment not in DEV_CONTROL_PLANE_ENVIRONMENTS:
+                raise PropertyCatalogDevRuntimeError(
+                    "runtime refuses non-DEV ENV_TYPE before constructing a client"
+                )
+            if not is_dev_control_plane_cloud_allowed(
+                environment=environment,
+                cloud_deployment=cloud_deployment,
+            ):
+                raise PropertyCatalogDevRuntimeError(
+                    "runtime requires CLOUD_DEPLOYMENT=DEV, or an unset "
+                    "CLOUD_DEPLOYMENT only when ENV_TYPE=development"
+                )
+            if not dev_control_plane_matches_request(
+                environment=environment,
+                cloud_deployment=cloud_deployment,
+                request_environment=request.environment,
+                request_cloud_deployment=request.cloud_deployment,
+            ):
+                raise PropertyCatalogDevRuntimeError(
+                    "runtime ENV_TYPE/CLOUD_DEPLOYMENT differs from the validated request"
+                )
         legacy = _mapping_setting(settings_object, "CLICKHOUSE")
         v2 = _mapping_setting(settings_object, "CLICKHOUSE_V2")
 
@@ -1132,6 +1164,7 @@ class DevRuntimeConfig:
         return cls(
             catalog=catalog,
             source=source,
+            deployment="prod" if production else "dev",
             catalog_epoch=_strict_positive_int_setting(
                 settings_object,
                 "PROPERTY_CATALOG_DEV_CATALOG_EPOCH",
@@ -1728,7 +1761,7 @@ class NativeCatalogClient:
     """Qualified six-table writer/reader over one dedicated native client."""
 
     def __init__(self, driver: NativeClickHouseDriver, *, database: str) -> None:
-        self.catalog_database = require_dev_catalog_database(database)
+        self.catalog_database = require_catalog_database(database)
         self._driver = driver
         self._validate_identity()
 
@@ -1819,7 +1852,7 @@ class NativeCatalogClient:
         )
 
     def _validate_identity(self) -> None:
-        require_dev_catalog_database(self.catalog_database)
+        require_catalog_database(self.catalog_database)
         if getattr(self._driver, "database", None) != self.catalog_database:
             raise PropertyCatalogDevRuntimeError(
                 "native catalog client identity changed databases"
@@ -1844,7 +1877,7 @@ class NativeSourceClient:
         if _IDENTIFIER_RE.fullmatch(source_database) is None:
             raise PropertyCatalogDevRuntimeError("source database is invalid")
         self.source_database = source_database
-        self._catalog_database = require_dev_catalog_database(catalog_database)
+        self._catalog_database = require_catalog_database(catalog_database)
         if source_database == catalog_database:
             raise PropertyCatalogDevRuntimeError(
                 "source and catalog databases must differ"
@@ -1918,8 +1951,14 @@ class NativeSchemaClient:
         target_database: str,
         control_database: str,
         client_for_database: Callable[[str], NativeClickHouseDriver],
+        deployment: str = "dev",
     ) -> None:
-        self._target_database = require_dev_catalog_database(target_database)
+        if deployment not in {"dev", "prod"}:
+            raise PropertyCatalogDevRuntimeError(
+                "schema client deployment must be dev or prod"
+            )
+        self._target_database = require_catalog_database(target_database)
+        self._deployment = deployment
         if (
             _IDENTIFIER_RE.fullmatch(control_database) is None
             or control_database == target_database
@@ -1946,6 +1985,10 @@ class NativeSchemaClient:
         return rows
 
     def command(self, sql: str, *, database: str | None = None) -> None:
+        if self._deployment == "prod":
+            raise PropertyCatalogDevRuntimeError(
+                "production lifecycle schema client is verify-only"
+            )
         selected = self._selected_database(database)
         normalized = " ".join(sql.strip().rstrip(";").split())
         if database is None:
@@ -2001,6 +2044,31 @@ def verify_dev_catalog_schema(
         catalog_dev_schema.verify_catalog_dev_schema(
             client,
             target_database=target_database,
+        )
+    )
+
+
+def verify_runtime_catalog_schema(
+    client: catalog_dev_schema.CatalogDevClickHouseClient,
+    *,
+    target_database: str,
+    deployment: str,
+) -> Mapping[str, Any]:
+    """Read-only schema proof for an admitted DEV or production runtime."""
+
+    if deployment == "dev":
+        require_dev_catalog_database(target_database)
+    elif deployment == "prod":
+        require_prod_catalog_database(target_database)
+    else:
+        raise PropertyCatalogDevRuntimeError(
+            "catalog schema deployment must be dev or prod"
+        )
+    return _schema_evidence(
+        catalog_dev_schema.verify_catalog_schema(
+            client,
+            target_database=target_database,
+            deployment=deployment,
         )
     )
 
@@ -2250,9 +2318,10 @@ class CheckedInPropertyCatalogDevRuntime:
         schema_ready = False
         schema_issue: str | None = None
         try:
-            schema = verify_dev_catalog_schema(
+            schema = verify_runtime_catalog_schema(
                 self.schema_client,
                 target_database=request.target_database,
+                deployment=self.config.deployment,
             )
             target_tables = _status_target_tables(schema)
             schema_ready = True
@@ -2317,9 +2386,10 @@ class CheckedInPropertyCatalogDevRuntime:
             )
         self._refresh_project_tenant_authorization()
         return _evidence_with_provenance(
-            verify_dev_catalog_schema(
+            verify_runtime_catalog_schema(
                 self.schema_client,
                 target_database=request.target_database,
+                deployment=self.config.deployment,
             ),
             self.provenance,
         )
@@ -2327,13 +2397,19 @@ class CheckedInPropertyCatalogDevRuntime:
     def apply_schema(self, request: DevRolloutRequest) -> Mapping[str, Any]:
         self._validate_mutation_request(request, "apply_schema")
         self._refresh_project_tenant_authorization()
-        return _evidence_with_provenance(
+        schema = (
             ensure_dev_catalog_schema(
                 self.schema_client,
                 target_database=request.target_database,
-            ),
-            self.provenance,
+            )
+            if self.config.deployment == "dev"
+            else verify_runtime_catalog_schema(
+                self.schema_client,
+                target_database=request.target_database,
+                deployment="prod",
+            )
         )
+        return _evidence_with_provenance(schema, self.provenance)
 
     def backfill(self, request: DevRolloutRequest) -> Mapping[str, Any]:
         self._validate_mutation_request(request, "backfill")
@@ -3633,6 +3709,16 @@ class PropertyCatalogDevRuntimeFactory:
             self._settings,
             now=self._now(),
         )
+        return self._build_runtime(request=request, config=config)
+
+    def _build_runtime(
+        self,
+        *,
+        request: DevRolloutRequest,
+        config: DevRuntimeConfig,
+    ) -> CheckedInPropertyCatalogDevRuntime:
+        """Construct the one reviewed runtime after deployment-specific admission."""
+
         drivers: dict[str, NativeClickHouseDriver] = {}
         owned_drivers: list[NativeClickHouseDriver] = []
 
@@ -3684,6 +3770,7 @@ class PropertyCatalogDevRuntimeFactory:
                 target_database=config.catalog.database,
                 control_database=config.catalog_control_database,
                 client_for_database=write_driver,
+                deployment=config.deployment,
             )
             catalog_client = NativeCatalogClient(
                 target_driver,
@@ -3784,12 +3871,78 @@ class PropertyCatalogDevRuntimeFactory:
             raise
 
 
+class PropertyCatalogProductionRuntimeFactory(PropertyCatalogDevRuntimeFactory):
+    """Production admission over the same reviewed lifecycle implementation."""
+
+    def __init__(
+        self,
+        *,
+        settings_object: Any | None = None,
+        native_client_factory: NativeClientFactory | None = None,
+        serializer_factory: SerializerFactory = FileCatalogMutationSerializer,
+        fence_sink_factory: Callable[[str], Any] | None = None,
+        hot_proof_source_factory: HotProofSourceFactory | None = None,
+        producer_retirement_sink_factory: ProducerRetirementSinkFactory = (
+            AtomicProducerStateRetirementFile
+        ),
+        provenance_probe: DevProvenanceProbe | None = None,
+        project_tenant_binding_probe: ProjectTenantBindingProbe | None = None,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        new_build_token: Callable[[], str] = lambda: str(uuid.uuid4()),
+    ) -> None:
+        if fence_sink_factory is None:
+            from .revision_fence_registry import AtomicMultiTenantFenceFile
+
+            fence_sink_factory = AtomicMultiTenantFenceFile
+        super().__init__(
+            settings_object=settings_object,
+            native_client_factory=native_client_factory,
+            serializer_factory=serializer_factory,
+            fence_sink_factory=fence_sink_factory,
+            hot_proof_source_factory=hot_proof_source_factory,
+            producer_retirement_sink_factory=producer_retirement_sink_factory,
+            provenance_probe=provenance_probe,
+            project_tenant_binding_probe=project_tenant_binding_probe,
+            now=now,
+            new_build_token=new_build_token,
+        )
+
+    def __call__(
+        self,
+        request: DevRolloutRequest,
+    ) -> CheckedInPropertyCatalogDevRuntime:
+        if not isinstance(request, ProductionRolloutRequest):
+            raise TypeError("request must be a ProductionRolloutRequest")
+        if not request.execute and not request.status:
+            raise PropertyCatalogDevRuntimeError(
+                "dry-run must not construct a checked-in runtime"
+            )
+        config = DevRuntimeConfig.from_settings(
+            request,
+            self._settings,
+            now=self._now(),
+        )
+        if config.deployment != "prod":
+            raise PropertyCatalogDevRuntimeError(
+                "production factory did not resolve a production runtime"
+            )
+        return self._build_runtime(request=request, config=config)
+
+
 def configured_property_catalog_dev_runtime(
     request: DevRolloutRequest,
 ) -> CheckedInPropertyCatalogDevRuntime:
     """Default dotted-path entrypoint for the reviewed checked-in factory."""
 
     return PropertyCatalogDevRuntimeFactory()(request)
+
+
+def configured_property_catalog_production_runtime(
+    request: ProductionRolloutRequest,
+) -> CheckedInPropertyCatalogDevRuntime:
+    """Default dotted-path entrypoint for the reviewed production factory."""
+
+    return PropertyCatalogProductionRuntimeFactory()(request)
 
 
 def require_checked_in_property_catalog_dev_runtime(
@@ -3804,6 +3957,25 @@ def require_checked_in_property_catalog_dev_runtime(
     ):
         raise PropertyCatalogDevRuntimeError(
             "configured runtime did not return the reviewed checked-in DEV runtime"
+        )
+    return runtime
+
+
+def require_checked_in_property_catalog_production_runtime(
+    runtime: Any,
+) -> CheckedInPropertyCatalogDevRuntime:
+    """Reject a production factory result that crossed a DEV/runtime boundary."""
+
+    if (
+        not isinstance(runtime, CheckedInPropertyCatalogDevRuntime)
+        or runtime._factory_authority is not _RUNTIME_FACTORY_AUTHORITY
+        or not runtime._scope_locked
+        or not isinstance(runtime.bound_request, ProductionRolloutRequest)
+        or runtime.config.deployment != "prod"
+        or runtime.config.catalog.database != "property_catalog"
+    ):
+        raise PropertyCatalogDevRuntimeError(
+            "configured runtime did not return the reviewed production runtime"
         )
     return runtime
 
@@ -4089,7 +4261,7 @@ def _active_value_inventory_sql(database: str) -> str:
     match the manifest being activated.
     """
 
-    require_dev_catalog_database(database)
+    require_catalog_database(database)
     return f"""
 WITH activation_versioned AS
 (
@@ -4536,6 +4708,7 @@ def _nonnegative_int(value: Any, name: str) -> int:
 __all__ = [
     "CheckedInPropertyCatalogDevRuntime",
     "CHECKED_IN_DEV_RUNTIME_FACTORY_PATH",
+    "CHECKED_IN_PRODUCTION_RUNTIME_FACTORY_PATH",
     "ClickHouseDevIdentity",
     "DEV_SIDECAR_ACK",
     "DevProvenanceEvidence",
@@ -4555,10 +4728,14 @@ __all__ = [
     "ProjectTenantBindingProbe",
     "PropertyCatalogDevRuntimeError",
     "PropertyCatalogDevRuntimeFactory",
+    "PropertyCatalogProductionRuntimeFactory",
     "PropertyCatalogHotDrainHandshakeUnavailable",
     "SharedVolumeHotDrainProofSource",
     "configured_property_catalog_dev_runtime",
+    "configured_property_catalog_production_runtime",
     "ensure_dev_catalog_schema",
     "require_checked_in_property_catalog_dev_runtime",
+    "require_checked_in_property_catalog_production_runtime",
     "verify_dev_catalog_schema",
+    "verify_runtime_catalog_schema",
 ]

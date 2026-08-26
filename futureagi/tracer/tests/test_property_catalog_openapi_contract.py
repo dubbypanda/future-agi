@@ -69,6 +69,8 @@ def test_unified_property_value_openapi_has_no_phantom_paginator() -> None:
         "datasets",
         "dataset_column",
         "simulation",
+        "both",
+        "all",
     } == set(value_params["source"]["enum"])
     result = swagger["definitions"]["DashboardFilterValuesResult"]["properties"]
     assert {
