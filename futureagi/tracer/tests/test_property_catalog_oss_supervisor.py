@@ -297,15 +297,22 @@ def test_workspace_routes_status_before_initial_or_incremental(
         calls.append(("request", value))
         return value
 
+    class Runtime:
+        def __init__(self, request: str) -> None:
+            self.request = request
+
+        def close(self) -> None:
+            calls.append(("close", self.request))
+
     monkeypatch.setattr(subject, "_rollout_request", request)
     monkeypatch.setattr(
         subject,
         "_runtime",
-        lambda *, request, **_kwargs: f"runtime:{request}",
+        lambda *, request, **_kwargs: Runtime(request),
     )
 
-    def configured(*, request: str, runtime: str) -> Any:
-        calls.append(("configured", (request, runtime)))
+    def configured(*, request: str, runtime: Runtime) -> Any:
+        calls.append(("configured", (request, runtime.request)))
         return status_result if request == "status-request" else SimpleNamespace()
 
     monkeypatch.setattr(subject, "run_configured_dev_rollout", configured)
@@ -325,20 +332,29 @@ def test_workspace_routes_status_before_initial_or_incremental(
 
     assert calls[0] == ("request", "status-request")
     assert calls[1][0] == "configured"
+    assert ("close", "status-request") in calls
     if active:
         assert any(call[0] == "incremental" for call in calls)
+        assert ("close", "incremental-request") in calls
         assert not any(call == ("request", "initial-request") for call in calls)
     else:
         assert ("request", "initial-request") in calls
+        assert ("close", "initial-request") in calls
         assert not any(call[0] == "incremental" for call in calls)
 
 
 def test_workspace_refuses_initial_rollout_when_schema_is_not_prepared(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    closed: list[str] = []
+
+    class Runtime:
+        def close(self) -> None:
+            closed.append("status")
+
     monkeypatch.setattr(subject, "_workspace_settings_proxy", lambda **_kwargs: "proxy")
     monkeypatch.setattr(subject, "_rollout_request", lambda **_kwargs: "status")
-    monkeypatch.setattr(subject, "_runtime", lambda **_kwargs: "runtime")
+    monkeypatch.setattr(subject, "_runtime", lambda **_kwargs: Runtime())
     monkeypatch.setattr(
         subject,
         "run_configured_dev_rollout",
@@ -357,6 +373,7 @@ def test_workspace_refuses_initial_rollout_when_schema_is_not_prepared(
             observation=SimpleNamespace(),  # type: ignore[arg-type]
             now=datetime(2026, 8, 26, 12, tzinfo=UTC),
         )
+    assert closed == ["status"]
 
 
 def test_workspace_settings_are_isolated_and_hour_bounded() -> None:

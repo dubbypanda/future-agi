@@ -11,7 +11,8 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
@@ -420,15 +421,15 @@ def _run_workspace(
         now=now,
     )
     status_request = _rollout_request(scope=scope, proxy=proxy, status=True)
-    status_runtime = _runtime(
+    with _managed_runtime(
         request=status_request,
         proxy=proxy,
         scope=scope,
-    )
-    status_result = run_configured_dev_rollout(
-        request=status_request,
-        runtime=status_runtime,
-    )
+    ) as status_runtime:
+        status_result = run_configured_dev_rollout(
+            request=status_request,
+            runtime=status_runtime,
+        )
     status_evidence = dict(status_result.evidence[0].evidence)
     if status_evidence.get("schema_ready") is not True:
         raise OssPropertyCatalogSupervisorError(
@@ -441,17 +442,33 @@ def _run_workspace(
             proxy=proxy,
             scheduled_reconcile_wall_ms=config.scheduled_reconcile_wall_ms,
         )
-        runtime = _runtime(request=request, proxy=proxy, scope=scope)
-        run_workspace_reconcile(
-            request=request,
-            runtime=runtime,
-            mode=ReconcileMode.INCREMENTAL,
-        )
+        with _managed_runtime(request=request, proxy=proxy, scope=scope) as runtime:
+            run_workspace_reconcile(
+                request=request,
+                runtime=runtime,
+                mode=ReconcileMode.INCREMENTAL,
+            )
         return
 
     request = _rollout_request(scope=scope, proxy=proxy)
+    with _managed_runtime(request=request, proxy=proxy, scope=scope) as runtime:
+        run_configured_dev_rollout(request=request, runtime=runtime)
+
+
+@contextmanager
+def _managed_runtime(
+    *,
+    request: DevRolloutRequest,
+    proxy: _SettingsProxy,
+    scope: WorkspaceScope,
+) -> Iterator[Any]:
     runtime = _runtime(request=request, proxy=proxy, scope=scope)
-    run_configured_dev_rollout(request=request, runtime=runtime)
+    try:
+        yield runtime
+    finally:
+        close = getattr(runtime, "close", None)
+        if callable(close):
+            close()
 
 
 def _runtime(

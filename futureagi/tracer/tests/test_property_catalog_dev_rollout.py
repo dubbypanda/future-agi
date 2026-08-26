@@ -809,10 +809,15 @@ def test_factory_rejects_provenance_before_target_client_or_runtime_stage(
         classmethod(lambda cls, *args, **kwargs: config),
     )
     constructed: list[str] = []
+    closed: list[str] = []
 
-    def native_client(connection: NativeConnectionConfig) -> SimpleNamespace:
+    class Driver(SimpleNamespace):
+        def close(self) -> None:
+            closed.append(self.database)
+
+    def native_client(connection: NativeConnectionConfig) -> Driver:
         constructed.append(connection.database)
-        return SimpleNamespace(
+        return Driver(
             database=connection.database,
             server_enforced_readonly=connection.server_enforced_readonly,
         )
@@ -839,6 +844,38 @@ def test_factory_rejects_provenance_before_target_client_or_runtime_stage(
     ):
         factory(_request(status=True))
     assert constructed == ["default", "source_ch25"]
+    assert set(closed) == {"default", "source_ch25"}
+
+
+def test_factory_runtime_closes_owned_native_clients_once(tmp_path: Any) -> None:
+    clients: list[Any] = []
+
+    class Driver:
+        def __init__(self, config: NativeConnectionConfig) -> None:
+            self.database = config.database
+            self.server_enforced_readonly = config.server_enforced_readonly
+            self.close_calls = 0
+            clients.append(self)
+
+        def close(self) -> None:
+            self.close_calls += 1
+
+    runtime = PropertyCatalogDevRuntimeFactory(
+        settings_object=_runtime_settings(str(tmp_path)),
+        native_client_factory=Driver,  # type: ignore[arg-type]
+        provenance_probe=lambda *_args: _provenance_observation(),
+        project_tenant_binding_probe=(
+            lambda project_ids, _identity: _project_bindings(project_ids)
+        ),
+        now=lambda: ATTESTED_AT,
+    )(_request(status=True))
+
+    assert len(clients) == 3
+    runtime.close()
+    runtime.close()
+
+    assert [client.close_calls for client in clients] == [1, 1, 1]
+    assert runtime._native_drivers == ()
 
 
 @pytest.mark.parametrize(

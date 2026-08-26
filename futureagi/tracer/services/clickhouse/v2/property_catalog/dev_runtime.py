@@ -421,6 +421,34 @@ class NativeClickHouseDriver(Protocol):
     ) -> Any: ...
 
 
+def _close_native_drivers(
+    drivers: Sequence[NativeClickHouseDriver],
+    *,
+    raise_on_error: bool,
+) -> None:
+    """Close every distinct native client once, including partial factories."""
+
+    first_error: Exception | None = None
+    seen: set[int] = set()
+    for driver in reversed(drivers):
+        identity = id(driver)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        close = getattr(driver, "close", None)
+        if not callable(close):
+            continue
+        try:
+            close()
+        except Exception as exc:  # pragma: no cover - defensive client boundary
+            if first_error is None:
+                first_error = exc
+    if first_error is not None and raise_on_error:
+        raise PropertyCatalogDevRuntimeError(
+            "failed to close one or more native ClickHouse clients"
+        ) from first_error
+
+
 @dataclass(frozen=True, slots=True)
 class NativeConnectionConfig:
     host: str
@@ -2171,6 +2199,10 @@ class CheckedInPropertyCatalogDevRuntime:
         default=None,
         repr=False,
     )
+    _native_drivers: tuple[NativeClickHouseDriver, ...] = field(
+        default=(),
+        repr=False,
+    )
     _scope_locked: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -2199,6 +2231,13 @@ class CheckedInPropertyCatalogDevRuntime:
         ):
             raise AttributeError(f"runtime scope field {name} is immutable")
         object.__setattr__(self, name, value)
+
+    def close(self) -> None:
+        """Release factory-owned native clients; safe to call more than once."""
+
+        drivers = self._native_drivers
+        object.__setattr__(self, "_native_drivers", ())
+        _close_native_drivers(drivers, raise_on_error=True)
 
     def status(self, request: DevRolloutRequest) -> Mapping[str, Any]:
         self._validate_request(request)
@@ -3595,6 +3634,7 @@ class PropertyCatalogDevRuntimeFactory:
             now=self._now(),
         )
         drivers: dict[str, NativeClickHouseDriver] = {}
+        owned_drivers: list[NativeClickHouseDriver] = []
 
         def write_driver(database: str) -> NativeClickHouseDriver:
             driver = drivers.get(database)
@@ -3603,132 +3643,145 @@ class PropertyCatalogDevRuntimeFactory:
                     replace(config.catalog, database=database)
                 )
                 drivers[database] = driver
+                owned_drivers.append(driver)
             return driver
 
-        writer_control_driver = write_driver(config.catalog_control_database)
-        source_driver = self._native_client_factory(config.source)
-        provenance = _validate_dev_provenance(
-            config=config,
-            observation=self._provenance_probe(
-                config,
-                writer_control_driver,
-                source_driver,
-            ),
-            attested_at=self._now(),
-        )
-        bindings = tuple(
-            self._project_tenant_binding_probe(
-                config.project_ids,
-                provenance.observation.postgres,
+        try:
+            writer_control_driver = write_driver(config.catalog_control_database)
+            source_driver = self._native_client_factory(config.source)
+            owned_drivers.append(source_driver)
+            provenance = _validate_dev_provenance(
+                config=config,
+                observation=self._provenance_probe(
+                    config,
+                    writer_control_driver,
+                    source_driver,
+                ),
+                attested_at=self._now(),
             )
-        )
-        authorization = _authorize_project_tenant_bindings(
-            request=request,
-            config=config,
-            observation=provenance.observation,
-            bindings=bindings,
-            authorized_at=self._now(),
-        )
-        provenance = replace(
-            provenance,
-            project_tenant_authorization=authorization,
-        )
-        # No target client, schema inspection, source snapshot, lease, hot
-        # assignment, or write is constructed until remote identity and every
-        # allowlisted project's canonical tenant pass attestation.
-        target_driver = write_driver(config.catalog.database)
-        schema_client = NativeSchemaClient(
-            target_database=config.catalog.database,
-            control_database=config.catalog_control_database,
-            client_for_database=write_driver,
-        )
-        catalog_client = NativeCatalogClient(
-            target_driver,
-            database=config.catalog.database,
-        )
-        source_client = NativeSourceClient(
-            source_driver,
-            source_database=config.source.database,
-            catalog_database=config.catalog.database,
-            explicit_initial_backfill=config.explicit_initial_backfill_wall,
-        )
-        serializer = self._serializer_factory(config.mutation_lock_directory)
-        deadline = SharedCatalogDeadline(wall_ms=config.rollout_wall_ms)
-        state_store = ClickHouseCatalogStateStore(
-            catalog_client,
-            database=config.catalog.database,
-            serializer=serializer,
-            deadline=deadline,
-        )
-        coordinator = ClickHouseRevisionCoordinator(
-            catalog_client,
-            database=config.catalog.database,
-            serializer=serializer,
-            producer_fence_sink=self._fence_sink_factory(config.revision_fence_file),
-            hot_producer_stream_id=config.hot_producer_stream_id,
-            deadline=deadline,
-            lease_seconds=(
-                (config.rollout_wall_ms + _MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS + 999)
-                // 1_000
-                if config.extended_rollout_wall
-                else REVISION_LEASE_SECONDS
-            ),
-            now=self._now,
-        )
-        span_reader = CanonicalSpanSourceReader(
-            source_client,
-            source_database=config.source.database,
-            catalog_database=config.catalog.database,
-            deadline=deadline,
-            timeout_ms=config.span_query_timeout_ms,
-            explicit_initial_backfill=config.explicit_initial_backfill_wall,
-            page_rows=config.span_page_rows,
-        )
-        lifecycle_state = ClickHouseLifecycleStateReader(
-            catalog_client,
-            database=config.catalog.database,
-            checkpoint_store=state_store,
-            deadline=deadline,
-        )
-        lifecycle = DurableWorkspaceCatalogLifecycle(
-            state_reader=lifecycle_state,
-            coordinator=coordinator,
-            cutoff_freezer=FreshSpanLifecycleCutoffFreezer(
-                span_reader,
+            bindings = tuple(
+                self._project_tenant_binding_probe(
+                    config.project_ids,
+                    provenance.observation.postgres,
+                )
+            )
+            authorization = _authorize_project_tenant_bindings(
+                request=request,
+                config=config,
+                observation=provenance.observation,
+                bindings=bindings,
+                authorized_at=self._now(),
+            )
+            provenance = replace(
+                provenance,
+                project_tenant_authorization=authorization,
+            )
+            # No target client, schema inspection, source snapshot, lease, hot
+            # assignment, or write is constructed until remote identity and every
+            # allowlisted project's canonical tenant pass attestation.
+            target_driver = write_driver(config.catalog.database)
+            schema_client = NativeSchemaClient(
+                target_database=config.catalog.database,
+                control_database=config.catalog_control_database,
+                client_for_database=write_driver,
+            )
+            catalog_client = NativeCatalogClient(
+                target_driver,
+                database=config.catalog.database,
+            )
+            source_client = NativeSourceClient(
+                source_driver,
+                source_database=config.source.database,
+                catalog_database=config.catalog.database,
+                explicit_initial_backfill=config.explicit_initial_backfill_wall,
+            )
+            serializer = self._serializer_factory(config.mutation_lock_directory)
+            deadline = SharedCatalogDeadline(wall_ms=config.rollout_wall_ms)
+            state_store = ClickHouseCatalogStateStore(
+                catalog_client,
+                database=config.catalog.database,
+                serializer=serializer,
+                deadline=deadline,
+            )
+            coordinator = ClickHouseRevisionCoordinator(
+                catalog_client,
+                database=config.catalog.database,
+                serializer=serializer,
+                producer_fence_sink=self._fence_sink_factory(
+                    config.revision_fence_file
+                ),
+                hot_producer_stream_id=config.hot_producer_stream_id,
+                deadline=deadline,
+                lease_seconds=(
+                    (
+                        config.rollout_wall_ms
+                        + _MIN_INITIAL_BACKFILL_LEASE_HEADROOM_MS
+                        + 999
+                    )
+                    // 1_000
+                    if config.extended_rollout_wall
+                    else REVISION_LEASE_SECONDS
+                ),
                 now=self._now,
-            ),
-            hot_producer_stream_id=config.hot_producer_stream_id,
-            now=self._now,
-            new_build_token=self._new_build_token,
-        )
-        hot_proof_source = self._hot_proof_source_factory(
-            config.drain_proof_file,
-            deadline,
-        )
-        producer_retirement_sink = self._producer_retirement_sink_factory(
-            config.producer_retirement_file
-        )
-        return CheckedInPropertyCatalogDevRuntime(
-            config=config,
-            bound_request=request,
-            provenance=provenance,
-            schema_client=schema_client,
-            catalog_client=catalog_client,
-            source_client=source_client,
-            serializer=serializer,
-            deadline=deadline,
-            state_store=state_store,
-            coordinator=coordinator,
-            lifecycle=lifecycle,
-            span_reader=span_reader,
-            hot_proof_source=hot_proof_source,
-            now=self._now,
-            new_build_token=self._new_build_token,
-            project_tenant_binding_probe=self._project_tenant_binding_probe,
-            _factory_authority=_RUNTIME_FACTORY_AUTHORITY,
-            lifecycle_state=lifecycle_state,
-            producer_retirement_sink=producer_retirement_sink,
-        )
+            )
+            span_reader = CanonicalSpanSourceReader(
+                source_client,
+                source_database=config.source.database,
+                catalog_database=config.catalog.database,
+                deadline=deadline,
+                timeout_ms=config.span_query_timeout_ms,
+                explicit_initial_backfill=config.explicit_initial_backfill_wall,
+                page_rows=config.span_page_rows,
+            )
+            lifecycle_state = ClickHouseLifecycleStateReader(
+                catalog_client,
+                database=config.catalog.database,
+                checkpoint_store=state_store,
+                deadline=deadline,
+            )
+            lifecycle = DurableWorkspaceCatalogLifecycle(
+                state_reader=lifecycle_state,
+                coordinator=coordinator,
+                cutoff_freezer=FreshSpanLifecycleCutoffFreezer(
+                    span_reader,
+                    now=self._now,
+                ),
+                hot_producer_stream_id=config.hot_producer_stream_id,
+                now=self._now,
+                new_build_token=self._new_build_token,
+            )
+            hot_proof_source = self._hot_proof_source_factory(
+                config.drain_proof_file,
+                deadline,
+            )
+            producer_retirement_sink = self._producer_retirement_sink_factory(
+                config.producer_retirement_file
+            )
+            return CheckedInPropertyCatalogDevRuntime(
+                config=config,
+                bound_request=request,
+                provenance=provenance,
+                schema_client=schema_client,
+                catalog_client=catalog_client,
+                source_client=source_client,
+                serializer=serializer,
+                deadline=deadline,
+                state_store=state_store,
+                coordinator=coordinator,
+                lifecycle=lifecycle,
+                span_reader=span_reader,
+                hot_proof_source=hot_proof_source,
+                now=self._now,
+                new_build_token=self._new_build_token,
+                project_tenant_binding_probe=self._project_tenant_binding_probe,
+                _factory_authority=_RUNTIME_FACTORY_AUTHORITY,
+                lifecycle_state=lifecycle_state,
+                producer_retirement_sink=producer_retirement_sink,
+                _native_drivers=tuple(owned_drivers),
+            )
+        except BaseException:
+            _close_native_drivers(owned_drivers, raise_on_error=False)
+            raise
 
 
 def configured_property_catalog_dev_runtime(
