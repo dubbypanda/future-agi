@@ -74,11 +74,17 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           VERSION: ${{ needs.guard.outputs.version }}
         run: |
-          set -eu
+          set -euo pipefail
+          ee_sha="$(gh api repos/future-agi/ee/git/ref/heads/main --jq '.object.sha')"
+          if ! printf '%s' "$ee_sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Unable to resolve an immutable EE main commit"
+            exit 1
+          fi
           body_b64=$(GH_TOKEN='${{ secrets.GITHUB_TOKEN }}' gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${VERSION}" --jq '.body' | base64 | tr -d '\n')
           gh api -X POST repos/future-agi/ee/dispatches \
             -f event_type=platform-release \
             -F 'client_payload[version]'="${VERSION}" \
+            -F 'client_payload[ee_sha]'="${ee_sha}" \
             -F 'client_payload[release_url]'="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION}" \
             -F 'client_payload[release_body_b64]'="${body_b64}"
 

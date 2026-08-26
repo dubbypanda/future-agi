@@ -14464,6 +14464,8 @@ export interface AgentDefinitionListResponseApi {
   readonly contact_number?: string;
   /** Whether the agent handles inbound calls */
   readonly inbound?: boolean;
+  /** Whether the target agent speaks first (greets) in a hosted voice simulation. True: the simulator waits for the target's greeting; False: the simulator opens the conversation; null: derive from inbound/outbound. Retell targets always let the simulator open (SDK limitation). */
+  readonly target_speaks_first?: boolean;
   /**
      * Detailed description of the AI agent's purpose and capabilities
      * @minLength 1
@@ -14591,6 +14593,7 @@ export interface AgentDefinitionCreateRequestApi {
   /** @minLength 1 */
   commit_message: string;
   inbound?: boolean;
+  target_speaks_first?: boolean;
   description?: string;
   provider?: string;
   api_key?: string;
@@ -14612,7 +14615,10 @@ export interface AgentDefinitionCreateRequestApi {
   livekit_api_secret?: string;
   livekit_agent_name?: string;
   livekit_config_json?: AgentDefinitionCreateRequestApiLivekitConfigJson;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
   livekit_max_concurrency?: number;
 }
 
@@ -14732,6 +14738,8 @@ export interface AgentDefinitionResponseApi {
   readonly contact_number?: string;
   /** Whether the agent handles inbound calls */
   readonly inbound?: boolean;
+  /** Whether the target agent speaks first (greets) in a hosted voice simulation. True: the simulator waits for the target's greeting; False: the simulator opens the conversation; null: derive from inbound/outbound. Retell targets always let the simulator open (SDK limitation). */
+  readonly target_speaks_first?: boolean;
   /**
      * Detailed description of the AI agent's purpose and capabilities
      * @minLength 1
@@ -14828,6 +14836,7 @@ export interface AgentDefinitionEditRequestApi {
   languages?: string[];
   contact_number?: string;
   inbound?: boolean;
+  target_speaks_first?: boolean;
   knowledge_base?: string;
   model?: string;
   model_details?: AgentDefinitionEditRequestApiModelDetails;
@@ -14839,7 +14848,10 @@ export interface AgentDefinitionEditRequestApi {
   livekit_api_secret?: string;
   livekit_agent_name?: string;
   livekit_config_json?: AgentDefinitionEditRequestApiLivekitConfigJson;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
   livekit_max_concurrency?: number;
 }
 
@@ -14932,6 +14944,7 @@ export interface AgentVersionCreateRequestApi {
   languages?: string[];
   contact_number?: string;
   inbound?: boolean;
+  target_speaks_first?: boolean;
   knowledge_base?: string;
   model?: string;
   model_details?: AgentVersionCreateRequestApiModelDetails;
@@ -14944,7 +14957,10 @@ export interface AgentVersionCreateRequestApi {
   /** @maxLength 255 */
   livekit_agent_name?: string;
   livekit_config_json?: AgentVersionCreateRequestApiLivekitConfigJson;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
   livekit_max_concurrency?: number;
   commit_message?: string;
   observability_enabled?: boolean;
@@ -15424,6 +15440,8 @@ export interface AgentDefinitionApi {
   contact_number?: string;
   /** Whether the agent handles inbound calls */
   inbound: boolean;
+  /** Whether the target agent speaks first (greets) in a hosted voice simulation. True: the simulator waits for the target's greeting; False: the simulator opens the conversation; null: derive from inbound/outbound. Retell targets always let the simulator open (SDK limitation). */
+  target_speaks_first?: boolean;
   /**
      * Detailed description of the AI agent's purpose and capabilities
      * @minLength 1
@@ -15920,6 +15938,199 @@ export interface AgentPromptOptimiserTrialScenariosResultApi {
 export interface AgentPromptOptimiserTrialScenariosResponseApi {
   status?: boolean;
   result: AgentPromptOptimiserTrialScenariosResultApi;
+}
+
+export interface ALKSimulateRecordingUploadResultApi {
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  recording_url: string;
+  /** @minLength 1 */
+  object_key: string;
+}
+
+export interface ALKSimulateRecordingUploadResponseApi {
+  status?: boolean;
+  result: ALKSimulateRecordingUploadResultApi;
+}
+
+export type ALKSimulateResultApiStatus = typeof ALKSimulateResultApiStatus[keyof typeof ALKSimulateResultApiStatus];
+
+
+export const ALKSimulateResultApiStatus = {
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export type ALKSimulateResultApiProviderCallData = { [key: string]: unknown };
+
+export type ALKSimulateResultApiCallMetadata = { [key: string]: unknown };
+
+export type ALKSimulateTranscriptSegmentApiSpeakerRole = typeof ALKSimulateTranscriptSegmentApiSpeakerRole[keyof typeof ALKSimulateTranscriptSegmentApiSpeakerRole];
+
+
+export const ALKSimulateTranscriptSegmentApiSpeakerRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+  tool_calls: 'tool_calls',
+  tool_call_result: 'tool_call_result',
+  unknown: 'unknown',
+} as const;
+
+export type ALKSimulateTranscriptSegmentApiToolCalls = { [key: string]: unknown };
+
+export interface ALKSimulateTranscriptSegmentApi {
+  speaker_role: ALKSimulateTranscriptSegmentApiSpeakerRole;
+  content: string;
+  /** @minimum 0 */
+  start_time_ms?: number;
+  /** @minimum 0 */
+  end_time_ms?: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence_score?: number;
+  /** @minimum 0 */
+  latency_ms?: number;
+  tool_calls?: ALKSimulateTranscriptSegmentApiToolCalls;
+  /** @maxLength 255 */
+  tool_call_id?: string;
+}
+
+export interface ALKSimulateCostBreakdownApi {
+  stt_cost_cents?: number;
+  llm_cost_cents?: number;
+  tts_cost_cents?: number;
+  storage_cost_cents?: number;
+  cost_cents?: number;
+}
+
+export interface ALKSimulateResultApi {
+  status: ALKSimulateResultApiStatus;
+  started_at?: string;
+  ended_at?: string;
+  /** @minimum 0 */
+  duration_seconds?: number;
+  /** @maxLength 10000 */
+  ended_reason?: string;
+  error_message?: string;
+  call_summary?: string;
+  transcript?: ALKSimulateTranscriptSegmentApi[];
+  /** @maxLength 500 */
+  recording_url?: string;
+  /** @maxLength 500 */
+  stereo_recording_url?: string;
+  costs?: ALKSimulateCostBreakdownApi;
+  provider_call_data?: ALKSimulateResultApiProviderCallData;
+  call_metadata?: ALKSimulateResultApiCallMetadata;
+}
+
+export interface ALKSimulateResultOutcomeApi {
+  call_execution_id: string;
+  /** @minLength 1 */
+  status: string;
+  eval_dispatched: boolean;
+}
+
+export interface ALKSimulateResultResponseApi {
+  status?: boolean;
+  result: ALKSimulateResultOutcomeApi;
+}
+
+export type ALKSimulateStatusUpdateApiStatus = typeof ALKSimulateStatusUpdateApiStatus[keyof typeof ALKSimulateStatusUpdateApiStatus];
+
+
+export const ALKSimulateStatusUpdateApiStatus = {
+  ongoing: 'ongoing',
+} as const;
+
+export interface ALKSimulateStatusUpdateApi {
+  status: ALKSimulateStatusUpdateApiStatus;
+}
+
+export interface ALKSimulateStatusUpdateOutcomeApi {
+  updated: boolean;
+}
+
+export interface ALKSimulateStatusUpdateResponseApi {
+  status?: boolean;
+  result: ALKSimulateStatusUpdateOutcomeApi;
+}
+
+export type ALKSimulateProvisionPersonaApiPersona = { [key: string]: unknown };
+
+export interface ALKSimulateProvisionPersonaApi {
+  /** @maxLength 255 */
+  name?: string;
+  /** @maxLength 255 */
+  role?: string;
+  situation?: string;
+  outcome?: string;
+  persona?: ALKSimulateProvisionPersonaApiPersona;
+}
+
+export interface ALKSimulateProvisionRunTestRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  description?: string;
+  personas?: ALKSimulateProvisionPersonaApi[];
+  scenario_ids?: string[];
+  agent_definition_id?: string;
+  /** @maxLength 255 */
+  agent_name?: string;
+}
+
+export interface ALKSimulateProvisionResultApi {
+  run_test_id: string;
+  scenario_ids: string[];
+  agent_definition_id: string;
+}
+
+export interface ALKSimulateProvisionResponseApi {
+  status?: boolean;
+  result: ALKSimulateProvisionResultApi;
+}
+
+export interface ALKSimulateStartTestExecutionRequestApi {
+  scenario_ids?: string[];
+  simulator_agent_id?: string;
+}
+
+export interface ALKSimulateStartTestExecutionResultApi {
+  test_execution_id: string;
+  run_test_id: string;
+  scenario_ids: string[];
+  total_scenarios: number;
+  /** @minLength 1 */
+  status: string;
+}
+
+export interface ALKSimulateStartTestExecutionResponseApi {
+  status?: boolean;
+  result: ALKSimulateStartTestExecutionResultApi;
+}
+
+export interface ALKSimulateBatchCreateRequestApi {
+  /** @minimum 1 */
+  count?: number;
+}
+
+export interface ALKSimulateBatchCreateResultApi {
+  call_execution_ids: string[];
+  has_more: boolean;
+  batched_scenarios: string[];
+}
+
+export interface ALKSimulateBatchCreateResponseApi {
+  status?: boolean;
+  result: ALKSimulateBatchCreateResultApi;
 }
 
 export type CallExecutionErrorResponseApiType = typeof CallExecutionErrorResponseApiType[keyof typeof CallExecutionErrorResponseApiType];
@@ -17553,6 +17764,17 @@ export interface ExecutePromptSimulationResultApi {
 export interface ExecutePromptSimulationResponseApi {
   status?: boolean;
   result: ExecutePromptSimulationResultApi;
+}
+
+export interface RunTestListPaginatedResponseApi {
+  readonly count?: number;
+  /** @minLength 1 */
+  readonly next?: string;
+  /** @minLength 1 */
+  readonly previous?: string;
+  readonly results?: readonly RunTestResponseApi[];
+  readonly total_pages?: number;
+  readonly current_page?: number;
 }
 
 export type AllActiveTestsApiActiveTests = {[key: string]: string};
@@ -19833,6 +20055,25 @@ export interface ObserveDatasetApi {
   readonly user?: string;
 }
 
+/**
+ * Which time-window preset the user chose. The frontend resolves it to date_range at save time; this records the intent so a relative window can be re-anchored on the next save. Never read when building a query — date_range remains authoritative. Absent on tasks predating this field. The enum documents the accepted values; it is not enforced.
+ */
+export type EvalTaskApiFiltersDatePreset = typeof EvalTaskApiFiltersDatePreset[keyof typeof EvalTaskApiFiltersDatePreset];
+
+
+export const EvalTaskApiFiltersDatePreset = {
+  '30m': '30m',
+  '6h': '6h',
+  today: 'today',
+  yesterday: 'yesterday',
+  '7d': '7d',
+  '30d': '30d',
+  '3m': '3m',
+  '6m': '6m',
+  '12m': '12m',
+  custom: 'custom',
+} as const;
+
 export type EvalTaskApiFiltersFiltersItemFilterConfigAttributeValueTypesItem = typeof EvalTaskApiFiltersFiltersItemFilterConfigAttributeValueTypesItem[keyof typeof EvalTaskApiFiltersFiltersItemFilterConfigAttributeValueTypesItem];
 
 
@@ -19910,6 +20151,8 @@ export type EvalTaskApiFilters = {
      * @maxItems 2
      */
   date_range?: string[];
+  /** Which time-window preset the user chose. The frontend resolves it to date_range at save time; this records the intent so a relative window can be re-anchored on the next save. Never read when building a query — date_range remains authoritative. Absent on tasks predating this field. The enum documents the accepted values; it is not enforced. */
+  date_preset?: EvalTaskApiFiltersDatePreset;
   /** Exclusive lower-bound ISO timestamp for legacy task filters, normalized to UTC. */
   created_at?: string;
   /** Trace session id(s) to constrain the task. */
@@ -20219,6 +20462,25 @@ export interface EvalTaskMessageResponseApi {
   result: EvalTaskMessageResultApi;
 }
 
+/**
+ * Which time-window preset the user chose. The frontend resolves it to date_range at save time; this records the intent so a relative window can be re-anchored on the next save. Never read when building a query — date_range remains authoritative. Absent on tasks predating this field. The enum documents the accepted values; it is not enforced.
+ */
+export type EvalTaskUpdateRequestApiFiltersDatePreset = typeof EvalTaskUpdateRequestApiFiltersDatePreset[keyof typeof EvalTaskUpdateRequestApiFiltersDatePreset];
+
+
+export const EvalTaskUpdateRequestApiFiltersDatePreset = {
+  '30m': '30m',
+  '6h': '6h',
+  today: 'today',
+  yesterday: 'yesterday',
+  '7d': '7d',
+  '30d': '30d',
+  '3m': '3m',
+  '6m': '6m',
+  '12m': '12m',
+  custom: 'custom',
+} as const;
+
 export type EvalTaskUpdateRequestApiFiltersFiltersItemFilterConfigAttributeValueTypesItem = typeof EvalTaskUpdateRequestApiFiltersFiltersItemFilterConfigAttributeValueTypesItem[keyof typeof EvalTaskUpdateRequestApiFiltersFiltersItemFilterConfigAttributeValueTypesItem];
 
 
@@ -20296,6 +20558,8 @@ export type EvalTaskUpdateRequestApiFilters = {
      * @maxItems 2
      */
   date_range?: string[];
+  /** Which time-window preset the user chose. The frontend resolves it to date_range at save time; this records the intent so a relative window can be re-anchored on the next save. Never read when building a query — date_range remains authoritative. Absent on tasks predating this field. The enum documents the accepted values; it is not enforced. */
+  date_preset?: EvalTaskUpdateRequestApiFiltersDatePreset;
   /** Exclusive lower-bound ISO timestamp for legacy task filters, normalized to UTC. */
   created_at?: string;
   /** Trace session id(s) to constrain the task. */
@@ -23421,8 +23685,8 @@ export interface UserAlertMonitorApi {
   readonly metric_name?: string;
   readonly created_at?: string;
   readonly updated_at?: string;
-  deleted?: boolean;
-  deleted_at?: string;
+  readonly deleted?: boolean;
+  readonly deleted_at?: string;
   metric_type: UserAlertMonitorApiMetricType;
   /**
      * Id of the evaluation template.
@@ -23454,14 +23718,14 @@ export interface UserAlertMonitorApi {
      */
   auto_threshold_time_window?: number;
   /** The last time the monitor was checked for alerts. */
-  last_checked_at?: string;
+  readonly last_checked_at?: string;
   notification_emails?: string[];
   /** @maxLength 200 */
   slack_webhook_url?: string;
   slack_notes?: string;
   is_mute?: boolean;
   filters?: UserAlertMonitorApiFilters;
-  logs?: UserAlertMonitorApiLogsItem[];
+  readonly logs?: readonly UserAlertMonitorApiLogsItem[];
   organization: string;
   workspace?: string;
   created_by?: string;
@@ -23556,8 +23820,8 @@ export interface UserAlertMonitorPreviewGraphApi {
   readonly metric_name?: string;
   readonly created_at?: string;
   readonly updated_at?: string;
-  deleted?: boolean;
-  deleted_at?: string;
+  readonly deleted?: boolean;
+  readonly deleted_at?: string;
   metric_type: UserAlertMonitorPreviewGraphApiMetricType;
   /**
      * Id of the evaluation template.
@@ -23589,14 +23853,14 @@ export interface UserAlertMonitorPreviewGraphApi {
      */
   auto_threshold_time_window?: number;
   /** The last time the monitor was checked for alerts. */
-  last_checked_at?: string;
+  readonly last_checked_at?: string;
   notification_emails?: string[];
   /** @maxLength 200 */
   slack_webhook_url?: string;
   slack_notes?: string;
   is_mute?: boolean;
   filters?: UserAlertMonitorPreviewGraphApiFilters;
-  logs?: UserAlertMonitorPreviewGraphApiLogsItem[];
+  readonly logs?: readonly UserAlertMonitorPreviewGraphApiLogsItem[];
   organization: string;
   workspace?: string;
   created_by?: string;
@@ -27585,6 +27849,11 @@ export type SimulateApiAgentPromptOptimiserList200 = {
   next?: string;
   previous?: string;
   results: AgentPromptOptimiserRunListApi[];
+};
+
+export type SimulateApiAlkSimulateCallExecutionsRecordingUploadBody = {
+  file: Blob;
+  filename?: string;
 };
 
 export type SimulateApiCallExecutionsListParams = {

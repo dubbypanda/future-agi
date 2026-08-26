@@ -328,10 +328,34 @@ if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ] && [ "$SERVICE_TYPE" = "backend" ]; t
     collect_static
 fi
 
-if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then
-    echo "Mutation-free startup: skipping Temporal schedule registration"
-else
+should_register_temporal_schedules() {
+    if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then
+        return 1
+    fi
+
+    if [ "${REGISTER_TEMPORAL_SCHEDULES+x}" = "x" ]; then
+        register_temporal_schedules_value=$(printf '%s' "$REGISTER_TEMPORAL_SCHEDULES" | tr '[:upper:]' '[:lower:]')
+        case "$register_temporal_schedules_value" in
+            true|1|yes|y|on|t)
+                return 0
+                ;;
+            false|0|no|n|off|f)
+                return 1
+                ;;
+            *)
+                echo "WARNING: Unrecognized REGISTER_TEMPORAL_SCHEDULES value; registration disabled"
+                return 1
+                ;;
+        esac
+    fi
+
+    [ "$SERVICE_TYPE" = "backend" ]
+}
+
+if should_register_temporal_schedules; then
     python manage.py register_temporal_schedules || echo "WARNING: Temporal schedule registration failed (non-fatal), continuing startup..."
+else
+    echo "Temporal schedule registration disabled for service type: $SERVICE_TYPE"
 fi
 
 # Start the appropriate service based on SERVICE_TYPE
@@ -576,7 +600,7 @@ case "$SERVICE_TYPE" in
 
         if [ "$ENV_TYPE" = "prod" ] || [ "$ENV_TYPE" = "staging" ]; then
             # Production: run worker with graceful shutdown handling
-            ./bin/temporal-worker --task-queue "$TEMPORAL_TASK_QUEUE" $RESOURCE_TUNING_ARGS
+            exec ./bin/temporal-worker --task-queue "$TEMPORAL_TASK_QUEUE" $RESOURCE_TUNING_ARGS
         else
             # Build list of watch paths, skipping any that don't exist.
             # ``watchfiles`` exits immediately with a non-zero code if any
@@ -588,7 +612,7 @@ case "$SERVICE_TYPE" in
             for d in tfc accounts analytics model_hub sockets tracer usage utils simulate agent_playground; do
                 [ -d "./$d" ] && WATCH_PATHS+=("./$d")
             done
-            watchfiles --filter python \
+            exec watchfiles --filter python \
                 "python manage.py start_temporal_worker --task-queue $TEMPORAL_TASK_QUEUE $ALL_QUEUES_ARG $RESOURCE_TUNING_ARGS" \
                 "${WATCH_PATHS[@]}"
         fi

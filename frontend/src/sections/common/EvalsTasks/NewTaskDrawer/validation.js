@@ -7,6 +7,10 @@ import {
   LIST_OPS,
   NO_VALUE_OPS,
 } from "src/sections/common/EvalsTasks/common";
+import {
+  presetToRange,
+  presetToToken,
+} from "src/sections/projects/timeWindowPresets";
 
 const TASK_FILTER_PROPERTY_TO_API = {
   span_kind: "observation_type",
@@ -134,9 +138,15 @@ export const getNewTaskFilters = (data, projectId, ignoreDate = false) => {
   Object.assign(filters, extractSiblingFilters(data?.filters));
 
   if (data?.runType === "historical" && !ignoreDate) {
+    // A relative preset re-anchors to now on save; Custom is kept verbatim.
+    // Writing the key every save is also what migrates pre-existing tasks.
+    const preset = data?.datePreset || "Custom";
+    const range = presetToRange(preset);
+    const [start, end] = range || [data?.startDate, data?.endDate];
+    filters["date_preset"] = presetToToken(preset);
     filters["date_range"] = [
-      new Date(data?.startDate).toISOString(),
-      new Date(data?.endDate).toISOString(),
+      new Date(start).toISOString(),
+      new Date(end).toISOString(),
     ];
   }
 
@@ -167,6 +177,8 @@ export const NewTaskValidationSchema = () =>
         .transform((evals) => evals.map((e) => e.id)),
       startDate: z.string(),
       endDate: z.string(),
+      // Listed for the same reason as rowType below — zod strips unlisted keys.
+      datePreset: z.string().optional(),
       runType: z.enum(["historical", "continuous"], {
         message: "Run Type is required",
       }),
@@ -218,7 +230,13 @@ export const NewTaskValidationSchema = () =>
       const finalData = {
         name: data?.name,
         project: data?.project,
-        spansLimit: data?.spansLimit,
+        // The custom row-limit input yields a string; the API contract
+        // requires spans_limit as an integer, and strict request-contract
+        // validation aborts the POST on a string.
+        spansLimit:
+          data?.spansLimit != null && data?.spansLimit !== ""
+            ? Number(data.spansLimit)
+            : data?.spansLimit,
         samplingRate: data?.samplingRate,
         evals: data?.evalsDetails,
         runType: data?.runType,

@@ -411,10 +411,10 @@ const TaskConfigPanel = ({
         eval_template: tplId,
         name: evalConfig.name,
         model: evalConfig.model || null,
-        mapping: evalConfig.mapping || {},
+        mapping: serialized.mapping,
         config: {
           ...serialized.config,
-          mapping: evalConfig.mapping || {},
+          mapping: serialized.mapping,
         },
         error_localizer: !!evalConfig.errorLocalizerEnabled,
       };
@@ -435,7 +435,7 @@ const TaskConfigPanel = ({
               ...(evalConfig.config || {}),
               ...corePayload.config,
             },
-            mapping: evalConfig.mapping || {},
+            mapping: serialized.mapping,
           };
         } else {
           const { data: resp } = await axios.post(
@@ -451,7 +451,7 @@ const TaskConfigPanel = ({
               ...(evalConfig.config || {}),
               ...corePayload.config,
             },
-            mapping: evalConfig.mapping || {},
+            mapping: serialized.mapping,
           };
         }
       } catch (error) {

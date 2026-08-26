@@ -32,6 +32,7 @@ import {
 } from "./schema";
 import TaskConfirmDialog from "src/sections/common/EvalsTasks/EditTaskDrawer/TaskConfirmBox";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
+import CustomTooltip from "src/components/tooltip/CustomTooltip";
 
 const getTaskDetailsErrorMessage = (error) =>
   getSafeActionErrorMessage(error, "Task details could not be loaded.");
@@ -70,7 +71,7 @@ const TaskDetailPage = () => {
     RolePermission.OBSERVABILITY[PERMISSIONS.ADD_TASKS_ALERTS][role];
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("details");
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMode, setConfirmMode] = useState(null);
 
   // Test runner — imperative handle from the live preview
   const previewRef = useRef(null);
@@ -115,21 +116,26 @@ const TaskDetailPage = () => {
   // ── Mutations ──
   const { mutate: updateTask, isPending: isUpdating } = useMutation({
     meta: { errorHandled: true },
-    mutationFn: (data) =>
+    mutationFn: ({ payload }) =>
       axios.patch(endpoints.project.patchEvalTask(), {
-        ...data,
+        ...payload,
         eval_task_id: taskId,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, { mode }) => {
       queryClient.invalidateQueries({ queryKey: ["taskDetails", taskId] });
       queryClient.invalidateQueries({ queryKey: ["eval-tasks"] });
-      enqueueSnackbar("Task updated successfully", { variant: "success" });
+      enqueueSnackbar(
+        mode === "rerun" ? "Re-run started" : "Task updated successfully",
+        { variant: "success" },
+      );
     },
-    onError: (err) => {
+    onError: (err, { mode }) => {
       enqueueSnackbar(
         getSafeActionErrorMessage(
           err,
-          "Task could not be updated. Review the filters and try again.",
+          mode === "rerun"
+            ? "Failed to start the re-run"
+            : "Task could not be updated. Review the filters and try again.",
         ),
         { variant: "error" },
       );
@@ -203,12 +209,22 @@ const TaskDetailPage = () => {
     },
   });
 
-  // Transform form → update payload (same logic as EditTaskDrawerV2)
-  const handleSave = useCallback(() => {
-    handleSubmit(() => {
-      setConfirmOpen(true);
-    })();
-  }, [handleSubmit]);
+  // Re-run is reachable from the Logs tab, where an invalid field isn't
+  // rendered — a silent validation failure would read as a broken button.
+  const openConfirm = useCallback(
+    (mode) =>
+      handleSubmit(
+        () => setConfirmMode(mode),
+        () => {
+          setTab("details");
+          enqueueSnackbar(
+            "Fix the highlighted fields before running this task.",
+            { variant: "error" },
+          );
+        },
+      )(),
+    [handleSubmit],
+  );
 
   const handleConfirm = useCallback(
     (editType) => {
@@ -234,10 +250,10 @@ const TaskDetailPage = () => {
         spans_limit: data.spansLimit ? Number(data.spansLimit) : undefined,
         edit_type: editType,
       };
-      updateTask(transformedData);
-      setConfirmOpen(false);
+      updateTask({ payload: transformedData, mode: confirmMode });
+      setConfirmMode(null);
     },
-    [formValues, updateTask],
+    [formValues, updateTask, confirmMode],
   );
 
   if (isLoading) {
@@ -305,6 +321,13 @@ const TaskDetailPage = () => {
   const canResume = status === "paused";
   const linkedTraceSource = getLinkedTraceSource(taskDetails);
 
+  // A re-run mid-flight would race the live run.
+  const rerunBlockedReason = !canEditTask
+    ? "You don't have permission to run tasks."
+    : status === "running" || status === "pending"
+      ? "Wait for the current run to finish."
+      : "";
+
   // Pause/Resume stay in the header
   const headerActions = (
     <>
@@ -356,6 +379,30 @@ const TaskDetailPage = () => {
           Resume
         </Button>
       )}
+      <CustomTooltip
+        show={!!rerunBlockedReason}
+        title={rerunBlockedReason}
+        size="small"
+      >
+        <span>
+          <LoadingButton
+            variant="outlined"
+            size="small"
+            onClick={() => openConfirm("rerun")}
+            loading={isUpdating}
+            disabled={!!rerunBlockedReason}
+            startIcon={<Iconify icon="solar:restart-linear" width={14} />}
+            sx={{
+              textTransform: "none",
+              fontWeight: 500,
+              fontSize: "12px",
+              height: 30,
+            }}
+          >
+            Re-run
+          </LoadingButton>
+        </span>
+      </CustomTooltip>
     </>
   );
 
@@ -517,7 +564,7 @@ const TaskDetailPage = () => {
           <LoadingButton
             variant="contained"
             size="small"
-            onClick={handleSave}
+            onClick={() => openConfirm("save")}
             loading={isUpdating}
             disabled={!canEditTask}
             sx={{ textTransform: "none", fontWeight: 500, minWidth: 140 }}
@@ -528,10 +575,11 @@ const TaskDetailPage = () => {
       )}
 
       <TaskConfirmDialog
-        title="Update Task"
+        title={confirmMode === "rerun" ? "Re-run Task" : "Update Task"}
         content="Select one of the options"
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
+        confirmText={confirmMode === "rerun" ? "Re-run" : "Run task"}
+        open={!!confirmMode}
+        onClose={() => setConfirmMode(null)}
         onConfirm={handleConfirm}
         isLoading={isUpdating}
       />

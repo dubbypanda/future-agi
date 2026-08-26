@@ -1,6 +1,6 @@
 import { Box, Button, Divider, Stack, Typography } from "@mui/material";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { Controller, useForm } from "react-hook-form";
 import FormTextFieldV2 from "src/components/FormTextField/FormTextFieldV2";
 import {
   AlertConfigValidationSchema,
@@ -20,15 +20,9 @@ import {
   isSpanAttrFilterValid,
 } from "../common";
 import { FormSearchSelectFieldControl } from "src/components/FromSearchSelectField";
-import NewTaskFilterRow from "src/sections/common/EvalsTasks/NewTaskDrawer/NewTaskFilterRow";
+import AlertFilterBar from "./AlertFilterBar";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
-import { getRandomId } from "src/utils/utils";
-import {
-  FilterDefaultOperators,
-  FilterDefaultValues,
-} from "src/utils/constants";
-import Iconify from "src/components/iconify";
 import RadioField from "src/components/RadioField/RadioField";
 import { ShowComponent } from "src/components/show";
 import ChipsInput from "../../../../components/ChipsInput/ChipsInput";
@@ -41,11 +35,6 @@ import { useDebounce } from "src/hooks/use-debounce";
 import { useAlertStore } from "../store/useAlertStore";
 import { useAlertSheetView } from "../store/useAlertSheetView";
 import { useOrganization } from "src/contexts/OrganizationContext";
-import AttributeInventoryControls from "src/sections/projects/LLMTracing/AttributeInventoryControls";
-import {
-  attributeInventoryKey,
-  useCursorAttributeInventory,
-} from "src/sections/projects/LLMTracing/useCursorAttributeInventory";
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -76,7 +65,6 @@ export default function AlertSettingsForm({
 
   const {
     control,
-    getValues,
     watch,
     handleSubmit,
     setValue,
@@ -111,16 +99,6 @@ export default function AlertSettingsForm({
       setFormIsDirty(isDirty);
     }
   }, [isDirty, openSheetView, setFormIsDirty]);
-
-  const {
-    fields,
-    append,
-    update,
-    remove: removeFilter,
-  } = useFieldArray({
-    control,
-    name: "filters",
-  });
 
   const debouncedName = useDebounce(watch("name"), 300);
   const debouncedWarning = useDebounce(watch("warning_threshold_value"), 300);
@@ -268,45 +246,6 @@ export default function AlertSettingsForm({
       setCriticalValue(queryPayload?.critical_threshold_value);
     }
   }, [queryPayload, setThresholdOperator, setWarningValue, setCriticalValue]);
-
-  const [attributeSearch, setAttributeSearch] = useState("");
-  const preservedAttributeKeys = useMemo(
-    () =>
-      fields
-        .filter((filter) => filter?.property === "attributes")
-        .map((filter) => filter.propertyId)
-        .filter(Boolean),
-    [fields],
-  );
-  const { filteredAttributes, inventoryControlProps } =
-    useCursorAttributeInventory({
-      projectId: observeId,
-      discoveryMode: "filter",
-      search: attributeSearch,
-      preservedKeys: preservedAttributeKeys,
-      enabled: Boolean(observeId),
-    });
-  const evalAttributes = useMemo(
-    () =>
-      filteredAttributes.map((attribute) => {
-        const key = attributeInventoryKey(attribute);
-        return { label: key, value: key };
-      }),
-    [filteredAttributes],
-  );
-
-  const addFilter = () => {
-    append({
-      id: getRandomId(),
-      propertyId: "",
-      property: "",
-      filterConfig: {
-        filterType: "text",
-        filterOp: FilterDefaultOperators["text"],
-        filterValue: FilterDefaultValues["text"],
-      },
-    });
-  };
 
   const { mutate: createAlert, isPending: isCreating } = useCreateAlertMutation(
     {
@@ -563,46 +502,11 @@ export default function AlertSettingsForm({
                 gap: 2,
               }}
             >
-              {fields.map((filter, index) => (
-                <NewTaskFilterRow
-                  key={filter.id}
-                  index={index}
-                  removeFilter={removeFilter}
-                  control={control}
-                  attributes={evalAttributes}
-                  update={update}
-                  getValues={getValues}
-                  compact={false}
-                  onAttributeSearchChange={setAttributeSearch}
-                />
-              ))}
-              <AttributeInventoryControls
-                {...inventoryControlProps}
-                showSearch={false}
-                search={attributeSearch}
+              <AlertFilterBar
+                control={control}
+                setValue={setValue}
+                projectId={observeId}
               />
-              <Box>
-                <Button
-                  startIcon={
-                    <Iconify color="text.primary" icon="material-symbols:add" />
-                  }
-                  onClick={addFilter}
-                  variant="text"
-                  color="primary"
-                  size="small"
-                  sx={{
-                    fontSize: "12px",
-                    color: "text.disabled",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: "8px",
-                    width: "126px",
-                    height: "30px",
-                  }}
-                >
-                  Add Filter
-                </Button>
-              </Box>
             </Box>
           </CardWrapper>
           <CardWrapper order={2} title="Define Alert">
