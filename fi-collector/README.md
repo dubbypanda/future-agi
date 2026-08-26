@@ -36,8 +36,8 @@ That bundle explicitly keeps `FI_CATALOG_MODE=disabled`, enables
 `fi-property-catalog-consumer`, attaches them to the application and Kafka
 networks, and uses a deployment-scoped property-catalog topic.
 
-For the non-EE component matrix, default-off guarantees, and repository-local
-verification commands, see
+For the non-EE component matrix, default-on stack contract, fail-closed
+activation/read gates, and repository-local verification commands, see
 [Unified property catalog: OSS/local compatibility](PROPERTY_CATALOG_OSS.md).
 
 ### 1. Bundled with the FutureAGI backend (single docker compose up)
