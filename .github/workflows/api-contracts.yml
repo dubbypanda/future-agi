@@ -37,7 +37,6 @@ on:
       - "futureagi/tracer/utils/helper.py"
       - "futureagi/tracer/views/**"
       - "futureagi/tfc/deployment_telemetry/**"
-      - ".github/scripts/normalize-ee-cloud-package.sh"
       - ".github/workflows/api-contracts.yml"
   push:
     branches: [main, develop, dev]
@@ -75,7 +74,6 @@ on:
       - "futureagi/tracer/utils/helper.py"
       - "futureagi/tracer/views/**"
       - "futureagi/tfc/deployment_telemetry/**"
-      - ".github/scripts/normalize-ee-cloud-package.sh"
       - ".github/workflows/api-contracts.yml"
   workflow_dispatch:
 
@@ -88,8 +86,6 @@ jobs:
         working-directory: frontend
     env:
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN }}
-      EE_CHECKOUT_PATH: .ee-cloud-source
-      EE_PACKAGE_PATH: futureagi/ee/cloud
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
       EE_BASE_REF: ${{ github.base_ref || 'dev' }}
     steps:
@@ -107,13 +103,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: future-agi/ee
-          path: ${{ env.EE_CHECKOUT_PATH }}
+          path: futureagi/ee/cloud
           token: ${{ env.EE_REPO_READ_TOKEN }}
           persist-credentials: true
           fetch-depth: 1
 
       - name: Use matching EE branch when available
-        working-directory: ${{ env.EE_CHECKOUT_PATH }}
+        working-directory: futureagi/ee/cloud
         run: |
           # EE's default branch trails its own dev, so never settle for whatever
           # the checkout landed on: walk the same candidate chain backend-ci
@@ -134,16 +130,8 @@ jobs:
           exit 1
 
       - name: Drop EE checkout credentials
-        if: ${{ always() }}
-        working-directory: ${{ env.EE_CHECKOUT_PATH }}
+        working-directory: futureagi/ee/cloud
         run: git config --unset-all http.https://github.com/.extraheader || true
-
-      - name: Normalize EE package layout
-        working-directory: ${{ github.workspace }}
-        run: |
-          ./.github/scripts/normalize-ee-cloud-package.sh \
-            "${GITHUB_WORKSPACE}/${EE_CHECKOUT_PATH}" \
-            "${GITHUB_WORKSPACE}/${EE_PACKAGE_PATH}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -217,10 +205,7 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       REDIS_LOCK_URL: redis://localhost:6379/2
       TESTING: "false"
-      NLTK_DATA: /tmp/futureagi-nltk-data
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN }}
-      EE_CHECKOUT_PATH: .ee-cloud-source
-      EE_PACKAGE_PATH: futureagi/ee/cloud
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
       EE_BASE_REF: ${{ github.base_ref || 'dev' }}
     steps:
@@ -264,13 +249,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: future-agi/ee
-          path: ${{ env.EE_CHECKOUT_PATH }}
+          path: futureagi/ee/cloud
           token: ${{ env.EE_REPO_READ_TOKEN }}
           persist-credentials: true
           fetch-depth: 1
 
       - name: Use matching EE branch when available
-        working-directory: ${{ env.EE_CHECKOUT_PATH }}
+        working-directory: futureagi/ee/cloud
         run: |
           # EE's default branch trails its own dev, so never settle for whatever
           # the checkout landed on: walk the same candidate chain backend-ci
@@ -291,16 +276,8 @@ jobs:
           exit 1
 
       - name: Drop EE checkout credentials
-        if: ${{ always() }}
-        working-directory: ${{ env.EE_CHECKOUT_PATH }}
+        working-directory: futureagi/ee/cloud
         run: git config --unset-all http.https://github.com/.extraheader || true
-
-      - name: Normalize EE package layout
-        working-directory: ${{ github.workspace }}
-        run: |
-          ./.github/scripts/normalize-ee-cloud-package.sh \
-            "${GITHUB_WORKSPACE}/${EE_CHECKOUT_PATH}" \
-            "${GITHUB_WORKSPACE}/${EE_PACKAGE_PATH}"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -312,9 +289,6 @@ jobs:
 
       - name: Install backend dependencies
         run: uv sync --frozen
-
-      - name: Install verified NLTK corpora
-        run: uv run python bin/install_nltk_data.py
 
       - name: Apply ClickHouse test schema
         run: >
