@@ -14,14 +14,13 @@ import datetime
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import subprocess
 import urllib.parse
+from pathlib import Path
 
-
-ACK = "TH7247_ENABLE_EXISTING_DEV_CATALOG_STEADY_STATE"
+ACK = "FI_PROPERTY_CATALOG_ENABLE_EXISTING_DEV_CATALOG_STEADY_STATE"
 EXPECTED_TABLES = (
     "property_catalog_activations",
     "property_catalog_checkpoints",
@@ -130,14 +129,14 @@ def _settings(source: str) -> tuple[str, Path, str, dict[str, str]]:
     suffix = source.strip()
     if _SUFFIX_RE.fullmatch(suffix) is None:
         raise ProvisioningError("suffix must match NNNNx")
-    root = Path(f"/home/ubuntu/th7247-kartik-{suffix}")
-    target = f"th7247_catalog_dev_kartik_{suffix}"
+    root = Path(f"/home/ubuntu/property-catalog-kartik-{suffix}")
+    target = f"property_catalog_dev_kartik_{suffix}"
     users = {
-        "source": f"th7247_catalog_source_ro_{suffix}",
-        "control": f"th7247_catalog_control_rw_{suffix}",
-        "consumer": f"th7247_catalog_consumer_rw_{suffix}",
-        "ledger": f"th7247_catalog_ledger_ro_{suffix}",
-        "postgres": f"th7247_catalog_pg_ro_{suffix}",
+        "source": f"property_catalog_source_ro_{suffix}",
+        "control": f"property_catalog_control_rw_{suffix}",
+        "consumer": f"property_catalog_consumer_rw_{suffix}",
+        "ledger": f"property_catalog_ledger_ro_{suffix}",
+        "postgres": f"property_catalog_pg_ro_{suffix}",
     }
     return suffix, root, target, users
 
@@ -411,8 +410,8 @@ def main() -> int:
     parser.add_argument("--validity-days", type=int, default=7)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
-    if args.execute and os.environ.get("TH7247_STEADY_ACK") != ACK:
-        raise ProvisioningError(f"execution requires TH7247_STEADY_ACK={ACK}")
+    if args.execute and os.environ.get("FI_PROPERTY_CATALOG_STEADY_ACK") != ACK:
+        raise ProvisioningError(f"execution requires FI_PROPERTY_CATALOG_STEADY_ACK={ACK}")
     result = provision(
         suffix=args.suffix,
         activation_sha256=args.bootstrap_activation_sha256,

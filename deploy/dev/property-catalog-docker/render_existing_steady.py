@@ -24,9 +24,9 @@ import yaml
 TASK_QUEUE_PREFIX = "property_catalog_dev_sidecar_"
 SCHEDULED_RECONCILE_WALL_MS = "1200000"
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
-_TARGET_RE = re.compile(r"th7247_catalog_dev_[a-z0-9][a-z0-9_]*")
+_TARGET_RE = re.compile(r"property_catalog_dev_[a-z0-9][a-z0-9_]*")
 _PROJECT_NAME_RE = re.compile(
-    r"th7247-property-catalog-[a-z0-9][a-z0-9-]{2,39}"
+    r"fi-property-catalog-[a-z0-9][a-z0-9-]{2,39}"
 )
 _PRODUCTION_TOKEN_RE = re.compile(
     r"(?:^|[-._/:])(prod|production|live)(?:$|[-._/:])", re.I

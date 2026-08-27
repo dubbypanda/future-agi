@@ -40,6 +40,8 @@ contract before activation.
 For the non-EE component matrix, default-on stack contract, fail-closed
 activation/read gates, and repository-local verification commands, see
 [Unified property catalog: OSS/local compatibility](PROPERTY_CATALOG_OSS.md).
+For the isolated development deployment and qualification workflow, see the
+[property-catalog Docker runbook](../deploy/dev/property-catalog-docker/README.md).
 
 ### 1. Bundled with the FutureAGI backend (single docker compose up)
 

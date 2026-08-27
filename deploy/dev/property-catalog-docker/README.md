@@ -4,7 +4,7 @@ This is the canonical end-to-end DEV path for
 `FI_PROPERTY_CATALOG_MODE=kafka`. The rendered producer always sets
 `FI_CATALOG_MODE=disabled`; do not combine the unified and legacy modes. The
 collector's [`CATALOG_DEV.md`](../../../fi-collector/CATALOG_DEV.md) and its
-optional `th7247.dev.span-attribute-catalog.v1` topic cover the legacy
+optional `property-catalog.dev.span-attribute-catalog.v1` topic covers the legacy
 span-attribute catalog, not this path.
 
 This bundle renders a new, isolated Compose project for the supplied DEV VM.
@@ -34,7 +34,7 @@ schedule. With no extra argument it performs the command's zero-I/O dry run.
 The renderer accepts two explicit runtime profiles. The existing
 `futureagi.property-catalog-dev-docker` format retains the DEV-cloud-shaped
 operator. The `futureagi.property-catalog-oss-dev-docker` format requires a
-reviewed `th7247-oss-*` operator image built from `Dockerfile.oss` and keeps
+reviewed `property-catalog-oss-*` operator image built from `Dockerfile.oss` and keeps
 both `CLOUD_DEPLOYMENT` and `PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT` unset.
 This stricter qualification bundle is independent of the root OSS stack,
 which now default-enables its own isolated unified Kafka/catalog pipeline.
@@ -46,7 +46,7 @@ which now default-enables its own isolated unified Kafka/catalog pipeline.
   rejects a mismatch.
 - The source database is exactly `futureagi`.
 - The only writable catalog target is
-  `th7247_catalog_dev_<deployment-id-with-underscores>`.
+  `property_catalog_dev_<deployment-id-with-underscores>`.
 - Public property-catalog reads, the legacy catalog, snapshot reads, periodic
   reconciliation, and OTLP traffic authorization are all forced off.
 - Sentry, OpenTelemetry export, deployment telemetry, and integrations are
@@ -82,17 +82,17 @@ futureagi.dev.property-catalog.consumer.<deployment_id>
 ```
 
 For `deployment_id: kartik-0815a`, the target is
-`th7247_catalog_dev_kartik_0815a`, the topic is
+`property_catalog_dev_kartik_0815a`, the topic is
 `futureagi.dev.property-catalog.kartik-0815a`, and the group is
 `futureagi.dev.property-catalog.consumer.kartik-0815a`.
 
 ## Host layout
 
-The renderer accepts only `/home/ubuntu/th7247-<deployment_id>` as the host
+The renderer accepts only `/home/ubuntu/property-catalog-<deployment_id>` as the host
 root. For the example configuration, prepare this exact layout:
 
 ```text
-/home/ubuntu/th7247-kartik-0815a/
+/home/ubuntu/property-catalog-kartik-0815a/
 ├── private/
 │   ├── producer.env
 │   ├── operator-runtime.env
@@ -111,7 +111,7 @@ root. For the example configuration, prepare this exact layout:
 Prepare directories without following symlinks:
 
 ```bash
-DEPLOYMENT_ROOT=/home/ubuntu/th7247-kartik-0815a
+DEPLOYMENT_ROOT=/home/ubuntu/property-catalog-kartik-0815a
 install -d -m 0700 "$DEPLOYMENT_ROOT" "$DEPLOYMENT_ROOT/private"
 sudo install -d -o ubuntu -g 65532 -m 0770 \
   "$DEPLOYMENT_ROOT/runtime" \
@@ -177,8 +177,8 @@ have been initialized with `CH25_DATABASE=futureagi`; do not rename or repoint
 an existing self-host database merely to satisfy this qualification contract.
 
 ```bash
-CONFIG=/home/ubuntu/th7247-kartik-0815a/reviewed-config.yaml
-COMPOSE=/home/ubuntu/th7247-kartik-0815a/compose.yaml
+CONFIG=/home/ubuntu/property-catalog-kartik-0815a/reviewed-config.yaml
+COMPOSE=/home/ubuntu/property-catalog-kartik-0815a/compose.yaml
 PYTHON=futureagi/.venv/bin/python
 
 "$PYTHON" deploy/dev/property-catalog-docker/render.py \
@@ -222,9 +222,9 @@ docker compose \
 
 ```bash
 TOPIC=futureagi.dev.property-catalog.kartik-0815a
-KAFKA_NETWORK=th7247_catalog_dev
+KAFKA_NETWORK=property-catalog-dev
 KAFKA_CLI_IMAGE=apache/kafka:4.1.0
-KAFKA_BROKER=th7247-catalog-kafka-dev:9092
+KAFKA_BROKER=property-catalog-kafka-dev:9092
 
 docker run --rm --network "$KAFKA_NETWORK" "$KAFKA_CLI_IMAGE" \
   /opt/kafka/bin/kafka-topics.sh \
@@ -329,13 +329,13 @@ does not create or alter a table and does not write a source or catalog row.
 
 ```bash
 ACTIVATION_SHA256='<exact 64-character active activation digest>'
-ROOT=/home/ubuntu/th7247-kartik-0816h
+ROOT=/home/ubuntu/property-catalog-kartik-0816h
 
 python deploy/dev/property-catalog-docker/provision_existing_steady.py \
   --suffix 0816h \
   --bootstrap-activation-sha256 "$ACTIVATION_SHA256"
 
-TH7247_STEADY_ACK=TH7247_ENABLE_EXISTING_DEV_CATALOG_STEADY_STATE \
+FI_PROPERTY_CATALOG_STEADY_ACK=FI_PROPERTY_CATALOG_ENABLE_EXISTING_DEV_CATALOG_STEADY_STATE \
 python deploy/dev/property-catalog-docker/provision_existing_steady.py \
   --suffix 0816h \
   --bootstrap-activation-sha256 "$ACTIVATION_SHA256" \

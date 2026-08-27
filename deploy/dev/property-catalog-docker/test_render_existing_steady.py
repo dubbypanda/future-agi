@@ -37,8 +37,8 @@ def _config() -> bootstrap.DeploymentConfig:
     return bootstrap.DeploymentConfig(
         deployment_id="kartik-review-a",
         collector_image=f"sha256:{_digest('collector')}",
-        operator_image="th7247-current-select:review-a",
-        host_root="/home/ubuntu/th7247-kartik-review-a",
+        operator_image="fi-property-catalog-current-select:review-a",
+        host_root="/home/ubuntu/property-catalog-kartik-review-a",
         organization_id="11111111-1111-4111-8111-111111111111",
         workspace_id="22222222-2222-4222-8222-222222222222",
         project_ids=("33333333-3333-4333-8333-333333333333",),
@@ -46,19 +46,19 @@ def _config() -> bootstrap.DeploymentConfig:
         projection_version=1,
         hot_producer_stream_id="44444444-4444-4444-8444-444444444444",
         source_database="futureagi",
-        target_database="th7247_catalog_dev_kartik_review_a",
+        target_database="property_catalog_dev_kartik_review_a",
         span_since="2025-08-15T10:00:00Z",
         span_until="2026-08-15T10:00:00Z",
         dev_identity="dev:property-catalog/kartik-review-a",
         application_docker_network="futureagi_default",
-        kafka_docker_network="th7247-catalog-dev_default",
+        kafka_docker_network="property-catalog-dev",
         source_clickhouse_host="clickhouse",
         source_clickhouse_native_port=9000,
         source_clickhouse_http_port=8123,
         target_clickhouse_host="clickhouse",
         target_clickhouse_native_port=9000,
         target_clickhouse_http_port=8123,
-        kafka_brokers=("th7247-catalog-kafka-dev:9092",),
+        kafka_brokers=("property-catalog-kafka-dev:9092",),
         write_clickhouse_hostname="clickhouse-dev",
         source_clickhouse_hostname="clickhouse-dev",
         postgres_database="tfc",
@@ -121,7 +121,7 @@ class ExistingSteadyRendererTests(unittest.TestCase):
     def test_oss_profile_preserves_unset_cloud_in_steady_state(self) -> None:
         config = dataclasses.replace(
             _config(),
-            operator_image="th7247-oss-current-select:review-a",
+            operator_image="fi-property-catalog-oss-current-select:review-a",
             runtime_profile="oss",
         )
         base = bootstrap.render_compose(config)
@@ -202,7 +202,7 @@ class ExistingSteadyProvisionerTests(unittest.TestCase):
             ):
                 provision._preflight(
                     root=root,
-                    target="th7247_catalog_dev_kartik_test",
+                    target="property_catalog_dev_kartik_test",
                     users=users,
                     activation_sha256=activation_sha256,
                 )

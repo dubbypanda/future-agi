@@ -37,9 +37,9 @@ def _raw() -> dict[str, object]:
         "deployment_id": "review-a",
         "images": {
             "collector_runtime": f"sha256:{_digest('reviewed collector image')}",
-            "operator": "th7247-current-select:0815a",
+            "operator": "fi-property-catalog-current-select:0815a",
         },
-        "host": {"root": "/home/ubuntu/th7247-review-a"},
+        "host": {"root": "/home/ubuntu/property-catalog-review-a"},
         "workspace": {
             "organization_id": "11111111-1111-4111-8111-111111111111",
             "workspace_id": "22222222-2222-4222-8222-222222222222",
@@ -53,21 +53,21 @@ def _raw() -> dict[str, object]:
             "projection_version": 1,
             "hot_producer_stream_id": "55555555-5555-4555-8555-555555555555",
             "source_database": "futureagi",
-            "target_database": "th7247_catalog_dev_review_a",
+            "target_database": "property_catalog_dev_review_a",
             "span_since": "2025-08-15T10:00:00Z",
             "span_until": "2026-08-15T10:00:00Z",
             "dev_identity": "dev:property-catalog/reviewer-a",
         },
         "infrastructure": {
             "application_docker_network": "futureagi_default",
-            "kafka_docker_network": "th7247_catalog_dev",
+            "kafka_docker_network": "property-catalog-dev",
             "source_clickhouse_host": "clickhouse",
             "source_clickhouse_native_port": 9000,
             "source_clickhouse_http_port": 8123,
             "target_clickhouse_host": "clickhouse",
             "target_clickhouse_native_port": 9000,
             "target_clickhouse_http_port": 8123,
-            "kafka_brokers": ["th7247-catalog-kafka-dev:9092"],
+            "kafka_brokers": ["property-catalog-kafka-dev:9092"],
         },
         "provenance": {
             "write_clickhouse_hostname": "7c7e694b9c13",
@@ -156,7 +156,7 @@ class RenderTests(unittest.TestCase):
     def test_topic_group_target_and_external_networks_are_derived(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             config = workload.load_config(_write_config(Path(temporary)))
-        self.assertEqual(config.target_database, "th7247_catalog_dev_review_a")
+        self.assertEqual(config.target_database, "property_catalog_dev_review_a")
         self.assertEqual(config.kafka_topic, "futureagi.dev.property-catalog.review-a")
         self.assertEqual(
             config.kafka_consumer_group,
@@ -172,7 +172,7 @@ class RenderTests(unittest.TestCase):
                 },
                 "kafka-existing": {
                     "external": True,
-                    "name": "th7247_catalog_dev",
+                    "name": "property-catalog-dev",
                 },
             },
         )
@@ -188,7 +188,7 @@ class RenderTests(unittest.TestCase):
         producer = compose["services"]["property-catalog-producer"]
         consumer = compose["services"]["property-catalog-consumer"]
         operator = compose["services"]["property-catalog-operator"]
-        private = "/home/ubuntu/th7247-review-a/private"
+        private = "/home/ubuntu/property-catalog-review-a/private"
         self.assertEqual(producer["env_file"], [f"{private}/producer.env"])
         self.assertEqual(
             consumer["env_file"],
@@ -224,7 +224,7 @@ class RenderTests(unittest.TestCase):
             value["target"]: value for value in consumer.get("volumes", [])
         }
         operator_targets = {value["target"]: value for value in operator["volumes"]}
-        runtime = "/home/ubuntu/th7247-review-a/runtime"
+        runtime = "/home/ubuntu/property-catalog-review-a/runtime"
         self.assertEqual(
             producer_targets[workload.CONTAINER_RUNTIME_DIRECTORY]["source"], runtime
         )
@@ -332,7 +332,7 @@ class RenderTests(unittest.TestCase):
     def test_oss_profile_keeps_cloud_unset_and_requires_oss_image(self) -> None:
         raw = copy.deepcopy(_raw())
         raw["format"] = workload.OSS_FORMAT
-        raw["images"]["operator"] = "th7247-oss-current-select:0815a"
+        raw["images"]["operator"] = "fi-property-catalog-oss-current-select:0815a"
         with tempfile.TemporaryDirectory() as temporary:
             config = workload.load_config(_write_config(Path(temporary), raw))
         self.assertEqual(config.runtime_profile, "oss")
@@ -353,7 +353,7 @@ class RenderTests(unittest.TestCase):
         with self.assertRaisesRegex(workload.DeploymentValidationError, "operator"):
             workload._validate_compose(tampered, config)
 
-        raw["images"]["operator"] = "th7247-current-select:0815a"
+        raw["images"]["operator"] = "fi-property-catalog-current-select:0815a"
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(
                 workload.DeploymentValidationError, "OSS backend image"
@@ -471,8 +471,8 @@ class RenderTests(unittest.TestCase):
 
         self.assertIn("FI_PROPERTY_CATALOG_MODE=kafka", unified_readme)
         self.assertIn("FI_CATALOG_MODE=disabled", unified_readme)
-        self.assertIn("KAFKA_NETWORK=th7247_catalog_dev", unified_readme)
-        self.assertNotIn("KAFKA_NETWORK=th7247-catalog-dev_default", unified_readme)
+        self.assertIn("KAFKA_NETWORK=property-catalog-dev", unified_readme)
+        self.assertNotIn("KAFKA_NETWORK=property_catalog_dev", unified_readme)
         self.assertIn(
             "../deploy/dev/property-catalog-docker/README.md", collector_readme
         )
@@ -482,8 +482,8 @@ class RenderTests(unittest.TestCase):
         topic_init = legacy_compose["services"]["topic-init"]
         self.assertEqual(topic_init["profiles"], ["legacy-span-attribute-catalog"])
         topic_command = "\n".join(topic_init["command"])
-        self.assertIn("TH7247_ACK_LEGACY_SPAN_ATTRIBUTE_CATALOG_ONLY", topic_command)
-        self.assertIn("th7247.dev.span-attribute-catalog.v1", topic_command)
+        self.assertIn("PROPERTY_CATALOG_ACK_LEGACY_SPAN_ATTRIBUTE_ONLY", topic_command)
+        self.assertIn("property-catalog.dev.span-attribute-catalog.v1", topic_command)
         self.assertNotIn("futureagi.dev.property-catalog", topic_command)
 
 
@@ -499,7 +499,7 @@ class HostPreflightTests(unittest.TestCase):
     def _host_fixture(self, directory: Path) -> workload.DeploymentConfig:
         with tempfile.TemporaryDirectory() as config_directory:
             config = workload.load_config(_write_config(Path(config_directory)))
-        root = directory / "th7247-review-a"
+        root = directory / "property-catalog-review-a"
         root.mkdir(mode=0o700)
         (root / "private").mkdir(mode=0o700)
         (root / "runtime").mkdir(mode=0o770)
