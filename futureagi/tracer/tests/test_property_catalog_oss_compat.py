@@ -220,6 +220,12 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
         consumer_environment["FI_PROPERTY_CATALOG_CH_USERNAME"]
         != consumer_environment["FI_PROPERTY_CATALOG_LEDGER_CH_USERNAME"]
     )
+    assert consumer_environment[
+        "FI_PROPERTY_CATALOG_CHECKPOINT_MAX_STREAMS"
+    ].endswith(":-16384}")
+    assert consumer_environment[
+        "FI_PROPERTY_CATALOG_CHECKPOINT_MAX_INVENTORY_BYTES"
+    ].endswith(":-67108864}")
 
     supervisor = services["property-catalog-supervisor"]
     assert supervisor["read_only"] is True

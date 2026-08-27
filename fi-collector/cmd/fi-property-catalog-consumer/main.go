@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,11 +38,13 @@ const (
 	envLedgerUsername = "FI_PROPERTY_CATALOG_LEDGER_CH_USERNAME"
 	envLedgerPassword = "FI_PROPERTY_CATALOG_LEDGER_CH_PASSWORD"
 
-	envKafkaBrokers = "FI_PROPERTY_CATALOG_KAFKA_BROKERS"
-	envKafkaTopic   = "FI_PROPERTY_CATALOG_KAFKA_TOPIC"
-	envKafkaGroup   = "FI_PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP"
-	envKafkaClient  = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
-	envDeliveryWall = "FI_PROPERTY_CATALOG_DELIVERY_TIMEOUT"
+	envKafkaBrokers         = "FI_PROPERTY_CATALOG_KAFKA_BROKERS"
+	envKafkaTopic           = "FI_PROPERTY_CATALOG_KAFKA_TOPIC"
+	envKafkaGroup           = "FI_PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP"
+	envKafkaClient          = "FI_PROPERTY_CATALOG_KAFKA_CLIENT_ID"
+	envDeliveryWall         = "FI_PROPERTY_CATALOG_DELIVERY_TIMEOUT"
+	envCheckpointMaxStreams = "FI_PROPERTY_CATALOG_CHECKPOINT_MAX_STREAMS"
+	envCheckpointMaxBytes   = "FI_PROPERTY_CATALOG_CHECKPOINT_MAX_INVENTORY_BYTES"
 
 	consumerModeKafka      = "kafka"
 	defaultDeliveryTimeout = propertycatalog.DefaultDeliveryTransportTimeout
@@ -57,11 +60,12 @@ const (
 )
 
 type commandConfig struct {
-	write    propertycatalog.ClickHouseSinkConfig
-	ledger   propertycatalog.ClickHouseSinkConfig
-	kafka    propertycatalog.FranzConsumerConfig
-	seed     seedMode
-	delivery time.Duration
+	write            propertycatalog.ClickHouseSinkConfig
+	ledger           propertycatalog.ClickHouseSinkConfig
+	kafka            propertycatalog.FranzConsumerConfig
+	seed             seedMode
+	delivery         time.Duration
+	checkpointLimits propertycatalog.CheckpointLoaderLimits
 }
 
 type runningConsumer interface {
@@ -82,7 +86,10 @@ type checkpointLeaseReader interface {
 	propertycatalog.DeliveryLeaseGuard
 }
 
-type loaderFactory func(propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error)
+type loaderFactory func(
+	propertycatalog.ClickHouseSinkConfig,
+	propertycatalog.CheckpointLoaderLimits,
+) (checkpointLeaseReader, error)
 
 type dependencies struct {
 	newSink     sinkFactory
@@ -105,8 +112,11 @@ func defaultDependencies() dependencies {
 		newSink: func(cfg propertycatalog.ClickHouseSinkConfig) (propertycatalog.DeliverySink, error) {
 			return propertycatalog.NewClickHouseSink(cfg)
 		},
-		newLoader: func(cfg propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error) {
-			return propertycatalog.NewClickHouseCheckpointLoader(cfg)
+		newLoader: func(
+			cfg propertycatalog.ClickHouseSinkConfig,
+			limits propertycatalog.CheckpointLoaderLimits,
+		) (checkpointLeaseReader, error) {
+			return propertycatalog.NewClickHouseCheckpointLoader(cfg, limits)
 		},
 		newConsumer: func(
 			cfg propertycatalog.FranzConsumerConfig,
@@ -136,7 +146,7 @@ func run(ctx context.Context, args []string, lookup lookupEnvFunc, deps dependen
 	if err != nil {
 		return fmt.Errorf("configure property catalog ClickHouse sink: %w", err)
 	}
-	loader, err := deps.newLoader(cfg.ledger)
+	loader, err := deps.newLoader(cfg.ledger, cfg.checkpointLimits)
 	if err != nil {
 		return fmt.Errorf("configure property catalog delivery ledger reader: %w", err)
 	}
@@ -259,6 +269,22 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 	if ledgerConfig.Username == write.Username {
 		return commandConfig{}, errors.New("delivery ledger reader and catalog writer require distinct ClickHouse usernames")
 	}
+	checkpointLimits := propertycatalog.CheckpointLoaderLimits{
+		MaxStreams:        propertycatalog.DefaultCheckpointMaxStreams,
+		InventoryMaxBytes: propertycatalog.DefaultCheckpointInventoryMaxBytes,
+	}
+	if err := optionalBoundedPositiveInt(
+		lookup, envCheckpointMaxStreams, &checkpointLimits.MaxStreams,
+		propertycatalog.MaximumCheckpointMaxStreams,
+	); err != nil {
+		return commandConfig{}, err
+	}
+	if err := optionalBoundedPositiveInt64(
+		lookup, envCheckpointMaxBytes, &checkpointLimits.InventoryMaxBytes,
+		propertycatalog.MaximumCheckpointInventoryMaxBytes,
+	); err != nil {
+		return commandConfig{}, err
+	}
 	result := commandConfig{
 		write:  write,
 		ledger: ledgerConfig,
@@ -266,6 +292,7 @@ func loadConfig(args []string, lookup lookupEnvFunc) (commandConfig, error) {
 			Brokers: brokers, Topic: topic, GroupID: group, ClientID: clientID,
 		},
 		seed: seedSequenceOne, delivery: deliveryTimeout,
+		checkpointLimits: checkpointLimits,
 	}
 	if *ledger {
 		result.seed = seedDeliveryLedger
@@ -346,6 +373,36 @@ func boundedDeliveryTimeout(lookup lookupEnvFunc) (time.Duration, error) {
 		)
 	}
 	return timeout, nil
+}
+
+func optionalBoundedPositiveInt(
+	lookup lookupEnvFunc, name string, target *int, maximum int,
+) error {
+	value, present := lookup(name)
+	if !present {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil || parsed <= 0 || parsed > int64(maximum) {
+		return fmt.Errorf("%s must be an integer in [1,%d]", name, maximum)
+	}
+	*target = int(parsed)
+	return nil
+}
+
+func optionalBoundedPositiveInt64(
+	lookup lookupEnvFunc, name string, target *int64, maximum int64,
+) error {
+	value, present := lookup(name)
+	if !present {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed <= 0 || parsed > maximum {
+		return fmt.Errorf("%s must be an integer in [1,%d]", name, maximum)
+	}
+	*target = parsed
+	return nil
 }
 
 func requireEnv(lookup lookupEnvFunc, name string, allowEmpty bool) (string, error) {

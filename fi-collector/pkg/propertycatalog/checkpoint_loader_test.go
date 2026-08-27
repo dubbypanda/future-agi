@@ -348,12 +348,15 @@ func TestCheckpointLoaderUsesNewestBoundedInventoryAndConstantStreamProofs(t *te
 				!strings.Contains(query, "FROM latest_activation_rows AS raw") ||
 				!strings.Contains(query, "WHERE _version = latest_version") ||
 				!strings.Contains(query, "reservation.state_variants") ||
-				!strings.Contains(query, "LIMIT 513") ||
+				!strings.Contains(query, "LIMIT {inventory_limit:UInt64}") ||
 				strings.Contains(query, "FROM property_catalog_deliveries") ||
 				strings.Contains(query, "status = 'active'") {
 				t.Fatalf("inventory query is not newest-reservation anchored and conflict-visible: %s", query)
 			}
-			if values.Get("max_result_rows") != "513" || values.Get("max_execution_time") != "10" {
+			wantLimit := fmt.Sprintf("%d", DefaultCheckpointMaxStreams+1)
+			if values.Get("max_result_rows") != wantLimit ||
+				values.Get("param_inventory_limit") != wantLimit ||
+				values.Get("max_execution_time") != "10" {
 				t.Fatalf("inventory bounds=%v", values)
 			}
 			return checkpointHTTPResponse(checkpointBody(t, inventoryValues...)), nil
@@ -488,7 +491,7 @@ func TestCheckpointLoaderRejectsConflictCrowdingAndBrokenAggregateProofs(t *test
 
 func TestCheckpointLoaderCapsInventoryBeforeConflictCanBeCrowdedOut(t *testing.T) {
 	row := validCheckpointInventory(t, false)[0]
-	rows := make([]any, maxCheckpointStreams+1)
+	rows := make([]any, 3)
 	for index := range rows {
 		rows[index] = row
 	}
@@ -499,6 +502,7 @@ func TestCheckpointLoaderCapsInventoryBeforeConflictCanBeCrowdedOut(t *testing.T
 		}
 		return checkpointHTTPResponse(checkpointBody(t, rows...)), nil
 	})
+	loader.maxStreams = 2
 	if checkpoints, err := loader.LoadCheckpoints(context.Background()); err == nil ||
 		!strings.Contains(err.Error(), "exceeds row limit") || proofCalls != 0 {
 		t.Fatalf("crowded inventory checkpoints=%+v proof_calls=%d err=%v", checkpoints, proofCalls, err)

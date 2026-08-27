@@ -75,7 +75,10 @@ func TestUnifiedConsumerDefaultsOffAndProductionFailsBeforeFactories(t *testing.
 				calls++
 				return &fakeSink{}, nil
 			},
-			newLoader: func(propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error) {
+			newLoader: func(
+				propertycatalog.ClickHouseSinkConfig,
+				propertycatalog.CheckpointLoaderLimits,
+			) (checkpointLeaseReader, error) {
 				calls++
 				return &fakeLoader{}, nil
 			},
@@ -175,6 +178,38 @@ func TestDeliveryTimeoutSupportsOnlyBoundedEnvironmentOverrides(t *testing.T) {
 	}
 }
 
+func TestCheckpointInventoryLimitsSupportBoundedEnvironmentOverrides(t *testing.T) {
+	values := validEnvironment()
+	values[envCheckpointMaxStreams] = "32768"
+	values[envCheckpointMaxBytes] = "134217728"
+	cfg, err := loadConfig(
+		[]string{"--start-sequence-one-only"},
+		mapLookup(values),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.checkpointLimits.MaxStreams != 32768 ||
+		cfg.checkpointLimits.InventoryMaxBytes != 134217728 {
+		t.Fatalf("checkpoint limits=%+v", cfg.checkpointLimits)
+	}
+
+	for name, invalid := range map[string][]string{
+		envCheckpointMaxStreams: {"0", "262145", "invalid", " 1024"},
+		envCheckpointMaxBytes:   {"0", "536870913", "invalid", " 1024"},
+	} {
+		for _, value := range invalid {
+			values := validEnvironment()
+			values[name] = value
+			if _, err := loadConfig(
+				[]string{"--start-sequence-one-only"}, mapLookup(values),
+			); err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("%s=%q error=%v", name, value, err)
+			}
+		}
+	}
+}
+
 func TestLedgerModeRequiresSameDestinationAndDistinctReadIdentity(t *testing.T) {
 	for _, name := range []string{envLedgerURL, envLedgerDatabase, envLedgerUsername, envLedgerPassword} {
 		t.Run("missing "+name, func(t *testing.T) {
@@ -212,7 +247,10 @@ func TestKnownEmptyModeProvesEmptyLedgerBeforeKafka(t *testing.T) {
 			}
 			return &fakeSink{}, nil
 		},
-		newLoader: func(propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error) {
+		newLoader: func(
+			propertycatalog.ClickHouseSinkConfig,
+			propertycatalog.CheckpointLoaderLimits,
+		) (checkpointLeaseReader, error) {
 			loaderCalls++
 			return loader, nil
 		},
@@ -244,7 +282,10 @@ func TestKnownEmptyModeRejectsNonemptyLedgerBeforeKafka(t *testing.T) {
 		newSink: func(propertycatalog.ClickHouseSinkConfig) (propertycatalog.DeliverySink, error) {
 			return &fakeSink{}, nil
 		},
-		newLoader: func(propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error) {
+		newLoader: func(
+			propertycatalog.ClickHouseSinkConfig,
+			propertycatalog.CheckpointLoaderLimits,
+		) (checkpointLeaseReader, error) {
 			return &fakeLoader{checkpoints: []propertycatalog.StreamCheckpoint{validCheckpoint()}}, nil
 		},
 		newConsumer: func(propertycatalog.FranzConsumerConfig, propertycatalog.Handler, *propertycatalog.SequenceValidator) (runningConsumer, error) {
@@ -271,10 +312,17 @@ func TestLedgerLoadsBeforeKafkaAndRefreshesAssignments(t *testing.T) {
 			events = append(events, "sink")
 			return &fakeSink{}, nil
 		},
-		newLoader: func(cfg propertycatalog.ClickHouseSinkConfig) (checkpointLeaseReader, error) {
+		newLoader: func(
+			cfg propertycatalog.ClickHouseSinkConfig,
+			limits propertycatalog.CheckpointLoaderLimits,
+		) (checkpointLeaseReader, error) {
 			events = append(events, "loader")
 			if cfg.Username != "property-ledger-reader" {
 				t.Fatalf("ledger identity=%+v", cfg)
+			}
+			if limits.MaxStreams != propertycatalog.DefaultCheckpointMaxStreams ||
+				limits.InventoryMaxBytes != propertycatalog.DefaultCheckpointInventoryMaxBytes {
+				t.Fatalf("checkpoint limits=%+v", limits)
 			}
 			loader.onLoad = func() { events = append(events, "load") }
 			return loader, nil

@@ -283,7 +283,7 @@ ORDER BY
   reservation.organization_id, reservation.workspace_id, reservation.catalog_epoch,
   reservation.catalog_revision, reservation.build_token,
   stream.source_adapter, stream.producer_stream_id
-LIMIT 513
+LIMIT {inventory_limit:UInt64}
 FORMAT JSONEachRow`
 
 // checkpointStreamQuery reduces the entire exact stream to one proof row.  The
@@ -426,8 +426,6 @@ LIMIT 33
 FORMAT JSONEachRow`
 
 const (
-	maxCheckpointStreams            = 512
-	maxCheckpointInventoryBytes     = 8 << 20
 	maxCheckpointSequencesPerStream = 100_000
 	maxCheckpointStreamProofBytes   = 64 << 10
 	maxCheckpointProbeBytes         = 1024
@@ -436,21 +434,62 @@ const (
 	maxBuildPlanBytes               = 32 << 10
 )
 
+const (
+	DefaultCheckpointMaxStreams        = 16_384
+	MaximumCheckpointMaxStreams        = 262_144
+	DefaultCheckpointInventoryMaxBytes = int64(64 << 20)
+	MaximumCheckpointInventoryMaxBytes = int64(512 << 20)
+)
+
+type CheckpointLoaderLimits struct {
+	MaxStreams        int
+	InventoryMaxBytes int64
+}
+
 type CheckpointLoader interface {
 	LoadCheckpoints(context.Context) ([]StreamCheckpoint, error)
 }
 
 type ClickHouseCheckpointLoader struct {
-	sink *ClickHouseSink
-	now  func() time.Time
+	sink              *ClickHouseSink
+	now               func() time.Time
+	maxStreams        int
+	inventoryMaxBytes int64
 }
 
-func NewClickHouseCheckpointLoader(cfg ClickHouseSinkConfig) (*ClickHouseCheckpointLoader, error) {
+func NewClickHouseCheckpointLoader(
+	cfg ClickHouseSinkConfig, overrides ...CheckpointLoaderLimits,
+) (*ClickHouseCheckpointLoader, error) {
+	if len(overrides) > 1 {
+		return nil, errors.New("propertycatalog: at most one checkpoint loader limit override is allowed")
+	}
+	limits := CheckpointLoaderLimits{
+		MaxStreams:        DefaultCheckpointMaxStreams,
+		InventoryMaxBytes: DefaultCheckpointInventoryMaxBytes,
+	}
+	if len(overrides) == 1 {
+		limits = overrides[0]
+	}
+	if limits.MaxStreams < 1 || limits.MaxStreams > MaximumCheckpointMaxStreams {
+		return nil, fmt.Errorf(
+			"propertycatalog: checkpoint max streams must be in [1,%d]",
+			MaximumCheckpointMaxStreams,
+		)
+	}
+	if limits.InventoryMaxBytes < 1 || limits.InventoryMaxBytes > MaximumCheckpointInventoryMaxBytes {
+		return nil, fmt.Errorf(
+			"propertycatalog: checkpoint inventory max bytes must be in [1,%d]",
+			MaximumCheckpointInventoryMaxBytes,
+		)
+	}
 	sink, err := NewClickHouseSink(cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &ClickHouseCheckpointLoader{sink: sink, now: time.Now}, nil
+	return &ClickHouseCheckpointLoader{
+		sink: sink, now: time.Now,
+		maxStreams: limits.MaxStreams, inventoryMaxBytes: limits.InventoryMaxBytes,
+	}, nil
 }
 
 var _ DeliveryLeaseGuard = (*ClickHouseCheckpointLoader)(nil)
@@ -598,10 +637,10 @@ func (l *ClickHouseCheckpointLoader) LoadCheckpoints(ctx context.Context) ([]Str
 	err := l.queryJSONEachRow(
 		ctx,
 		checkpointInventoryQuery,
-		nil,
+		map[string]string{"param_inventory_limit": fmt.Sprintf("%d", l.maxStreams+1)},
 		map[string]string{"max_execution_time": "10"},
-		maxCheckpointStreams,
-		maxCheckpointInventoryBytes,
+		l.maxStreams,
+		l.inventoryMaxBytes,
 		"checkpoint inventory",
 		func(index int, line []byte) error {
 			var row checkpointInventoryJSON
