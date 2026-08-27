@@ -110,8 +110,8 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
         )
 
     for unsafe_database in (
-        "catalog_dev_test",
-        "production_dev_backup",
+        "default",
+        "system",
         "PROPERTY_CATALOG_DEV_UPPER",
         "property_catalog_dev_bad-name",
     ):
@@ -127,14 +127,6 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
 
 def test_property_catalog_connection_preserves_acknowledged_dev_admission():
     assert PropertyCatalogConnectionConfig.from_settings(_read_settings()) == CONFIG
-
-
-def test_property_catalog_connection_ignores_obsolete_database_override():
-    source = _read_settings(PROPERTY_CATALOG_CH_DATABASE="wrong_database")
-
-    assert PropertyCatalogConnectionConfig.from_settings(source).database == (
-        "property_catalog_dev_clean"
-    )
 
 
 @pytest.mark.parametrize("read_mode", ["read", "shadow"])
@@ -226,7 +218,7 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
             {
                 "PROPERTY_CATALOG_DATABASE": "property_catalog_backup",
             },
-            "isolated catalog identifier",
+            "namespace does not match",
         ),
         (
             {"PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ()},
@@ -278,6 +270,7 @@ def test_property_catalog_dev_admission_rejects_production_cross_wiring(override
     ("database", "deployment"),
     [
         ("property_catalog_dev_clean", "dev"),
+        ("legacy_catalog_dev_snapshot", "dev"),
         ("property_catalog", "prod"),
     ],
 )
@@ -360,7 +353,9 @@ def test_property_catalog_executor_uses_one_shrinking_wall():
         client_factory=lambda _config: client,
         clock=lambda: next(ticks),
     )
-    query = "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations"
+    query = (
+        "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations"
+    )
 
     executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})
     executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})

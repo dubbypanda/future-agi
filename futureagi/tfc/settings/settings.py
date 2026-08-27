@@ -1174,9 +1174,12 @@ PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
     "I_ACKNOWLEDGE_PROD_READ_ONLY_UNIFIED_PROPERTY_CATALOG"
 )
 PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
-_PROPERTY_CATALOG_DATABASE_PATTERNS = {
-    "dev": re.compile(r"\Aproperty_catalog_dev_[a-z0-9][a-z0-9_]*\Z"),
-    "prod": re.compile(r"\Aproperty_catalog\Z"),
+_PROPERTY_CATALOG_DATABASE_IDENTIFIER = re.compile(r"\A[a-z][a-z0-9_]*\Z")
+_PROPERTY_CATALOG_RESERVED_DATABASES = {
+    "default",
+    "futureagi",
+    "information_schema",
+    "system",
 }
 
 
@@ -1209,27 +1212,26 @@ def validate_property_catalog_database(
     *,
     deployment: str | None = None,
 ) -> str:
-    """Validate an isolated catalog identifier and optional deployment binding."""
+    """Validate a safe catalog identifier and optional production binding."""
 
     if (
         not isinstance(database, str)
         or not database
         or len(database.encode("utf-8")) > 128
+        or _PROPERTY_CATALOG_DATABASE_IDENTIFIER.fullmatch(database) is None
     ):
         raise ValueError(
-            "property catalog database must be an isolated catalog identifier"
+            "property catalog database must be a safe ClickHouse identifier"
         )
-    matches = {
-        candidate
-        for candidate, pattern in _PROPERTY_CATALOG_DATABASE_PATTERNS.items()
-        if pattern.fullmatch(database) is not None
-    }
-    if len(matches) != 1:
+    if database in _PROPERTY_CATALOG_RESERVED_DATABASES:
         raise ValueError(
-            "property catalog database must be an isolated catalog identifier"
+            "property catalog database must be isolated from source databases"
         )
-    resolved_deployment = next(iter(matches))
-    if deployment is not None and deployment != resolved_deployment:
+    if deployment not in {None, "dev", "prod"}:
+        raise ValueError("unsupported property catalog deployment")
+    if (deployment == "prod" and database != "property_catalog") or (
+        deployment == "dev" and database == "property_catalog"
+    ):
         raise ValueError(
             "property catalog database namespace does not match the deployment"
         )
