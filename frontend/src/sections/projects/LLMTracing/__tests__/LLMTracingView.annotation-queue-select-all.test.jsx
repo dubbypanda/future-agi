@@ -438,6 +438,7 @@ async function renderView() {
 
 describe("LLMTracingView header select-all annotation queue contract", () => {
   beforeEach(() => {
+    window.localStorage?.clear();
     harness.addItems.mockReset();
     harness.selectedTab = "trace";
     harness.validatedFilters = {
