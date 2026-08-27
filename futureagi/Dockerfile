@@ -1,6 +1,10 @@
 FROM futureagi/future-agi-base:v1.0.2
 
+ENV NLTK_DATA=/usr/local/share/nltk_data
+
 COPY . .
+
+RUN python -m nltk.downloader -d "$NLTK_DATA" stopwords
 
 # Install Node.js for sandboxed JavaScript eval execution
 RUN apt-get update -qq && \

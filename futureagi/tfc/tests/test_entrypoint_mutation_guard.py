@@ -14,6 +14,13 @@ def _guard_source() -> str:
     return source[start:end]
 
 
+def _startup_source() -> str:
+    source = ENTRYPOINT.read_text()
+    start = source.index("# Run startup checks for services that need them")
+    end = source.index("should_register_temporal_schedules()", start)
+    return source[start:end]
+
+
 def _run_guard(
     value: str | None,
     *,
@@ -58,7 +65,7 @@ def _run_guard(
     [
         (None, "false:false:disabled"),
         ("false", "false:false:disabled"),
-        ("true", "true:true:disabled"),
+        ("true", "true:false:disabled"),
     ],
 )
 def test_entrypoint_guard_development_default_and_explicit_modes(value, expected):
@@ -81,7 +88,7 @@ def test_entrypoint_hosted_startup_defaults_to_mutation_free(env_type):
     completed = _run_guard(None, env_type=env_type)
 
     assert completed.returncode == 0
-    assert completed.stdout.endswith("true:true:disabled")
+    assert completed.stdout.endswith("true:false:disabled")
 
 
 @pytest.mark.parametrize("cloud_deployment", ["US", "EU", "DEV"])
@@ -89,7 +96,7 @@ def test_entrypoint_cloud_deployment_defaults_to_mutation_free(cloud_deployment)
     completed = _run_guard(None, cloud_deployment=cloud_deployment)
 
     assert completed.returncode == 0
-    assert completed.stdout.endswith("true:true:disabled")
+    assert completed.stdout.endswith("true:false:disabled")
 
 
 @pytest.mark.parametrize(
@@ -162,26 +169,65 @@ def test_entrypoint_rejects_unknown_mutation_mode():
     assert "STARTUP_DB_MUTATION_MODE must be exactly" in completed.stdout
 
 
-def test_entrypoint_true_bypasses_all_mutating_setup_and_schedule_registration():
+def test_entrypoint_mutation_guard_does_not_force_fast_startup():
+    assert 'elif [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then' not in _guard_source()
+    assert "\n    FAST_STARTUP=true\n" not in _guard_source()
+
+
+def test_entrypoint_mutation_free_startup_gates_writes_and_schedule_registration():
     source = ENTRYPOINT.read_text()
-    guard = source.index('if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then')
-    startup_boundary = source.index('if [ "$FAST_STARTUP" != "true" ]; then', guard)
+    startup_boundary = source.index('if [ "$FAST_STARTUP" != "true" ]; then')
+    schedule_function = source.index(
+        "should_register_temporal_schedules()", startup_boundary
+    )
     schedule_boundary = source.index(
-        'if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then', startup_boundary
+        'if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then', schedule_function
     )
 
-    assert guard < startup_boundary < schedule_boundary
-    startup_block = source[startup_boundary:schedule_boundary]
-    for mutation in (
-        "wait_for_db",
-        "create_cache_table",
-        "run_migrations",
-        "collect_static",
-    ):
-        assert mutation in startup_block
+    assert startup_boundary < schedule_function < schedule_boundary
+    startup_block = source[startup_boundary:schedule_function]
+    assert "wait_for_db" in startup_block
+    mutation_free_branch = startup_block.index(
+        'if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then'
+    )
+    mutating_branch = startup_block.index("    else\n", mutation_free_branch)
+    guarded_writes = startup_block[mutating_branch:]
+    for mutation in ("create_cache_table", "run_migrations", "seed_system_evals"):
+        assert mutation in guarded_writes
+        assert mutation not in startup_block[mutation_free_branch:mutating_branch]
+    assert "collect_static" in startup_block[mutation_free_branch:mutating_branch]
+    assert "validate_django" in startup_block[mutation_free_branch:mutating_branch]
     schedule_block = source[schedule_boundary : source.index("# Start the appropriate")]
     assert "skipping Temporal schedule registration" in schedule_block
     assert "python manage.py register_temporal_schedules" in schedule_block
+
+
+def test_entrypoint_mutation_free_full_startup_executes_only_read_only_setup():
+    completed = subprocess.run(
+        ["bash"],
+        input=(
+            "FAST_STARTUP=false\n"
+            "NO_STARTUP_DB_MUTATIONS=true\n"
+            "SERVICE_TYPE=backend\n"
+            "ENV_TYPE=prod\n"
+            'wait_for_db() { echo "READ:wait_for_db"; }\n'
+            'collect_static() { echo "LOCAL:collect_static"; }\n'
+            'validate_django() { echo "READ:validate_django"; }\n'
+            'create_cache_table() { echo "MUTATION:create_cache_table"; }\n'
+            'run_migrations() { echo "MUTATION:run_migrations"; }\n'
+            'python() { echo "MUTATION:python $*"; }\n'
+            f"{_startup_source()}\n"
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    assert "READ:wait_for_db" in completed.stdout
+    assert "LOCAL:collect_static" in completed.stdout
+    assert "READ:validate_django" in completed.stdout
+    assert "MUTATION:" not in completed.stdout
 
 
 def test_entrypoint_guard_defaults_by_environment_without_loose_expansion():
@@ -211,7 +257,7 @@ def test_entrypoint_exposes_one_shot_bootstrap_service():
 def test_entrypoint_mutation_free_backend_still_collects_static_assets():
     source = ENTRYPOINT.read_text()
     static_guard = source.index(
-        'if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ] && [ "$SERVICE_TYPE" = "backend" ]; then'
+        'if [ "$FAST_STARTUP" = "true" ] && [ "$NO_STARTUP_DB_MUTATIONS" = "true" ] && [ "$SERVICE_TYPE" = "backend" ]; then'
     )
 
     assert "collect_static" in source[static_guard : static_guard + 220]

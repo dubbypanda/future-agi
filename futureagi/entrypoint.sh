@@ -71,12 +71,11 @@ if [ "$CLOUD_STARTUP" = "true" ] && [ "$SERVICE_TYPE" = "bootstrap" ] && [ "$OPE
 fi
 
 # Operator bootstrap must execute the complete one-shot path even if an
-# inherited workload environment set FAST_STARTUP=true. Ordinary mutation-free
-# services keep the fast boundary and collect static assets explicitly below.
+# inherited workload environment set FAST_STARTUP=true. For ordinary services,
+# FAST_STARTUP remains an independent deployment choice: disabling database
+# mutations must never silently force validation off.
 if [ "$OPERATOR_BOOTSTRAP" = "true" ]; then
     FAST_STARTUP=false
-elif [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then
-    FAST_STARTUP=true
 fi
 export NO_STARTUP_DB_MUTATIONS
 export STARTUP_DB_MUTATION_MODE
@@ -292,7 +291,10 @@ print_service_info() {
 # Initialize
 print_service_info
 
-# Run database checks for services that need it (skip in FAST_STARTUP mode)
+# Run startup checks for services that need them (skip in FAST_STARTUP mode).
+# Mutation permission is deliberately independent from FAST_STARTUP: hosted
+# services may run read-only validation while cache/schema/data writes remain
+# available only to the explicit bootstrap operator.
 if [ "$FAST_STARTUP" != "true" ]; then
     case "$SERVICE_TYPE" in
         "backend"|"worker"|"beat"|"grpc"|"bootstrap")
@@ -300,22 +302,32 @@ if [ "$FAST_STARTUP" != "true" ]; then
             ;;
     esac
 
-    # Create cache table for services that need it
-    case "$SERVICE_TYPE" in
-        "backend"|"worker"|"bootstrap")
-            create_cache_table
-            ;;
-    esac
-
-    # Run backend-specific setup
-    if [ "$SERVICE_TYPE" = "backend" ] || [ "$SERVICE_TYPE" = "bootstrap" ]; then
-        run_migrations
-        if [ "$SERVICE_TYPE" = "bootstrap" ]; then
-            python manage.py seed_system_evals
+    if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then
+        echo "NO_STARTUP_DB_MUTATIONS=true: skipping cache-table, migration, and seed writes"
+        if [ "$SERVICE_TYPE" = "backend" ]; then
+            collect_static
+            if [ "$ENV_TYPE" = "prod" ] || [ "$ENV_TYPE" = "staging" ]; then
+                validate_django
+            fi
         fi
-        collect_static
-        if [ "$ENV_TYPE" = "prod" ] || [ "$ENV_TYPE" = "staging" ]; then
-            validate_django
+    else
+        # Create cache table for services that need it.
+        case "$SERVICE_TYPE" in
+            "backend"|"worker"|"bootstrap")
+                create_cache_table
+                ;;
+        esac
+
+        # Run backend-specific mutating setup.
+        if [ "$SERVICE_TYPE" = "backend" ] || [ "$SERVICE_TYPE" = "bootstrap" ]; then
+            run_migrations
+            if [ "$SERVICE_TYPE" = "bootstrap" ]; then
+                python manage.py seed_system_evals
+            fi
+            collect_static
+            if [ "$ENV_TYPE" = "prod" ] || [ "$ENV_TYPE" = "staging" ]; then
+                validate_django
+            fi
         fi
     fi
 else
@@ -323,8 +335,9 @@ else
 fi
 
 # Static collection writes only image/container files. Keep hosted backend/admin
-# assets available even when every database mutation path is disabled.
-if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ] && [ "$SERVICE_TYPE" = "backend" ]; then
+# assets available even when every database mutation path is disabled and the
+# deployment explicitly opts into FAST_STARTUP.
+if [ "$FAST_STARTUP" = "true" ] && [ "$NO_STARTUP_DB_MUTATIONS" = "true" ] && [ "$SERVICE_TYPE" = "backend" ]; then
     collect_static
 fi
 
