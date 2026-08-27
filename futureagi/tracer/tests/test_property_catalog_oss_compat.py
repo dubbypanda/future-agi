@@ -171,6 +171,10 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
         == "revision_fence"
     )
     assert (
+        collector_environment["FI_PROPERTY_CATALOG_REVISION_FENCE_FILE"]
+        == "/var/lib/fi-collector/property-catalog/revision-fence-v2.json"
+    )
+    assert (
         collector_environment["FI_PROPERTY_CATALOG_KAFKA_BROKERS"]
         == "property-catalog-kafka:9092"
     )
@@ -186,8 +190,12 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
     topic = services["property-catalog-topic-init"]
     assert "profiles" not in topic
     assert (
-        "futureagi.oss.property-catalog.v1"
-        in topic["environment"]["PROPERTY_CATALOG_KAFKA_TOPIC"]
+        "futureagi.oss.property-catalog.candidates.v1"
+        in topic["environment"]["PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC"]
+    )
+    assert (
+        "futureagi.oss.property-catalog.ordered.v1"
+        in topic["environment"]["PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC"]
     )
     topic_command = "\n".join(topic["command"])
     assert "property-catalog.dev.span-attribute-catalog.v1" not in topic_command

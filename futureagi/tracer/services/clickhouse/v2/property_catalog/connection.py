@@ -156,7 +156,7 @@ def reset_property_catalog_read_client() -> None:
 
 
 class PropertyCatalogReadExecutor:
-    """Execute allowlisted catalog SELECTs inside one shared two-second wall."""
+    """Execute allowlisted catalog SELECTs inside one shared bounded wall."""
 
     def __init__(
         self,

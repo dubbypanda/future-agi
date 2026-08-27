@@ -37,9 +37,18 @@ class PropertyCatalogRuntimeLimits:
         "PROPERTY_CATALOG_READ_TRANSPORT_TIMEOUT_SECONDS"
     )
     read_max_threads: int = _setting("PROPERTY_CATALOG_READ_MAX_THREADS")
+    read_max_concurrent_queries_per_user: int = _setting(
+        "PROPERTY_CATALOG_READ_MAX_CONCURRENT_QUERIES_PER_USER"
+    )
     read_max_bytes: int = _setting("PROPERTY_CATALOG_READ_MAX_BYTES")
     read_max_memory_bytes: int = _setting("PROPERTY_CATALOG_READ_MAX_MEMORY_BYTES")
     read_max_result_bytes: int = _setting("PROPERTY_CATALOG_READ_MAX_RESULT_BYTES")
+    read_external_group_by_bytes: int = _setting(
+        "PROPERTY_CATALOG_READ_EXTERNAL_GROUP_BY_BYTES"
+    )
+    read_external_sort_bytes: int = _setting(
+        "PROPERTY_CATALOG_READ_EXTERNAL_SORT_BYTES"
+    )
     max_lineage_revisions: int = _setting("PROPERTY_CATALOG_MAX_LINEAGE_REVISIONS")
     source_max_page_bytes: int = _setting("PROPERTY_CATALOG_SOURCE_MAX_PAGE_BYTES")
     source_max_total_bytes: int = _setting("PROPERTY_CATALOG_SOURCE_MAX_TOTAL_BYTES")
@@ -141,10 +150,15 @@ class PropertyCatalogRuntimeLimits:
     def clickhouse_read_settings(self) -> dict[str, Any]:
         return {
             "max_threads": self.read_max_threads,
+            "max_concurrent_queries_for_user": (
+                self.read_max_concurrent_queries_per_user
+            ),
             "max_bytes_to_read": self.read_max_bytes,
             "read_overflow_mode": "throw",
             "max_memory_usage": self.read_max_memory_bytes,
             "max_result_bytes": self.read_max_result_bytes,
+            "max_bytes_before_external_group_by": self.read_external_group_by_bytes,
+            "max_bytes_before_external_sort": self.read_external_sort_bytes,
             "result_overflow_mode": "throw",
             "timeout_overflow_mode": "throw",
         }

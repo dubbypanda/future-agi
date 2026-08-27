@@ -70,7 +70,7 @@ PROPERTY_CATALOG_RUNTIME_SETTING_SPECS = {
             ("MAX_PROJECTS", 64, 1, 256),
             ("MAX_PAGE_SIZE", 50, 1, 200),
             ("MAX_SEARCH_BYTES", 512, 1, 4096),
-            ("QUERY_WALL_MS", 2_000, 100, 10_000),
+            ("QUERY_WALL_MS", 2_000, 100, 30_000),
             ("DEV_STANDARD_MAX_WALL_MS", 100_000, 100, 1_740_000),
             ("DEV_INITIAL_BACKFILL_MAX_WALL_MS", 1_740_000, 100, 3_600_000),
             ("DEV_SCHEDULED_RECONCILE_MAX_WALL_MS", 1_740_000, 100, 3_600_000),
@@ -83,9 +83,22 @@ PROPERTY_CATALOG_RUNTIME_SETTING_SPECS = {
             ("RECONCILE_ACTIVITY_TIME_LIMIT_SECONDS", 1_800, 60, 7_200),
             ("READ_POOL_SIZE", 4, 1, 32),
             ("READ_MAX_THREADS", 2, 1, 16),
-            ("READ_MAX_BYTES", 512 * 1024**2, 1024**2, 4 * 1024**3),
-            ("READ_MAX_MEMORY_BYTES", 512 * 1024**2, 1024**2, 4 * 1024**3),
-            ("READ_MAX_RESULT_BYTES", 8 * 1024**2, 64 * 1024, 64 * 1024**2),
+            ("READ_MAX_CONCURRENT_QUERIES_PER_USER", 4, 1, 16),
+            ("READ_MAX_BYTES", 512 * 1024**2, 1024**2, 1024**4),
+            ("READ_MAX_MEMORY_BYTES", 512 * 1024**2, 1024**2, 16 * 1024**3),
+            ("READ_MAX_RESULT_BYTES", 8 * 1024**2, 64 * 1024, 256 * 1024**2),
+            (
+                "READ_EXTERNAL_GROUP_BY_BYTES",
+                128 * 1024**2,
+                32 * 1024**2,
+                8 * 1024**3,
+            ),
+            (
+                "READ_EXTERNAL_SORT_BYTES",
+                128 * 1024**2,
+                32 * 1024**2,
+                8 * 1024**3,
+            ),
             ("MAX_LINEAGE_REVISIONS", 2_048, 1, 16_384),
             ("SOURCE_MAX_PAGE_BYTES", 2 * 1024**2, 64 * 1024, 32 * 1024**2),
             ("SOURCE_MAX_TOTAL_BYTES", 32 * 1024**2, 64 * 1024, 64 * 1024**2),
@@ -575,6 +588,16 @@ def validate_property_catalog_settings(values: Mapping[str, Numeric]) -> None:
         value("READ_MAX_RESULT_BYTES"),
         min(value("READ_MAX_BYTES"), value("READ_MAX_MEMORY_BYTES")),
         "ClickHouse result bytes cannot exceed read or memory bytes",
+    )
+    _require_at_most(
+        value("READ_EXTERNAL_GROUP_BY_BYTES"),
+        value("READ_MAX_MEMORY_BYTES"),
+        "ClickHouse external group-by threshold cannot exceed read memory",
+    )
+    _require_at_most(
+        value("READ_EXTERNAL_SORT_BYTES"),
+        value("READ_MAX_MEMORY_BYTES"),
+        "ClickHouse external sort threshold cannot exceed read memory",
     )
     if (
         value("DEV_INITIAL_BACKFILL_MAX_WALL_MS")

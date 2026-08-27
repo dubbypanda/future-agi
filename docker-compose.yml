@@ -665,6 +665,8 @@ services:
       FI_PROPERTY_CATALOG_DEV_ACK: PROPERTY_CATALOG_V1_DEV_ONLY
       FI_PROPERTY_CATALOG_EPOCH: ${PROPERTY_CATALOG_EPOCH:-1}
       FI_PROPERTY_CATALOG_PROJECTION_VERSION: ${PROPERTY_CATALOG_PROJECTION_VERSION:-1}
+      FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE: revision_fence
+      FI_PROPERTY_CATALOG_REVISION_FENCE_FILE: /var/lib/fi-collector/property-catalog/revision-fence-v2.json
       FI_PROPERTY_CATALOG_KAFKA_BROKERS: property-catalog-kafka:9092
       FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC:-futureagi.oss.property-catalog.candidates.v1}
       # Point at the same ClickHouse the backend uses (HTTP port 8123).

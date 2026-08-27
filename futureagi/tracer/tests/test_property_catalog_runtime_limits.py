@@ -11,8 +11,15 @@ def test_runtime_limits_accept_bounded_operator_overrides():
     limits = load_property_catalog_runtime_limits(
         SimpleNamespace(
             PROPERTY_CATALOG_MAX_PAGE_SIZE=25,
-            PROPERTY_CATALOG_QUERY_WALL_MS=1_500,
-            PROPERTY_CATALOG_READ_MAX_THREADS=3,
+            PROPERTY_CATALOG_QUERY_WALL_MS=30_000,
+            PROPERTY_CATALOG_READ_POOL_SIZE=4,
+            PROPERTY_CATALOG_READ_MAX_THREADS=2,
+            PROPERTY_CATALOG_READ_MAX_CONCURRENT_QUERIES_PER_USER=4,
+            PROPERTY_CATALOG_READ_MAX_BYTES=512 * 1024**3,
+            PROPERTY_CATALOG_READ_MAX_MEMORY_BYTES=6 * 1024**3,
+            PROPERTY_CATALOG_READ_MAX_RESULT_BYTES=64 * 1024**2,
+            PROPERTY_CATALOG_READ_EXTERNAL_GROUP_BY_BYTES=512 * 1024**2,
+            PROPERTY_CATALOG_READ_EXTERNAL_SORT_BYTES=512 * 1024**2,
             PROPERTY_CATALOG_POSTGRES_PAGE_ROWS=250,
             PROPERTY_CATALOG_SCHEDULED_RECONCILE_SOURCE_ADAPTER_WALL_SECONDS=90.0,
             PROPERTY_CATALOG_PUBLISHER_WALL_MS=7_500,
@@ -22,8 +29,20 @@ def test_runtime_limits_accept_bounded_operator_overrides():
     )
 
     assert limits.max_page_size == 25
-    assert limits.query_wall_ms == 1_500
-    assert limits.clickhouse_read_settings["max_threads"] == 3
+    assert limits.query_wall_ms == 30_000
+    assert limits.read_pool_size == 4
+    assert limits.clickhouse_read_settings == {
+        "max_threads": 2,
+        "max_concurrent_queries_for_user": 4,
+        "max_bytes_to_read": 512 * 1024**3,
+        "read_overflow_mode": "throw",
+        "max_memory_usage": 6 * 1024**3,
+        "max_result_bytes": 64 * 1024**2,
+        "max_bytes_before_external_group_by": 512 * 1024**2,
+        "max_bytes_before_external_sort": 512 * 1024**2,
+        "result_overflow_mode": "throw",
+        "timeout_overflow_mode": "throw",
+    }
     assert limits.postgres_page_rows == 250
     assert limits.scheduled_reconcile_source_adapter_wall_seconds == 90.0
     assert limits.publisher_wall_ms == 7_500
@@ -36,7 +55,13 @@ def test_runtime_limits_accept_bounded_operator_overrides():
     (
         ("PROPERTY_CATALOG_MAX_PROJECTS", 0),
         ("PROPERTY_CATALOG_MAX_PAGE_SIZE", 201),
+        ("PROPERTY_CATALOG_QUERY_WALL_MS", 30_001),
         ("PROPERTY_CATALOG_READ_TRANSPORT_TIMEOUT_SECONDS", 31.0),
+        ("PROPERTY_CATALOG_READ_MAX_BYTES", 1024**4 + 1),
+        ("PROPERTY_CATALOG_READ_MAX_MEMORY_BYTES", 16 * 1024**3 + 1),
+        ("PROPERTY_CATALOG_READ_MAX_RESULT_BYTES", 256 * 1024**2 + 1),
+        ("PROPERTY_CATALOG_READ_EXTERNAL_GROUP_BY_BYTES", 8 * 1024**3 + 1),
+        ("PROPERTY_CATALOG_READ_EXTERNAL_SORT_BYTES", 8 * 1024**3 + 1),
         ("PROPERTY_CATALOG_SOURCE_ADAPTER_WALL_SECONDS", 0.0),
         ("PROPERTY_CATALOG_DRAIN_POLL_INTERVAL_MS", 0),
         ("PROPERTY_CATALOG_CURRENT_BINDING_MAX_ROWS", 1_000_001),

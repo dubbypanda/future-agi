@@ -84,9 +84,12 @@ _FROM_TERMINATORS = frozenset(
 _ALLOWED_SETTING_KEYS = frozenset(
     {
         "max_threads",
+        "max_concurrent_queries_for_user",
         "max_bytes_to_read",
         "read_overflow_mode",
         "max_memory_usage",
+        "max_bytes_before_external_group_by",
+        "max_bytes_before_external_sort",
         "max_result_rows",
         "max_result_bytes",
         "result_overflow_mode",

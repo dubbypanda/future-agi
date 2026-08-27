@@ -119,6 +119,14 @@ def test_property_catalog_cross_field_limits_are_validated():
             "PROPERTY_CATALOG_READ_MAX_BYTES",
         ),
         (
+            "PROPERTY_CATALOG_READ_EXTERNAL_GROUP_BY_BYTES",
+            "PROPERTY_CATALOG_READ_MAX_MEMORY_BYTES",
+        ),
+        (
+            "PROPERTY_CATALOG_READ_EXTERNAL_SORT_BYTES",
+            "PROPERTY_CATALOG_READ_MAX_MEMORY_BYTES",
+        ),
+        (
             "PROPERTY_CATALOG_CURSOR_MAX_AGE_SECONDS",
             "PROPERTY_CATALOG_LINEAGE_ANCHOR_MAX_AGE_SECONDS",
         ),
