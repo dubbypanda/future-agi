@@ -7,15 +7,12 @@ model identifies the user request and the final response itself.
 """
 
 import json
-import logging
 import re
 import statistics
 
 import nltk
 from nltk.corpus import stopwords as _nltk_stopwords
 from nltk.stem import PorterStemmer
-
-logger = logging.getLogger(__name__)
 
 
 def _get_span_kind(attrs: dict) -> str:
@@ -35,21 +32,7 @@ def _get_span_kind(attrs: dict) -> str:
 # ---------------------------------------------------------------------------
 
 _STEMMER = PorterStemmer()
-
-
-def _load_nltk_stopwords() -> set[str]:
-    """Load optional compression stopwords without breaking service startup."""
-
-    try:
-        return set(_nltk_stopwords.words("english"))
-    except LookupError:
-        logger.warning(
-            "NLTK stopwords corpus is unavailable; using scanner fallback stopwords"
-        )
-        return set()
-
-
-_NLTK_STOPS = _load_nltk_stopwords()
+_NLTK_STOPS = set(_nltk_stopwords.words("english"))
 
 _EXTRA_STOPS = {
     "please",
@@ -379,7 +362,7 @@ def structural_prefilter(trace_data):
     by_depth = {}
     for s in spans_flat:
         by_depth.setdefault(s["depth"], []).append(s)
-    for _depth, siblings in by_depth.items():
+    for depth, siblings in by_depth.items():
         durations = [s["duration"] for s in siblings if s["duration"] > 0]
         if len(durations) >= 3:
             mean = statistics.mean(durations)
@@ -419,7 +402,7 @@ def structural_prefilter(trace_data):
         signals["llm_only_trace"] = True
 
     anomalous_ids = set()
-    for _key, ids in signals.items():
+    for key, ids in signals.items():
         if isinstance(ids, list):
             anomalous_ids.update(ids)
 
@@ -485,7 +468,7 @@ def structural_prefilter_with_ids(trace_data):
     by_depth = {}
     for s in spans_flat:
         by_depth.setdefault(s["depth"], []).append(s)
-    for _depth, siblings in by_depth.items():
+    for depth, siblings in by_depth.items():
         durations = [s["duration"] for s in siblings if s["duration"] > 0]
         if len(durations) >= 3:
             mean = statistics.mean(durations)
@@ -556,7 +539,7 @@ def extract_programmatic_metadata(trace_data, prefilter_result):
         flat_spans.extend(flatten_spans(top_span))
 
     tools_called = []
-    for span, _depth in flat_spans:
+    for span, depth in flat_spans:
         attrs = span.get("span_attributes", {})
         kind = _get_span_kind(attrs)
         if kind in {"Tool", "TOOL"} or "Tool" in span["span_name"]:
@@ -573,7 +556,7 @@ def extract_programmatic_metadata(trace_data, prefilter_result):
 
     all_inputs = []
     all_outputs = []
-    for span, _depth in flat_spans:
+    for span, depth in flat_spans:
         attrs = span.get("span_attributes", {})
         inp = str(attrs.get("input.value", ""))
         out = str(attrs.get("output.value", ""))
@@ -742,7 +725,7 @@ def _v3_plain(text, max_len):
 
 
 def _v3_loads(v):
-    if isinstance(v, dict | list):
+    if isinstance(v, (dict, list)):
         return v
     if not isinstance(v, str):
         return None
@@ -764,11 +747,11 @@ def _is_nontextual(d):
         v = d.get(k)
         if isinstance(v, list) and v:
             head = v[0]
-            if isinstance(head, int | float):
+            if isinstance(head, (int, float)):
                 return True
             if isinstance(head, dict) and any(
                 isinstance(head.get(kk), list) and head.get(kk)
-                and isinstance(head[kk][0], int | float)
+                and isinstance(head[kk][0], (int, float))
                 for kk in ("embedding", "values", "vector", "scores")
             ):
                 return True
@@ -823,7 +806,7 @@ def unwrap_output(raw):
                         got.append(f"[tool_call {fn.get('name','')}] {fn['arguments']}")
                 if got:
                     return "\n".join(got)
-            if isinstance(x.get("content"), list | dict):
+            if isinstance(x.get("content"), (list, dict)):
                 return _txt(x["content"])
             if isinstance(x.get("parts"), list):
                 return _txt(x["parts"])
