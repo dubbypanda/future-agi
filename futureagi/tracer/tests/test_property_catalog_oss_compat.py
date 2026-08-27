@@ -254,6 +254,17 @@ def test_root_oss_compose_defaults_to_the_unified_kafka_catalog() -> None:
     )
 
 
+def test_dev_compose_runs_catalog_supervisor_from_the_checkout() -> None:
+    compose = (_REPOSITORY / "docker-compose.dev.yml").read_text(encoding="utf-8")
+    supervisor = compose.split("  property-catalog-supervisor:\n", 1)[1].split(
+        "\n  dev-api-proxy:\n", 1
+    )[0]
+
+    assert "image: futureagi/future-agi:dev" in supervisor
+    assert "pull_policy: never" in supervisor
+    assert "- ./futureagi:/app/backend" in supervisor
+
+
 def test_oss_bootstrap_scripts_cannot_mutate_source_data() -> None:
     scripts = _REPOSITORY / "futureagi" / "scripts" / "property_catalog_oss"
     clickhouse = (scripts / "bootstrap_clickhouse.sh").read_text(encoding="utf-8")
