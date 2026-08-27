@@ -230,6 +230,13 @@ vi.mock("../SpanGrid", async () => {
 vi.mock("../ObserveToolbar", () => ({
   default: (props) => (
     <div>
+      <output
+        data-testid="observe-toolbar-filter-state"
+        data-catalog-filter-count={props.graphFilters?.length || 0}
+        data-has-eval-filter={String(props.hasEvalFilter)}
+        data-show-errors={String(props.showErrors)}
+        data-show-non-annotated={String(props.showNonAnnotated)}
+      />
       <button
         type="button"
         onClick={() => props.onApplyExtraFilters(mixedCatalogFilters)}
@@ -392,6 +399,22 @@ async function applyMixedFiltersAndOpenQueue(user) {
   await user.click(
     screen.getByRole("button", { name: /toggle non-annotated/i }),
   );
+
+  // The queue selection snapshots the active filter set when the queue is
+  // opened. Wait for React to commit every preceding toolbar interaction so
+  // this test cannot submit an intentionally stale intermediate render under
+  // a heavily loaded component-test worker.
+  await waitFor(() => {
+    const state = screen.getByTestId("observe-toolbar-filter-state");
+    expect(state).toHaveAttribute(
+      "data-catalog-filter-count",
+      String(mixedCatalogFilters.length),
+    );
+    expect(state).toHaveAttribute("data-has-eval-filter", "true");
+    expect(state).toHaveAttribute("data-show-errors", "true");
+    expect(state).toHaveAttribute("data-show-non-annotated", "true");
+  });
+
   await user.click(screen.getByRole("button", { name: /add selected rows/i }));
   await user.click(await screen.findByText("Manager Queue"));
 }

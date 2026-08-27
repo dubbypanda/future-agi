@@ -3995,7 +3995,9 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
               viewMode={effectiveViewMode}
               onViewModeChange={setViewMode}
               hasEvalFilter={hasEvalFilter}
-              onToggleEvalFilter={() => setHasEvalFilter(!hasEvalFilter)}
+              onToggleEvalFilter={() =>
+                setHasEvalFilter((current) => !current)
+              }
               showEvalToggle={
                 !!columnKey &&
                 columns[columnKey]?.some(
@@ -4003,10 +4005,10 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                 )
               }
               showErrors={showErrors}
-              onToggleErrors={() => setShowErrors(!showErrors)}
+              onToggleErrors={() => setShowErrors((current) => !current)}
               showNonAnnotated={showNonAnnotated}
               onToggleNonAnnotated={() =>
-                setShowNonAnnotated(!showNonAnnotated)
+                setShowNonAnnotated((current) => !current)
               }
               groupBy={groupBy}
               onGroupByChange={handleGroupByChange}

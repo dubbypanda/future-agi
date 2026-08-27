@@ -157,6 +157,7 @@ describe("Task Create mixed catalog filter submission", () => {
           sampling_rate: 50,
           filters: {
             project_id: "project-1",
+            date_preset: "custom",
             date_range: [
               "2026-08-01T00:00:00.000Z",
               "2026-08-25T00:00:00.000Z",
