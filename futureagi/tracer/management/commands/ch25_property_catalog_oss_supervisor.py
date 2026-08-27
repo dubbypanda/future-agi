@@ -62,6 +62,12 @@ logger = logging.getLogger(__name__)
 OSS_SUPERVISOR_ACK_ENV = "PROPERTY_CATALOG_OSS_SUPERVISOR_ACK"
 OSS_SUPERVISOR_ACK = "PROPERTY_CATALOG_OSS_SUPERVISOR_V1"
 OSS_SUPERVISOR_POLL_SECONDS_ENV = "PROPERTY_CATALOG_OSS_SUPERVISOR_POLL_SECONDS"
+OSS_SUPERVISOR_WORKSPACE_BATCH_SIZE_ENV = (
+    "PROPERTY_CATALOG_OSS_SUPERVISOR_WORKSPACE_BATCH_SIZE"
+)
+OSS_SUPERVISOR_PROJECT_BATCH_SIZE_ENV = (
+    "PROPERTY_CATALOG_OSS_SUPERVISOR_PROJECT_BATCH_SIZE"
+)
 OSS_CATALOG_EPOCH_ENV = "PROPERTY_CATALOG_DEV_CATALOG_EPOCH"
 OSS_PROJECTION_VERSION_ENV = "PROPERTY_CATALOG_DEV_PROJECTION_VERSION"
 OSS_PRODUCER_STREAM_ID_ENV = "PROPERTY_CATALOG_DEV_HOT_PRODUCER_STREAM_ID"
@@ -69,8 +75,9 @@ OSS_PRODUCER_STREAM_ID_ENV = "PROPERTY_CATALOG_DEV_HOT_PRODUCER_STREAM_ID"
 _DEFAULT_POLL_SECONDS = 60
 _MIN_POLL_SECONDS = 5
 _MAX_POLL_SECONDS = 3_600
-_MAX_WORKSPACES = 256
-_MAX_PROJECTS_PER_WORKSPACE = 256
+_DEFAULT_WORKSPACE_BATCH_SIZE = 512
+_DEFAULT_PROJECT_BATCH_SIZE = 512
+_MAX_QUERY_BATCH_SIZE = 16_384
 _SPAN_WINDOW_DAYS = 366
 _OSS_DEV_IDENTITY = "dev:oss-property-catalog-supervisor"
 _PROBE_ORGANIZATION_ID = "00000000-0000-4000-8000-000000000001"
@@ -90,6 +97,8 @@ class OssSupervisorConfig:
     projection_version: int
     producer_stream_id: str
     poll_seconds: int
+    workspace_batch_size: int
+    project_batch_size: int
     scheduled_reconcile_wall_ms: int
 
 
@@ -123,13 +132,9 @@ class WorkspaceScope:
                 for value in self.legacy_project_ids
             )
         )
-        if (
-            not projects
-            or len(projects) > _MAX_PROJECTS_PER_WORKSPACE
-            or len(set(projects)) != len(projects)
-        ):
+        if not projects or len(set(projects)) != len(projects):
             raise OssPropertyCatalogSupervisorError(
-                "workspace scope requires 1..256 unique projects"
+                "workspace scope requires one or more unique projects"
             )
         if len(set(legacy)) != len(legacy) or not set(legacy).issubset(projects):
             raise OssPropertyCatalogSupervisorError(
@@ -222,7 +227,10 @@ class Command(BaseCommand):
                     config=config,
                     now=cycle_now,
                 )
-                scopes, skipped = _discover_workspace_scopes()
+                scopes, skipped = _discover_workspace_scopes(
+                    workspace_batch_size=config.workspace_batch_size,
+                    project_batch_size=config.project_batch_size,
+                )
                 result = _run_cycle(
                     scopes=scopes,
                     skipped=skipped,
@@ -318,6 +326,20 @@ def _supervisor_config(
         minimum=_MIN_POLL_SECONDS,
         maximum=_MAX_POLL_SECONDS,
     )
+    workspace_batch_size = _bounded_environment_int(
+        environ,
+        OSS_SUPERVISOR_WORKSPACE_BATCH_SIZE_ENV,
+        default=_DEFAULT_WORKSPACE_BATCH_SIZE,
+        minimum=1,
+        maximum=_MAX_QUERY_BATCH_SIZE,
+    )
+    project_batch_size = _bounded_environment_int(
+        environ,
+        OSS_SUPERVISOR_PROJECT_BATCH_SIZE_ENV,
+        default=_DEFAULT_PROJECT_BATCH_SIZE,
+        minimum=1,
+        maximum=_MAX_QUERY_BATCH_SIZE,
+    )
     scheduled_wall_ms = getattr(
         settings_object,
         "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS",
@@ -334,21 +356,23 @@ def _supervisor_config(
         projection_version=projection,
         producer_stream_id=producer_stream_id,
         poll_seconds=poll_seconds,
+        workspace_batch_size=workspace_batch_size,
+        project_batch_size=project_batch_size,
         scheduled_reconcile_wall_ms=scheduled_wall_ms,
     )
 
 
-def _discover_workspace_scopes() -> tuple[tuple[WorkspaceScope, ...], tuple[str, ...]]:
-    workspace_rows = list(
+def _discover_workspace_scopes(
+    *,
+    workspace_batch_size: int,
+    project_batch_size: int,
+) -> tuple[tuple[WorkspaceScope, ...], tuple[str, ...]]:
+    workspace_rows = (
         Workspace.no_workspace_objects.filter(is_active=True)
         .order_by("organization_id", "id")
-        .values_list("id", "organization_id", "is_default")[: _MAX_WORKSPACES + 1]
+        .values_list("id", "organization_id", "is_default")
+        .iterator(chunk_size=workspace_batch_size)
     )
-    if len(workspace_rows) > _MAX_WORKSPACES:
-        raise OssPropertyCatalogSupervisorError(
-            "active OSS workspace scope exceeds the 256-workspace safety bound"
-        )
-    workspace_rows.sort(key=lambda row: (str(row[1]), str(row[0])))
 
     scopes: list[WorkspaceScope] = []
     skipped: list[str] = []
@@ -371,13 +395,9 @@ def _discover_workspace_scopes() -> tuple[tuple[WorkspaceScope, ...], tuple[str,
         project_rows = list(
             Project.no_workspace_objects.filter(project_filter)
             .order_by("id")
-            .values_list("id", "workspace_id")[: _MAX_PROJECTS_PER_WORKSPACE + 1]
+            .values_list("id", "workspace_id")
+            .iterator(chunk_size=project_batch_size)
         )
-        if len(project_rows) > _MAX_PROJECTS_PER_WORKSPACE:
-            raise OssPropertyCatalogSupervisorError(
-                f"workspace {workspace_id} exceeds the 256-project safety bound"
-            )
-        project_rows.sort(key=lambda row: str(row[0]))
         if not project_rows:
             skipped.append(workspace_id)
             continue

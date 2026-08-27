@@ -64,6 +64,8 @@ def _config() -> subject.OssSupervisorConfig:
         projection_version=3,
         producer_stream_id=PRODUCER,
         poll_seconds=60,
+        workspace_batch_size=512,
+        project_batch_size=512,
         scheduled_reconcile_wall_ms=1_200_000,
     )
 
@@ -128,6 +130,8 @@ def test_supervisor_gate_accepts_only_bounded_explicit_local_configuration() -> 
         settings_object=_settings(),
         environ=_environ(
             **{subject.OSS_SUPERVISOR_POLL_SECONDS_ENV: "300"},
+            **{subject.OSS_SUPERVISOR_WORKSPACE_BATCH_SIZE_ENV: "128"},
+            **{subject.OSS_SUPERVISOR_PROJECT_BATCH_SIZE_ENV: "64"},
         ),
     )
 
@@ -138,6 +142,8 @@ def test_supervisor_gate_accepts_only_bounded_explicit_local_configuration() -> 
         projection_version=3,
         producer_stream_id=PRODUCER,
         poll_seconds=300,
+        workspace_batch_size=128,
+        project_batch_size=64,
         scheduled_reconcile_wall_ms=1_200_000,
     )
 
@@ -180,6 +186,10 @@ class _RowsQuery:
         self.calls.append(("values_list", *fields))
         return self
 
+    def iterator(self, *, chunk_size: int) -> Any:
+        self.calls.append(("iterator", chunk_size))
+        return iter(self.rows)
+
     def __getitem__(self, item: slice) -> list[tuple[Any, ...]]:
         self.calls.append(("slice", item.start, item.stop))
         return self.rows[item]
@@ -201,9 +211,9 @@ def test_discovery_is_deterministic_maps_legacy_only_to_default_and_skips_empty(
     workspace_manager = _RowsManager(
         [
             [
-                (WORKSPACE_OTHER, ORG_B, False),
-                (WORKSPACE_EMPTY, ORG_A, False),
                 (WORKSPACE_DEFAULT, ORG_A, True),
+                (WORKSPACE_EMPTY, ORG_A, False),
+                (WORKSPACE_OTHER, ORG_B, False),
             ]
         ]
     )
@@ -228,7 +238,10 @@ def test_discovery_is_deterministic_maps_legacy_only_to_default_and_skips_empty(
         SimpleNamespace(no_workspace_objects=project_manager),
     )
 
-    scopes, skipped = subject._discover_workspace_scopes()
+    scopes, skipped = subject._discover_workspace_scopes(
+        workspace_batch_size=512,
+        project_batch_size=512,
+    )
 
     assert [scope.workspace_id for scope in scopes] == [
         WORKSPACE_DEFAULT,
@@ -247,44 +260,38 @@ def test_discovery_is_deterministic_maps_legacy_only_to_default_and_skips_empty(
     )
 
 
-def test_discovery_rejects_workspace_and_project_scope_overflow(
+def test_discovery_has_no_total_workspace_or_project_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    workspace_rows = [
-        (str(UUID(int=index + 1)), ORG_A, False)
-        for index in range(subject._MAX_WORKSPACES + 1)
-    ]
-    monkeypatch.setattr(
-        subject,
-        "Workspace",
-        SimpleNamespace(no_workspace_objects=_RowsManager([workspace_rows])),
-    )
-    monkeypatch.setattr(
-        subject,
-        "Project",
-        SimpleNamespace(no_workspace_objects=_RowsManager([])),
-    )
-    with pytest.raises(subject.OssPropertyCatalogSupervisorError, match="workspace"):
-        subject._discover_workspace_scopes()
-
+    workspace_rows = [(str(UUID(int=index + 10)), ORG_A, False) for index in range(3)]
     project_rows = [
-        (str(UUID(int=index + 1)), WORKSPACE_DEFAULT)
-        for index in range(subject._MAX_PROJECTS_PER_WORKSPACE + 1)
+        [(str(UUID(int=index + 100)), workspace_rows[index][0])] for index in range(3)
     ]
+    workspace_manager = _RowsManager([workspace_rows])
+    project_manager = _RowsManager(project_rows)
     monkeypatch.setattr(
         subject,
         "Workspace",
-        SimpleNamespace(
-            no_workspace_objects=_RowsManager([[(WORKSPACE_DEFAULT, ORG_A, False)]])
-        ),
+        SimpleNamespace(no_workspace_objects=workspace_manager),
     )
     monkeypatch.setattr(
         subject,
         "Project",
-        SimpleNamespace(no_workspace_objects=_RowsManager([project_rows])),
+        SimpleNamespace(no_workspace_objects=project_manager),
     )
-    with pytest.raises(subject.OssPropertyCatalogSupervisorError, match="project"):
-        subject._discover_workspace_scopes()
+    scopes, skipped = subject._discover_workspace_scopes(
+        workspace_batch_size=2,
+        project_batch_size=1,
+    )
+
+    assert len(scopes) == 3
+    assert skipped == ()
+    assert ("iterator", 2) in workspace_manager.calls
+    assert [call for call in project_manager.calls if call[0] == "iterator"] == [
+        ("iterator", 1),
+        ("iterator", 1),
+        ("iterator", 1),
+    ]
 
 
 def test_workspace_routes_active_catalog_to_incremental_reconcile(
@@ -613,7 +620,7 @@ def test_once_exits_nonzero_after_any_workspace_failure(
     monkeypatch.setattr(
         subject,
         "_discover_workspace_scopes",
-        lambda: ((scope,), ()),
+        lambda **_kwargs: ((scope,), ()),
     )
     monkeypatch.setattr(subject, "_run_cycle", lambda **_kwargs: failure)
     monkeypatch.setattr(
@@ -637,7 +644,11 @@ def test_once_forwards_explicit_initial_backfill_mode_and_wall(
         "_probe_remote_identities",
         lambda **_kwargs: SimpleNamespace(),
     )
-    monkeypatch.setattr(subject, "_discover_workspace_scopes", lambda: ((), ()))
+    monkeypatch.setattr(
+        subject,
+        "_discover_workspace_scopes",
+        lambda **_kwargs: ((), ()),
+    )
 
     def cycle(**kwargs: Any) -> subject._CycleResult:
         captured.update(kwargs)
