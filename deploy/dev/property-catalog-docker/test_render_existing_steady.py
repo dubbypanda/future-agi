@@ -27,6 +27,9 @@ steady = _module("property_catalog_docker_steady", "render_existing_steady.py")
 provision = _module(
     "property_catalog_docker_provision_existing", "provision_existing_steady.py"
 )
+one_shot_provision = _module(
+    "property_catalog_docker_provision_one_shot", "provision_0816d.py"
+)
 
 
 def _digest(seed: str) -> str:
@@ -182,6 +185,18 @@ class ExistingSteadyRendererTests(unittest.TestCase):
 
 
 class ExistingSteadyProvisionerTests(unittest.TestCase):
+    def test_one_shot_provisioner_accepts_safe_legacy_database_name(self) -> None:
+        self.assertEqual(
+            one_shot_provision._catalog_database("th7247_catalog_dev_kartik_0817j"),
+            "th7247_catalog_dev_kartik_0817j",
+        )
+        for unsafe in ("property_catalog", "futureagi", "Property-Catalog-Dev"):
+            with (
+                self.subTest(unsafe=unsafe),
+                self.assertRaises(RuntimeError),
+            ):
+                one_shot_provision._catalog_database(unsafe)
+
     def test_settings_accept_safe_legacy_target_database_name(self) -> None:
         suffix, _, target, _ = provision._settings(
             "0817j",

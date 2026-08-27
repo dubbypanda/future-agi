@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision only a fresh, suffix-isolated property catalog DEV catalog."""
+"""Provision only a fresh, isolated property catalog DEV catalog."""
 
 from __future__ import annotations
 
@@ -17,6 +17,25 @@ from pathlib import Path
 SUFFIX = os.environ.get("FI_PROPERTY_CATALOG_ROLLOUT_SUFFIX", "0816d")
 if re.fullmatch(r"[0-9]{4}[a-z]", SUFFIX) is None:
     raise RuntimeError("FI_PROPERTY_CATALOG_ROLLOUT_SUFFIX must match NNNNx")
+_CATALOG_DATABASE_RE = re.compile(r"[a-z][a-z0-9_]{0,127}")
+_RESERVED_CATALOG_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+)
+
+
+def _catalog_database(value: str) -> str:
+    database = value.strip()
+    if (
+        _CATALOG_DATABASE_RE.fullmatch(database) is None
+        or database in _RESERVED_CATALOG_DATABASES
+    ):
+        raise RuntimeError(
+            "PROPERTY_CATALOG_DATABASE must be a safe lowercase ClickHouse "
+            "identifier isolated from production and source databases"
+        )
+    return database
+
+
 CATALOG_EPOCH = int(os.environ.get("FI_PROPERTY_CATALOG_EPOCH", "2"))
 if not 1 <= CATALOG_EPOCH <= 65535:
     raise RuntimeError("FI_PROPERTY_CATALOG_EPOCH must be between 1 and 65535")
@@ -30,8 +49,7 @@ PROJECT_IDS = tuple(
     value.strip()
     for value in os.environ.get(
         "FI_PROPERTY_CATALOG_PROJECT_IDS",
-        "5272afb0-4b6e-4cc5-8415-d41b297f6a20,"
-        "d9d8498f-abab-42e0-9794-bb75a7f27350",
+        "5272afb0-4b6e-4cc5-8415-d41b297f6a20,d9d8498f-abab-42e0-9794-bb75a7f27350",
     ).split(",")
     if value.strip()
 )
@@ -48,16 +66,25 @@ for field_name, value in (
     if parsed.version != 4 or str(parsed) != value:
         raise RuntimeError(f"{field_name} must be a canonical UUIDv4")
 if not 1 <= len(PROJECT_IDS) <= 256 or PROJECT_IDS != tuple(sorted(set(PROJECT_IDS))):
-    raise RuntimeError("FI_PROPERTY_CATALOG_PROJECT_IDS must contain 1..256 sorted unique UUIDv4s")
+    raise RuntimeError(
+        "FI_PROPERTY_CATALOG_PROJECT_IDS must contain 1..256 sorted unique UUIDv4s"
+    )
 for project_id in PROJECT_IDS:
     parsed = uuid.UUID(project_id)
     if parsed.version != 4 or str(parsed) != project_id:
-        raise RuntimeError("FI_PROPERTY_CATALOG_PROJECT_IDS must contain canonical UUIDv4s")
+        raise RuntimeError(
+            "FI_PROPERTY_CATALOG_PROJECT_IDS must contain canonical UUIDv4s"
+        )
 ROOT = Path(f"/home/ubuntu/property-catalog-kartik-{SUFFIX}")
 PRIVATE = ROOT / "private"
 RUNTIME = ROOT / "runtime"
 EVIDENCE = ROOT / "evidence"
-TARGET = f"property_catalog_dev_kartik_{SUFFIX}"
+TARGET = _catalog_database(
+    os.environ.get(
+        "PROPERTY_CATALOG_DATABASE",
+        f"property_catalog_dev_kartik_{SUFFIX}",
+    )
+)
 OP_IMAGE = os.environ.get(
     "FI_PROPERTY_CATALOG_OPERATOR_IMAGE",
     "sha256:a64747143de3c0865babbc5bf0d161be03ac6eec784e4d49be416e8b202b209f",
@@ -68,8 +95,13 @@ OP_RUNTIME_IMAGE = os.environ.get(
     "FI_PROPERTY_CATALOG_OPERATOR_RUNTIME_IMAGE",
     "fi-property-catalog-current-select:0816d-7a7dc207",
 )
-if re.fullmatch(r"fi-property-catalog-current-select:[0-9a-z-]+", OP_RUNTIME_IMAGE) is None:
-    raise RuntimeError("FI_PROPERTY_CATALOG_OPERATOR_RUNTIME_IMAGE must be a property catalog DEV tag")
+if (
+    re.fullmatch(r"fi-property-catalog-current-select:[0-9a-z-]+", OP_RUNTIME_IMAGE)
+    is None
+):
+    raise RuntimeError(
+        "FI_PROPERTY_CATALOG_OPERATOR_RUNTIME_IMAGE must be a property catalog DEV tag"
+    )
 GO_IMAGE = os.environ.get(
     "FI_PROPERTY_CATALOG_GO_IMAGE",
     "sha256:84c45a5c36b71430e1cc5845ab8ce4f0da84332eb97dc8903bfd9c33bd2be1c1",
