@@ -924,9 +924,18 @@ def track_running_eval_count(
 
 class AnnotationCorpusBuilder:
     def __init__(self):
-        # Required corpora and taggers are checksum-pinned into the backend
-        # image. Missing resources are a deployment defect; application pods
-        # must never fetch mutable data from the internet at runtime.
+        # Download necessary resources once
+        # Catch FileExistsError in case NLTK data directory already exists
+        try:
+            nltk.download("punkt", quiet=True)
+            nltk.download("averaged_perceptron_tagger", quiet=True)
+            nltk.download("wordnet", quiet=True)
+            nltk.download("omw-1.4", quiet=True)
+            nltk.download("stopwords", quiet=True)
+        except FileExistsError:
+            # Directory already exists, downloads can proceed
+            pass
+
         self.lemmatizer = WordNetLemmatizer()
         self.stop_words = set(stopwords.words("english"))
 
