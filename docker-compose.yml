@@ -852,7 +852,7 @@ services:
       PROPERTY_CATALOG_DEV_DRAIN_PROOF_FILE: /var/lib/fi-collector/property-catalog/producer-drain-proof-v2.json
       PROPERTY_CATALOG_DEV_PRODUCER_RETIREMENT_FILE: /var/lib/fi-collector/property-catalog/producer-state-retirements-v1.json
       PROPERTY_CATALOG_DEV_MUTATION_LOCK_DIRECTORY: /var/lib/fi-collector/property-catalog
-      PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS: ${PROPERTY_CATALOG_RECONCILE_WALL_MS:-120000}
+      PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS: ${PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS:-1200000}
     user: "65532:65532"
     read_only: true
     cap_drop: ["ALL"]
