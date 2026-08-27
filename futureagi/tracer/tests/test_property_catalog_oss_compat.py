@@ -277,6 +277,18 @@ def test_dev_compose_runs_catalog_supervisor_from_the_checkout() -> None:
     assert "- ./futureagi:/app/backend" in supervisor
 
 
+def test_dev_api_proxy_re_resolves_recreated_compose_services() -> None:
+    proxy = (
+        _REPOSITORY / "deploy" / "dev-api-proxy" / "default.conf.template"
+    ).read_text(encoding="utf-8")
+
+    assert "resolver 127.0.0.11" in proxy
+    assert "server backend:80 resolve;" in proxy
+    assert "server fi-collector:4318 resolve;" in proxy
+    assert "proxy_pass http://dev_backend;" in proxy
+    assert "proxy_pass http://dev_fi_collector;" in proxy
+
+
 def test_oss_bootstrap_scripts_cannot_mutate_source_data() -> None:
     scripts = _REPOSITORY / "futureagi" / "scripts" / "property_catalog_oss"
     clickhouse = (scripts / "bootstrap_clickhouse.sh").read_text(encoding="utf-8")
