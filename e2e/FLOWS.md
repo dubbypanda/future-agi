@@ -6,8 +6,8 @@
 
 ### AUTH-E2E-001 — user signs in with email and password
 
-**Goal:** A new user signs in with email and password and is routed to organization setup
-**Spec:** `flows/auth/login.spec.ts:10`
+**Goal:** A new user signs in with email and password and is routed to organization setup<br>
+**Spec:** `flows/auth/login.spec.ts:10`<br>
 **Tags:** @smoke
 
 **User steps:**
@@ -26,8 +26,8 @@
 
 ### EVAL-E2E-001 — eval task runs over ingested spans via the mock LLM
 
-**Goal:** A developer runs an LLM eval over ingested spans and reads the results
-**Spec:** `flows/evals/eval-task.spec.ts:34`
+**Goal:** A developer runs an LLM eval over ingested spans and reads the results<br>
+**Spec:** `flows/evals/eval-task.spec.ts:34`<br>
 **Tags:** —
 
 **User steps:**
@@ -50,8 +50,8 @@
 
 ### OBS-E2E-001 — SDK trace appears in Observe with coherent backend state
 
-**Goal:** A developer sends a trace from their app and inspects it in Observe
-**Spec:** `flows/observe/trace-ingestion.spec.ts:24`
+**Goal:** A developer sends a trace from their app and inspects it in Observe<br>
+**Spec:** `flows/observe/trace-ingestion.spec.ts:24`<br>
 **Tags:** @smoke
 
 **User steps:**
@@ -71,8 +71,8 @@
 
 ### OBS-E2E-002 — span table filter matches the API for the same query
 
-**Goal:** A developer narrows the span table to one operation and trusts the result set
-**Spec:** `flows/observe/span-filter-parity.spec.ts:28`
+**Goal:** A developer narrows the span table to one operation and trusts the result set<br>
+**Spec:** `flows/observe/span-filter-parity.spec.ts:28`<br>
 **Tags:** —
 
 **User steps:**
