@@ -330,6 +330,7 @@ fi
 
 should_register_temporal_schedules() {
     if [ "$NO_STARTUP_DB_MUTATIONS" = "true" ]; then
+        echo "NO_STARTUP_DB_MUTATIONS=true: skipping Temporal schedule registration"
         return 1
     fi
 
