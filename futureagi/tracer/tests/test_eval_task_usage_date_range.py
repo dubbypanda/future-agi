@@ -290,6 +290,18 @@ class TestUsageQueryContract:
         assert response.status_code == 200
         assert "eval_aggregation" in response.json()["result"]
 
+    def test_lone_bound_is_rejected_outside_aggregation_mode(
+        self, auth_client, task_with_two_runs
+    ):
+        """Outside the aggregation modes, the chart/logs path only reads the
+        pair — a lone bound would otherwise be silently ignored."""
+        task, _ = task_with_two_runs
+        response = _get(auth_client, task, start_date=_iso(-15))
+        assert response.status_code == 400
+
+        response = _get(auth_client, task, end_date=_iso(0))
+        assert response.status_code == 400
+
 
 # ── Bucket alignment ───────────────────────────────────────────────────
 
