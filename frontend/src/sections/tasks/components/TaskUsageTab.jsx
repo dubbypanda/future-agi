@@ -22,12 +22,7 @@ import { useSettingsContext } from "src/components/settings/context";
 import DateTimeRangePicker from "src/sections/projects/DateTimeRangePicker";
 
 import { useTaskUsageChart, useTaskUsageLogs } from "../hooks/useTaskUsage";
-import {
-  DATE_OPTION,
-  DATE_OPTION_TO_PERIOD,
-  DEFAULT_USAGE_PERIOD,
-  USAGE_PERIOD,
-} from "../constants";
+import { DATE_OPTION, DEFAULT_USAGE_PERIOD, USAGE_PERIOD } from "../constants";
 import UsageChart from "src/sections/evals/components/UsageChart";
 import { JsonValueTree } from "src/sections/evals/components/DatasetTestMode";
 import { classifyTaskError } from "src/sections/common/EvalsTasks/classifyTaskError";
@@ -36,6 +31,7 @@ import PartialInputWarningDetails, {
 } from "src/sections/common/EvalsTasks/PartialInputWarningDetails";
 import { isEditableElement } from "src/utils/keyboardUtils";
 import { parsePythonReprIfNeeded } from "src/sections/develop-detail/DataTab/common";
+import { DATE_OPTION_TO_PERIOD } from "src/sections/evals/Helpers/evalUsageColumns";
 
 // ── Inline stat ──
 const StatPill = ({ label, value, color }) => (

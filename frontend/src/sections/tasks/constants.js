@@ -32,19 +32,6 @@ export const USAGE_PERIOD = {
 
 export const DEFAULT_USAGE_PERIOD = USAGE_PERIOD.THIRTY_DAYS;
 
-// Tasks may run over months, so this extends the eval-usage map with the "6M"
-// and "12M" picker options. A missing entry silently falls back to 30d, which
-// is why every picker label is listed. "Custom" resolves through start_date /
-// end_date instead, so its period is only a placeholder.
-export const DATE_OPTION_TO_PERIOD = {
-  [DATE_OPTION.THIRTY_MINS]: USAGE_PERIOD.THIRTY_MINUTES,
-  [DATE_OPTION.SIX_HOURS]: USAGE_PERIOD.SIX_HOURS,
-  [DATE_OPTION.TODAY]: USAGE_PERIOD.ONE_DAY,
-  [DATE_OPTION.YESTERDAY]: USAGE_PERIOD.ONE_DAY,
-  [DATE_OPTION.SEVEN_DAYS]: USAGE_PERIOD.SEVEN_DAYS,
-  [DATE_OPTION.THIRTY_DAYS]: USAGE_PERIOD.THIRTY_DAYS,
-  [DATE_OPTION.THREE_MONTHS]: USAGE_PERIOD.NINETY_DAYS,
-  [DATE_OPTION.SIX_MONTHS]: USAGE_PERIOD.ONE_EIGHTY_DAYS,
-  [DATE_OPTION.TWELVE_MONTHS]: USAGE_PERIOD.ONE_YEAR,
-  [DATE_OPTION.CUSTOM]: DEFAULT_USAGE_PERIOD,
-};
+// DATE_OPTION_TO_PERIOD lives in src/sections/evals/Helpers/evalUsageColumns —
+// shared with EvalUsageTab so both usage tabs resolve the same picker labels
+// to the same period tokens.
