@@ -15,7 +15,7 @@ STARTUP_SAFE_MANAGEMENT_COMMANDS = frozenset(
         # Long-running OSS control plane. AppConfig initialization remains
         # mutation-free; the command itself has an exact development-only
         # acknowledgement and uses read-only source identities plus an
-        # isolated property_catalog_dev_* writer.
+        # isolated catalog writer.
         "ch25_property_catalog_oss_supervisor",
         "check",
         "collectstatic",

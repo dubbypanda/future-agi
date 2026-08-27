@@ -854,7 +854,7 @@ def test_native_schema_client_requires_explicit_deployment() -> None:
 @pytest.mark.parametrize(
     ("deployment", "target_database", "message"),
     (
-        ("dev", "property_catalog", r"must match \^property_catalog_dev_"),
+        ("dev", "property_catalog", "safe lowercase ClickHouse identifier"),
         (
             "prod",
             "property_catalog_dev_unit",
@@ -880,6 +880,7 @@ def test_native_schema_client_rejects_cross_deployment_database(
     ("deployment", "target_database"),
     (
         ("dev", "property_catalog_dev_unit"),
+        ("dev", "legacy_catalog_snapshot"),
         ("prod", "property_catalog"),
     ),
 )
@@ -1775,10 +1776,9 @@ def test_concrete_scheduled_incremental_uses_auto_and_fenced_resume_skips_source
         {"source_database": "source-db"},
         {"source_database": "property_catalog_dev_unit"},
         {"target_database": "futureagi"},
-        {"target_database": "property_catalog_prod"},
+        {"target_database": "property_catalog"},
         {"target_database": "PROPERTY_CATALOG_DEV_UNIT"},
         {"target_database": "property_catalog_dev_unit-x"},
-        {"target_database": "production_dev"},
         {"acknowledgement": "wrong"},
         {"execute": True, "status": True},
         {"repair_expired_incomplete": True},
@@ -1805,10 +1805,20 @@ def test_rollout_accepts_oss_empty_and_existing_dev_cloud(
 
 
 @pytest.mark.parametrize(
+    "target_database",
+    ("legacy_catalog_snapshot", "production_dev"),
+)
+def test_rollout_accepts_safe_dev_target_names(target_database: str) -> None:
+    request = _request(target_database=target_database)
+
+    assert request.target_database == target_database
+
+
+@pytest.mark.parametrize(
     "overrides",
     (
         {"target_database": "futureagi"},
-        {"target_database": "property_catalog_prod"},
+        {"target_database": "property_catalog"},
         {"acknowledgement": "wrong"},
         {"environment": "staging"},
     ),

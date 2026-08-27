@@ -45,8 +45,9 @@ which now default-enables its own isolated unified Kafka/catalog pipeline.
   the DEV-cloud profile and exactly unset for the OSS profile; the renderer
   rejects a mismatch.
 - The source database is exactly `futureagi`.
-- The only writable catalog target is
-  `property_catalog_dev_<deployment-id-with-underscores>`.
+- The only writable catalog target is the configured dedicated database. Its
+  name must be a safe lowercase ClickHouse identifier, differ from the source,
+  and must not be the production `property_catalog` database.
 - Public property-catalog reads, the legacy catalog, snapshot reads, periodic
   reconciliation, and OTLP traffic authorization are all forced off.
 - Sentry, OpenTelemetry export, deployment telemetry, and integrations are
@@ -81,7 +82,7 @@ futureagi.dev.property-catalog.<deployment_id>
 futureagi.dev.property-catalog.consumer.<deployment_id>
 ```
 
-For `deployment_id: kartik-0815a`, the target is
+For `deployment_id: kartik-0815a`, the example target is
 `property_catalog_dev_kartik_0815a`, the topic is
 `futureagi.dev.property-catalog.kartik-0815a`, and the group is
 `futureagi.dev.property-catalog.consumer.kartik-0815a`.
@@ -321,7 +322,7 @@ qualification. If this catalog is approved for ongoing DEV testing, first run
 already contains exactly the six catalog tables, that the supplied bootstrap
 activation is the active one, that no open or draining lifecycle reservation
 remains, and that the scoped identities/files are absent. A failed or expired
-reservation is rejected: create a fresh suffix-isolated DEV catalog instead of
+reservation is rejected: create a fresh isolated DEV catalog instead of
 repairing ledger state in place.
 Execution only re-creates the source SELECT, catalog control-writer, catalog
 consumer-writer, catalog-ledger-reader, and PostgreSQL SELECT identities. It
@@ -329,15 +330,18 @@ does not create or alter a table and does not write a source or catalog row.
 
 ```bash
 ACTIVATION_SHA256='<exact 64-character active activation digest>'
+PROPERTY_CATALOG_DATABASE='th7247_catalog_dev_kartik_0817j'
 ROOT=/home/ubuntu/property-catalog-kartik-0816h
 
 python deploy/dev/property-catalog-docker/provision_existing_steady.py \
   --suffix 0816h \
+  --target-database "$PROPERTY_CATALOG_DATABASE" \
   --bootstrap-activation-sha256 "$ACTIVATION_SHA256"
 
 FI_PROPERTY_CATALOG_STEADY_ACK=FI_PROPERTY_CATALOG_ENABLE_EXISTING_DEV_CATALOG_STEADY_STATE \
 python deploy/dev/property-catalog-docker/provision_existing_steady.py \
   --suffix 0816h \
+  --target-database "$PROPERTY_CATALOG_DATABASE" \
   --bootstrap-activation-sha256 "$ACTIVATION_SHA256" \
   --validity-days 7 \
   --execute

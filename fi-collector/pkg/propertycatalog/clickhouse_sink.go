@@ -11,14 +11,16 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"unicode"
 )
 
 const (
-	maxCatalogInsertBytes    = 16 << 20
-	devCatalogDatabasePrefix = "property_catalog_dev_"
-	prodCatalogDatabaseName  = "property_catalog"
+	maxCatalogInsertBytes   = 16 << 20
+	prodCatalogDatabaseName = "property_catalog"
 )
+
+var reservedCatalogDatabases = map[string]struct{}{
+	"default": {}, "futureagi": {}, "information_schema": {}, "system": {},
+}
 
 var definitionColumns = []string{
 	"organization_id", "workspace_id", "catalog_epoch", "catalog_revision", "build_token", "projection_version",
@@ -183,13 +185,16 @@ func (s *ClickHouseSink) insert(ctx context.Context, table string, columns []str
 func safeClickHouseDatabase(environment, value string) bool {
 	switch environment {
 	case DevelopmentEnvironment:
-		if len(value) <= len(devCatalogDatabasePrefix) || len(value) > 128 ||
-			!strings.HasPrefix(value, devCatalogDatabasePrefix) {
+		if len(value) == 0 || len(value) > 128 || value == prodCatalogDatabaseName {
 			return false
 		}
-		for index, char := range value[len(devCatalogDatabasePrefix):] {
-			if char > unicode.MaxASCII || (!(char >= 'a' && char <= 'z') &&
-				!(char >= '0' && char <= '9') && char != '_') || (index == 0 && char == '_') {
+		if _, reserved := reservedCatalogDatabases[value]; reserved {
+			return false
+		}
+		for index, char := range value {
+			if char > 127 || (!(char >= 'a' && char <= 'z') &&
+				!(char >= '0' && char <= '9') && char != '_') ||
+				(index == 0 && !(char >= 'a' && char <= 'z')) {
 				return false
 			}
 		}

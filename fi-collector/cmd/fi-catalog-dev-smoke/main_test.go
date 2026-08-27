@@ -308,7 +308,7 @@ func validDirectArgs(spool string) []string {
 		"--epoch", "91", "--sparse-project-id", testSparseProject,
 		"--dense-project-id", testDenseProject, "--producer-stream-id", testStreamID,
 		"--spool-dir", spool, "--clickhouse-url", "http://127.0.0.1:18123",
-		"--database", "property_catalog_dev_test", "--timeout", "10s",
+		"--database", "legacy_catalog_snapshot", "--timeout", "10s",
 	}
 }
 
@@ -345,7 +345,7 @@ func assertDirectEvidence(t *testing.T, evidence smokeEvidence, wantSequence uin
 	t.Helper()
 	if evidence.Format != evidenceFormat || evidence.Version != evidenceVersion ||
 		evidence.Environment != devEnvironment || evidence.Mode != modeDirect ||
-		evidence.CatalogEpoch != 91 || evidence.Database != "property_catalog_dev_test" ||
+		evidence.CatalogEpoch != 91 || evidence.Database != "legacy_catalog_snapshot" ||
 		evidence.Topic != "" || evidence.ProducerStreamID != testStreamID ||
 		evidence.ReplayAttempted != 2 || evidence.ReplayDelivered != 2 || len(evidence.Fixtures) != 2 ||
 		len(evidence.Envelopes) != 2 || evidence.ElapsedMilliseconds != 0 {

@@ -94,7 +94,7 @@ def _scope(
         (
             {"PROPERTY_CATALOG_DEV_TARGET_DATABASE": "default"},
             {},
-            "isolated property_catalog_dev_",
+            "safe isolated",
         ),
         (
             {"PROPERTY_CATALOG_DEV_SOURCE_DATABASE": "property_catalog_dev_oss"},
@@ -151,6 +151,18 @@ def test_supervisor_gate_accepts_only_bounded_explicit_local_configuration() -> 
                 **{subject.OSS_SUPERVISOR_POLL_SECONDS_ENV: "3601"},
             ),
         )
+
+
+def test_supervisor_accepts_safe_legacy_target_name() -> None:
+    config = subject._supervisor_config(
+        settings_object=_settings(
+            PROPERTY_CATALOG_DEV_TARGET_DATABASE="legacy_catalog_snapshot",
+            PROPERTY_CATALOG_DEV_WRITE_CH_DATABASE="legacy_catalog_snapshot",
+        ),
+        environ=_environ(),
+    )
+
+    assert config.target_database == "legacy_catalog_snapshot"
 
 
 class _RowsQuery:

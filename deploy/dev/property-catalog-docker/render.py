@@ -126,7 +126,10 @@ _SAFE_DEPLOYMENT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,39}$")
 _SAFE_NAME_RE = re.compile(r"^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$", re.I)
 _SAFE_DOCKER_NAME_RE = re.compile(r"^[a-z0-9](?:[-_a-z0-9.]{0,126}[a-z0-9])?$", re.I)
 _SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
-_DEV_DATABASE_RE = re.compile(r"^property_catalog_dev_[a-z0-9][a-z0-9_]*$")
+_CATALOG_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_RESERVED_CATALOG_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+)
 _DEV_IDENTITY_RE = re.compile(r"^dev:property-catalog/[a-z0-9][a-z0-9._:/-]{2,96}$")
 _IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _HOST_PORT_RE = re.compile(
@@ -403,16 +406,16 @@ def load_config(path: os.PathLike[str] | str) -> DeploymentConfig:
 
     source_database = _text(catalog["source_database"], "catalog.source_database")
     target_database = _text(catalog["target_database"], "catalog.target_database")
-    expected_database = f"property_catalog_dev_{deployment_id.replace('-', '_')}"
     if source_database != "futureagi":
         raise DeploymentValidationError("catalog.source_database must equal futureagi")
     if (
-        target_database != expected_database
-        or _DEV_DATABASE_RE.fullmatch(target_database) is None
+        _CATALOG_DATABASE_RE.fullmatch(target_database) is None
+        or target_database in _RESERVED_CATALOG_DATABASES
         or target_database == source_database
     ):
         raise DeploymentValidationError(
-            f"catalog.target_database must equal the isolated name {expected_database}"
+            "catalog.target_database must be a safe lowercase ClickHouse identifier "
+            "isolated from production and source databases"
         )
     since_text, since = _datetime_hour(catalog["span_since"], "catalog.span_since")
     until_text, until = _datetime_hour(catalog["span_until"], "catalog.span_until")
@@ -1042,8 +1045,7 @@ def _validate_compose(compose: Any, config: DeploymentConfig) -> None:
         or operator_environment.get("SENTRY_ENABLED") != "false"
         or operator_environment.get("OTEL_ENABLED") != "false"
         or operator_environment.get("FUTURE_AGI_TELEMETRY_DISABLED") != "true"
-        or operator_environment.get("CLOUD_DEPLOYMENT")
-        != expected_cloud_deployment
+        or operator_environment.get("CLOUD_DEPLOYMENT") != expected_cloud_deployment
         or operator_environment.get("PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT")
         != expected_cloud_deployment
         or operator_environment.get("PROPERTY_CATALOG_READ_MODE") != "off"

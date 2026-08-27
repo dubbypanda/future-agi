@@ -181,6 +181,16 @@ class RenderTests(unittest.TestCase):
             ["application-existing"],
         )
 
+    def test_accepts_safe_legacy_target_database_name(self) -> None:
+        raw = copy.deepcopy(_raw())
+        raw["catalog"]["target_database"] = "th7247_catalog_dev_kartik_0817j"
+        with tempfile.TemporaryDirectory() as temporary:
+            config = workload.load_config(_write_config(Path(temporary), raw))
+        self.assertEqual(
+            config.target_database,
+            "th7247_catalog_dev_kartik_0817j",
+        )
+
     def test_credentials_are_only_exact_private_env_file_refs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             config = workload.load_config(_write_config(Path(temporary)))
@@ -371,6 +381,12 @@ class RenderTests(unittest.TestCase):
         wrong_target = copy.deepcopy(_raw())
         wrong_target["catalog"]["target_database"] = "futureagi"
         cases.append(wrong_target)
+        production_target = copy.deepcopy(_raw())
+        production_target["catalog"]["target_database"] = "property_catalog"
+        cases.append(production_target)
+        unsafe_target = copy.deepcopy(_raw())
+        unsafe_target["catalog"]["target_database"] = "Property-Catalog-Dev"
+        cases.append(unsafe_target)
         wrong_root = copy.deepcopy(_raw())
         wrong_root["host"]["root"] = "/home/ubuntu/future-agi"
         cases.append(wrong_root)
@@ -441,8 +457,11 @@ class RenderTests(unittest.TestCase):
     def test_example_is_fail_closed_and_runbook_keeps_schedule_absent(self) -> None:
         for filename in ("config.example.yaml", "config.oss.example.yaml"):
             example = Path(__file__).with_name(filename)
-            with self.subTest(filename=filename), self.assertRaisesRegex(
-                workload.DeploymentValidationError, "placeholder"
+            with (
+                self.subTest(filename=filename),
+                self.assertRaisesRegex(
+                    workload.DeploymentValidationError, "placeholder"
+                ),
             ):
                 workload.load_config(example)
         readme = Path(__file__).with_name("README.md").read_text(encoding="utf-8")

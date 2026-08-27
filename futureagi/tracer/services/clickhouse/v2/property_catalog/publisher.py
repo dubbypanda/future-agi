@@ -40,8 +40,11 @@ PROPERTY_CATALOG_TABLES = frozenset(
         "property_catalog_source_streams",
     }
 )
-DEV_CATALOG_DATABASE_RE = re.compile(r"^property_catalog_dev_[a-z0-9][a-z0-9_]*$")
+CATALOG_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 PROD_CATALOG_DATABASE = "property_catalog"
+RESERVED_CATALOG_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "system"}
+)
 _ENVELOPE_WRITE_TABLES = frozenset(
     {
         "property_definition_catalog",
@@ -711,14 +714,18 @@ def _text(value: Any) -> str:
 
 
 def require_dev_catalog_database(database: str) -> str:
-    """Return one exact lowercase isolated DEV identifier or fail closed."""
+    """Return one safe non-production DEV identifier or fail closed."""
 
     if (
         not isinstance(database, str)
-        or DEV_CATALOG_DATABASE_RE.fullmatch(database) is None
+        or len(database.encode("utf-8")) > 128
+        or CATALOG_DATABASE_RE.fullmatch(database) is None
+        or database == PROD_CATALOG_DATABASE
+        or database in RESERVED_CATALOG_DATABASES
     ):
         raise PropertyCatalogPublishError(
-            "catalog database must match ^property_catalog_dev_[a-z0-9][a-z0-9_]*$"
+            "development catalog database must be a safe lowercase ClickHouse "
+            "identifier isolated from production and source databases"
         )
     return database
 
@@ -743,8 +750,9 @@ def require_catalog_database(database: str) -> str:
 
 __all__ = [
     "PROPERTY_CATALOG_TABLES",
-    "DEV_CATALOG_DATABASE_RE",
+    "CATALOG_DATABASE_RE",
     "PROD_CATALOG_DATABASE",
+    "RESERVED_CATALOG_DATABASES",
     "CatalogPublishClient",
     "CatalogWriteLease",
     "ClickHouseEnvelopePublisher",

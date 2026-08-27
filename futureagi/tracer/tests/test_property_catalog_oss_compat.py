@@ -262,6 +262,8 @@ def test_oss_bootstrap_scripts_cannot_mutate_source_data() -> None:
     assert "CREATE DATABASE IF NOT EXISTS" in clickhouse
     assert "CREATE TABLE IF NOT EXISTS" not in clickhouse  # pinned SQL owns DDL
     assert "property_catalog_dev_" in clickhouse
+    assert clickhouse.count('case "$TARGET_DATABASE" in') == 2
+    assert "default|futureagi|information_schema|property_catalog|system" in clickhouse
     assert r"GRANT SELECT ON \`$SOURCE_DATABASE\`.spans" in clickhouse
     assert r"GRANT SELECT, INSERT ON \`$TARGET_DATABASE\`.*" in clickhouse
     assert "ALTER TABLE" not in clickhouse

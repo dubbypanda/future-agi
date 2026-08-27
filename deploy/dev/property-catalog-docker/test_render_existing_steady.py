@@ -79,9 +79,7 @@ class ExistingSteadyRendererTests(unittest.TestCase):
         )
         control = overlay["services"]["property-catalog-control"]
         registrar = overlay["services"]["property-catalog-registrar"]
-        task_queue = (
-            "property_catalog_dev_sidecar_22222222222242228222222222222222"
-        )
+        task_queue = "property_catalog_dev_sidecar_22222222222242228222222222222222"
         self.assertEqual(
             control["entrypoint"],
             ["python", "manage.py", "start_temporal_worker"],
@@ -96,14 +94,10 @@ class ExistingSteadyRendererTests(unittest.TestCase):
                 environment["PROPERTY_CATALOG_DEV_RECONCILE_ENABLED"], "true"
             )
             self.assertEqual(
-                environment[
-                    "PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS"
-                ],
+                environment["PROPERTY_CATALOG_DEV_SCHEDULED_RECONCILE_WALL_MS"],
                 "1200000",
             )
-            self.assertEqual(
-                environment["PROPERTY_CATALOG_DEV_TASK_QUEUE"], task_queue
-            )
+            self.assertEqual(environment["PROPERTY_CATALOG_DEV_TASK_QUEUE"], task_queue)
             self.assertEqual(environment["TEMPORAL_TASK_QUEUE"], task_queue)
             self.assertEqual(
                 environment["PROPERTY_CATALOG_DEV_BOOTSTRAP_ACTIVATION_SHA256"],
@@ -130,8 +124,22 @@ class ExistingSteadyRendererTests(unittest.TestCase):
         for service in overlay["services"].values():
             environment = service["environment"]
             self.assertEqual(environment["CLOUD_DEPLOYMENT"], "")
+            self.assertEqual(environment["PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT"], "")
+
+    def test_accepts_safe_legacy_target_database_name(self) -> None:
+        config = dataclasses.replace(
+            _config(),
+            target_database="th7247_catalog_dev_kartik_0817j",
+        )
+        base = bootstrap.render_compose(config)
+        overlay = steady.render_overlay(
+            base,
+            activation_sha256=_digest("legacy database bootstrap"),
+        )
+        for service in overlay["services"].values():
             self.assertEqual(
-                environment["PROPERTY_CATALOG_DEV_CLOUD_DEPLOYMENT"], ""
+                service["environment"]["PROPERTY_CATALOG_DEV_TARGET_DATABASE"],
+                "th7247_catalog_dev_kartik_0817j",
             )
 
     def test_rejects_placeholder_or_invalid_activation(self) -> None:
@@ -142,6 +150,19 @@ class ExistingSteadyRendererTests(unittest.TestCase):
                 self.assertRaises(steady.SteadyStateRenderError),
             ):
                 steady.render_overlay(base, activation_sha256=value)
+
+        unsafe_target = copy.deepcopy(base)
+        unsafe_target["services"]["property-catalog-operator"]["environment"][
+            "PROPERTY_CATALOG_DEV_TARGET_DATABASE"
+        ] = "property_catalog"
+        with self.assertRaisesRegex(
+            steady.SteadyStateRenderError,
+            "bootstrap operator safety contract drifted",
+        ):
+            steady.render_overlay(
+                unsafe_target,
+                activation_sha256=_digest("unsafe production target"),
+            )
 
     def test_validator_rejects_public_routing_and_concurrency_drift(self) -> None:
         base = bootstrap.render_compose(_config())
@@ -161,6 +182,21 @@ class ExistingSteadyRendererTests(unittest.TestCase):
 
 
 class ExistingSteadyProvisionerTests(unittest.TestCase):
+    def test_settings_accept_safe_legacy_target_database_name(self) -> None:
+        suffix, _, target, _ = provision._settings(
+            "0817j",
+            target_database="th7247_catalog_dev_kartik_0817j",
+        )
+        self.assertEqual(suffix, "0817j")
+        self.assertEqual(target, "th7247_catalog_dev_kartik_0817j")
+
+        for unsafe in ("property_catalog", "futureagi", "Property-Catalog-Dev"):
+            with (
+                self.subTest(unsafe=unsafe),
+                self.assertRaises(provision.ProvisioningError),
+            ):
+                provision._settings("0817j", target_database=unsafe)
+
     def test_preflight_rejects_incomplete_lifecycle_reservation(self) -> None:
         activation_sha256 = _digest("active bootstrap")
         with tempfile.TemporaryDirectory() as directory:

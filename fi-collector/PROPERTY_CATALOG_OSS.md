@@ -60,10 +60,10 @@ existing self-host database.
 The root stack preserves the same boundaries with local defaults. All secrets,
 Kafka retention/partitions, polling intervals, lifecycle walls, epoch,
 projection, producer stream, source database, and isolated target database are
-environment-overridable. The target database must retain the
-`property_catalog_dev_` prefix. The bootstrap scripts reject source/target
-identity, unknown database names, malformed credentials, and any target that
-does not contain exactly the six pinned tables.
+environment-overridable. The target database must be a safe lowercase
+ClickHouse identifier and must differ from the source database. The bootstrap
+scripts reject unsafe or source-identical names, malformed credentials, and
+any target that does not contain exactly the six pinned tables.
 
 User-facing catalog reads remain `off` by default. That is intentional: a new
 install has no workspace until onboarding, and forcing `read` before its first

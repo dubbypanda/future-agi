@@ -130,7 +130,10 @@ _SECRET_FIELDS = (
 
 _SAFE_NAME_RE = re.compile(r"^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$")
 _SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
-_DEV_DATABASE_RE = re.compile(r"^property_catalog_dev_[a-z0-9][a-z0-9_]*$")
+_CATALOG_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_RESERVED_CATALOG_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+)
 _DEV_IDENTITY_RE = re.compile(r"^dev:[a-z0-9][a-z0-9._:/-]{2,127}$")
 _KAFKA_IDENTITY_RE = re.compile(r"^[a-zA-Z0-9._-]{1,249}$")
 _IMAGE_RE = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@[s]ha256:(?P<digest>[0-9a-f]{64})$")
@@ -445,9 +448,13 @@ def validate_config(raw: Mapping[str, Any]) -> WorkloadConfig:
     if _SAFE_IDENTIFIER_RE.fullmatch(source_database) is None:
         raise WorkloadValidationError("source database is not a safe identifier")
     target_database = _text(catalog["target_database"], "target database")
-    if _DEV_DATABASE_RE.fullmatch(target_database) is None:
+    if (
+        _CATALOG_DATABASE_RE.fullmatch(target_database) is None
+        or target_database in _RESERVED_CATALOG_DATABASES
+    ):
         raise WorkloadValidationError(
-            "target database must use the isolated property_catalog_dev_ prefix"
+            "target database must be a safe lowercase ClickHouse identifier "
+            "isolated from production and source databases"
         )
     if source_database == target_database:
         raise WorkloadValidationError("source and target databases must differ")

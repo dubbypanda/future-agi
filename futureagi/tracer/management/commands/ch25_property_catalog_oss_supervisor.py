@@ -288,7 +288,7 @@ def _supervisor_config(
         require_dev_catalog_database(target_database)
     except PropertyCatalogPublishError as exc:
         raise OssPropertyCatalogSupervisorError(
-            "OSS target must match the isolated property_catalog_dev_* database boundary"
+            "OSS target must be a safe isolated development catalog database"
         ) from exc
     if not source_database or source_database == target_database:
         raise OssPropertyCatalogSupervisorError(

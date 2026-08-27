@@ -11,8 +11,9 @@ Stop if any statement below is not true.
 - The Kubernetes namespace is DEV and contains the exact token `dev`.
 - The configuration contains exactly one organization/workspace pair and an
   explicit, sorted project allowlist.
-- The target ClickHouse database is a new, isolated
-  `property_catalog_dev_<name>` database. The source and target databases differ.
+- The target ClickHouse database is a new, isolated database with a safe
+  lowercase ClickHouse identifier. The source and target databases differ, and
+  the production `property_catalog` database is forbidden.
 - Every image is pinned by `@sha256:<64 lowercase hex characters>`.
 - The consumer image is byte-for-byte the same reference as the live collector
   image.
@@ -133,8 +134,8 @@ Review all of the following before rendering:
 - one canonical UUIDv4 hot producer stream ID;
 - a bounded half-open backfill window expressed as UTC whole hours, no longer
   than 366 days;
-- a DEV source database and a different, empty
-  `property_catalog_dev_<name>` target database;
+- a DEV source database and a different, empty target database with a safe
+  lowercase ClickHouse identifier (no naming prefix is required);
 - six exact remote-provenance values captured through the reviewed DEV
   identities: write/source ClickHouse `hostName()`, PostgreSQL
   `current_database()`/`current_user()`, canonical literal

@@ -28,7 +28,10 @@ from pathlib import Path
 from typing import Protocol
 
 DEVELOPMENT_SENTINEL = "PROPERTY_CATALOG_DEV_ONLY"
-TARGET_DATABASE_PREFIX = "property_catalog_dev_"
+_TARGET_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_RESERVED_TARGET_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+)
 
 
 class CatalogDevSchemaError(RuntimeError):
@@ -503,14 +506,15 @@ def _database_exists(client: CatalogDevClickHouseClient, target_database: str) -
 
 
 def _validate_target_database(target_database: str) -> None:
-    suffix_pattern = re.escape(TARGET_DATABASE_PREFIX) + r"[a-z0-9][a-z0-9_]*"
     if (
-        len(target_database) > 128
-        or re.fullmatch(suffix_pattern, target_database) is None
+        not isinstance(target_database, str)
+        or len(target_database) > 128
+        or _TARGET_DATABASE_RE.fullmatch(target_database) is None
+        or target_database in _RESERVED_TARGET_DATABASES
     ):
         raise CatalogDevSchemaError(
-            f"target database must start {TARGET_DATABASE_PREFIX!r} and contain "
-            "only lowercase letters, digits, and underscores after a non-empty suffix"
+            "target database must be a safe lowercase ClickHouse identifier "
+            "isolated from production and source databases"
         )
 
 
@@ -887,9 +891,8 @@ def verify_catalog_schema(
 ) -> str:
     """Read-only proof of the pinned schema in an admitted catalog namespace.
 
-    Production is deliberately verify-only.  Schema creation remains confined
-    to :func:`apply_catalog_dev_schema` and the isolated ``property_catalog_dev_*``
-    namespace.
+    Production is deliberately verify-only. Schema creation remains confined
+    to :func:`apply_catalog_dev_schema` and an explicitly selected DEV database.
     """
 
     if deployment == "dev":

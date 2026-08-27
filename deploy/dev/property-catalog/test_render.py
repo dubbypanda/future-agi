@@ -427,6 +427,15 @@ class RenderTests(unittest.TestCase):
                 [path.name for path in output.parent.iterdir()], ["manifest.yaml"]
             )
 
+    def test_accepts_safe_legacy_target_database_name(self) -> None:
+        raw = valid_raw()
+        raw["catalog"]["target_database"] = "th7247_catalog_dev_kartik_0817j"
+        config = workload.validate_config(raw)
+        self.assertEqual(
+            config.target_database,
+            "th7247_catalog_dev_kartik_0817j",
+        )
+
     def test_rejects_unsafe_operator_inputs(self) -> None:
         mutations: list[tuple[str, Any]] = [
             (
@@ -503,6 +512,18 @@ class RenderTests(unittest.TestCase):
             (
                 "unisolated target database",
                 lambda raw: raw["catalog"].__setitem__("target_database", "futureagi"),
+            ),
+            (
+                "production target database",
+                lambda raw: raw["catalog"].__setitem__(
+                    "target_database", "property_catalog"
+                ),
+            ),
+            (
+                "unsafe target database identifier",
+                lambda raw: raw["catalog"].__setitem__(
+                    "target_database", "Property-Catalog-Dev"
+                ),
             ),
             (
                 "production source database",

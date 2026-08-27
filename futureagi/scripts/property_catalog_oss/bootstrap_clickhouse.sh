@@ -30,15 +30,18 @@ case "$SOURCE_DATABASE" in
     ;;
 esac
 case "$TARGET_DATABASE" in
-  ''|*[!a-z0-9_]*)
+  ''|[!a-z]*|*[!a-z0-9_]*)
     echo >&2 "PROPERTY_CATALOG_TARGET_DATABASE must be a lowercase ClickHouse identifier"
     exit 64
     ;;
 esac
+if [ "${#TARGET_DATABASE}" -gt 128 ]; then
+  echo >&2 "PROPERTY_CATALOG_TARGET_DATABASE must contain at most 128 characters"
+  exit 64
+fi
 case "$TARGET_DATABASE" in
-  property_catalog_dev_?* ) ;;
-  * )
-    echo >&2 "PROPERTY_CATALOG_TARGET_DATABASE must use the isolated DEV prefix"
+  default|futureagi|information_schema|property_catalog|system)
+    echo >&2 "PROPERTY_CATALOG_TARGET_DATABASE must be isolated from production and source databases"
     exit 64
     ;;
 esac

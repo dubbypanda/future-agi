@@ -31,7 +31,6 @@ from .reconciler import ReconcileMode
 from .source_adapters import DefinitionSourceAdapter
 
 DEV_ROLLOUT_ACK = "PROPERTY_CATALOG_DEV_ROLLOUT"
-DEV_DATABASE_PREFIX = "property_catalog_dev_"
 DEV_ENVIRONMENT = "development"
 DEV_CLOUD_DEPLOYMENT = "DEV"
 DEV_CONTROL_PLANE_ENVIRONMENTS = frozenset({"dev", DEV_ENVIRONMENT, "staging"})
@@ -528,7 +527,6 @@ __all__ = [
     "ConfiguredDevRolloutRuntime",
     "DEV_CLOUD_DEPLOYMENT",
     "DEV_CONTROL_PLANE_ENVIRONMENTS",
-    "DEV_DATABASE_PREFIX",
     "DEV_ENVIRONMENT",
     "DEV_ROLLOUT_ACK",
     "DEV_INITIAL_BACKFILL_MAX_WALL_MS",

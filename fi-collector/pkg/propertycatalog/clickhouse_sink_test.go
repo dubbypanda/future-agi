@@ -84,7 +84,6 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_real", Environment: ProductionEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog", Environment: "staging", Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog_backup", Environment: ProductionEnvironment, Username: "writer"},
-		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "property_catalog_dev_Bad", Environment: DevelopmentEnvironment, Username: "writer"},
 		{URL: "http://clickhouse:8123", Database: "PROPERTY_catalog_dev_bad", Environment: DevelopmentEnvironment, Username: "writer"},
 	} {
@@ -109,6 +108,15 @@ func TestClickHouseSinkRejectsUnsafeDestinationAndRowShapeBeforeIO(t *testing.T)
 	}
 	if called {
 		t.Fatal("unsafe row reached HTTP transport")
+	}
+}
+
+func TestClickHouseSinkAcceptsSafeLegacyDevelopmentCatalogName(t *testing.T) {
+	if _, err := NewClickHouseSink(ClickHouseSinkConfig{
+		URL: "http://clickhouse:8123", Database: "legacy_catalog_snapshot",
+		Environment: DevelopmentEnvironment, Username: "property_writer",
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

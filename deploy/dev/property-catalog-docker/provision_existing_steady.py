@@ -31,6 +31,10 @@ EXPECTED_TABLES = (
 )
 _SUFFIX_RE = re.compile(r"[0-9]{4}[a-z]")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_CATALOG_DATABASE_RE = re.compile(r"[a-z][a-z0-9_]{0,127}")
+_RESERVED_CATALOG_DATABASES = frozenset(
+    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+)
 
 
 class ProvisioningError(RuntimeError):
@@ -125,12 +129,28 @@ def _write_private(path: Path, values: dict[str, str]) -> None:
         os.fsync(handle.fileno())
 
 
-def _settings(source: str) -> tuple[str, Path, str, dict[str, str]]:
+def _settings(
+    source: str,
+    *,
+    target_database: str | None = None,
+) -> tuple[str, Path, str, dict[str, str]]:
     suffix = source.strip()
     if _SUFFIX_RE.fullmatch(suffix) is None:
         raise ProvisioningError("suffix must match NNNNx")
     root = Path(f"/home/ubuntu/property-catalog-kartik-{suffix}")
-    target = f"property_catalog_dev_kartik_{suffix}"
+    target = (
+        target_database.strip()
+        if isinstance(target_database, str)
+        else f"property_catalog_dev_kartik_{suffix}"
+    )
+    if (
+        _CATALOG_DATABASE_RE.fullmatch(target) is None
+        or target in _RESERVED_CATALOG_DATABASES
+    ):
+        raise ProvisioningError(
+            "target database must be a safe lowercase ClickHouse identifier "
+            "isolated from production and source databases"
+        )
     users = {
         "source": f"property_catalog_source_ro_{suffix}",
         "control": f"property_catalog_control_rw_{suffix}",
@@ -244,9 +264,17 @@ def _preflight(
 
 
 def provision(
-    *, suffix: str, activation_sha256: str, execute: bool, validity_days: int
+    *,
+    suffix: str,
+    activation_sha256: str,
+    execute: bool,
+    validity_days: int,
+    target_database: str | None = None,
 ) -> dict[str, object]:
-    suffix, root, target, users = _settings(suffix)
+    suffix, root, target, users = _settings(
+        suffix,
+        target_database=target_database,
+    )
     if _SHA256_RE.fullmatch(activation_sha256) is None:
         raise ProvisioningError("bootstrap activation must be lowercase SHA-256")
     if not 1 <= validity_days <= 30:
@@ -406,14 +434,21 @@ COMMIT;
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--suffix", default="0816h")
+    parser.add_argument(
+        "--target-database",
+        default=os.environ.get("PROPERTY_CATALOG_DATABASE"),
+    )
     parser.add_argument("--bootstrap-activation-sha256", required=True)
     parser.add_argument("--validity-days", type=int, default=7)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
     if args.execute and os.environ.get("FI_PROPERTY_CATALOG_STEADY_ACK") != ACK:
-        raise ProvisioningError(f"execution requires FI_PROPERTY_CATALOG_STEADY_ACK={ACK}")
+        raise ProvisioningError(
+            f"execution requires FI_PROPERTY_CATALOG_STEADY_ACK={ACK}"
+        )
     result = provision(
         suffix=args.suffix,
+        target_database=args.target_database,
         activation_sha256=args.bootstrap_activation_sha256,
         execute=args.execute,
         validity_days=args.validity_days,

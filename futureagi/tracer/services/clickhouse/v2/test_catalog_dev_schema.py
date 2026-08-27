@@ -217,6 +217,9 @@ class CatalogDevSchemaTests(unittest.TestCase):
                     catalog_dev_schema.apply_catalog_dev_schema(client, **kwargs)
                 self.assertEqual(client.commands, [])
 
+    def test_safe_legacy_target_name_is_admitted(self) -> None:
+        catalog_dev_schema._validate_target_database("legacy_catalog_snapshot")
+
     def test_wrong_clickhouse_minor_fails_before_any_command(self) -> None:
         for version in ("24.10.5.1", "25.2.9.1", "25.30.1.1", "26.3.1.1"):
             with self.subTest(version=version):

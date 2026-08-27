@@ -33,7 +33,6 @@ import (
 const (
 	devEnvironment     = "development"
 	devAcknowledgement = "PROPERTY_CATALOG_DEV_ONLY"
-	devDatabasePrefix  = "property_catalog_dev_"
 	devPathMarker      = "property-catalog-dev"
 	devTopicPrefix     = "property-catalog.dev."
 	evidenceFormat     = "futureagi.span-attribute-catalog-dev-smoke"
@@ -42,7 +41,11 @@ const (
 	maxSinkTimeout     = 10 * time.Second
 )
 
-var databasePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+var databasePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+var reservedDatabases = map[string]struct{}{
+	"default": {}, "futureagi": {}, "information_schema": {}, "property_catalog": {}, "system": {},
+}
 
 type smokeMode string
 
@@ -205,7 +208,7 @@ func parseCLI(arguments []string) (cliConfig, error) {
 	flags.StringVar(&config.stateDirectory, "state-dir", "", "dedicated absolute Kafka publisher-state directory")
 	flags.DurationVar(&config.timeout, "timeout", config.timeout, "whole-command timeout (maximum 15s)")
 	flags.StringVar(&config.clickHouseURL, "clickhouse-url", "", "loopback ClickHouse HTTP endpoint")
-	flags.StringVar(&config.database, "database", "", "isolated property_catalog_dev_* database")
+	flags.StringVar(&config.database, "database", "", "isolated development catalog database")
 	flags.StringVar(&config.username, "username", "", "ClickHouse username")
 	flags.StringVar(&rawBrokers, "kafka-brokers", "", "comma-separated loopback Kafka brokers")
 	flags.StringVar(&config.topic, "kafka-topic", "", "isolated property-catalog.dev.* topic")
@@ -267,8 +270,9 @@ func validateCLI(config cliConfig) error {
 		if err := validateLoopbackHTTP(config.clickHouseURL); err != nil {
 			return err
 		}
-		if !databasePattern.MatchString(config.database) || !strings.HasPrefix(config.database, devDatabasePrefix) {
-			return fmt.Errorf("database must be an isolated %s* identifier", devDatabasePrefix)
+		_, reserved := reservedDatabases[config.database]
+		if len(config.database) > 128 || !databasePattern.MatchString(config.database) || reserved {
+			return errors.New("database must be a safe isolated development identifier")
 		}
 	case modeKafkaProduce:
 		if config.clickHouseURL != "" || config.database != "" || config.username != "" {
