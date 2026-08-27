@@ -784,10 +784,10 @@ services:
     cpus: "${PROPERTY_CATALOG_SUPERVISOR_CPUS:-0.5}"
     mem_limit: "${PROPERTY_CATALOG_SUPERVISOR_MEMORY:-768M}"
     working_dir: /app/backend
-    # Run one bounded cycle at a time so a failed cycle exits non-zero and the
-    # container restart policy exposes the failure. The former long-running
-    # command caught cycle errors internally, which made a frozen catalog look
-    # healthy to Compose and to the installer.
+    # Run one bounded reconcile-only cycle at a time so a failed cycle exits
+    # non-zero and the container restart policy exposes the failure. This
+    # service never starts a historical backfill; operators initialize inactive
+    # catalogs explicitly with bin/property-catalog-backfill.
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |

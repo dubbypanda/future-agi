@@ -1,9 +1,12 @@
-"""Bounded OSS-local supervisor for the unified property catalog.
+"""Bounded OSS-local reconciler for the unified property catalog.
 
 The command discovers tenant scope through a read-only PostgreSQL identity,
 then delegates every catalog lifecycle transition to the checked-in DEV
-runtime.  It never prepares schema: an exact isolated catalog database must be
-created before the supervisor starts.
+runtime.  Ordinary supervisor cycles reconcile only already-active catalogs;
+they never start a historical backfill.  The explicit ``--initial-backfill``
+mode is accepted only together with ``--once`` and is invoked by the operator
+backfill script.  It never prepares schema: an exact isolated catalog database
+must be created before either mode starts.
 """
 
 from __future__ import annotations
@@ -171,8 +174,8 @@ class _CycleResult:
 
 class Command(BaseCommand):
     help = (
-        "Continuously bootstrap or incrementally reconcile the isolated unified "
-        "property catalog for bounded OSS-local workspace scopes."
+        "Continuously reconcile active isolated unified property catalogs, or "
+        "explicitly backfill bounded OSS-local workspace scopes once."
     )
 
     def add_arguments(self, parser: Any) -> None:
@@ -181,9 +184,31 @@ class Command(BaseCommand):
             action="store_true",
             help="Run one complete bounded discovery/reconcile cycle and exit.",
         )
+        parser.add_argument(
+            "--initial-backfill",
+            action="store_true",
+            help=(
+                "Explicitly initialize inactive workspace catalogs. This is a "
+                "historical write and is refused unless --once is also present."
+            ),
+        )
+        parser.add_argument(
+            "--initial-backfill-wall-ms",
+            type=int,
+            help=(
+                "Per-workspace wall allowance for explicit initial backfill. "
+                "The reviewed runtime bounds and validates this value."
+            ),
+        )
 
     def handle(self, *args: Any, **options: Any) -> str | None:
         once = bool(options.get("once"))
+        initial_backfill = bool(options.get("initial_backfill"))
+        initial_backfill_wall_ms = options.get("initial_backfill_wall_ms")
+        if initial_backfill and not once:
+            raise CommandError("--initial-backfill requires --once")
+        if initial_backfill_wall_ms is not None and not initial_backfill:
+            raise CommandError("--initial-backfill-wall-ms requires --initial-backfill")
         try:
             config = _supervisor_config(settings_object=settings, environ=os.environ)
         except (OssPropertyCatalogSupervisorError, DevRolloutError, ValueError) as exc:
@@ -205,6 +230,8 @@ class Command(BaseCommand):
                     config=config,
                     observation=observation,
                     now=cycle_now,
+                    allow_initial_backfill=initial_backfill,
+                    initial_backfill_wall_ms=initial_backfill_wall_ms,
                     on_error=lambda workspace_id, exc: self.stderr.write(
                         self.style.ERROR(
                             f"workspace {workspace_id} failed safely: {exc}"
@@ -381,26 +408,34 @@ def _run_cycle(
     observation: DevProvenanceObservation,
     now: datetime,
     on_error: Callable[[str, Exception], None],
+    allow_initial_backfill: bool = False,
+    initial_backfill_wall_ms: int | None = None,
 ) -> _CycleResult:
     processed: list[str] = []
+    skipped_workspaces = list(skipped)
     failures: dict[str, str] = {}
     for scope in scopes:
         try:
-            _run_workspace(
+            workspace_processed = _run_workspace(
                 scope=scope,
                 settings_object=settings_object,
                 config=config,
                 observation=observation,
                 now=now,
+                allow_initial_backfill=allow_initial_backfill,
+                initial_backfill_wall_ms=initial_backfill_wall_ms,
             )
         except Exception as exc:
             failures[scope.workspace_id] = str(exc)
             on_error(scope.workspace_id, exc)
             continue
-        processed.append(scope.workspace_id)
+        if workspace_processed:
+            processed.append(scope.workspace_id)
+        else:
+            skipped_workspaces.append(scope.workspace_id)
     return _CycleResult(
         processed=tuple(processed),
-        skipped=tuple(sorted(skipped)),
+        skipped=tuple(sorted(set(skipped_workspaces))),
         failures=MappingProxyType(failures),
     )
 
@@ -412,7 +447,9 @@ def _run_workspace(
     config: OssSupervisorConfig,
     observation: DevProvenanceObservation,
     now: datetime,
-) -> None:
+    allow_initial_backfill: bool = False,
+    initial_backfill_wall_ms: int | None = None,
+) -> bool:
     proxy = _workspace_settings_proxy(
         settings_object=settings_object,
         config=config,
@@ -437,6 +474,8 @@ def _run_workspace(
         )
 
     if status_evidence.get("active") is True:
+        if allow_initial_backfill:
+            return False
         request = _rollout_request(
             scope=scope,
             proxy=proxy,
@@ -448,11 +487,19 @@ def _run_workspace(
                 runtime=runtime,
                 mode=ReconcileMode.INCREMENTAL,
             )
-        return
+        return True
 
-    request = _rollout_request(scope=scope, proxy=proxy)
+    if not allow_initial_backfill:
+        return False
+
+    request = _rollout_request(
+        scope=scope,
+        proxy=proxy,
+        initial_backfill_wall_ms=initial_backfill_wall_ms,
+    )
     with _managed_runtime(request=request, proxy=proxy, scope=scope) as runtime:
         run_configured_dev_rollout(request=request, runtime=runtime)
+    return True
 
 
 @contextmanager
@@ -652,6 +699,7 @@ def _rollout_request(
     scope: WorkspaceScope,
     proxy: _SettingsProxy,
     status: bool = False,
+    initial_backfill_wall_ms: int | None = None,
     scheduled_reconcile_wall_ms: int | None = None,
 ) -> DevRolloutRequest:
     return configured_dev_rollout_request(
@@ -660,6 +708,7 @@ def _rollout_request(
         settings_object=proxy,
         execute=not status,
         status=status,
+        initial_backfill_wall_ms=initial_backfill_wall_ms,
         scheduled_reconcile_wall_ms=scheduled_reconcile_wall_ms,
     )
 

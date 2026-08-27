@@ -626,6 +626,10 @@ Say "    Backend     ->  http://localhost:$BackendPort"
 if ($Full) {
   Say "    PeerDB UI   ->  http://localhost:3001  (peerdb / peerdb)"
 }
+Say ""
+Say "  Existing-data catalog backfill"
+Say "    Restarts do not scan historical data automatically. After an upgrade:"
+Say "    .\bin\property-catalog-backfill.ps1 -Execute"
 if ($UserEmail) {
   Say ""
   Say "  Sign in as $UserEmail"

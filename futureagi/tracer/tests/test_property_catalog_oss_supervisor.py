@@ -275,14 +275,12 @@ def test_discovery_rejects_workspace_and_project_scope_overflow(
         subject._discover_workspace_scopes()
 
 
-@pytest.mark.parametrize("active", (False, True))
-def test_workspace_routes_status_before_initial_or_incremental(
+def test_workspace_routes_active_catalog_to_incremental_reconcile(
     monkeypatch: pytest.MonkeyPatch,
-    active: bool,
 ) -> None:
     calls: list[tuple[str, Any]] = []
     status_result = SimpleNamespace(
-        evidence=(SimpleNamespace(evidence={"schema_ready": True, "active": active}),)
+        evidence=(SimpleNamespace(evidence={"schema_ready": True, "active": True}),)
     )
 
     monkeypatch.setattr(subject, "_workspace_settings_proxy", lambda **_kwargs: "proxy")
@@ -322,7 +320,7 @@ def test_workspace_routes_status_before_initial_or_incremental(
         lambda **kwargs: calls.append(("incremental", kwargs)),
     )
 
-    subject._run_workspace(
+    processed = subject._run_workspace(
         scope=_scope(),
         settings_object=_settings(),
         config=_config(),
@@ -333,14 +331,106 @@ def test_workspace_routes_status_before_initial_or_incremental(
     assert calls[0] == ("request", "status-request")
     assert calls[1][0] == "configured"
     assert ("close", "status-request") in calls
-    if active:
-        assert any(call[0] == "incremental" for call in calls)
-        assert ("close", "incremental-request") in calls
-        assert not any(call == ("request", "initial-request") for call in calls)
-    else:
+    assert processed is True
+    assert any(call[0] == "incremental" for call in calls)
+    assert ("close", "incremental-request") in calls
+    assert not any(call == ("request", "initial-request") for call in calls)
+
+
+def test_explicit_backfill_skips_already_active_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr(subject, "_workspace_settings_proxy", lambda **_kwargs: "proxy")
+    monkeypatch.setattr(subject, "_rollout_request", lambda **_kwargs: "status")
+
+    class Runtime:
+        def close(self) -> None:
+            calls.append("close")
+
+    monkeypatch.setattr(subject, "_runtime", lambda **_kwargs: Runtime())
+    monkeypatch.setattr(
+        subject,
+        "run_configured_dev_rollout",
+        lambda **_kwargs: SimpleNamespace(
+            evidence=(SimpleNamespace(evidence={"schema_ready": True, "active": True}),)
+        ),
+    )
+    monkeypatch.setattr(
+        subject,
+        "run_workspace_reconcile",
+        lambda **_kwargs: calls.append("incremental"),
+    )
+
+    processed = subject._run_workspace(
+        scope=_scope(),
+        settings_object=_settings(),
+        config=_config(),
+        observation=SimpleNamespace(),  # type: ignore[arg-type]
+        now=datetime(2026, 8, 26, 12, tzinfo=UTC),
+        allow_initial_backfill=True,
+        initial_backfill_wall_ms=1_740_000,
+    )
+
+    assert processed is False
+    assert calls == ["close"]
+
+
+@pytest.mark.parametrize("allow_initial_backfill", (False, True))
+def test_inactive_workspace_backfills_only_with_explicit_permission(
+    monkeypatch: pytest.MonkeyPatch,
+    allow_initial_backfill: bool,
+) -> None:
+    calls: list[tuple[str, Any]] = []
+    status_result = SimpleNamespace(
+        evidence=(SimpleNamespace(evidence={"schema_ready": True, "active": False}),)
+    )
+
+    monkeypatch.setattr(subject, "_workspace_settings_proxy", lambda **_kwargs: "proxy")
+
+    def request(**kwargs: Any) -> str:
+        value = "status-request" if kwargs.get("status") else "initial-request"
+        calls.append(("request", value))
+        return value
+
+    class Runtime:
+        def __init__(self, request: str) -> None:
+            self.request = request
+
+        def close(self) -> None:
+            calls.append(("close", self.request))
+
+    monkeypatch.setattr(subject, "_rollout_request", request)
+    monkeypatch.setattr(
+        subject,
+        "_runtime",
+        lambda *, request, **_kwargs: Runtime(request),
+    )
+
+    def configured(*, request: str, runtime: Runtime) -> Any:
+        calls.append(("configured", (request, runtime.request)))
+        return status_result if request == "status-request" else SimpleNamespace()
+
+    monkeypatch.setattr(subject, "run_configured_dev_rollout", configured)
+
+    processed = subject._run_workspace(
+        scope=_scope(),
+        settings_object=_settings(),
+        config=_config(),
+        observation=SimpleNamespace(),  # type: ignore[arg-type]
+        now=datetime(2026, 8, 26, 12, 34, tzinfo=UTC),
+        allow_initial_backfill=allow_initial_backfill,
+    )
+
+    assert calls[0] == ("request", "status-request")
+    assert ("close", "status-request") in calls
+    assert processed is allow_initial_backfill
+    if allow_initial_backfill:
         assert ("request", "initial-request") in calls
         assert ("close", "initial-request") in calls
-        assert not any(call[0] == "incremental" for call in calls)
+    else:
+        assert ("request", "initial-request") not in calls
 
 
 def test_workspace_refuses_initial_rollout_when_schema_is_not_prepared(
@@ -426,11 +516,12 @@ def test_cycle_isolates_workspace_failure_and_continues() -> None:
     errors: list[tuple[str, str]] = []
     original = subject._run_workspace
 
-    def run(**kwargs: Any) -> None:
+    def run(**kwargs: Any) -> bool:
         workspace_id = kwargs["scope"].workspace_id
         attempted.append(workspace_id)
         if workspace_id == first.workspace_id:
             raise RuntimeError("isolated failure")
+        return True
 
     try:
         subject._run_workspace = run
@@ -521,3 +612,51 @@ def test_once_exits_nonzero_after_any_workspace_failure(
 
     with pytest.raises(CommandError, match=scope.workspace_id):
         subject.Command().handle(once=True)
+
+
+def test_once_forwards_explicit_initial_backfill_mode_and_wall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    success = subject._CycleResult(processed=(), skipped=(), failures={})
+    monkeypatch.setattr(subject, "_supervisor_config", lambda **_kwargs: _config())
+    monkeypatch.setattr(
+        subject,
+        "_probe_remote_identities",
+        lambda **_kwargs: SimpleNamespace(),
+    )
+    monkeypatch.setattr(subject, "_discover_workspace_scopes", lambda: ((), ()))
+
+    def cycle(**kwargs: Any) -> subject._CycleResult:
+        captured.update(kwargs)
+        return success
+
+    monkeypatch.setattr(subject, "_run_cycle", cycle)
+    monkeypatch.setattr(
+        subject,
+        "_utc_now",
+        lambda: datetime(2026, 8, 26, 12, tzinfo=UTC),
+    )
+
+    subject.Command().handle(
+        once=True,
+        initial_backfill=True,
+        initial_backfill_wall_ms=1_740_000,
+    )
+
+    assert captured["allow_initial_backfill"] is True
+    assert captured["initial_backfill_wall_ms"] == 1_740_000
+
+
+def test_initial_backfill_is_refused_without_once() -> None:
+    with pytest.raises(CommandError, match="requires --once"):
+        subject.Command().handle(initial_backfill=True, once=False)
+
+
+def test_initial_backfill_wall_requires_explicit_backfill() -> None:
+    with pytest.raises(CommandError, match="requires --initial-backfill"):
+        subject.Command().handle(
+            initial_backfill=False,
+            initial_backfill_wall_ms=1_740_000,
+            once=True,
+        )

@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = ROOT / "docker-compose.yml"
 INSTALL_SH = ROOT / "bin" / "install"
 INSTALL_PS1 = ROOT / "bin" / "install.ps1"
+BACKFILL_SH = ROOT / "bin" / "property-catalog-backfill"
+BACKFILL_PS1 = ROOT / "bin" / "property-catalog-backfill.ps1"
 
 
 def _read(path: Path) -> str:
@@ -103,7 +105,9 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
     kafka = services["property-catalog-kafka"]
     assert kafka["environment"]["KAFKA_HEAP_OPTS"] == "-Xms256m -Xmx512m"
     supervisor = services["property-catalog-supervisor"]
-    assert "--once" in " ".join(supervisor["command"])
+    supervisor_command = " ".join(supervisor["command"])
+    assert "--once" in supervisor_command
+    assert "--initial-backfill" not in supervisor_command
     assert supervisor["healthcheck"]["test"] == [
         "CMD-SHELL",
         "test -f /tmp/property-catalog-supervisor.ready",
@@ -161,8 +165,14 @@ def test_installers_cover_kafka_port_and_all_catalog_persistent_state() -> None:
         assert "--ignore-buildable" in installer
         assert "fi-property-catalog-sequencer" in installer
 
-    assert "fi-collector|fi-property-catalog-sequencer|fi-property-catalog-consumer" in shell
-    assert "'fi-collector', 'fi-property-catalog-sequencer', 'fi-property-catalog-consumer'" in powershell
+    assert (
+        "fi-collector|fi-property-catalog-sequencer|fi-property-catalog-consumer"
+        in shell
+    )
+    assert (
+        "'fi-collector', 'fi-property-catalog-sequencer', 'fi-property-catalog-consumer'"
+        in powershell
+    )
 
     assert "--wipe-volumes" in shell
     assert "WipeVolumes" in powershell
@@ -175,6 +185,32 @@ def test_installers_cover_kafka_port_and_all_catalog_persistent_state() -> None:
 def test_shell_installer_parses() -> None:
     result = subprocess.run(
         ["bash", "-n", str(INSTALL_SH)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_explicit_backfill_entrypoints_are_pinned_and_gated() -> None:
+    shell = _read(BACKFILL_SH)
+    powershell = _read(BACKFILL_PS1)
+    for script in (shell, powershell):
+        assert "ch25_property_catalog_oss_supervisor" in script
+        assert "initial-backfill" in script
+        assert "property-catalog-supervisor" in script
+        assert "docker compose pull" not in script
+        assert "docker-compose pull" not in script
+        assert "git checkout" not in script
+        assert "git fetch" not in script
+        assert "git pull" not in script
+    assert "--execute" in shell
+    assert "-Execute" in powershell
+    assert os.access(BACKFILL_SH, os.X_OK)
+
+    result = subprocess.run(
+        ["bash", "-n", str(BACKFILL_SH)],
         cwd=ROOT,
         check=False,
         capture_output=True,

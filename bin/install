@@ -834,6 +834,10 @@ say "  ${BOLD}APIs${RESET}"
 say "    Backend     →  http://localhost:${backend_port}"
 [[ "$FULL" -eq 1 ]] && \
   say "    PeerDB UI   →  http://localhost:3001  ${DIM}(peerdb / peerdb)${RESET}"
+say ""
+say "  ${BOLD}Existing-data catalog backfill${RESET}"
+say "    Restarts do not scan historical data automatically. After an upgrade:"
+say "    ${BOLD}./bin/property-catalog-backfill --execute${RESET}"
 
 if [[ -n "$USER_EMAIL" ]]; then
   say ""
