@@ -39,7 +39,6 @@ def _read_settings(**overrides):
         "PROPERTY_CATALOG_DATABASE": "property_catalog_dev_clean",
         "PROPERTY_CATALOG_CH_HOST": "catalog.internal",
         "PROPERTY_CATALOG_CH_PORT": 9440,
-        "PROPERTY_CATALOG_CH_DATABASE": "property_catalog_dev_clean",
         "PROPERTY_CATALOG_CH_USER": "property_catalog_reader",
         "PROPERTY_CATALOG_CH_PASSWORD": "not-logged",
         "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ("workspace-1",),
@@ -57,7 +56,6 @@ def _prod_settings(**overrides):
         "PROPERTY_CATALOG_DEV_READ_ACK": "",
         "PROPERTY_CATALOG_PROD_READ_ACK": (PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT),
         "PROPERTY_CATALOG_DATABASE": "property_catalog",
-        "PROPERTY_CATALOG_CH_DATABASE": "property_catalog",
     }
     values.update(overrides)
     return _read_settings(**values)
@@ -95,10 +93,7 @@ def test_property_catalog_table_allowlist_is_exact():
 
 
 def test_property_catalog_connection_requires_isolated_dev_identity():
-    CONFIG.validate(
-        qualifier_database="property_catalog_dev_clean",
-        source_users={"application_reader"},
-    )
+    CONFIG.validate(source_users={"application_reader"})
 
     with pytest.raises(ValueError):
         PropertyCatalogConnectionConfig(
@@ -107,11 +102,10 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
             database="futureagi",
             user="property_catalog_reader",
             password="secret",
-        ).validate(qualifier_database="futureagi", source_users=set())
+        ).validate(source_users=set())
 
     with pytest.raises(ValueError):
         CONFIG.validate(
-            qualifier_database="property_catalog_dev_clean",
             source_users={"property_catalog_reader"},
         )
 
@@ -128,14 +122,19 @@ def test_property_catalog_connection_requires_isolated_dev_identity():
                 database=unsafe_database,
                 user="property_catalog_reader",
                 password="secret",
-            ).validate(
-                qualifier_database=unsafe_database,
-                source_users=set(),
-            )
+            ).validate(source_users=set())
 
 
 def test_property_catalog_connection_preserves_acknowledged_dev_admission():
     assert PropertyCatalogConnectionConfig.from_settings(_read_settings()) == CONFIG
+
+
+def test_property_catalog_connection_ignores_obsolete_database_override():
+    source = _read_settings(PROPERTY_CATALOG_CH_DATABASE="wrong_database")
+
+    assert PropertyCatalogConnectionConfig.from_settings(source).database == (
+        "property_catalog_dev_clean"
+    )
 
 
 @pytest.mark.parametrize("read_mode", ["read", "shadow"])
@@ -146,7 +145,6 @@ def test_property_catalog_connection_admits_bounded_production_reads(read_mode):
 
     assert config.database == "property_catalog"
     config.validate(
-        qualifier_database="property_catalog",
         source_users={"source_v1", "source_v2"},
         deployment="prod",
     )
@@ -170,7 +168,6 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
         PROPERTY_CATALOG_DEV_READ_ACK="",
         PROPERTY_CATALOG_CH_HOST="",
         PROPERTY_CATALOG_CH_PORT=0,
-        PROPERTY_CATALOG_CH_DATABASE="",
         PROPERTY_CATALOG_DATABASE="",
         PROPERTY_CATALOG_CH_USER="",
         PROPERTY_CATALOG_CH_PASSWORD="",
@@ -187,8 +184,7 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
             cloud_deployment="US",
             dev_acknowledgement="wrong",
             prod_acknowledgement="wrong",
-            qualifier_database="unsafe",
-            connection_database="unsafe",
+            database="unsafe",
             host="",
             port=0,
             api_read_user="",
@@ -223,7 +219,6 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
         (
             {
                 "PROPERTY_CATALOG_DATABASE": "property_catalog_dev_clean",
-                "PROPERTY_CATALOG_CH_DATABASE": "property_catalog_dev_clean",
             },
             "namespace does not match",
         ),
@@ -231,7 +226,7 @@ def test_property_catalog_read_mode_off_never_builds_a_runtime_connection():
             {
                 "PROPERTY_CATALOG_DATABASE": "property_catalog_backup",
             },
-            "qualifier and connection databases must match",
+            "isolated catalog identifier",
         ),
         (
             {"PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ()},
@@ -265,7 +260,6 @@ def test_property_catalog_production_admission_fails_closed(overrides, message):
     [
         {
             "PROPERTY_CATALOG_DATABASE": "property_catalog",
-            "PROPERTY_CATALOG_CH_DATABASE": "property_catalog",
         },
         {
             "PROPERTY_CATALOG_DEV_READ_ACK": "",

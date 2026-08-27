@@ -1241,7 +1241,6 @@ def validate_property_catalog_read_connection(
     host: object,
     port: object,
     database: object,
-    qualifier_database: object,
     api_read_user: object,
     password: object,
     source_users: object,
@@ -1250,10 +1249,6 @@ def validate_property_catalog_read_connection(
     """Validate the bounded, dedicated API connection for one deployment."""
 
     validate_property_catalog_database(database, deployment=deployment)
-    if qualifier_database != database:
-        raise ValueError(
-            "property catalog qualifier and connection databases must match"
-        )
     if (
         not isinstance(host, str)
         or not host.strip()
@@ -1287,8 +1282,7 @@ def validate_property_catalog_read_admission(
     cloud_deployment: object,
     dev_acknowledgement: object,
     prod_acknowledgement: object,
-    qualifier_database: object,
-    connection_database: object,
+    database: object,
     host: object,
     port: object,
     api_read_user: object,
@@ -1327,8 +1321,7 @@ def validate_property_catalog_read_admission(
     validate_property_catalog_read_connection(
         host=host,
         port=port,
-        database=connection_database,
-        qualifier_database=qualifier_database,
+        database=database,
         api_read_user=api_read_user,
         password=password,
         source_users=source_users,
@@ -1362,7 +1355,6 @@ PROPERTY_CATALOG_DEV_READ_ACK = os.getenv("PROPERTY_CATALOG_DEV_READ_ACK", "").s
 PROPERTY_CATALOG_PROD_READ_ACK = os.getenv("PROPERTY_CATALOG_PROD_READ_ACK", "").strip()
 PROPERTY_CATALOG_CH_HOST = os.getenv("PROPERTY_CATALOG_CH_HOST", "").strip()
 _property_catalog_ch_port_raw = os.getenv("PROPERTY_CATALOG_CH_PORT", "").strip()
-PROPERTY_CATALOG_CH_DATABASE = os.getenv("PROPERTY_CATALOG_CH_DATABASE", "").strip()
 PROPERTY_CATALOG_CH_USER = os.getenv("PROPERTY_CATALOG_CH_USER", "").strip()
 PROPERTY_CATALOG_CH_PASSWORD = os.getenv("PROPERTY_CATALOG_CH_PASSWORD", "")
 
@@ -1728,8 +1720,7 @@ PROPERTY_CATALOG_READ_DEPLOYMENT = validate_property_catalog_read_admission(
     cloud_deployment=CLOUD_DEPLOYMENT,
     dev_acknowledgement=PROPERTY_CATALOG_DEV_READ_ACK,
     prod_acknowledgement=PROPERTY_CATALOG_PROD_READ_ACK,
-    qualifier_database=PROPERTY_CATALOG_DATABASE,
-    connection_database=PROPERTY_CATALOG_CH_DATABASE,
+    database=PROPERTY_CATALOG_DATABASE,
     host=PROPERTY_CATALOG_CH_HOST,
     port=PROPERTY_CATALOG_CH_PORT,
     api_read_user=PROPERTY_CATALOG_CH_USER,

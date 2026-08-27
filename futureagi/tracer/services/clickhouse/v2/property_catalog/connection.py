@@ -68,7 +68,7 @@ class PropertyCatalogConnectionConfig:
         config = cls(
             host=getattr(source, "PROPERTY_CATALOG_CH_HOST", None),
             port=getattr(source, "PROPERTY_CATALOG_CH_PORT", None),
-            database=getattr(source, "PROPERTY_CATALOG_CH_DATABASE", None),
+            database=getattr(source, "PROPERTY_CATALOG_DATABASE", None),
             user=getattr(source, "PROPERTY_CATALOG_CH_USER", None),
             password=getattr(source, "PROPERTY_CATALOG_CH_PASSWORD", None),
         )
@@ -80,8 +80,7 @@ class PropertyCatalogConnectionConfig:
             prod_acknowledgement=getattr(
                 source, "PROPERTY_CATALOG_PROD_READ_ACK", None
             ),
-            qualifier_database=getattr(source, "PROPERTY_CATALOG_DATABASE", None),
-            connection_database=config.database,
+            database=config.database,
             host=config.host,
             port=config.port,
             api_read_user=config.user,
@@ -98,7 +97,6 @@ class PropertyCatalogConnectionConfig:
     def validate(
         self,
         *,
-        qualifier_database: Any,
         source_users: set[str],
         deployment: str = "dev",
     ) -> None:
@@ -106,7 +104,6 @@ class PropertyCatalogConnectionConfig:
             host=self.host,
             port=self.port,
             database=self.database,
-            qualifier_database=qualifier_database,
             api_read_user=self.user,
             password=self.password,
             source_users=source_users,
