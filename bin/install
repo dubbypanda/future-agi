@@ -221,6 +221,7 @@ declare -a PERSISTENT_VOLUME_SUFFIXES=(
   peerdb-catalog-data
   peerdb-minio-data
   property-catalog-kafka-data
+  property-catalog-sequencer-data
   fi-collector-data
 )
 declare -a STALE_VOLS=()
@@ -586,10 +587,10 @@ if $DC pull --help 2>&1 | grep -q -- '--ignore-buildable'; then
   pull_command+=(--ignore-buildable)
 else
   # Legacy Compose has no --ignore-buildable. Pull every active service except
-  # the two services that deliberately share the locally built collector image.
+  # the services that deliberately share the locally built collector image.
   while IFS= read -r service; do
     case "$service" in
-      fi-collector|fi-property-catalog-consumer) ;;
+      fi-collector|fi-property-catalog-sequencer|fi-property-catalog-consumer) ;;
       *) pull_command+=("$service") ;;
     esac
   done < <($DC config --services)
@@ -662,12 +663,15 @@ deadline=$(( $(date +%s) + ready_timeout ))
 ready_since=0
 last_ready_signature=""
 declare -a catalog_jobs=(
+  property-catalog-kafka-volume-init
+  property-catalog-runtime-volume-init
   property-catalog-topic-init
   property-catalog-clickhouse-bootstrap
   property-catalog-postgres-bootstrap
 )
 declare -a catalog_services=(
   fi-collector
+  fi-property-catalog-sequencer
   fi-property-catalog-consumer
   property-catalog-supervisor
 )
@@ -719,9 +723,11 @@ while true; do
 
   if [[ -n "$fatal_reason" ]]; then
     $DC ps -a >&3 2>&1 || true
-    $DC logs --tail 80 property-catalog-kafka property-catalog-topic-init \
+    $DC logs --tail 80 property-catalog-kafka property-catalog-kafka-volume-init \
+      property-catalog-runtime-volume-init property-catalog-topic-init \
       property-catalog-clickhouse-bootstrap property-catalog-postgres-bootstrap \
-      fi-collector fi-property-catalog-consumer property-catalog-supervisor backend \
+      fi-collector fi-property-catalog-sequencer fi-property-catalog-consumer \
+      property-catalog-supervisor backend \
       >&3 2>&1 || true
     die "$fatal_reason. Relevant service logs were appended to $LOG_FILE"
   fi
@@ -731,8 +737,8 @@ while true; do
       last_ready_signature="$ready_signature"
       ready_since="$now"
     elif (( now - ready_since >= stability_seconds )); then
-      ok "Kafka healthy; catalog topic and bootstraps completed"
-      ok "Collector, property-catalog consumer, and supervisor stable for ${stability_seconds}s"
+      ok "Kafka healthy; candidate and ordered topics plus catalog bootstraps completed"
+      ok "Collector, sequencer, property-catalog consumer, and supervisor stable for ${stability_seconds}s"
       ok "Backend healthy at http://localhost:${backend_port}"
       break
     fi
@@ -743,9 +749,11 @@ while true; do
 
   if (( now >= deadline )); then
     $DC ps -a >&3 2>&1 || true
-    $DC logs --tail 80 property-catalog-kafka property-catalog-topic-init \
+    $DC logs --tail 80 property-catalog-kafka property-catalog-kafka-volume-init \
+      property-catalog-runtime-volume-init property-catalog-topic-init \
       property-catalog-clickhouse-bootstrap property-catalog-postgres-bootstrap \
-      fi-collector fi-property-catalog-consumer property-catalog-supervisor backend \
+      fi-collector fi-property-catalog-sequencer fi-property-catalog-consumer \
+      property-catalog-supervisor backend \
       >&3 2>&1 || true
     die "Stack did not become fully ready within ${ready_timeout}s. Relevant service logs were appended to $LOG_FILE"
   fi

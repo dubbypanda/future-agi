@@ -210,6 +210,7 @@ $persistentVolumeSuffixes = @(
   'peerdb-catalog-data',
   'peerdb-minio-data',
   'property-catalog-kafka-data',
+  'property-catalog-sequencer-data',
   'fi-collector-data'
 )
 $existingVolumes = @()
@@ -404,7 +405,7 @@ if ($pullHelp -match '--ignore-buildable') {
 } else {
   $activeServices = @(& $DcCmd @DcArgs config --services)
   $pullArgs += @($activeServices | Where-Object {
-    $_ -and $_ -notin @('fi-collector', 'fi-property-catalog-consumer')
+    $_ -and $_ -notin @('fi-collector', 'fi-property-catalog-sequencer', 'fi-property-catalog-consumer')
   })
 }
 Append-Log @("running: $DcCmd $($DcArgs -join ' ') $($pullArgs -join ' ')")
@@ -479,10 +480,13 @@ function Get-ComposeServiceSnapshot {
 function Save-ReadinessDiagnostics {
   $services = @(
     'property-catalog-kafka',
+    'property-catalog-kafka-volume-init',
+    'property-catalog-runtime-volume-init',
     'property-catalog-topic-init',
     'property-catalog-clickhouse-bootstrap',
     'property-catalog-postgres-bootstrap',
     'fi-collector',
+    'fi-property-catalog-sequencer',
     'fi-property-catalog-consumer',
     'property-catalog-supervisor',
     'backend'
@@ -503,12 +507,15 @@ $deadline = (Get-Date).AddSeconds($readyTimeout)
 $readySince = $null
 $lastReadySignature = ''
 $catalogJobs = @(
+  'property-catalog-kafka-volume-init',
+  'property-catalog-runtime-volume-init',
   'property-catalog-topic-init',
   'property-catalog-clickhouse-bootstrap',
   'property-catalog-postgres-bootstrap'
 )
 $catalogServices = @(
   'fi-collector',
+  'fi-property-catalog-sequencer',
   'fi-property-catalog-consumer',
   'property-catalog-supervisor'
 )
@@ -567,8 +574,8 @@ while ($true) {
       $lastReadySignature = $readySignature
       $readySince = $now
     } elseif ($readySince -and ($now - $readySince).TotalSeconds -ge $stabilitySeconds) {
-      Ok "Kafka healthy; catalog topic and bootstraps completed"
-      Ok "Collector, property-catalog consumer, and supervisor stable for ${stabilitySeconds}s"
+      Ok "Kafka healthy; candidate and ordered topics plus catalog bootstraps completed"
+      Ok "Collector, sequencer, property-catalog consumer, and supervisor stable for ${stabilitySeconds}s"
       Ok "Backend healthy at http://localhost:$BackendPort"
       break
     }

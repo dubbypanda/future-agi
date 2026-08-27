@@ -9,9 +9,9 @@ contract is [PROPERTY_CATALOG_SEQUENCER.md](PROPERTY_CATALOG_SEQUENCER.md).
 > ordered envelopes directly is no longer production-safe. An OSS deployment
 > is complete only if it provides a candidate topic, the singleton
 > `fi-property-catalog-sequencer` with persistent state, a distinct ordered
-> topic, and `fi-property-catalog-consumer`. Updating Compose/deployment files
-> is intentionally outside this Core-only change; do not infer that an older
-> root Compose file satisfies the new contract.
+> topic, and `fi-property-catalog-consumer`. The root `docker-compose.yml`
+> supplies this complete local path; older one-topic Compose configurations do
+> not satisfy the contract.
 
 ## Keep the two catalog paths separate
 
@@ -31,14 +31,13 @@ harness and is not sufficient for the unified two-topic pipeline.
 There are two deliberate arrangements:
 
 1. The root `docker-compose.yml` is intended to be the one-command OSS path.
-   Before it may claim compatibility, a separate deployment change must add
-   both unified topics, the singleton sequencer with an exclusive persistent
-   volume and fixed owner identities, the ordered consumer, the isolated
-   tables/identities, and the read-only workspace supervisor. The supervisor
-   discovers local workspaces and projects from PostgreSQL, opens bounded
-   revisions, and runs initial or incremental reconciliation. The sequencer,
-   not collector replicas, admits a tenant only while its exact current fence
-   is present.
+   It creates both unified topics, runs the singleton sequencer with an
+   exclusive persistent volume and fixed owner identities, runs the ordered
+   consumer, provisions isolated tables/identities, and starts the read-only
+   workspace supervisor. The supervisor discovers local workspaces and
+   projects from PostgreSQL, opens bounded revisions, and runs initial or
+   incremental reconciliation. The sequencer, not collector replicas, admits
+   a tenant only while its exact current fence is present.
 2. The checked-in
    [`deploy/dev/property-catalog-docker` bundle](../deploy/dev/property-catalog-docker/README.md).
    is the stricter operator-driven qualification path. Despite its directory
@@ -98,19 +97,42 @@ revision visible to definition and value readers.
 
 Run these commands from the repository root. They do not contact production.
 
-After the separate Compose integration lands, confirm its service contract.
-The following older check is not sufficient unless it is extended to assert
-the sequencer, two distinct topics, fixed identities, and persistent state:
+Confirm the root Compose service contract, including the two distinct topics,
+fixed sequencer identities, and exclusive persistent state:
 
 ```bash
 docker compose -f docker-compose.yml config --services
 docker compose -f docker-compose.yml config --format json > /tmp/futureagi-oss-compose.json
-python3 -c 'import json; d=json.load(open("/tmp/futureagi-oss-compose.json")); s=d["services"]; print({"postgres": "postgres" in s, "clickhouse": "clickhouse" in s, "kafka": "property-catalog-kafka" in s, "unified_consumer": "fi-property-catalog-consumer" in s, "supervisor": "property-catalog-supervisor" in s, "producer_mode": s["fi-collector"]["environment"].get("FI_PROPERTY_CATALOG_MODE"), "scope_mode": s["fi-collector"]["environment"].get("FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE"), "read_mode": s["backend"]["environment"].get("PROPERTY_CATALOG_READ_MODE")})'
+python3 - <<'PY'
+import json
+
+d = json.load(open("/tmp/futureagi-oss-compose.json"))
+s = d["services"]
+collector = s["fi-collector"]["environment"]
+sequencer = s["fi-property-catalog-sequencer"]
+sequencer_env = sequencer["environment"]
+consumer = s["fi-property-catalog-consumer"]["environment"]
+candidate = collector["FI_PROPERTY_CATALOG_KAFKA_TOPIC"]
+ordered = sequencer_env["FI_PROPERTY_CATALOG_KAFKA_TOPIC"]
+volumes = {
+    (volume["source"], volume["target"], volume.get("read_only", False))
+    for volume in sequencer["volumes"]
+}
+assert candidate != ordered
+assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC"] == candidate
+assert consumer["FI_PROPERTY_CATALOG_KAFKA_TOPIC"] == ordered
+assert ("property-catalog-sequencer-data", "/var/lib/property-catalog-sequencer", False) in volumes
+assert ("fi-collector-data", "/var/lib/property-catalog-control", True) in volumes
+assert sequencer_env["FI_PROPERTY_CATALOG_SEQUENCER_TRANSACTIONAL_ID"]
+assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_CONSUMER_GROUP"]
+assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_INSTANCE_ID"]
+assert s["backend"]["environment"]["PROPERTY_CATALOG_READ_MODE"] == "off"
+print({"candidate_topic": candidate, "ordered_topic": ordered, "sequencer": True, "read_mode": "off"})
+PY
 ```
 
-The result must show PostgreSQL, ClickHouse, Kafka, the unified consumer, and
-the supervisor present; `producer_mode` must be `kafka`, `scope_mode` must be
-`revision_fence`, and `read_mode` must remain `off` until explicit cutover.
+The check must pass with distinct candidate and ordered topics, fixed sequencer
+ownership, its exclusive volume, and `read_mode=off` until explicit cutover.
 
 Start only the catalog dependencies in a disposable Compose project when doing
 a first-boot qualification. Never run `down -v` against an existing OSS
@@ -119,17 +141,20 @@ project:
 ```bash
 docker compose -p futureagi-catalog-proof -f docker-compose.yml up -d \
   postgres clickhouse redis \
+  property-catalog-kafka-volume-init property-catalog-runtime-volume-init \
   property-catalog-postgres-bootstrap \
   property-catalog-clickhouse-bootstrap \
   property-catalog-kafka property-catalog-topic-init \
-  fi-property-catalog-consumer fi-collector property-catalog-supervisor
+  fi-collector fi-property-catalog-sequencer \
+  fi-property-catalog-consumer property-catalog-supervisor
 docker compose -p futureagi-catalog-proof -f docker-compose.yml ps
 ```
 
-The bootstrap jobs must exit `0`; Kafka, the consumer, collector, and
-supervisor must remain running. Before any workspace exists the producer may
-have no fence. Do not create an empty fence file: the supervisor publishes the
-first canonical fence after onboarding creates a workspace and project.
+The volume initialization and bootstrap jobs must exit `0`; Kafka, collector,
+sequencer, consumer, and supervisor must remain running. Before any workspace
+exists the sequencer may have no fence. Do not create an empty fence file: the
+supervisor publishes the first canonical fence after onboarding creates a
+workspace and project.
 
 Build and test all three Go processes:
 

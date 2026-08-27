@@ -30,6 +30,8 @@ def _compose_config() -> dict[str, object]:
             "PROPERTY_CATALOG_KAFKA_HEAP_OPTS": "-Xms256m -Xmx512m",
             "FI_COLLECTOR_CPUS": "1.0",
             "FI_COLLECTOR_MEMORY": "1G",
+            "PROPERTY_CATALOG_SEQUENCER_CPUS": "0.5",
+            "PROPERTY_CATALOG_SEQUENCER_MEMORY": "768M",
             "PROPERTY_CATALOG_CONSUMER_CPUS": "0.5",
             "PROPERTY_CATALOG_CONSUMER_MEMORY": "512M",
             "PROPERTY_CATALOG_SUPERVISOR_CPUS": "0.5",
@@ -55,12 +57,48 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
     assert isinstance(services, dict)
 
     collector = services["fi-collector"]
+    sequencer = services["fi-property-catalog-sequencer"]
     consumer = services["fi-property-catalog-consumer"]
     assert collector["image"] == "futureagi/fi-collector:local"
+    assert sequencer["image"] == "futureagi/fi-collector:local"
     assert consumer["image"] == "futureagi/fi-collector:local"
     assert Path(collector["build"]["context"]).name == "fi-collector"
+    assert Path(sequencer["build"]["context"]).name == "fi-collector"
     assert Path(consumer["build"]["context"]).name == "fi-collector"
+    assert sequencer["entrypoint"] == ["/usr/local/bin/fi-property-catalog-sequencer"]
     assert consumer["entrypoint"] == ["/usr/local/bin/fi-property-catalog-consumer"]
+
+    collector_env = collector["environment"]
+    sequencer_env = sequencer["environment"]
+    consumer_env = consumer["environment"]
+    candidate_topic = collector_env["FI_PROPERTY_CATALOG_KAFKA_TOPIC"]
+    ordered_topic = sequencer_env["FI_PROPERTY_CATALOG_KAFKA_TOPIC"]
+    assert collector_env["FI_PROPERTY_CATALOG_MODE"] == "kafka"
+    assert sequencer_env["FI_PROPERTY_CATALOG_MODE"] == "sequencer"
+    assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC"] == candidate_topic
+    assert consumer_env["FI_PROPERTY_CATALOG_KAFKA_TOPIC"] == ordered_topic
+    assert candidate_topic != ordered_topic
+    assert sequencer_env["FI_PROPERTY_CATALOG_SEQUENCER_TRANSACTIONAL_ID"]
+    assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_CONSUMER_GROUP"]
+    assert sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_INSTANCE_ID"]
+    sequencer_volumes = {
+        (volume["source"], volume["target"], volume.get("read_only", False))
+        for volume in sequencer["volumes"]
+    }
+    assert (
+        "property-catalog-sequencer-data",
+        "/var/lib/property-catalog-sequencer",
+        False,
+    ) in sequencer_volumes
+    assert (
+        "fi-collector-data",
+        "/var/lib/property-catalog-control",
+        True,
+    ) in sequencer_volumes
+
+    topic_init_env = services["property-catalog-topic-init"]["environment"]
+    assert topic_init_env["PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC"] == candidate_topic
+    assert topic_init_env["PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC"] == ordered_topic
 
     kafka = services["property-catalog-kafka"]
     assert kafka["environment"]["KAFKA_HEAP_OPTS"] == "-Xms256m -Xmx512m"
@@ -73,6 +111,7 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
     for service_name in (
         "property-catalog-kafka",
         "fi-collector",
+        "fi-property-catalog-sequencer",
         "fi-property-catalog-consumer",
         "property-catalog-supervisor",
     ):
@@ -88,10 +127,13 @@ def test_installers_gate_success_on_the_full_catalog_path() -> None:
     powershell = _read(INSTALL_PS1)
     required_services = (
         "property-catalog-kafka",
+        "property-catalog-kafka-volume-init",
+        "property-catalog-runtime-volume-init",
         "property-catalog-topic-init",
         "property-catalog-clickhouse-bootstrap",
         "property-catalog-postgres-bootstrap",
         "fi-collector",
+        "fi-property-catalog-sequencer",
         "fi-property-catalog-consumer",
         "property-catalog-supervisor",
         "backend",
@@ -114,8 +156,13 @@ def test_installers_cover_kafka_port_and_all_catalog_persistent_state() -> None:
     for installer in (shell, powershell):
         assert "PROPERTY_CATALOG_KAFKA_PORT" in installer
         assert "property-catalog-kafka-data" in installer
+        assert "property-catalog-sequencer-data" in installer
         assert "fi-collector-data" in installer
         assert "--ignore-buildable" in installer
+        assert "fi-property-catalog-sequencer" in installer
+
+    assert "fi-collector|fi-property-catalog-sequencer|fi-property-catalog-consumer" in shell
+    assert "'fi-collector', 'fi-property-catalog-sequencer', 'fi-property-catalog-consumer'" in powershell
 
     assert "--wipe-volumes" in shell
     assert "WipeVolumes" in powershell

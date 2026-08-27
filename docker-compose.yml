@@ -544,9 +544,13 @@ services:
     restart: "no"
     entrypoint: ["/bin/sh", "-ec"]
     command:
-      - mkdir -p /runtime/property-catalog && chown -R 65532:65532 /runtime && chmod 700 /runtime/property-catalog
+      - |
+        mkdir -p /runtime/property-catalog /sequencer
+        chown -R 65532:65532 /runtime /sequencer
+        chmod 700 /runtime/property-catalog /sequencer
     volumes:
       - fi-collector-data:/runtime
+      - property-catalog-sequencer-data:/sequencer
 
   property-catalog-kafka:
     image: apache/kafka-native:4.1.0
@@ -603,26 +607,37 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-ec"]
     environment:
-      PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.v1}
+      PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC:-futureagi.oss.property-catalog.candidates.v1}
+      PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC: ${PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC:-${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.ordered.v1}}
       PROPERTY_CATALOG_KAFKA_PARTITIONS: ${PROPERTY_CATALOG_KAFKA_PARTITIONS:-6}
       PROPERTY_CATALOG_KAFKA_RETENTION_MS: ${PROPERTY_CATALOG_KAFKA_RETENTION_MS:-259200000}
     command:
       - |
-        case "$${PROPERTY_CATALOG_KAFKA_TOPIC}" in
-          ''|*[!A-Za-z0-9._-]*) echo >&2 "invalid unified property catalog topic"; exit 64 ;;
-        esac
+        candidate="$${PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC}"
+        ordered="$${PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC}"
+        for topic in "$${candidate}" "$${ordered}"; do
+          case "$${topic}" in
+            ''|*[!A-Za-z0-9._-]*) echo >&2 "invalid unified property catalog topic"; exit 64 ;;
+          esac
+        done
+        if [ "$${candidate}" = "$${ordered}" ]; then
+          echo >&2 "candidate and ordered property catalog topics must be distinct"
+          exit 64
+        fi
         case "$${PROPERTY_CATALOG_KAFKA_PARTITIONS}" in
           ''|*[!0-9]*) echo >&2 "invalid property catalog partition count"; exit 64 ;;
         esac
-        exec /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server property-catalog-kafka:9092 \
-          --create \
-          --if-not-exists \
-          --topic "$${PROPERTY_CATALOG_KAFKA_TOPIC}" \
-          --partitions "$${PROPERTY_CATALOG_KAFKA_PARTITIONS}" \
-          --replication-factor 1 \
-          --config retention.ms="$${PROPERTY_CATALOG_KAFKA_RETENTION_MS}" \
-          --config max.message.bytes=1048576
+        for topic in "$${candidate}" "$${ordered}"; do
+          /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server property-catalog-kafka:9092 \
+            --create \
+            --if-not-exists \
+            --topic "$${topic}" \
+            --partitions "$${PROPERTY_CATALOG_KAFKA_PARTITIONS}" \
+            --replication-factor 1 \
+            --config retention.ms="$${PROPERTY_CATALOG_KAFKA_RETENTION_MS}" \
+            --config max.message.bytes=1048576
+        done
 
   # ==========================================================================
   # fi-collector — OTLP gRPC receiver that writes spans directly to CH 25.3
@@ -642,21 +657,16 @@ services:
     environment:
       # The legacy and unified catalog writers are mutually exclusive. OSS
       # defaults to the unified Kafka path; the legacy span-only writer remains
-      # disabled. A development-only revision-fence scope admits a tenant only
-      # while the checked-in control plane has published its exact build fence.
+      # disabled. Collectors emit only deterministic workspace-keyed candidates;
+      # the singleton sequencer below owns revision admission and ordering.
       FI_CATALOG_MODE: ${FI_CATALOG_MODE:-disabled}
       FI_PROPERTY_CATALOG_MODE: ${FI_PROPERTY_CATALOG_MODE:-kafka}
       FI_PROPERTY_CATALOG_ENVIRONMENT: development
       FI_PROPERTY_CATALOG_DEV_ACK: PROPERTY_CATALOG_V1_DEV_ONLY
       FI_PROPERTY_CATALOG_EPOCH: ${PROPERTY_CATALOG_EPOCH:-1}
       FI_PROPERTY_CATALOG_PROJECTION_VERSION: ${PROPERTY_CATALOG_PROJECTION_VERSION:-1}
-      FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID: ${PROPERTY_CATALOG_PRODUCER_STREAM_ID:-9e43cac3-65f0-50b1-991d-4e582aa2cc84}
-      FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE: revision_fence
-      FI_PROPERTY_CATALOG_REVISION_FENCE_FILE: /var/lib/fi-collector/property-catalog/revision-fence-v2.json
-      FI_PROPERTY_CATALOG_SPOOL_DIR: /var/lib/fi-collector/property-catalog
-      FI_PROPERTY_CATALOG_REPLAY_INTERVAL: ${PROPERTY_CATALOG_REPLAY_INTERVAL:-1s}
       FI_PROPERTY_CATALOG_KAFKA_BROKERS: property-catalog-kafka:9092
-      FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.v1}
+      FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC:-futureagi.oss.property-catalog.candidates.v1}
       # Point at the same ClickHouse the backend uses (HTTP port 8123).
       FI_CH_URL: http://clickhouse:8123
       FI_CH_DATABASE: ${FI_CH_DATABASE:-${CH25_DATABASE:-${CH_DATABASE:-default}}}
@@ -694,6 +704,44 @@ services:
           memory: "${FI_COLLECTOR_MEMORY:-1G}"
     restart: unless-stopped
 
+  fi-property-catalog-sequencer:
+    <<: *fi-collector-image
+    cpus: "${PROPERTY_CATALOG_SEQUENCER_CPUS:-0.5}"
+    mem_limit: "${PROPERTY_CATALOG_SEQUENCER_MEMORY:-768M}"
+    entrypoint: ["/usr/local/bin/fi-property-catalog-sequencer"]
+    environment:
+      FI_PROPERTY_CATALOG_MODE: sequencer
+      FI_PROPERTY_CATALOG_ENVIRONMENT: development
+      FI_PROPERTY_CATALOG_DEV_ACK: PROPERTY_CATALOG_V1_DEV_ONLY
+      FI_PROPERTY_CATALOG_EPOCH: ${PROPERTY_CATALOG_EPOCH:-1}
+      FI_PROPERTY_CATALOG_PROJECTION_VERSION: ${PROPERTY_CATALOG_PROJECTION_VERSION:-1}
+      FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID: ${PROPERTY_CATALOG_PRODUCER_STREAM_ID:-9e43cac3-65f0-50b1-991d-4e582aa2cc84}
+      FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE: revision_fence
+      FI_PROPERTY_CATALOG_REVISION_FENCE_FILE: /var/lib/property-catalog-control/property-catalog/revision-fence-v2.json
+      FI_PROPERTY_CATALOG_SPOOL_DIR: /var/lib/property-catalog-sequencer
+      FI_PROPERTY_CATALOG_REPLAY_INTERVAL: ${PROPERTY_CATALOG_REPLAY_INTERVAL:-1s}
+      FI_PROPERTY_CATALOG_KAFKA_BROKERS: property-catalog-kafka:9092
+      FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC:-${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.ordered.v1}}
+      FI_PROPERTY_CATALOG_SEQUENCER_TRANSACTIONAL_ID: ${PROPERTY_CATALOG_SEQUENCER_TRANSACTIONAL_ID:-futureagi-oss-property-catalog-sequencer-v1}
+      FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_BROKERS: property-catalog-kafka:9092
+      FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_TOPIC:-futureagi.oss.property-catalog.candidates.v1}
+      FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_CONSUMER_GROUP: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_CONSUMER_GROUP:-futureagi-oss-property-catalog-sequencer-v1}
+      FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_INSTANCE_ID: ${PROPERTY_CATALOG_CANDIDATE_KAFKA_INSTANCE_ID:-futureagi-oss-property-catalog-sequencer-v1}
+    volumes:
+      - fi-collector-data:/var/lib/property-catalog-control:ro
+      - property-catalog-sequencer-data:/var/lib/property-catalog-sequencer
+    depends_on:
+      property-catalog-topic-init:
+        condition: service_completed_successfully
+      property-catalog-runtime-volume-init:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "${PROPERTY_CATALOG_SEQUENCER_CPUS:-0.5}"
+          memory: "${PROPERTY_CATALOG_SEQUENCER_MEMORY:-768M}"
+    restart: unless-stopped
+
   fi-property-catalog-consumer:
     <<: *fi-collector-image
     cpus: "${PROPERTY_CATALOG_CONSUMER_CPUS:-0.5}"
@@ -713,13 +761,15 @@ services:
       FI_PROPERTY_CATALOG_LEDGER_CH_USERNAME: property_catalog_oss_ledger
       FI_PROPERTY_CATALOG_LEDGER_CH_PASSWORD: ${PROPERTY_CATALOG_LEDGER_PASSWORD:-oss-catalog-ledger-local-only}
       FI_PROPERTY_CATALOG_KAFKA_BROKERS: property-catalog-kafka:9092
-      FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.v1}
+      FI_PROPERTY_CATALOG_KAFKA_TOPIC: ${PROPERTY_CATALOG_ORDERED_KAFKA_TOPIC:-${PROPERTY_CATALOG_KAFKA_TOPIC:-futureagi.oss.property-catalog.ordered.v1}}
       FI_PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP: ${PROPERTY_CATALOG_KAFKA_CONSUMER_GROUP:-futureagi.oss.property-catalog.consumer.v1}
     depends_on:
       property-catalog-clickhouse-bootstrap:
         condition: service_completed_successfully
       property-catalog-topic-init:
         condition: service_completed_successfully
+      fi-property-catalog-sequencer:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -1119,6 +1169,9 @@ volumes:
   peerdb-catalog-data:
   peerdb-minio-data:
   property-catalog-kafka-data:
+  # Exclusive durable owner state for the singleton property-catalog sequencer.
+  # Never mount this volume into collectors or consumers.
+  property-catalog-sequencer-data:
   # fi-collector dead-letter queue: spans the collector couldn't write
   # to CH (typically transient CH unavailability). Persist across
   # restarts so they can be replayed when CH comes back.
