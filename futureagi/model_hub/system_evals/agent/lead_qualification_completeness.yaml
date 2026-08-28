@@ -3,24 +3,47 @@ name: lead_qualification_completeness
 description: Evaluates whether an agent qualifies a lead completely across a multi-turn voice or chat conversation - discovers
   needs, carries earlier answers forward without redundant re-asking, confirms critical details, and secures a consented next
   step.
-criteria: "You are evaluating whether an agent qualifies a lead completely and correctly over the course of a conversation.\n\
-  \n## Criteria\n\n1. Needs discovery and suitability: The agent elicits the qualifying details its prompt defines and aligns\
-  \ any recommendation or routing to what the customer actually needs.\n   - Pass: Asks the qualifying questions before recommending\
-  \ or routing.\n   - Fail: Jumps to a pitch, or pushes a one-size-fits-all option that ignores stated needs.\n\n2. Progressive\
-  \ qualification: The agent builds on what the customer has already said rather than treating each turn independently.\n\
-  \   - Pass: \"You mentioned your team is on the starter plan, so let's look at what an upgrade adds.\"\n   - Fail: Re-asks\
-  \ for team size or product interest after it was already answered.\n\n3. Confirmed details and a next step: Critical values\
-  \ are read back or confirmed, and the agent secures a valid next step - callback consent, contact confirmation, appointment,\
-  \ or handoff - as authorized.\n   - Pass: Confirms the number, then books the callback.\n   - Fail: Ends without confirming\
-  \ critical details or securing any next step.\n\n## Anti-bias Rules\n\n- Qualification may be gathered across several turns\
-  \ in any order; judge the conversation as a whole, do not require a fixed script, and treat a detail the customer volunteers\
-  \ as captured.\n- A customer's refusal to share a detail, a field irrelevant to the flow, and a clarifying follow-up about\
-  \ an ambiguous answer are not failures.\n- Do not penalize transcription noise in a voice transcript; what matters is whether\
-  \ the agent sought and confirmed the information.\n\n## Scoring\n\nReturn 'Passed' if, over the whole conversation, the\
-  \ agent captures the qualification details relevant to its flow, carries them forward without redundant re-asking, aligns\
-  \ to the customer's needs, and secures or attempts a consented next step. Return 'Failed' if it skips required qualification,\
-  \ repeatedly re-asks for known details, mis-aligns its recommendation, fails to confirm critical details, or secures no\
-  \ next step.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\n<conversation>{{conversation}}</conversation>"
+criteria: 'You are evaluating whether an agent qualifies a lead completely and correctly over the course of a conversation.
+
+
+  ## Criteria
+
+  1. Needs discovery and suitability: The agent elicits the qualifying details its prompt defines and aligns any recommendation
+  or routing to what the customer actually needs.
+
+  2. Progressive qualification: The agent builds on what the customer has already said rather than treating each turn independently,
+  and does not re-ask for details already given.
+
+  3. Confirmed details and a next step: Critical values are read back or confirmed, and the agent secures a valid next step
+  - callback consent, contact confirmation, appointment, or handoff - as authorized.
+
+
+  ## Anti-bias Rules
+
+  - Qualification may be gathered across several turns in any order; judge the conversation as a whole, do not require a fixed
+  script, and treat a detail the customer volunteers as captured.
+
+  - A customer''s refusal to share a detail, a field irrelevant to the flow, and a clarifying follow-up about an ambiguous
+  answer are not failures.
+
+  - Do not penalize transcription noise in a voice transcript; what matters is whether the agent sought and confirmed the
+  information.
+
+
+  ## Scoring
+
+  - Return PASS if, over the whole conversation, the agent captures the qualification details relevant to its flow, carries
+  them forward without redundant re-asking, aligns to the customer''s needs, and secures or attempts a consented next step.
+
+  - Return FAIL if it skips required qualification, repeatedly re-asks for known details, mis-aligns its recommendation, fails
+  to confirm critical details, or secures no next step.
+
+
+  ## Input
+
+  <agent_prompt>{{agent_prompt}}</agent_prompt>
+
+  <conversation>{{conversation}}</conversation>'
 eval_tags:
 - Agents
 - Conversation
@@ -66,22 +89,44 @@ config:
     - FLOAT
     - ARRAY
     - DATETIME
-  rule_prompt: "You are evaluating whether an agent qualifies a lead completely and correctly over the course of a conversation.\n\
-    \n## Criteria\n\n1. Needs discovery and suitability: The agent elicits the qualifying details its prompt defines and aligns\
-    \ any recommendation or routing to what the customer actually needs.\n   - Pass: Asks the qualifying questions before\
-    \ recommending or routing.\n   - Fail: Jumps to a pitch, or pushes a one-size-fits-all option that ignores stated needs.\n\
-    \n2. Progressive qualification: The agent builds on what the customer has already said rather than treating each turn\
-    \ independently.\n   - Pass: \"You mentioned your team is on the starter plan, so let's look at what an upgrade adds.\"\
-    \n   - Fail: Re-asks for team size or product interest after it was already answered.\n\n3. Confirmed details and a next\
-    \ step: Critical values are read back or confirmed, and the agent secures a valid next step - callback consent, contact\
-    \ confirmation, appointment, or handoff - as authorized.\n   - Pass: Confirms the number, then books the callback.\n \
-    \  - Fail: Ends without confirming critical details or securing any next step.\n\n## Anti-bias Rules\n\n- Qualification\
-    \ may be gathered across several turns in any order; judge the conversation as a whole, do not require a fixed script,\
-    \ and treat a detail the customer volunteers as captured.\n- A customer's refusal to share a detail, a field irrelevant\
-    \ to the flow, and a clarifying follow-up about an ambiguous answer are not failures.\n- Do not penalize transcription\
-    \ noise in a voice transcript; what matters is whether the agent sought and confirmed the information.\n\n## Scoring\n\
-    \nReturn 'Passed' if, over the whole conversation, the agent captures the qualification details relevant to its flow,\
-    \ carries them forward without redundant re-asking, aligns to the customer's needs, and secures or attempts a consented\
-    \ next step. Return 'Failed' if it skips required qualification, repeatedly re-asks for known details, mis-aligns its\
-    \ recommendation, fails to confirm critical details, or secures no next step.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\
-    \n<conversation>{{conversation}}</conversation>"
+  rule_prompt: 'You are evaluating whether an agent qualifies a lead completely and correctly over the course of a conversation.
+
+
+    ## Criteria
+
+    1. Needs discovery and suitability: The agent elicits the qualifying details its prompt defines and aligns any recommendation
+    or routing to what the customer actually needs.
+
+    2. Progressive qualification: The agent builds on what the customer has already said rather than treating each turn independently,
+    and does not re-ask for details already given.
+
+    3. Confirmed details and a next step: Critical values are read back or confirmed, and the agent secures a valid next step
+    - callback consent, contact confirmation, appointment, or handoff - as authorized.
+
+
+    ## Anti-bias Rules
+
+    - Qualification may be gathered across several turns in any order; judge the conversation as a whole, do not require a
+    fixed script, and treat a detail the customer volunteers as captured.
+
+    - A customer''s refusal to share a detail, a field irrelevant to the flow, and a clarifying follow-up about an ambiguous
+    answer are not failures.
+
+    - Do not penalize transcription noise in a voice transcript; what matters is whether the agent sought and confirmed the
+    information.
+
+
+    ## Scoring
+
+    - Return PASS if, over the whole conversation, the agent captures the qualification details relevant to its flow, carries
+    them forward without redundant re-asking, aligns to the customer''s needs, and secures or attempts a consented next step.
+
+    - Return FAIL if it skips required qualification, repeatedly re-asks for known details, mis-aligns its recommendation,
+    fails to confirm critical details, or secures no next step.
+
+
+    ## Input
+
+    <agent_prompt>{{agent_prompt}}</agent_prompt>
+
+    <conversation>{{conversation}}</conversation>'

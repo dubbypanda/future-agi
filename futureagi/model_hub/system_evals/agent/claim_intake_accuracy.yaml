@@ -3,26 +3,47 @@ name: claim_intake_accuracy
 description: Evaluates whether an agent runs first-notice-of-loss / claim intake correctly across a multi-turn voice or chat
   conversation - captures and confirms required claim details, keeps them consistent, absorbs corrections, sets expectations,
   and makes no coverage or settlement promise.
-criteria: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL) conversation.\n\
-  \n## Criteria\n\n1. Correct process and complete capture: The agent follows the intake steps its prompt defines, collects\
-  \ the required claim details, and confirms critical values rather than assuming them.\n   - Pass: Reads back the date of\
-  \ loss and policy number, then initiates or routes the claim.\n   - Fail: Records details without confirmation, skips required\
-  \ fields, or follows the wrong process.\n\n2. No coverage or settlement promises: The agent does not promise the claim will\
-  \ be covered, state a payout, or pre-judge liability, and it explains what happens next.\n   - Pass: \"I'm logging the details;\
-  \ the claims team will assess it against your policy, and they'll contact you within two days.\"\n   - Fail: \"This will\
-  \ definitely be covered\" or leaving the customer with no idea what follows.\n\n3. Consistency across turns: Captured details\
-  \ stay stable, and corrections the customer makes are adopted from that point on.\n   - Pass: Customer corrects the date\
-  \ of loss; the agent confirms it and uses the corrected date thereafter.\n   - Fail: Customer corrects the date; the agent's\
-  \ summary reverts to the original.\n\n## Anti-bias Rules\n\n- Details may be captured across several turns in any order;\
-  \ evaluate the state of the claim at the end, and treat correctly initiating and routing it as success even though the claim\
-  \ is unresolved.\n- Empathy alongside a non-committal stance on coverage is the desired behavior, not a contradiction, and\
-  \ an abandoned call is not the agent's failure.\n- ASR frequently mis-renders names, dates, and numbers; judge whether the\
-  \ agent sought explicit confirmation of each critical value, not how the transcript spells it.\n\n## Scoring\n\nReturn 'Passed'\
-  \ if the agent captures and confirms the required claim details, keeps them consistent, absorbs corrections, follows or\
-  \ initiates the correct process, sets accurate expectations, and makes no coverage or settlement promise. Return 'Failed'\
-  \ if it misses required details, follows a wrong process, promises coverage or payout, pre-judges liability, contradicts\
-  \ a confirmed detail, ignores a correction, or leaves the customer without next steps.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\
-  \n<conversation>{{conversation}}</conversation>"
+criteria: 'You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL) conversation.
+
+
+  ## Criteria
+
+  1. Correct process and complete capture: The agent follows the intake steps its prompt defines, collects the required claim
+  details, and confirms critical values rather than assuming them.
+
+  2. No coverage or settlement promises: The agent does not promise the claim will be covered, state a payout, or pre-judge
+  liability, and it explains what happens next and who will follow up.
+
+  3. Consistency across turns: Captured details stay stable, and corrections the customer makes are adopted from that point
+  on rather than reverting in a later summary.
+
+
+  ## Anti-bias Rules
+
+  - Details may be captured across several turns in any order; evaluate the state of the claim at the end, and treat correctly
+  initiating and routing it as success even though the claim is unresolved.
+
+  - Empathy alongside a non-committal stance on coverage is the desired behavior, not a contradiction, and an abandoned call
+  is not the agent''s failure.
+
+  - ASR frequently mis-renders names, dates, and numbers; judge whether the agent sought explicit confirmation of each critical
+  value, not how the transcript spells it.
+
+
+  ## Scoring
+
+  - Return PASS if the agent captures and confirms the required claim details, keeps them consistent, absorbs corrections,
+  follows or initiates the correct process, sets accurate expectations, and makes no coverage or settlement promise.
+
+  - Return FAIL if it misses required details, follows a wrong process, promises coverage or payout, pre-judges liability,
+  contradicts a confirmed detail, ignores a correction, or leaves the customer without next steps.
+
+
+  ## Input
+
+  <agent_prompt>{{agent_prompt}}</agent_prompt>
+
+  <conversation>{{conversation}}</conversation>'
 eval_tags:
 - Agents
 - Conversation
@@ -69,23 +90,45 @@ config:
     - FLOAT
     - ARRAY
     - DATETIME
-  rule_prompt: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL)\
-    \ conversation.\n\n## Criteria\n\n1. Correct process and complete capture: The agent follows the intake steps its prompt\
-    \ defines, collects the required claim details, and confirms critical values rather than assuming them.\n   - Pass: Reads\
-    \ back the date of loss and policy number, then initiates or routes the claim.\n   - Fail: Records details without confirmation,\
-    \ skips required fields, or follows the wrong process.\n\n2. No coverage or settlement promises: The agent does not promise\
-    \ the claim will be covered, state a payout, or pre-judge liability, and it explains what happens next.\n   - Pass: \"\
-    I'm logging the details; the claims team will assess it against your policy, and they'll contact you within two days.\"\
-    \n   - Fail: \"This will definitely be covered\" or leaving the customer with no idea what follows.\n\n3. Consistency\
-    \ across turns: Captured details stay stable, and corrections the customer makes are adopted from that point on.\n   -\
-    \ Pass: Customer corrects the date of loss; the agent confirms it and uses the corrected date thereafter.\n   - Fail:\
-    \ Customer corrects the date; the agent's summary reverts to the original.\n\n## Anti-bias Rules\n\n- Details may be captured\
-    \ across several turns in any order; evaluate the state of the claim at the end, and treat correctly initiating and routing\
-    \ it as success even though the claim is unresolved.\n- Empathy alongside a non-committal stance on coverage is the desired\
-    \ behavior, not a contradiction, and an abandoned call is not the agent's failure.\n- ASR frequently mis-renders names,\
-    \ dates, and numbers; judge whether the agent sought explicit confirmation of each critical value, not how the transcript\
-    \ spells it.\n\n## Scoring\n\nReturn 'Passed' if the agent captures and confirms the required claim details, keeps them\
-    \ consistent, absorbs corrections, follows or initiates the correct process, sets accurate expectations, and makes no\
-    \ coverage or settlement promise. Return 'Failed' if it misses required details, follows a wrong process, promises coverage\
-    \ or payout, pre-judges liability, contradicts a confirmed detail, ignores a correction, or leaves the customer without\
-    \ next steps.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\n<conversation>{{conversation}}</conversation>"
+  rule_prompt: 'You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL)
+    conversation.
+
+
+    ## Criteria
+
+    1. Correct process and complete capture: The agent follows the intake steps its prompt defines, collects the required
+    claim details, and confirms critical values rather than assuming them.
+
+    2. No coverage or settlement promises: The agent does not promise the claim will be covered, state a payout, or pre-judge
+    liability, and it explains what happens next and who will follow up.
+
+    3. Consistency across turns: Captured details stay stable, and corrections the customer makes are adopted from that point
+    on rather than reverting in a later summary.
+
+
+    ## Anti-bias Rules
+
+    - Details may be captured across several turns in any order; evaluate the state of the claim at the end, and treat correctly
+    initiating and routing it as success even though the claim is unresolved.
+
+    - Empathy alongside a non-committal stance on coverage is the desired behavior, not a contradiction, and an abandoned
+    call is not the agent''s failure.
+
+    - ASR frequently mis-renders names, dates, and numbers; judge whether the agent sought explicit confirmation of each critical
+    value, not how the transcript spells it.
+
+
+    ## Scoring
+
+    - Return PASS if the agent captures and confirms the required claim details, keeps them consistent, absorbs corrections,
+    follows or initiates the correct process, sets accurate expectations, and makes no coverage or settlement promise.
+
+    - Return FAIL if it misses required details, follows a wrong process, promises coverage or payout, pre-judges liability,
+    contradicts a confirmed detail, ignores a correction, or leaves the customer without next steps.
+
+
+    ## Input
+
+    <agent_prompt>{{agent_prompt}}</agent_prompt>
+
+    <conversation>{{conversation}}</conversation>'
