@@ -33,6 +33,7 @@ import {
   getNewTaskFilters,
 } from "./schema";
 import TaskConfirmDialog from "src/sections/common/EvalsTasks/EditTaskDrawer/TaskConfirmBox";
+import DuplicateTaskDialog from "./components/DuplicateTaskDialog";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
 
 const getTaskDetailsErrorMessage = (error) =>
@@ -78,6 +79,7 @@ const TaskDetailPage = () => {
   const popover = usePopover();
   const [tab, setTab] = useState("details");
   const [confirmMode, setConfirmMode] = useState(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
 
   // Test runner — imperative handle from the live preview
   const previewRef = useRef(null);
@@ -254,7 +256,12 @@ const TaskDetailPage = () => {
     },
   });
 
-  const handleDuplicate = () => {
+  const handleOpenDuplicateDialog = () => {
+    popover.onClose();
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleConfirmDuplicate = (taskName) => {
     if (!taskDetails || isDuplicating) return;
     const src = formValues?.name
       ? formValues
@@ -281,7 +288,7 @@ const TaskDetailPage = () => {
     }
 
     const payload = {
-      name: `${src.name}-duplicate`,
+      name: taskName,
       project: src.project,
       run_type: src.runType,
       row_type: src.rowType,
@@ -299,8 +306,11 @@ const TaskDetailPage = () => {
           : {}),
       },
     };
-    duplicateTask(payload);
-    popover.onClose();
+    duplicateTask(payload, {
+      onSuccess: () => {
+        setDuplicateDialogOpen(false);
+      },
+    });
   };
 
   const handleConfirm = useCallback(
@@ -501,7 +511,7 @@ const TaskDetailPage = () => {
         sx={{ width: 140 }}
       >
         <MenuItem
-          onClick={handleDuplicate}
+          onClick={handleOpenDuplicateDialog}
           disabled={!canEditTask || isDuplicating}
         >
           <Iconify icon="solar:copy-linear" width={16} />
@@ -688,6 +698,16 @@ const TaskDetailPage = () => {
         onConfirm={handleConfirm}
         isLoading={isUpdating}
       />
+
+      {duplicateDialogOpen && (
+        <DuplicateTaskDialog
+          open={duplicateDialogOpen}
+          onClose={() => setDuplicateDialogOpen(false)}
+          defaultName={`${formValues?.name || taskDetails?.name || "Task"}-duplicate`}
+          onSubmit={handleConfirmDuplicate}
+          isSubmitting={isDuplicating}
+        />
+      )}
     </Box>
   );
 };

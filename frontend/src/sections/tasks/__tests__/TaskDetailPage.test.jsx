@@ -424,6 +424,9 @@ describe("TaskDetailPage", () => {
     });
     fireEvent.click(duplicateItem);
 
+    const createButton = await screen.findByRole("button", { name: /^create$/i });
+    fireEvent.click(createButton);
+
     await waitFor(() => {
       expect(axiosPostMock).toHaveBeenCalledWith("/tracer/eval-task/", {
         name: "Filter Task-duplicate",
@@ -479,6 +482,9 @@ describe("TaskDetailPage", () => {
       name: /duplicate/i,
     });
     fireEvent.click(duplicateItem);
+
+    const createButton = await screen.findByRole("button", { name: /^create$/i });
+    fireEvent.click(createButton);
 
     await waitFor(() => {
       expect(axiosPostMock).toHaveBeenCalledWith("/tracer/eval-task/", {
@@ -542,6 +548,9 @@ describe("TaskDetailPage", () => {
     });
     fireEvent.click(duplicateItem);
 
+    const createButton = await screen.findByRole("button", { name: /^create$/i });
+    fireEvent.click(createButton);
+
     await waitFor(() => {
       expect(axiosPostMock).toHaveBeenCalledWith(
         "/tracer/eval-task/",
@@ -560,5 +569,160 @@ describe("TaskDetailPage", () => {
         }),
       );
     });
+  });
+
+  it("allows editing task name in dialog before creating duplicate", async () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        name: "Source Task",
+        evals_applied: [{ id: "eval-1" }],
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    const duplicateItem = await screen.findByRole("menuitem", {
+      name: /duplicate/i,
+    });
+    fireEvent.click(duplicateItem);
+
+    const input = await screen.findByLabelText(/task name/i);
+    expect(input).toHaveValue("Source Task-duplicate");
+
+    fireEvent.change(input, { target: { value: "Custom Duplicated Task" } });
+    expect(input).toHaveValue("Custom Duplicated Task");
+
+    const createButton = screen.getByRole("button", { name: /^create$/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(axiosPostMock).toHaveBeenCalledWith(
+        "/tracer/eval-task/",
+        expect.objectContaining({
+          name: "Custom Duplicated Task",
+        }),
+      );
+    });
+  });
+
+  it("validates required task name and shows inline error when empty", async () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        name: "Source Task",
+        evals_applied: [{ id: "eval-1" }],
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    const duplicateItem = await screen.findByRole("menuitem", {
+      name: /duplicate/i,
+    });
+    fireEvent.click(duplicateItem);
+
+    const input = await screen.findByLabelText(/task name/i);
+    fireEvent.change(input, { target: { value: "   " } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Task name is required")).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole("button", { name: /^create$/i });
+    expect(createButton).toBeDisabled();
+  });
+
+  it("validates 255 character limit and shows inline error when name is too long", async () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        name: "Source Task",
+        evals_applied: [{ id: "eval-1" }],
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    const duplicateItem = await screen.findByRole("menuitem", {
+      name: /duplicate/i,
+    });
+    fireEvent.click(duplicateItem);
+
+    const input = await screen.findByLabelText(/task name/i);
+    const longName = "a".repeat(256);
+    fireEvent.change(input, { target: { value: longName } });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Task name must not exceed 255 characters"),
+      ).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole("button", { name: /^create$/i });
+    expect(createButton).toBeDisabled();
+  });
+
+  it("immediately marks form invalid when initial default name exceeds 255 characters", async () => {
+    const longOriginalName = "a".repeat(250); // with '-duplicate' (10 chars), total is 260 chars > 255
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        name: longOriginalName,
+        evals_applied: [{ id: "eval-1" }],
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    const duplicateItem = await screen.findByRole("menuitem", {
+      name: /duplicate/i,
+    });
+    fireEvent.click(duplicateItem);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Task name must not exceed 255 characters"),
+      ).toBeInTheDocument();
+    });
+
+    const createButton = screen.getByRole("button", { name: /^create$/i });
+    expect(createButton).toBeDisabled();
+  });
+
+  it("closes duplicate dialog without duplicating when Cancel button is clicked", async () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask({
+        name: "Source Task",
+        evals_applied: [{ id: "eval-1" }],
+      }),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    const duplicateItem = await screen.findByRole("menuitem", {
+      name: /duplicate/i,
+    });
+    fireEvent.click(duplicateItem);
+
+    const cancelButton = await screen.findByRole("button", { name: /cancel/i });
+    fireEvent.click(cancelButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Duplicate Task")).not.toBeInTheDocument();
+    });
+
+    expect(axiosPostMock).not.toHaveBeenCalled();
   });
 });
