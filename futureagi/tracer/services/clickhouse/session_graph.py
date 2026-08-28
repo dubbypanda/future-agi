@@ -8,6 +8,8 @@ from datetime import datetime
 from time import monotonic
 from typing import Any
 
+from django.conf import settings
+
 from tracer.services.clickhouse.bounded_graph_reads import (
     GRAPH_CANDIDATE_LIMIT,
     GRAPH_DECORATION_CANDIDATE_DEADLINE_MS,
@@ -38,10 +40,12 @@ from tracer.services.exact_aggregation_cache import (
     read_or_schedule_exact_snapshot,
 )
 
-SESSION_GRAPH_WALL_DEADLINE_MS = 9_500
-SESSION_GRAPH_QUERY_TIMEOUT_MS = 9_500
-SESSION_GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS = 9_500
-SESSION_GRAPH_RESULT_BYTES = 32 * 1024 * 1024
+SESSION_GRAPH_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_GRAPH_QUERY_TIMEOUT_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+SESSION_GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS = (
+    settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+)
+SESSION_GRAPH_RESULT_BYTES = settings.DASHBOARD_ROLLUP_MAX_RESULT_BYTES
 SESSION_GRAPH_HYDRATION_BATCH_SIZE = 512
 SESSION_GRAPH_MAX_HYDRATION_QUERIES = (
     GRAPH_CANDIDATE_LIMIT + SESSION_GRAPH_HYDRATION_BATCH_SIZE - 1
@@ -86,10 +90,10 @@ _SESSION_ROLLUP_RESULT_COLUMNS = frozenset(
 )
 
 _SESSION_GRAPH_READ_CAPS = {
-    "max_threads": 4,
-    "max_block_size": 8192,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
+    "max_threads": settings.DASHBOARD_TRACE_READ_MAX_THREADS,
+    "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+    "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
+    "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
     "max_result_rows": 10_001,
     "max_result_bytes": SESSION_GRAPH_RESULT_BYTES,
 }

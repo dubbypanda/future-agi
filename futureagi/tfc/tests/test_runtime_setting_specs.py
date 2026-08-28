@@ -66,6 +66,7 @@ def test_large_tenant_reads_scan_widely_without_unbounding_memory_or_results():
 
     assert values["DASHBOARD_TRACE_READ_MAX_BYTES"] == 1024**4
     assert values["OBSERVABILITY_LIST_MAX_BYTES"] == 1024**4
+    assert values["CLICKHOUSE_APPLICATION_READ_MAX_BYTES"] == 1024**4
     assert values["DASHBOARD_TRACE_READ_MAX_MEMORY_BYTES"] == 36 * 1024**3
     assert values["OBSERVABILITY_LIST_MAX_MEMORY_BYTES"] == 36 * 1024**3
     assert values["DASHBOARD_TRACE_READ_MAX_RESULT_BYTES"] == 64 * 1024**2

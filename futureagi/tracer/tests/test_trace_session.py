@@ -11,6 +11,7 @@ from unittest import mock
 
 import pytest
 from clickhouse_driver.errors import NetworkError, ServerException
+from django.conf import settings as django_settings
 from django.utils import timezone
 from rest_framework import status
 
@@ -531,7 +532,7 @@ class TestTraceSessionExportAPI:
 class TestTraceSessionGraphAPI:
     """Tests for POST /tracer/trace-session/get_session_graph_data/ endpoint."""
 
-    def test_session_graph_uses_9_5_second_wall_without_row_read_cap(self):
+    def test_session_graph_uses_configured_wall_without_row_read_cap(self):
         from tracer.services.clickhouse.read_budget import ReadDeadline
         from tracer.services.clickhouse.session_graph import (
             SESSION_GRAPH_QUERY_TIMEOUT_MS,
@@ -553,14 +554,30 @@ class TestTraceSessionGraphAPI:
         )
 
         call = delegate.execute_ch_query.call_args
-        assert SESSION_GRAPH_WALL_DEADLINE_MS == 9_500
-        assert SESSION_GRAPH_QUERY_TIMEOUT_MS == 9_500
-        assert 0 < call.kwargs["timeout_ms"] <= 9_500
+        assert (
+            SESSION_GRAPH_WALL_DEADLINE_MS
+            == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
+        assert (
+            SESSION_GRAPH_QUERY_TIMEOUT_MS
+            == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
+        assert (
+            0
+            < call.kwargs["timeout_ms"]
+            <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         settings = call.kwargs["settings"]
         assert "max_rows_to_read" not in settings
         assert settings["max_threads"] == 4
-        assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-        assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+        assert (
+            settings["max_bytes_to_read"]
+            == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+        )
+        assert (
+            settings["max_memory_usage"]
+            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+        )
         assert settings["max_result_rows"] == 10_001
         assert settings["max_result_bytes"] == 32 * 1024 * 1024
 
@@ -725,7 +742,11 @@ class TestTraceSessionGraphAPI:
         assert "FROM spans_per_session AS sps" in query_call.args[0]
         assert "FROM spans\n" not in query_call.args[0]
         assert "trace_session_id_remap" not in query_call.args[0]
-        assert 0 < query_call.kwargs["timeout_ms"] <= 9_500
+        assert (
+            0
+            < query_call.kwargs["timeout_ms"]
+            <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         assert query_call.kwargs["settings"]["max_threads"] == 4
         assert "max_rows_to_read" not in query_call.kwargs["settings"]
 
@@ -780,7 +801,10 @@ class TestTraceSessionGraphAPI:
         assert graph["data"][0]["value"] == 1
         assert "query_refreshing" not in graph
         exact_read.assert_not_called()
-        assert candidate_read.call_args.kwargs["deadline_ms"] == 9_500
+        assert (
+            candidate_read.call_args.kwargs["deadline_ms"]
+            == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
 
     def test_session_avg_traces_budget_failure_preserves_sample_progress(self):
         start = datetime(2025, 8, 12)
@@ -1544,7 +1568,11 @@ class TestTraceSessionWorkspaceScopeAPI:
         assert "user_id AS val" in query
         call = analytics.execute_ch_query.call_args
         assert call.args[1]["limit"] == 51
-        assert 0 < call.kwargs["timeout_ms"] <= 9_500
+        assert (
+            0
+            < call.kwargs["timeout_ms"]
+            <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         assert call.kwargs["settings"]["max_result_rows"] == 51
 
     @pytest.mark.parametrize("column", ["user_id", "session_id"])
@@ -1591,7 +1619,9 @@ class TestTraceSessionWorkspaceScopeAPI:
         payload = get_result(response)
         assert len(payload["values"]) == 50
         assert payload["next"] is True
-        start_deadline.assert_called_once_with(9_500)
+        start_deadline.assert_called_once_with(
+            django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         call = analytics.execute_ch_query.call_args
         assert call.args[1]["limit"] == 51
         assert call.args[1]["offset"] == 100
@@ -1612,7 +1642,7 @@ class TestTraceSessionWorkspaceScopeAPI:
         request_deadline = mock.Mock()
 
         def remaining_ms(cap_ms=None, *, floor_ms=25):
-            if cap_ms == 9_500:
+            if cap_ms == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS:
                 raise ReadDeadlineExceeded("private request timing")
             return 8_000
 
@@ -1700,8 +1730,14 @@ class TestTraceSessionWorkspaceScopeAPI:
         assert call.kwargs["timeout_ms"] == 8_000
         settings = call.kwargs["settings"]
         assert "max_rows_to_read" not in settings
-        assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-        assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+        assert (
+            settings["max_bytes_to_read"]
+            == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+        )
+        assert (
+            settings["max_memory_usage"]
+            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+        )
         assert settings["timeout_overflow_mode"] == "throw"
         assert settings["read_overflow_mode"] == "throw"
 
@@ -1868,11 +1904,21 @@ class TestTraceSessionWorkspaceScopeAPI:
         assert "secret-internal-query" not in payload
         assert "DB::Exception" not in payload
         call = analytics.execute_ch_query.call_args
-        assert 0 < call.kwargs["timeout_ms"] <= 9_500
+        assert (
+            0
+            < call.kwargs["timeout_ms"]
+            <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         settings = call.kwargs["settings"]
         assert "max_rows_to_read" not in settings
-        assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-        assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+        assert (
+            settings["max_bytes_to_read"]
+            == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+        )
+        assert (
+            settings["max_memory_usage"]
+            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+        )
         assert settings["max_result_rows"] == 51
         assert settings["max_result_bytes"] == 32 * 1024 * 1024
         assert settings["max_threads"] == 2
@@ -1956,12 +2002,21 @@ class TestTraceSessionWorkspaceScopeAPI:
             assert "sum(total_tokens) AS total_tokens" in sql
             assert "HAVING total_tokens >" in sql
         for call in analytics.execute_ch_query.call_args_list:
-            assert SESSION_LIST_QUERY_TIMEOUT_MS == 9_500
+            assert (
+                SESSION_LIST_QUERY_TIMEOUT_MS
+                == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+            )
             assert 0 < call.kwargs["timeout_ms"] <= SESSION_LIST_QUERY_TIMEOUT_MS
             settings = call.kwargs["settings"]
             assert "max_rows_to_read" not in settings
-            assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-            assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+            assert (
+                settings["max_bytes_to_read"]
+                == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+            )
+            assert (
+                settings["max_memory_usage"]
+                == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+            )
             assert settings["max_result_rows"] > 0
             assert settings["max_result_bytes"] == 32 * 1024 * 1024
             assert settings["result_overflow_mode"] == "throw"
@@ -2093,12 +2148,22 @@ class TestTraceSessionWorkspaceScopeAPI:
         ]
         assert get_result(response)["next"] is False
         call = analytics.execute_ch_query.call_args
-        assert 0 < call.kwargs["timeout_ms"] <= 9_500
+        assert (
+            0
+            < call.kwargs["timeout_ms"]
+            <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         settings = call.kwargs["settings"]
         assert "max_rows_to_read" not in settings
         assert settings["max_result_rows"] == 51
-        assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-        assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+        assert (
+            settings["max_bytes_to_read"]
+            == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+        )
+        assert (
+            settings["max_memory_usage"]
+            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+        )
         assert settings["max_threads"] == 2
 
     def test_session_filter_values_dedupe_straddlers_through_remap(

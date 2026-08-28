@@ -162,7 +162,7 @@ from tracer.utils.session import get_session_navigation
 logger = structlog.get_logger(__name__)
 session_logger = structlog.get_logger(__name__)
 
-# All interactive session-list reads share one 9.5-second wall deadline.
+# All interactive session-list reads share one environment-backed wall deadline.
 # Individual phases receive only the request's remaining time, so concurrent
 # finite enrichments cannot extend the endpoint beyond that ceiling.
 SESSION_LIST_WALL_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
@@ -1335,8 +1335,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     ),
                     settings={
                         **_session_read_settings(max_result_rows=page_size + 1),
-                        "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-                        "max_memory_usage": 36 * 1024 * 1024 * 1024,
                     },
                 )
                 read_deadline.remaining_ms(floor_ms=1)
@@ -1442,8 +1440,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 timeout_ms=read_deadline.remaining_ms(SESSION_LIST_QUERY_TIMEOUT_MS),
                 settings={
                     **_session_read_settings(max_result_rows=page_size + 1),
-                    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-                    "max_memory_usage": 36 * 1024 * 1024 * 1024,
                 },
             )
             read_deadline.remaining_ms(floor_ms=1)
@@ -3943,9 +3939,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             )
             read_settings = {
                 **SESSION_LIST_READ_SETTINGS,
-                "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-                "max_memory_usage": 36 * 1024 * 1024 * 1024,
-                "max_result_bytes": 8 * 1024 * 1024,
+                "max_result_bytes": SESSION_LIST_RESULT_BYTES,
                 "result_overflow_mode": "throw",
             }
 

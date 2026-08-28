@@ -202,9 +202,9 @@ INTERACTIVE_READ_SETTING_SPECS = {
             ),
             (
                 "CLICKHOUSE_APPLICATION_READ_MAX_BYTES",
-                36 * 1024**3,
+                1024**4,
                 64 * 1024**2,
-                128 * 1024**3,
+                2 * 1024**4,
             ),
             ("CLICKHOUSE_APPLICATION_READ_DEFAULT_THREADS", 4, 1, 16),
             ("CLICKHOUSE_APPLICATION_READ_MAX_THREADS", 8, 1, 32),

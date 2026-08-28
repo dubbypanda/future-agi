@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 from clickhouse_driver.errors import NetworkError
+from django.conf import settings as django_settings
 
 from tracer.services.clickhouse import graph_dispatch
 from tracer.services.clickhouse.bounded_graph_reads import GraphCandidateSample
@@ -161,12 +162,22 @@ def test_trace_primary_date_only_uses_one_interactive_rollup_query(
     assert "trace_session_id_remap" not in query
     assert "countIfMerge(error_count)" in query
     assert "countMerge(error_count)" not in query
-    assert 0 < call.kwargs["timeout_ms"] <= 9_500
+    assert (
+        0
+        < call.kwargs["timeout_ms"]
+        <= django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     settings = call.kwargs["settings"]
-    assert settings["max_threads"] == 4
-    assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
-    assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-    assert settings["max_result_bytes"] == 32 * 1024 * 1024
+    assert settings["max_threads"] == django_settings.DASHBOARD_TRACE_READ_MAX_THREADS
+    assert (
+        settings["max_memory_usage"]
+        == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+    )
+    assert settings["max_bytes_to_read"] == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+    assert (
+        settings["max_result_bytes"]
+        == django_settings.DASHBOARD_ROLLUP_MAX_RESULT_BYTES
+    )
     assert "max_rows_to_read" not in settings
     assert response["query_complete"] is True
     assert response["query_status"] == "complete"

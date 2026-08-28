@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
+from django.conf import settings as django_settings
 from django.db import DatabaseError
 
 from tracer.services.clickhouse import graph_action_deadline as action_deadline
@@ -26,8 +27,11 @@ class _SequencedDeadline:
 
 
 @pytest.mark.unit
-def test_graph_action_wall_is_nine_and_a_half_seconds():
-    assert action_deadline.GRAPH_ACTION_WALL_DEADLINE_MS == 9_500
+def test_graph_action_wall_uses_the_interactive_analytics_default():
+    assert (
+        action_deadline.GRAPH_ACTION_WALL_DEADLINE_MS
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
 
 
 @pytest.mark.unit

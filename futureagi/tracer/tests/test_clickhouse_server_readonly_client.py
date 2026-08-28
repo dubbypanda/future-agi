@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import pytest
+from django.conf import settings as django_settings
 from django.test import override_settings
 
 from tracer.services.clickhouse import client as client_module
@@ -60,7 +61,7 @@ def _client(
 
 
 @pytest.mark.parametrize("server_enforced_readonly", [False, True])
-def test_default_read_timeout_ceiling_remains_9500(
+def test_default_read_timeout_ceiling_uses_interactive_analytics_default(
     monkeypatch, server_enforced_readonly
 ):
     native = Mock()
@@ -73,7 +74,10 @@ def test_default_read_timeout_ceiling_remains_9500(
 
     client.execute_read("SELECT 1", timeout_ms=30_000)
 
-    assert execute.call_args.kwargs["timeout_ms"] == 9_500
+    assert (
+        execute.call_args.kwargs["timeout_ms"]
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
 
 
 def test_reviewed_read_timeout_ceiling_allows_30000_for_dedicated_client(
@@ -153,7 +157,7 @@ def test_regular_read_keeps_client_side_guardrails(monkeypatch):
     assert native.execute.call_args.kwargs["settings"] == {
         "max_threads": 1,
         "max_memory_usage": 2 * 1024 * 1024 * 1024,
-        "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
+        "max_bytes_to_read": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_BYTES,
         "max_result_rows": 1_000_000,
         "max_result_bytes": 512 * 1024 * 1024,
         "result_overflow_mode": "throw",
@@ -302,8 +306,8 @@ def test_regular_read_retries_transient_admission_without_mutating_settings(
     assert native.execute.call_count == 3
     assert native.execute.call_args_list[0].kwargs["settings"] == {
         "max_threads": 1,
-        "max_memory_usage": 36 * 1024 * 1024 * 1024,
-        "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
+        "max_memory_usage": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_MEMORY_BYTES,
+        "max_bytes_to_read": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_BYTES,
         "max_result_rows": 1_000_000,
         "max_result_bytes": 512 * 1024 * 1024,
         "result_overflow_mode": "throw",
@@ -375,14 +379,16 @@ def test_long_read_is_clamped_to_application_read_policy(monkeypatch):
     return_pooled_client.assert_called_once_with(native)
     driver.assert_not_called()
     assert native.execute.call_args.kwargs["settings"] == {
-        "max_memory_usage": 36 * 1024 * 1024 * 1024,
-        "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
-        "max_threads": 4,
-        "max_result_rows": 1_000_000,
-        "max_result_bytes": 512 * 1024 * 1024,
+        "max_memory_usage": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_MEMORY_BYTES,
+        "max_bytes_to_read": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_BYTES,
+        "max_threads": django_settings.CLICKHOUSE_APPLICATION_READ_DEFAULT_THREADS,
+        "max_result_rows": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_RESULT_ROWS,
+        "max_result_bytes": django_settings.CLICKHOUSE_APPLICATION_READ_MAX_RESULT_BYTES,
         "result_overflow_mode": "throw",
         "readonly": 2,
-        "max_execution_time": 9.5,
+        "max_execution_time": (
+            django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS / 1_000
+        ),
     }
 
 
@@ -544,8 +550,9 @@ def test_native_block_stream_clamps_long_request_to_application_wall(monkeypatch
     with client.execute_read_block_stream("SELECT 1", timeout_ms=1_200_000) as blocks:
         assert list(blocks) == [[(1,)]]
 
-    assert 0 < admission.acquire.call_args.kwargs["timeout"] <= 9.5
-    assert 0 < socket.settimeout.call_args_list[0].args[0] <= 9.5
+    wall_seconds = django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS / 1_000
+    assert 0 < admission.acquire.call_args.kwargs["timeout"] <= wall_seconds
+    assert 0 < socket.settimeout.call_args_list[0].args[0] <= wall_seconds
 
 
 def test_native_block_stream_retires_connection_when_consumer_stops_early(

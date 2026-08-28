@@ -18,6 +18,7 @@ from time import monotonic
 from typing import Any
 
 import structlog
+from django.conf import settings
 
 from tracer.selectors.trace_filter_reads import read_bounded_filter_page
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
@@ -51,8 +52,8 @@ GRAPH_CANDIDATE_LIMIT = 4_096
 # 4,096 graph ceiling.
 GRAPH_TRACE_CLASSIFY_BATCH_BUDGET = 32
 GRAPH_TRACE_ROOT_CANDIDATE_LIMIT = (50 * GRAPH_TRACE_CLASSIFY_BATCH_BUDGET) - 1
-GRAPH_CANDIDATE_DEADLINE_MS = 9_500
-GRAPH_DECORATION_CANDIDATE_DEADLINE_MS = 9_500
+GRAPH_CANDIDATE_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+GRAPH_DECORATION_CANDIDATE_DEADLINE_MS = settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
 GRAPH_MAX_POINTS = 10_000
 GRAPH_ANY_SPAN_STRATA = 8
 # Indexed trace candidates still require one or more ClickHouse decoration
@@ -102,7 +103,7 @@ GRAPH_UNINDEXED_SAMPLE_SLICE = timedelta(minutes=5)
 GRAPH_UNINDEXED_SAMPLE_RETRY_SLICE = timedelta(minutes=1)
 # A typed-Map key witness is optional discovery, not graph membership. Share a
 # 100 ms wall across every long-window stratum so an old unindexed part cannot
-# consume the 9.5-second request before the deterministic five-minute sample
+# consume the request wall before the deterministic five-minute sample
 # and exact finite classifier run. Fast indexed parts can still improve the
 # sample; every timeout falls back to the established temporal lane.
 GRAPH_TRACE_KEY_WITNESS_TOTAL_TIMEOUT_MS = 100
@@ -138,9 +139,9 @@ GRAPH_TRACE_UNINDEXED_UNION_CANDIDATE_LIMIT = (
 GRAPH_TRACE_UNION_MAX_QUERY_COUNT = 32
 GRAPH_TRACE_UNION_READ_SETTINGS = {
     "max_threads": 1,
-    "max_block_size": 8192,
-    "max_memory_usage": 36 * 1024 * 1024 * 1024,
-    "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
+    "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+    "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
+    "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
     "read_overflow_mode": "throw",
     "max_result_rows": GRAPH_TRACE_UNION_CLASSIFY_BATCH_SIZE,
     "result_overflow_mode": "throw",

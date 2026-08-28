@@ -174,10 +174,10 @@ def _bounded_interactive_read_settings(
     """Retain finite graph caps while removing source-row ceilings."""
 
     caps = {
-        "max_threads": 4,
-        "max_block_size": 8192,
-        "max_memory_usage": 36 * 1024 * 1024 * 1024,
-        "max_bytes_to_read": 36 * 1024 * 1024 * 1024,
+        "max_threads": settings.DASHBOARD_TRACE_READ_MAX_THREADS,
+        "max_block_size": settings.OBSERVABILITY_LIST_MAX_BLOCK_SIZE,
+        "max_memory_usage": settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES,
+        "max_bytes_to_read": settings.OBSERVABILITY_LIST_MAX_BYTES,
         "max_result_rows": GRAPH_MAX_POINTS + 1,
         "max_result_bytes": GRAPH_RESULT_BYTES,
     }

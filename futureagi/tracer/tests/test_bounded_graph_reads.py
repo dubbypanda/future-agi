@@ -3247,7 +3247,8 @@ def test_partial_or_empty_stratified_deadline_is_not_renderable(
     # distributed_started, first-stratum check, and optional second-stratum
     # check. Crossing the deadline before all planned strata must
     # never turn zero or partial temporal coverage into a sampled graph.
-    clock = iter([0.0, 10.0] if completed_strata == 0 else [0.0, 0.0, 10.0])
+    expired_at = (bounded_graph_reads.GRAPH_CANDIDATE_DEADLINE_MS / 1_000) + 1
+    clock = iter([0.0, expired_at] if completed_strata == 0 else [0.0, 0.0, expired_at])
     monkeypatch.setattr(bounded_graph_reads, "monotonic", lambda: next(clock))
     monkeypatch.setattr(bounded_graph_reads, "read_bounded_filter_page", _page)
 

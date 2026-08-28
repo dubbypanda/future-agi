@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.conf import settings as django_settings
 
 from tfc.utils import api_contracts
 from tracer.services.clickhouse import graph_action_deadline as graph_deadline
@@ -107,7 +108,7 @@ def test_list_wall_starts_before_invalid_validation_without_database_access(
     forbidden = _forbid_database_entry(monkeypatch)
 
     def start(wall_ms):
-        assert wall_ms == 9_500
+        assert wall_ms == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
         events.append("deadline_started")
         return deadline
 
