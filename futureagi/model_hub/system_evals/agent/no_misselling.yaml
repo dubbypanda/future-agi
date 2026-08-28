@@ -49,6 +49,7 @@ eval_tags:
 - Agents
 - Conversation
 - Voice
+- Insurance
 visible_ui: true
 permissions:
   allow_edit: false
