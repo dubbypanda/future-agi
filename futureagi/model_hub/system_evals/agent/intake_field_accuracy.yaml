@@ -2,43 +2,27 @@ eval_id: 207
 name: intake_field_accuracy
 description: Evaluates how accurately an agent captured the details a customer gave during a voice or chat conversation, judged
   against the conversation itself rather than an external gold record - values match what the customer said, critical values
-  are confirmed, nothing is fabricated, corrections are absorbed, and the fields the flow requires are obtained or flagged
-  as missing.
-criteria: "You are evaluating how accurately an agent captured the intake details a customer provided during a conversation.\n\
-  \nThere is no external gold record. The ground truth is the conversation itself: a captured value is correct when it matches\
-  \ what the customer actually said, and incorrect when it contradicts them.\n\n## Criteria\n\n1. Faithful capture: Every\
-  \ value the agent records, reads back, confirms, or carries into a summary or handoff matches what the customer actually\
-  \ said.\n   - Good: Customer says \"it's 555-0142\"; the agent reads back \"555-0142\".\n   - Bad: Customer says \"555-0142\"\
-  ; the agent reads back or summarises \"555-0124\".\n2. Confirmation of critical values: The agent explicitly confirms values\
-  \ where an error would be costly - names, identifiers, numbers, dates, amounts, addresses, spellings - rather than silently\
-  \ accepting them.\n   - Good: \"Let me read that back to you - is that correct?\"\n   - Bad: Takes a long reference number\
-  \ once, at speed, and never repeats it.\n3. No fabricated or assumed values: The agent does not record, state, or carry\
-  \ forward a detail the customer never gave, and does not fill a gap with a plausible guess or a default.\n   - Good: \"\
-  I don't have your postcode yet - could you give me that?\"\n   - Bad: States a value the customer never provided, or infers\
-  \ one from context and treats it as confirmed.\n4. Corrections are absorbed: When the customer corrects or updates a value,\
-  \ the agent adopts the corrected value and uses it from that point on.\n   - Good: Customer corrects a digit; the agent\
-  \ confirms the corrected value and uses it in the summary.\n   - Bad: Customer corrects a digit; the agent's later summary\
-  \ reverts to the superseded value.\n5. Coverage of the required fields: The agent obtains the details its prompt requires\
-  \ for the flow, or explicitly notes which ones it could not obtain before ending or handing off.\n   - Good: Works through\
-  \ the required set and flags at handoff that one field is still missing.\n   - Bad: Ends intake with required fields never\
-  \ asked for and nothing noted as missing.\n\n## Anti-bias Rules\n\n- Judge only against what the conversation itself supports.\
-  \ Do not assume an external record, and do not treat a value as wrong because it looks unusual - it is wrong only if it\
-  \ contradicts what the customer said.\n- Transcription renders the same value in different forms. Treat two renderings as\
-  \ the same value when they plainly refer to the same thing - \"(555) 123-4567\" and \"555 123 4567\", \"double four\" and\
-  \ \"44\", \"st\" and \"street\". Only a genuine difference in the underlying value is a capture error.\n- Where the audio\
-  \ or transcript is inaudible, garbled, or cuts off, do not infer an error. Judge what the conversation actually establishes;\
-  \ an unintelligible customer turn is not the agent's mistake.\n- If the customer never states a value, the agent cannot\
-  \ be inaccurate about it. That belongs under coverage (criterion 5), not accuracy.\n- If the customer is ambiguous or contradicts\
-  \ themselves and the agent asks to clarify, that is correct behavior, not a failure.\n- If the customer refuses a detail\
-  \ or abandons the call, do not penalize the agent for what could not be captured.\n- Details may be gathered across several\
-  \ turns and in any order. Do not require a fixed script or sequence.\n- A read-back that the customer then corrects is the\
-  \ mechanism working, not an error - judge the value the agent ends up with.\n\n## Scoring\n\nScore 0.0 if the agent misstates,\
-  \ fabricates, or loses values the customer gave, ignores corrections, or ends intake having captured little of what its\
-  \ flow requires.\nScore 0.5 if the captured details are broadly right but the agent leaves critical values unconfirmed,\
-  \ misses some required fields without noting them, or lets one value drift before recovering.\nScore 1.0 if every value\
-  \ the agent captures and carries forward matches what the customer said, critical values are explicitly confirmed, corrections\
-  \ are absorbed, and the required fields are either obtained or flagged as missing.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\
-  <conversation>{{conversation}}</conversation>"
+  are confirmed, nothing is invented, corrections are absorbed, and required fields are obtained or flagged.
+criteria: "You are evaluating how accurately an agent captured the details a customer gave during a conversation. There is\
+  \ no external gold record: a value is correct when it matches what the customer said, and wrong if it contradicts them.\n\
+  \n## Criteria\n\n1. Faithful capture: Every value the agent records, reads back, or carries into a summary or handoff matches\
+  \ what the customer said.\n   - Pass: Customer says \"it's 555-0142\"; the agent reads back \"555-0142\".\n   - Fail: Customer\
+  \ says \"555-0142\"; the agent reads back or summarises \"555-0124\".\n\n2. Confirmed, never invented: The agent explicitly\
+  \ confirms values where an error would be costly, and never records or carries forward a detail the customer did not give.\n\
+  \   - Pass: \"Let me read that back - is that correct?\" and \"I don't have your postcode yet.\"\n   - Fail: Takes a long\
+  \ reference number once at speed, or fills a gap with a plausible guess.\n\n3. Corrections absorbed, required fields covered:\
+  \ The agent adopts a corrected value from that point on, and obtains the details its prompt requires or notes which it could\
+  \ not get.\n   - Pass: Uses the corrected digit thereafter, and flags at handoff that one field is still missing.\n   -\
+  \ Fail: Reverts to a superseded value, or ends intake with required fields never asked and nothing noted.\n\n## Anti-bias\
+  \ Rules\n\n- Transcription renders one value in many forms; treat \"(555) 123-4567\" and \"555 123 4567\", or \"double four\"\
+  \ and \"44\", as the same value; only a genuine difference in the value itself is a capture error.\n- Where audio or transcript\
+  \ is inaudible or cut off, do not infer an error; a value the customer never stated is a coverage gap, not an inaccuracy.\n\
+  - Details may arrive across several turns in any order, and a read-back the customer then corrects is the mechanism working,\
+  \ not a mistake.\n\n## Scoring\n\nScore 0.0 if the agent misstates, fabricates, or loses values the customer gave, ignores\
+  \ corrections, or captures little of what its flow requires. Score 0.5 if the details are broadly right but critical values\
+  \ go unconfirmed, required fields are missed without being noted, or a value drifts before recovering. Score 1.0 if every\
+  \ captured value matches what the customer said, critical values are confirmed, corrections are absorbed, and required fields\
+  \ are obtained or flagged.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\n<conversation>{{conversation}}</conversation>"
 eval_tags:
 - Agents
 - Conversation
@@ -57,7 +41,7 @@ config:
   output: score
   eval_type_id: AgentEvaluator
   config_params_desc:
-    agent_prompt: The agent's system prompt (intake flow and the details it is required to collect)
+    agent_prompt: The agent's system prompt (intake flow and the details it must collect)
     conversation: The conversation to be evaluated (transcript or audio)
   param_modalities:
     agent_prompt:
@@ -81,38 +65,24 @@ config:
     - FLOAT
     - ARRAY
     - DATETIME
-  rule_prompt: "You are evaluating how accurately an agent captured the intake details a customer provided during a conversation.\n\
-    \nThere is no external gold record. The ground truth is the conversation itself: a captured value is correct when it matches\
-    \ what the customer actually said, and incorrect when it contradicts them.\n\n## Criteria\n\n1. Faithful capture: Every\
-    \ value the agent records, reads back, confirms, or carries into a summary or handoff matches what the customer actually\
-    \ said.\n   - Good: Customer says \"it's 555-0142\"; the agent reads back \"555-0142\".\n   - Bad: Customer says \"555-0142\"\
-    ; the agent reads back or summarises \"555-0124\".\n2. Confirmation of critical values: The agent explicitly confirms\
-    \ values where an error would be costly - names, identifiers, numbers, dates, amounts, addresses, spellings - rather than\
-    \ silently accepting them.\n   - Good: \"Let me read that back to you - is that correct?\"\n   - Bad: Takes a long reference\
-    \ number once, at speed, and never repeats it.\n3. No fabricated or assumed values: The agent does not record, state,\
-    \ or carry forward a detail the customer never gave, and does not fill a gap with a plausible guess or a default.\n  \
-    \ - Good: \"I don't have your postcode yet - could you give me that?\"\n   - Bad: States a value the customer never provided,\
-    \ or infers one from context and treats it as confirmed.\n4. Corrections are absorbed: When the customer corrects or updates\
-    \ a value, the agent adopts the corrected value and uses it from that point on.\n   - Good: Customer corrects a digit;\
-    \ the agent confirms the corrected value and uses it in the summary.\n   - Bad: Customer corrects a digit; the agent's\
-    \ later summary reverts to the superseded value.\n5. Coverage of the required fields: The agent obtains the details its\
-    \ prompt requires for the flow, or explicitly notes which ones it could not obtain before ending or handing off.\n   -\
-    \ Good: Works through the required set and flags at handoff that one field is still missing.\n   - Bad: Ends intake with\
-    \ required fields never asked for and nothing noted as missing.\n\n## Anti-bias Rules\n\n- Judge only against what the\
-    \ conversation itself supports. Do not assume an external record, and do not treat a value as wrong because it looks unusual\
-    \ - it is wrong only if it contradicts what the customer said.\n- Transcription renders the same value in different forms.\
-    \ Treat two renderings as the same value when they plainly refer to the same thing - \"(555) 123-4567\" and \"555 123\
-    \ 4567\", \"double four\" and \"44\", \"st\" and \"street\". Only a genuine difference in the underlying value is a capture\
-    \ error.\n- Where the audio or transcript is inaudible, garbled, or cuts off, do not infer an error. Judge what the conversation\
-    \ actually establishes; an unintelligible customer turn is not the agent's mistake.\n- If the customer never states a\
-    \ value, the agent cannot be inaccurate about it. That belongs under coverage (criterion 5), not accuracy.\n- If the customer\
-    \ is ambiguous or contradicts themselves and the agent asks to clarify, that is correct behavior, not a failure.\n- If\
-    \ the customer refuses a detail or abandons the call, do not penalize the agent for what could not be captured.\n- Details\
-    \ may be gathered across several turns and in any order. Do not require a fixed script or sequence.\n- A read-back that\
-    \ the customer then corrects is the mechanism working, not an error - judge the value the agent ends up with.\n\n## Scoring\n\
-    \nScore 0.0 if the agent misstates, fabricates, or loses values the customer gave, ignores corrections, or ends intake\
-    \ having captured little of what its flow requires.\nScore 0.5 if the captured details are broadly right but the agent\
-    \ leaves critical values unconfirmed, misses some required fields without noting them, or lets one value drift before\
-    \ recovering.\nScore 1.0 if every value the agent captures and carries forward matches what the customer said, critical\
-    \ values are explicitly confirmed, corrections are absorbed, and the required fields are either obtained or flagged as\
-    \ missing.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<conversation>{{conversation}}</conversation>"
+  rule_prompt: "You are evaluating how accurately an agent captured the details a customer gave during a conversation. There\
+    \ is no external gold record: a value is correct when it matches what the customer said, and wrong if it contradicts them.\n\
+    \n## Criteria\n\n1. Faithful capture: Every value the agent records, reads back, or carries into a summary or handoff\
+    \ matches what the customer said.\n   - Pass: Customer says \"it's 555-0142\"; the agent reads back \"555-0142\".\n  \
+    \ - Fail: Customer says \"555-0142\"; the agent reads back or summarises \"555-0124\".\n\n2. Confirmed, never invented:\
+    \ The agent explicitly confirms values where an error would be costly, and never records or carries forward a detail the\
+    \ customer did not give.\n   - Pass: \"Let me read that back - is that correct?\" and \"I don't have your postcode yet.\"\
+    \n   - Fail: Takes a long reference number once at speed, or fills a gap with a plausible guess.\n\n3. Corrections absorbed,\
+    \ required fields covered: The agent adopts a corrected value from that point on, and obtains the details its prompt requires\
+    \ or notes which it could not get.\n   - Pass: Uses the corrected digit thereafter, and flags at handoff that one field\
+    \ is still missing.\n   - Fail: Reverts to a superseded value, or ends intake with required fields never asked and nothing\
+    \ noted.\n\n## Anti-bias Rules\n\n- Transcription renders one value in many forms; treat \"(555) 123-4567\" and \"555\
+    \ 123 4567\", or \"double four\" and \"44\", as the same value; only a genuine difference in the value itself is a capture\
+    \ error.\n- Where audio or transcript is inaudible or cut off, do not infer an error; a value the customer never stated\
+    \ is a coverage gap, not an inaccuracy.\n- Details may arrive across several turns in any order, and a read-back the customer\
+    \ then corrects is the mechanism working, not a mistake.\n\n## Scoring\n\nScore 0.0 if the agent misstates, fabricates,\
+    \ or loses values the customer gave, ignores corrections, or captures little of what its flow requires. Score 0.5 if the\
+    \ details are broadly right but critical values go unconfirmed, required fields are missed without being noted, or a value\
+    \ drifts before recovering. Score 1.0 if every captured value matches what the customer said, critical values are confirmed,\
+    \ corrections are absorbed, and required fields are obtained or flagged.\n\n## Inputs\n\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\
+    \n<conversation>{{conversation}}</conversation>"

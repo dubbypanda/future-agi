@@ -1,35 +1,26 @@
 eval_id: 206
 name: customer_agent_voicemail_handling
 description: Evaluates how an outbound voice agent handles reaching a voicemail box or answering machine - whether it detects
-  the machine and stops its interactive script, leaves one complete message with identity, reason and a callback path or disconnects
-  cleanly, discloses no sensitive information, and does not loop.
-criteria: "You are evaluating how well an outbound agent handles reaching a voicemail box or answering machine instead of\
-  \ a live person.\n\n## Criteria\n\n1. Machine detection: The agent recognizes a recorded greeting, answering machine, or\
-  \ voicemail box and stops behaving as if a person is listening.\n   - Good: Stops asking questions once the recorded greeting\
-  \ or beep makes it clear no one is answering.\n   - Bad: Works through its qualification script, pausing for answers that\
-  \ never come.\n2. Correct action once detected: The agent either leaves a single message or disconnects cleanly. It does\
-  \ not trail off mid-sentence, sit in silence, or keep the line open with nothing to say.\n3. Message completeness: If the\
-  \ agent leaves a message, it says who is calling and on whose behalf, why it called, and how the person can respond or what\
-  \ happens next - in one pass, without needing a second attempt.\n   - Good: \"This is <agent> calling from <organization>\
-  \ about <reason>. You can reach us at <number>, or we'll try again <when>.\"\n   - Bad: \"Hi, just calling to follow up\
-  \ - call us back.\" (no identity, no reason, no callback path)\n4. No sensitive information left on a machine: The agent\
-  \ does not state account or reference numbers, dates of birth, government identifiers, balances, health or financial details,\
-  \ or other sensitive specifics. A voicemail can be heard by someone other than the intended recipient.\n   - Good: \"It's\
-  \ about your recent enquiry - call us and we can confirm the details securely.\"\n   - Bad: Reads out an account number,\
-  \ balance, or medical or financial specifics into the message.\n5. Clean termination: The agent ends the call after delivering\
-  \ the message. It does not repeat the message, restart its opening, or loop.\n\n## Anti-bias Rules\n\n- If a live person\
-  \ answers, this eval does not apply - award PASS, as there is no voicemail handling to assess.\n- Judge how quickly the\
-  \ agent adapts once the signal is unambiguous. A short exchange before it becomes clear the line is a machine is normal\
-  \ and is NOT a failure.\n- If the deployment's expected behavior is to disconnect without leaving a message, an immediate\
-  \ clean disconnect is a PASS, not a missing message.\n- Transcripts render greetings and beeps inconsistently, and often\
-  \ omit them. Infer voicemail from context - a recorded-sounding greeting, or a stretch with no responsive turns - rather\
-  \ than requiring an explicit marker.\n- Do not penalize the agent for transcription noise in the greeting or in its own\
-  \ message; judge the substance it conveys.\n- A message that is brief but complete is better than a long one. Do not reward\
-  \ length.\n\n## Scoring\n\n- Return PASS if the agent recognizes the machine promptly, stops its interactive script, and\
-  \ either leaves one complete message with identity, reason, and next step or disconnects cleanly - with no sensitive information\
-  \ disclosed and no repetition.\n- Return FAIL if the agent runs its interactive script into a machine, never adapts, leaves\
-  \ an incomplete or duplicated message, discloses sensitive information, trails off or hangs up mid-message, or loops.\n\n\
-  ## Inputs\n\n<conversation>{{conversation}}</conversation>"
+  the machine and stops its script, leaves one complete message or disconnects cleanly, leaves no sensitive information, and
+  does not loop.
+criteria: "You are evaluating how an outbound agent handles reaching a voicemail box or answering machine instead of a live\
+  \ person.\n\n## Criteria\n\n1. Machine detection: The agent recognizes a recorded greeting or answering machine and stops\
+  \ behaving as if a person is listening.\n   - Pass: Stops asking questions once the recorded greeting or beep makes clear\
+  \ no one is answering.\n   - Fail: Works through its script, pausing for answers that never come.\n\n2. Correct action once\
+  \ detected: The agent either leaves one complete message - who is calling, why, and how to respond - or disconnects cleanly.\n\
+  \   - Pass: \"This is <agent> from <organization> about <reason>. You can reach us at <number>.\"\n   - Fail: \"Hi, just\
+  \ calling to follow up - call us back,\" trailing off mid-sentence, or holding an open line in silence.\n\n3. Safe and clean\
+  \ termination: The agent leaves no sensitive specifics on a machine anyone might hear, and ends the call without repeating\
+  \ or restarting.\n   - Pass: \"It's about your recent enquiry - call us and we can confirm the details securely.\"\n   -\
+  \ Fail: Reads out an account number or balance, or loops the message a second time.\n\n## Anti-bias Rules\n\n- If a live\
+  \ person answers, this eval does not apply - return 'Passed', as there is no voicemail handling to assess.\n- A short exchange\
+  \ before the line is clearly a machine is normal, and an immediate clean disconnect is valid where the deployment expects\
+  \ no message to be left.\n- Transcripts render greetings and beeps inconsistently and often omit them; infer voicemail from\
+  \ context rather than requiring an explicit marker, and do not penalize transcription noise.\n\n## Scoring\n\nReturn 'Passed'\
+  \ if the agent recognizes the machine promptly, stops its interactive script, and either leaves one complete message or\
+  \ disconnects cleanly, with no sensitive information disclosed and no repetition. Return 'Failed' if it runs its script\
+  \ into a machine, never adapts, leaves an incomplete or duplicated message, discloses sensitive information, or hangs up\
+  \ mid-message.\n\n## Inputs\n\n<conversation>{{conversation}}</conversation>"
 eval_tags:
 - Agents
 - Conversation
@@ -63,30 +54,21 @@ config:
     - FLOAT
     - ARRAY
     - DATETIME
-  rule_prompt: "You are evaluating how well an outbound agent handles reaching a voicemail box or answering machine instead\
-    \ of a live person.\n\n## Criteria\n\n1. Machine detection: The agent recognizes a recorded greeting, answering machine,\
-    \ or voicemail box and stops behaving as if a person is listening.\n   - Good: Stops asking questions once the recorded\
-    \ greeting or beep makes it clear no one is answering.\n   - Bad: Works through its qualification script, pausing for\
-    \ answers that never come.\n2. Correct action once detected: The agent either leaves a single message or disconnects cleanly.\
-    \ It does not trail off mid-sentence, sit in silence, or keep the line open with nothing to say.\n3. Message completeness:\
-    \ If the agent leaves a message, it says who is calling and on whose behalf, why it called, and how the person can respond\
-    \ or what happens next - in one pass, without needing a second attempt.\n   - Good: \"This is <agent> calling from <organization>\
-    \ about <reason>. You can reach us at <number>, or we'll try again <when>.\"\n   - Bad: \"Hi, just calling to follow up\
-    \ - call us back.\" (no identity, no reason, no callback path)\n4. No sensitive information left on a machine: The agent\
-    \ does not state account or reference numbers, dates of birth, government identifiers, balances, health or financial details,\
-    \ or other sensitive specifics. A voicemail can be heard by someone other than the intended recipient.\n   - Good: \"\
-    It's about your recent enquiry - call us and we can confirm the details securely.\"\n   - Bad: Reads out an account number,\
-    \ balance, or medical or financial specifics into the message.\n5. Clean termination: The agent ends the call after delivering\
-    \ the message. It does not repeat the message, restart its opening, or loop.\n\n## Anti-bias Rules\n\n- If a live person\
-    \ answers, this eval does not apply - award PASS, as there is no voicemail handling to assess.\n- Judge how quickly the\
-    \ agent adapts once the signal is unambiguous. A short exchange before it becomes clear the line is a machine is normal\
-    \ and is NOT a failure.\n- If the deployment's expected behavior is to disconnect without leaving a message, an immediate\
-    \ clean disconnect is a PASS, not a missing message.\n- Transcripts render greetings and beeps inconsistently, and often\
-    \ omit them. Infer voicemail from context - a recorded-sounding greeting, or a stretch with no responsive turns - rather\
-    \ than requiring an explicit marker.\n- Do not penalize the agent for transcription noise in the greeting or in its own\
-    \ message; judge the substance it conveys.\n- A message that is brief but complete is better than a long one. Do not reward\
-    \ length.\n\n## Scoring\n\n- Return PASS if the agent recognizes the machine promptly, stops its interactive script, and\
-    \ either leaves one complete message with identity, reason, and next step or disconnects cleanly - with no sensitive information\
-    \ disclosed and no repetition.\n- Return FAIL if the agent runs its interactive script into a machine, never adapts, leaves\
-    \ an incomplete or duplicated message, discloses sensitive information, trails off or hangs up mid-message, or loops.\n\
-    \n## Inputs\n\n<conversation>{{conversation}}</conversation>"
+  rule_prompt: "You are evaluating how an outbound agent handles reaching a voicemail box or answering machine instead of\
+    \ a live person.\n\n## Criteria\n\n1. Machine detection: The agent recognizes a recorded greeting or answering machine\
+    \ and stops behaving as if a person is listening.\n   - Pass: Stops asking questions once the recorded greeting or beep\
+    \ makes clear no one is answering.\n   - Fail: Works through its script, pausing for answers that never come.\n\n2. Correct\
+    \ action once detected: The agent either leaves one complete message - who is calling, why, and how to respond - or disconnects\
+    \ cleanly.\n   - Pass: \"This is <agent> from <organization> about <reason>. You can reach us at <number>.\"\n   - Fail:\
+    \ \"Hi, just calling to follow up - call us back,\" trailing off mid-sentence, or holding an open line in silence.\n\n\
+    3. Safe and clean termination: The agent leaves no sensitive specifics on a machine anyone might hear, and ends the call\
+    \ without repeating or restarting.\n   - Pass: \"It's about your recent enquiry - call us and we can confirm the details\
+    \ securely.\"\n   - Fail: Reads out an account number or balance, or loops the message a second time.\n\n## Anti-bias\
+    \ Rules\n\n- If a live person answers, this eval does not apply - return 'Passed', as there is no voicemail handling to\
+    \ assess.\n- A short exchange before the line is clearly a machine is normal, and an immediate clean disconnect is valid\
+    \ where the deployment expects no message to be left.\n- Transcripts render greetings and beeps inconsistently and often\
+    \ omit them; infer voicemail from context rather than requiring an explicit marker, and do not penalize transcription\
+    \ noise.\n\n## Scoring\n\nReturn 'Passed' if the agent recognizes the machine promptly, stops its interactive script,\
+    \ and either leaves one complete message or disconnects cleanly, with no sensitive information disclosed and no repetition.\
+    \ Return 'Failed' if it runs its script into a machine, never adapts, leaves an incomplete or duplicated message, discloses\
+    \ sensitive information, or hangs up mid-message.\n\n## Inputs\n\n<conversation>{{conversation}}</conversation>"
