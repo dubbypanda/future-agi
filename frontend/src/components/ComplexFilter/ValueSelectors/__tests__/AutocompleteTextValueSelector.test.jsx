@@ -10,6 +10,8 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FILTER_VALUE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 const mocks = vi.hoisted(() => ({ get: vi.fn(), params: {} }));
 
 vi.mock("src/hooks/use-debounce", () => ({
@@ -119,7 +121,7 @@ describe("AutocompleteTextValueSelector", () => {
       1,
       "/filter-values/",
       expect.objectContaining({
-        timeout: 4_800,
+        timeout: FILTER_VALUE_REQUEST_TIMEOUT_MS,
         params: expect.objectContaining({
           project_ids: "project-large",
           property_id: "custom_attribute:call.status",

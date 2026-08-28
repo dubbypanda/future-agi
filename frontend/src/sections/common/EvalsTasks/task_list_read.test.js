@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 import {
   EVAL_TASK_LIST_REQUEST_TIMEOUT_MS,
   readEvalTaskListPage,
@@ -26,7 +28,9 @@ describe("taskListRead", () => {
         timeout: EVAL_TASK_LIST_REQUEST_TIMEOUT_MS,
       }),
     );
-    expect(EVAL_TASK_LIST_REQUEST_TIMEOUT_MS).toBeLessThan(9_800);
+    expect(EVAL_TASK_LIST_REQUEST_TIMEOUT_MS).toBe(
+      INTERACTIVE_REQUEST_TIMEOUT_MS,
+    );
   });
 
   it.each([

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 import {
   PROMPT_METRICS_REQUEST_TIMEOUT_MS,
   readPromptMetricsGridPage,
@@ -56,7 +58,9 @@ describe("promptMetricsGridRead", () => {
     await vi.advanceTimersByTimeAsync(PROMPT_METRICS_REQUEST_TIMEOUT_MS);
     await rejection;
     expect(signal.aborted).toBe(true);
-    expect(PROMPT_METRICS_REQUEST_TIMEOUT_MS).toBeLessThan(9_800);
+    expect(PROMPT_METRICS_REQUEST_TIMEOUT_MS).toBe(
+      INTERACTIVE_REQUEST_TIMEOUT_MS,
+    );
     vi.useRealTimers();
   });
 });

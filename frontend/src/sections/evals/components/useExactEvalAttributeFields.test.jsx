@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS } from "src/sections/projects/LLMTracing/attributeKeyCursorPagination";
+
 const mocks = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock("src/hooks/use-debounce", () => ({
@@ -107,7 +109,7 @@ describe("useExactEvalAttributeFields", () => {
         "/api/traces/span-attribute-keys/",
         expect.objectContaining({
           signal: expect.any(AbortSignal),
-          timeout: 4_800,
+          timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
           params: {
             project_id: "00000000-0000-4000-8000-000000000901",
             page_size: 10,
@@ -119,7 +121,7 @@ describe("useExactEvalAttributeFields", () => {
         "/api/traces/span-attribute-keys/",
         expect.objectContaining({
           signal: expect.any(AbortSignal),
-          timeout: 4_800,
+          timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
           params: {
             project_id: "00000000-0000-4000-8000-000000000901",
             page_size: 10,

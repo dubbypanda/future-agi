@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 const mocks = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock("src/utils/axios", () => ({
@@ -103,7 +105,7 @@ describe("task usage bounded query params", () => {
         }),
       );
     }
-    expect(TASK_USAGE_REQUEST_TIMEOUT_MS).toBeLessThan(9_800);
+    expect(TASK_USAGE_REQUEST_TIMEOUT_MS).toBe(INTERACTIVE_REQUEST_TIMEOUT_MS);
   });
 
   it("makes a same-day Custom selection one complete local calendar day", async () => {

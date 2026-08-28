@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+
+import { ANALYTICS_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 import { INTERACTIVE_MAX_PAGE_SIZE } from "src/config/runtime_limits";
 
 import {
@@ -110,7 +112,7 @@ describe("evalLogGridRead", () => {
     await vi.advanceTimersByTimeAsync(EVAL_LOG_GRID_REQUEST_TIMEOUT_MS);
     await rejection;
     expect(signal.aborted).toBe(true);
-    expect(EVAL_LOG_GRID_REQUEST_TIMEOUT_MS).toBeLessThan(9_800);
+    expect(EVAL_LOG_GRID_REQUEST_TIMEOUT_MS).toBe(ANALYTICS_REQUEST_TIMEOUT_MS);
     vi.useRealTimers();
   });
 

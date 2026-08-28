@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS } from "../attributeKeyCursorPagination";
+
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   debouncedValue: undefined,
@@ -181,7 +183,7 @@ describe("useExactTraceAttributeProperties", () => {
       1,
       "/api/traces/span-attribute-keys/",
       expect.objectContaining({
-        timeout: 4_800,
+        timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
         params: {
           project_id: "project-synthetic",
           page_size: 10,
@@ -194,7 +196,7 @@ describe("useExactTraceAttributeProperties", () => {
       2,
       "/api/traces/span-attribute-keys/",
       expect.objectContaining({
-        timeout: 4_800,
+        timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
         params: {
           project_id: "project-synthetic",
           page_size: 10,

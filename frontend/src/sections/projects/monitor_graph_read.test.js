@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 import {
   keepPreviousMonitorGraphData,
   MONITOR_GRAPH_CLIENT_TIMEOUT_MS,
@@ -24,7 +26,9 @@ describe("monitor graph bounded reads", () => {
         end_date: "2026-08-02T00:00:00Z",
       },
     });
-    expect(MONITOR_GRAPH_CLIENT_TIMEOUT_MS).toBe(9_000);
+    expect(MONITOR_GRAPH_CLIENT_TIMEOUT_MS).toBe(
+      INTERACTIVE_REQUEST_TIMEOUT_MS,
+    );
   });
 
   it("keeps the previous query payload while a new key is loading", () => {

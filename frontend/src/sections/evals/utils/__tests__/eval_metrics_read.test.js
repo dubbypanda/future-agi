@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 import { EVAL_METRIC_MAX_WINDOW_DAYS } from "src/config/runtime_limits";
 
 import {
@@ -80,7 +82,9 @@ describe("readEvalMetrics", () => {
 
     await rejection;
     expect(signal.aborted).toBe(true);
-    expect(EVAL_METRICS_REQUEST_TIMEOUT_MS).toBeLessThan(10_000);
+    expect(EVAL_METRICS_REQUEST_TIMEOUT_MS).toBe(
+      INTERACTIVE_REQUEST_TIMEOUT_MS,
+    );
     vi.useRealTimers();
   });
 

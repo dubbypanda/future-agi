@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PropTypes from "prop-types";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 import { useGetTaskData } from "./common";
 
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -62,7 +63,7 @@ describe("useGetTaskData", () => {
       "/eval-task/details/?eval_id=task-1",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
-        timeout: 9_000,
+        timeout: INTERACTIVE_REQUEST_TIMEOUT_MS,
       }),
     );
   });

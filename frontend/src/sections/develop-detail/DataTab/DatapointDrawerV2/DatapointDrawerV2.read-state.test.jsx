@@ -2,6 +2,7 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
 import DatapointDrawerV2 from "./DatapointDrawerV2";
 
 const axiosPostMock = vi.hoisted(() => vi.fn());
@@ -128,7 +129,9 @@ describe("DatapointDrawerV2 row adjacency", () => {
       "/datasets/dataset-1/row-data/",
     );
     for (const call of axiosPostMock.mock.calls) {
-      expect(call[2]).toMatchObject({ timeout: 9_000 });
+      expect(call[2]).toMatchObject({
+        timeout: INTERACTIVE_REQUEST_TIMEOUT_MS,
+      });
       expect(call[2].signal).toBeInstanceOf(AbortSignal);
     }
     await waitFor(() =>

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 import {
   GROUND_TRUTH_DATASET_ACTION_TIMEOUT_MS,
   GROUND_TRUTH_DATASET_PAGE_SIZE,
@@ -248,7 +250,9 @@ describe("ground-truth dataset pagination", () => {
       await vi.advanceTimersByTimeAsync(GROUND_TRUTH_DATASET_ACTION_TIMEOUT_MS);
       await rejection;
       expect(requestSignal.aborted).toBe(true);
-      expect(GROUND_TRUTH_DATASET_ACTION_TIMEOUT_MS).toBeLessThan(9_500);
+      expect(GROUND_TRUTH_DATASET_ACTION_TIMEOUT_MS).toBe(
+        INTERACTIVE_REQUEST_TIMEOUT_MS,
+      );
     } finally {
       vi.useRealTimers();
     }

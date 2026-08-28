@@ -86,7 +86,7 @@ describe("experimentRowsRead", () => {
     });
 
     expect(budget.remainingMs()).toBe(EXPERIMENT_ROWS_REQUEST_TIMEOUT_MS);
-    currentTime += 8_750;
+    currentTime += EXPERIMENT_ROWS_REQUEST_TIMEOUT_MS - 250;
     expect(budget.remainingMs()).toBe(250);
     currentTime += 250;
     expect(() => budget.remainingMs()).toThrowError(

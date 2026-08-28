@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+
 const mocks = vi.hoisted(() => ({
   enqueueSnackbar: vi.fn(),
   getDatasetPage: vi.fn(),
@@ -126,7 +128,7 @@ describe("EvalGroundTruth existing-dataset import", () => {
           exact_snapshot: true,
         },
         signal: expect.any(AbortSignal),
-        timeout: 9_000,
+        timeout: INTERACTIVE_REQUEST_TIMEOUT_MS,
       }),
     );
 

@@ -10,6 +10,8 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS } from "src/sections/projects/LLMTracing/attributeKeyCursorPagination";
+
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   propertyCatalog: vi.fn(),
@@ -270,7 +272,7 @@ describe("AttributesView errors", () => {
     expect(mocks.get).toHaveBeenCalledWith(
       "/span-attribute-keys/",
       expect.objectContaining({
-        timeout: 4_800,
+        timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
         params: {
           project_id: "project-large",
           page_size: 25,
@@ -292,7 +294,7 @@ describe("AttributesView errors", () => {
     expect(mocks.get).toHaveBeenCalledWith(
       "/span-attribute-keys/",
       expect.objectContaining({
-        timeout: 4_800,
+        timeout: ATTRIBUTE_KEY_REQUEST_TIMEOUT_MS,
         params: {
           project_id: "project-large",
           page_size: 25,
