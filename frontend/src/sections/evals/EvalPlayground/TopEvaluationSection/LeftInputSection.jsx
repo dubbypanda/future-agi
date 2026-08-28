@@ -26,6 +26,7 @@ import { useCreditExhaustion } from "src/hooks/use-credit-exhaustion";
 import { CreditExhaustionBanner } from "src/components/CreditExhaustionBanner";
 import { useExecuteCompositeEval } from "../../hooks/useCompositeEval";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
+import { useErrorLocalizationAvailable } from "src/hooks/useErrorLocalization";
 
 const defaultValues = {
   templateType: "Futureagi",
@@ -150,6 +151,7 @@ const LeftInputSection = ({
   const navigate = useNavigate();
   const { role } = useAuthContext();
   const theme = useTheme();
+  const errorLocalizerAvailable = useErrorLocalizationAvailable();
   const evalId = evaluation?.id;
   const {
     exhaustionError,
@@ -634,28 +636,30 @@ const LeftInputSection = ({
         // borderRadius={theme.spacing(0.5)}
         paddingTop={0.5}
       >
-        <HeadingAndSubHeading
-          heading={
-            <FormCheckboxField
-              control={control}
-              fieldName={"errorLocalizer"}
-              label={"Error Localization"}
-              helperText={undefined}
-              labelPlacement="end"
-              defaultValue={formState?.defaultValues?.errorLocalizer}
-              labelProps={{
-                gap: theme.spacing(1),
-              }}
-              checkboxSx={{
-                padding: 0,
-                "&.Mui-checked": {
-                  color: "primary.light",
-                },
-              }}
-            />
-          }
-          subHeading="Pinpoints the errors in your LLM output"
-        />
+        {errorLocalizerAvailable && (
+          <HeadingAndSubHeading
+            heading={
+              <FormCheckboxField
+                control={control}
+                fieldName={"errorLocalizer"}
+                label={"Error Localization"}
+                helperText={undefined}
+                labelPlacement="end"
+                defaultValue={formState?.defaultValues?.errorLocalizer}
+                labelProps={{
+                  gap: theme.spacing(1),
+                }}
+                checkboxSx={{
+                  padding: 0,
+                  "&.Mui-checked": {
+                    color: "primary.light",
+                  },
+                }}
+              />
+            }
+            subHeading="Pinpoints the errors in your LLM output"
+          />
+        )}
         <CreditExhaustionBanner
           error={exhaustionError}
           onUpgrade={handleUpgradeClick}
