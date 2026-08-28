@@ -39,6 +39,7 @@ criteria: 'You are evaluating whether the agent responded correctly upon reachin
   <audio_url>{{conversation}}</audio_url>'
 eval_tags:
 - Agents
+- Audio
 - Conversation
 - Voice
 visible_ui: true

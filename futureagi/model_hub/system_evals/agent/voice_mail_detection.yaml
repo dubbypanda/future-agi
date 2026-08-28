@@ -35,6 +35,7 @@ criteria: 'You are evaluating whether the call reached a voicemail rather than a
   <audio_url>{{conversation}}</audio_url>'
 eval_tags:
 - Agents
+- Audio
 - Conversation
 - Voice
 visible_ui: true
