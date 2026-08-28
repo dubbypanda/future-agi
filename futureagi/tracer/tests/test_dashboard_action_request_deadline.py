@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.conf import settings
 from django.db import DatabaseError
 
 from tracer.services.clickhouse import dashboard_action_deadline as action_deadline
@@ -65,8 +66,11 @@ def _response_gm():
 
 
 @pytest.mark.unit
-def test_dashboard_action_wall_is_nine_and_a_half_seconds():
-    assert action_deadline.DASHBOARD_ACTION_WALL_DEADLINE_MS == 9_500
+def test_dashboard_action_wall_uses_configured_interactive_deadline():
+    assert (
+        action_deadline.DASHBOARD_ACTION_WALL_DEADLINE_MS
+        == settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
 
 
 @pytest.mark.unit

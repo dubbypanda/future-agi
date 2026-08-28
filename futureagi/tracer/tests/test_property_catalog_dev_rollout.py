@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from django.conf import settings as django_settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
@@ -1993,8 +1994,14 @@ def test_dev_runtime_requires_v2_shared_proof_and_temporal_headroom(
     assert config.span_page_rows == 256
     assert config.rollout_wall_ms == DEV_STANDARD_MAX_WALL_MS
     assert config.span_query_timeout_ms == CANONICAL_SPAN_QUERY_TIMEOUT_MS
-    assert config.source.read_timeout_ceiling_ms == 9_500
-    assert config.catalog.read_timeout_ceiling_ms == 9_500
+    assert (
+        config.source.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
+    assert (
+        config.catalog.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     with pytest.raises(PropertyCatalogDevRuntimeError, match="fixed v2 filename"):
         replace(
             config,
@@ -2009,8 +2016,15 @@ def test_dev_runtime_requires_v2_shared_proof_and_temporal_headroom(
         replace(config, rollout_wall_ms=100_001)
     with pytest.raises(PropertyCatalogDevRuntimeError, match=r"\[1, 1024\]"):
         replace(config, span_page_rows=1_025)
-    with pytest.raises(PropertyCatalogDevRuntimeError, match="read-only identity"):
-        replace(config.catalog, read_timeout_ceiling_ms=30_000)
+    with pytest.raises(PropertyCatalogDevRuntimeError, match="reviewed values"):
+        replace(
+            config.catalog,
+            read_timeout_ceiling_ms=max(
+                django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS,
+                DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+            )
+            + 1,
+        )
     extended = replace(
         config,
         rollout_wall_ms=DEV_INITIAL_BACKFILL_MAX_WALL_MS,
@@ -2063,7 +2077,10 @@ def test_runtime_settings_keep_standard_wall_capped_and_select_explicit_wall(
         == DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS
     )
     assert config.source.read_timeout_ceiling_ms == 30_000
-    assert config.catalog.read_timeout_ceiling_ms == 9_500
+    assert (
+        config.catalog.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     default_config = DevRuntimeConfig.from_settings(
         _request(),
         settings_object,
@@ -2071,7 +2088,10 @@ def test_runtime_settings_keep_standard_wall_capped_and_select_explicit_wall(
     )
     assert default_config.explicit_initial_backfill_wall is False
     assert default_config.span_query_timeout_ms == CANONICAL_SPAN_QUERY_TIMEOUT_MS
-    assert default_config.source.read_timeout_ceiling_ms == 9_500
+    assert (
+        default_config.source.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     with pytest.raises(PropertyCatalogDevRuntimeError, match="must remain"):
         DevRuntimeConfig.from_settings(
             request,
@@ -2167,7 +2187,10 @@ def test_runtime_settings_select_scheduled_aggregate_wall_without_widening_queri
     assert config.explicit_initial_backfill_wall is False
     assert config.extended_rollout_wall is True
     assert config.span_query_timeout_ms == CANONICAL_SPAN_QUERY_TIMEOUT_MS
-    assert config.source.read_timeout_ceiling_ms == 9_500
+    assert (
+        config.source.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
 
 
 def test_factory_shares_one_extended_deadline_with_lease_headroom(
@@ -2204,7 +2227,10 @@ def test_factory_shares_one_extended_deadline_with_lease_headroom(
         runtime.config.span_page_rows == DEV_INITIAL_BACKFILL_CANONICAL_SPAN_PAGE_ROWS
     )
     assert runtime.config.source.read_timeout_ceiling_ms == 30_000
-    assert runtime.config.catalog.read_timeout_ceiling_ms == 9_500
+    assert (
+        runtime.config.catalog.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     assert runtime.lifecycle_state is not None
     assert runtime.lifecycle_state._deadline is runtime.deadline
     assert runtime.hot_proof_source.deadline is runtime.deadline
@@ -2267,7 +2293,10 @@ def test_runtime_source_budget_matches_the_explicit_reconcile_mode(
         )
     else:
         assert runtime.coordinator._lease_seconds == REVISION_LEASE_SECONDS
-    assert runtime.config.source.read_timeout_ceiling_ms == 9_500
+    assert (
+        runtime.config.source.read_timeout_ceiling_ms
+        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
     assert source_budget.adapter_wall_timeout_seconds == expected_wall_seconds
     assert source_budget.shared_deadline is runtime.deadline
     assert source_budget.postgres.statement_timeout_ms <= 8_000

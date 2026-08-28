@@ -26,6 +26,7 @@ from typing import Any, Protocol
 
 from .activation import ManifestStreamRole, RevisionBuildPlan
 from .codec import canonical_uuid, require_sha256
+from .database import PRODUCTION_PROPERTY_CATALOG_DATABASE
 from .models import PropertyCatalogEnvelope, SourceAdapter
 from .runtime_limits import RUNTIME_LIMITS
 from .wire import encode_envelope
@@ -41,7 +42,9 @@ PROPERTY_CATALOG_TABLES = frozenset(
     }
 )
 CATALOG_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-PROD_CATALOG_DATABASE = "property_catalog"
+# Backwards-compatible export for publisher callers. The canonical identity is
+# shared with the read path so production admission cannot drift by module.
+PROD_CATALOG_DATABASE = PRODUCTION_PROPERTY_CATALOG_DATABASE
 RESERVED_CATALOG_DATABASES = frozenset(
     {"default", "futureagi", "information_schema", "system"}
 )

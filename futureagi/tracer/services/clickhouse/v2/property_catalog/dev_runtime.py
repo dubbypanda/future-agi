@@ -522,8 +522,15 @@ class NativeConnectionConfig:
             _STANDARD_NATIVE_READ_TIMEOUT_CEILING_MS,
             DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS,
         }:
+            allowed_ceilings = sorted(
+                {
+                    _STANDARD_NATIVE_READ_TIMEOUT_CEILING_MS,
+                    DEV_INITIAL_BACKFILL_CANONICAL_SPAN_QUERY_TIMEOUT_MS,
+                }
+            )
             raise PropertyCatalogDevRuntimeError(
-                "native read timeout ceiling must be 9500 or 30000 ms"
+                "native read timeout ceiling must be one of the reviewed "
+                f"values {allowed_ceilings!r} ms"
             )
         if (
             self.read_timeout_ceiling_ms > _STANDARD_NATIVE_READ_TIMEOUT_CEILING_MS

@@ -41,6 +41,9 @@ from tracer.services.clickhouse.v2.property_catalog.connection import (
 from tracer.services.clickhouse.v2.property_catalog.cursor import (
     normalize_property_catalog_scope,
 )
+from tracer.services.clickhouse.v2.property_catalog.database import (
+    is_production_property_catalog_database,
+)
 from tracer.services.clickhouse.v2.property_catalog.reader import (
     PropertyCatalogActivation,
     PropertyCatalogUnavailable,
@@ -691,7 +694,7 @@ class PropertyCatalogValueReader:
     ) -> None:
         self._executor = executor
         self._database = _database(catalog_database)
-        if self._database.startswith("th7247_catalog_prod_") and (
+        if is_production_property_catalog_database(self._database) and (
             activation_selector is None
         ):
             raise ValueError("production property catalog requires control selection")

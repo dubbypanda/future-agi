@@ -47,7 +47,7 @@ from tracer.services.clickhouse.v2.property_catalog.value_reader import (
 ORG = "11111111-1111-4111-8111-111111111111"
 WORKSPACE = "22222222-2222-4222-8222-222222222222"
 AT = datetime(2026, 8, 25, 20, tzinfo=UTC)
-PROD_DATABASE = "th7247_catalog_prod_control_test"
+PROD_DATABASE = "property_catalog"
 
 
 def _sha(value: str) -> str:

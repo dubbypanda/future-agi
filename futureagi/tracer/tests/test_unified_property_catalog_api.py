@@ -399,7 +399,7 @@ def test_metrics_cursor_mode_uses_one_activated_definition_reader(settings):
     assert executor.call_args.kwargs["max_wall_ms"] > 0
     activation_gate.assert_called_once_with(
         executor.return_value,
-        database="th7247_catalog_dev_clean",
+        database="property_catalog_dev_clean",
         deployment="dev",
     )
     assert reader_factory.call_args.kwargs["activation_selector"] is activation_selector

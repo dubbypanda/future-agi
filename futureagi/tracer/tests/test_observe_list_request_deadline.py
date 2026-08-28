@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.conf import settings
 from django.db import OperationalError
 
 from tracer.services.clickhouse import list_request_deadline as list_deadline
@@ -308,7 +309,7 @@ def test_list_deadline_precedes_tenant_scope_and_reaches_clickhouse(
     deadline.remaining_ms.return_value = 8_000
 
     def start(wall_ms):
-        assert wall_ms == 9_500
+        assert wall_ms == settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
         events.append("deadline_started")
         return deadline
 

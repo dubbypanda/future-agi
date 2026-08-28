@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
+from django.conf import settings as django_settings
 
 from tracer.services.clickhouse.read_budget import ReadDeadlineExceeded
 from tracer.views import dashboard as dashboard_view
@@ -88,8 +89,13 @@ def test_w1_w6_simple_metrics_use_bounded_rollup(monkeypatch, preset, granularit
     assert 0 < timeout_ms <= _DASHBOARD_INTERACTIVE_TIMEOUT_MS
     assert settings == _DASHBOARD_ROLLUP_READ_SETTINGS
     assert "max_rows_to_read" not in settings
-    assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
-    assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
+    assert (
+        settings["max_memory_usage"]
+        == django_settings.DASHBOARD_TRACE_READ_MAX_MEMORY_BYTES
+    )
+    assert (
+        settings["max_bytes_to_read"] == django_settings.DASHBOARD_TRACE_READ_MAX_BYTES
+    )
 
 
 @pytest.mark.unit

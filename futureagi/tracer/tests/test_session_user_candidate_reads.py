@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.conf import settings as django_settings
 from django.test import override_settings
 
 from tracer.selectors.trace_filter_reads import read_bounded_filter_page
@@ -1613,8 +1614,11 @@ def test_user_detail_selector_uses_deadline_without_row_read_cap():
     _, _, timeout_ms, settings = recorder.calls[0]
     assert 3_000 < timeout_ms <= 30_000
     assert "max_rows_to_read" not in settings
-    assert settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-    assert settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+    assert settings["max_bytes_to_read"] == django_settings.OBSERVABILITY_LIST_MAX_BYTES
+    assert (
+        settings["max_memory_usage"]
+        == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+    )
     assert 0 < settings["max_result_rows"] <= 512
     assert settings["max_threads"] == 1
 
