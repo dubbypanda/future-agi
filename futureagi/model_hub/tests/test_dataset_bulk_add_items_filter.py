@@ -14,6 +14,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from django.conf import settings as django_settings
 from django.utils import timezone
 from structlog.testing import capture_logs
 
@@ -588,7 +589,10 @@ class TestAddItemsFilterMode:
         assert resp.data.get("code") == "add_items_deadline_exceeded"
         assert "Nothing was added" in str(resp.data)
         assert seen_deadlines[0].total_ms == views_mod.ADD_ITEMS_FILTER_MODE_WALL_MS
-        assert views_mod.ADD_ITEMS_FILTER_MODE_WALL_MS <= 9_500
+        assert (
+            views_mod.ADD_ITEMS_FILTER_MODE_WALL_MS
+            == django_settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+        )
         assert not QueueItem.objects.filter(queue=active_queue, trace=trace).exists()
 
     def test_filter_mode_queue_item_count_matches_added(

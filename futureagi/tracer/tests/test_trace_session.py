@@ -1727,7 +1727,10 @@ class TestTraceSessionWorkspaceScopeAPI:
         assert "positionCaseInsensitiveUTF8(val, %(filter_value_search)s)" in query
         assert params["filter_value_search"] == "Needle"
         assert params["result_limit"] == 51
-        assert call.kwargs["timeout_ms"] == 8_000
+        assert (
+            call.kwargs["timeout_ms"]
+            == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+        )
         settings = call.kwargs["settings"]
         assert "max_rows_to_read" not in settings
         assert (

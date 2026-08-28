@@ -11519,7 +11519,7 @@ class TestMetricsCatalogPagination:
         assert "private attribute failure" not in str(response.json())
         cache_set.assert_not_called()
         kwargs = analytics.get_span_attribute_keys_ch_for_projects.call_args.kwargs
-        assert 0 < kwargs["timeout_ms"] <= 8_500
+        assert 0 < kwargs["timeout_ms"] <= settings.INTERACTIVE_READ_DEFAULT_WALL_MS
 
 
 class TestDashboardAuthRequired:

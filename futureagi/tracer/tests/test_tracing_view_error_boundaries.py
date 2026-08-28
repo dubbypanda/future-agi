@@ -972,9 +972,12 @@ def test_session_eval_logs_uses_authoritative_table_on_direct_service(
     read_settings = call.kwargs["settings"]
     assert "max_rows_to_read" not in read_settings
     assert read_settings["max_result_rows"] == 1
-    assert read_settings["max_result_bytes"] == 8 * 1024 * 1024
-    assert read_settings["max_bytes_to_read"] == 36 * 1024 * 1024 * 1024
-    assert read_settings["max_memory_usage"] == 36 * 1024 * 1024 * 1024
+    assert read_settings["max_result_bytes"] == settings.SESSION_LIST_MAX_RESULT_BYTES
+    assert read_settings["max_bytes_to_read"] == settings.OBSERVABILITY_LIST_MAX_BYTES
+    assert (
+        read_settings["max_memory_usage"]
+        == settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+    )
     assert read_settings["max_threads"] == 2
 
 

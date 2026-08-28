@@ -1,5 +1,6 @@
 """Exact direct-write and async-snapshot contracts for Agent Graph."""
 
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from inspect import unwrap
 from types import SimpleNamespace
@@ -509,12 +510,15 @@ def test_exact_agent_graph_reader_executes_only_one_statement():
 @pytest.mark.unit
 def test_exact_aggregation_worker_routes_agent_graph_without_interval(monkeypatch):
     from tracer.services.clickhouse import exact_graph_reads
-    from tracer.services.clickhouse.v2 import query_service
     from tracer.tasks import exact_aggregation
 
     analytics = object()
     reader = MagicMock(return_value=_complete_payload())
-    monkeypatch.setattr(query_service, "V2AnalyticsQueryService", lambda: analytics)
+    monkeypatch.setattr(
+        exact_aggregation,
+        "_exact_observe_analytics",
+        lambda: nullcontext(analytics),
+    )
     monkeypatch.setattr(exact_graph_reads, "read_exact_agent_graph", reader)
     monkeypatch.setattr(
         exact_aggregation,

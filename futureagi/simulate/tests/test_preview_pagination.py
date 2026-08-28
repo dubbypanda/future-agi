@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from django.conf import settings as django_settings
 from django.db import connection
 from django.http import Http404
 from rest_framework import status
@@ -217,9 +218,14 @@ def test_preview_response_serializers_reject_missing_or_unknown_only_payloads():
 
 
 def test_preview_server_uses_one_bounded_wall_for_all_statements():
-    assert PREVIEW_SERVER_WALL_SECONDS <= 8.5
+    assert PREVIEW_SERVER_WALL_SECONDS == (
+        django_settings.INTERACTIVE_READ_DEFAULT_WALL_MS / 1_000
+    )
     with patch("simulate.views.preview_pagination.time.monotonic", return_value=100.0):
-        assert _remaining_ms(108.5) == 8_500
+        assert (
+            _remaining_ms(100.0 + PREVIEW_SERVER_WALL_SECONDS)
+            == django_settings.INTERACTIVE_READ_DEFAULT_WALL_MS
+        )
         with pytest.raises(PreviewReadDeadlineExceeded):
             _remaining_ms(100.0)
 
