@@ -32,7 +32,7 @@ criteria: 'You are evaluating whether the call reached a voicemail rather than a
 
   ## Input
 
-  <audio_url>{{Conversation}}</audio_url>'
+  <audio_url>{{conversation}}</audio_url>'
 eval_tags:
 - Agents
 - Conversation
@@ -48,24 +48,15 @@ output_type_normalized: pass_fail
 pass_threshold: 0.5
 config:
   required_keys:
-  - Conversation
+  - conversation
   output: Pass/Fail
   eval_type_id: AgentEvaluator
   config: {}
   config_params_desc:
-    Conversation: The call audio to be evaluated
+    conversation: The call audio to be evaluated
   param_modalities:
-    Conversation:
-    - TEXT
+    conversation:
     - AUDIO
-    - JSON
-    - LIST
-    - NUMBER
-    - BOOLEAN
-    - INTEGER
-    - FLOAT
-    - ARRAY
-    - DATETIME
   rule_prompt: 'You are evaluating whether the call reached a voicemail rather than a live person.
 
 
@@ -96,4 +87,4 @@ config:
 
     ## Input
 
-    <audio_url>{{Conversation}}</audio_url>'
+    <audio_url>{{conversation}}</audio_url>'

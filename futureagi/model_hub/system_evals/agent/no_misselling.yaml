@@ -71,25 +71,9 @@ config:
   param_modalities:
     agent_prompt:
     - TEXT
-    - JSON
-    - LIST
-    - NUMBER
-    - BOOLEAN
-    - INTEGER
-    - FLOAT
-    - ARRAY
-    - DATETIME
     conversation:
     - TEXT
     - AUDIO
-    - JSON
-    - LIST
-    - NUMBER
-    - BOOLEAN
-    - INTEGER
-    - FLOAT
-    - ARRAY
-    - DATETIME
   rule_prompt: 'You are evaluating whether an agent mis-sells - makes false, exaggerated, or coercive claims - during a customer
     conversation.
 

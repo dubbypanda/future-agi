@@ -71,25 +71,9 @@ config:
   param_modalities:
     agent_prompt:
     - TEXT
-    - JSON
-    - LIST
-    - NUMBER
-    - BOOLEAN
-    - INTEGER
-    - FLOAT
-    - ARRAY
-    - DATETIME
     conversation:
     - TEXT
     - AUDIO
-    - JSON
-    - LIST
-    - NUMBER
-    - BOOLEAN
-    - INTEGER
-    - FLOAT
-    - ARRAY
-    - DATETIME
   rule_prompt: 'You are evaluating how accurately an agent captured the details a customer gave during a conversation. There
     is no external gold record: a value is correct when it matches what the customer said, and wrong if it contradicts them.
 
