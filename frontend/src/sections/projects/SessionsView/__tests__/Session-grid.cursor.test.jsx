@@ -122,18 +122,32 @@ const renderGrid = () =>
     />,
   );
 
-const makeParams = ({ startRow = 0, sortModel = [] } = {}) => ({
-  request: { startRow, endRow: startRow + 25, sortModel },
-  api: {
+const makeParams = ({ startRow = 0, sortModel = [] } = {}) => {
+  let currentPage = Math.floor(startRow / 25);
+  let renderedNodes = [];
+  const api = {
+    getRenderedNodes: vi.fn(() => renderedNodes),
+    paginationGetCurrentPage: vi.fn(() => currentPage),
     paginationGoToFirstPage: vi.fn(),
-    paginationGoToPage: vi.fn(),
+    paginationGoToPage: vi.fn((nextPage) => {
+      currentPage = nextPage;
+    }),
     showNoRowsOverlay: vi.fn(),
     refreshServerSide: vi.fn(),
     retryServerSideLoads: vi.fn(),
-  },
-  success: vi.fn(),
-  fail: vi.fn(),
-});
+  };
+  return {
+    request: { startRow, endRow: startRow + 25, sortModel },
+    api,
+    success: vi.fn(({ rowData = [] }) => {
+      renderedNodes = rowData.map((data) => ({
+        data,
+        id: data.session_id,
+      }));
+    }),
+    fail: vi.fn(),
+  };
+};
 
 const getRows = async (params) => {
   gridState.api = params.api;
@@ -257,6 +271,7 @@ describe("SessionGrid cursor continuation", () => {
     });
     expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
+    secondPage.success.mockImplementation(() => {});
     resolveSecondPage(
       sessionResponse({
         rows: [row(25)],
@@ -267,6 +282,12 @@ describe("SessionGrid cursor continuation", () => {
     );
     await act(async () => pendingRead);
 
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+    expect(gridState.props.loading).toBe(true);
+
+    secondPage.api.getRenderedNodes.mockReturnValue([
+      { id: "session-25", data: row(25) },
+    ]);
     await waitFor(() => {
       expect(screen.queryByText("Loading page…")).not.toBeInTheDocument();
       expect(gridState.props.loading).toBe(false);

@@ -324,6 +324,8 @@ const TraceGrid = React.forwardRef(
             let pageNumber = 0;
             let firstPageRequestId = null;
             let pageLoadRequestId = null;
+            let pageLoadSucceeded = false;
+            let pageLoadRowCount = 0;
             let requestGeneration = null;
             let continuationPending = false;
             try {
@@ -495,6 +497,8 @@ const TraceGrid = React.forwardRef(
                 rowData: rows,
                 rowCount: discoveredRowCount,
               });
+              pageLoadSucceeded = true;
+              pageLoadRowCount = rows.length;
               setContinuationNotice(null);
 
               // Collect all loaded trace IDs for prev/next navigation
@@ -535,7 +539,10 @@ const TraceGrid = React.forwardRef(
               setReadMessage(QUERY_FAILED_RETRY_MESSAGE);
               failServerSideGridRead(params);
             } finally {
-              finishPageLoad(pageLoadRequestId);
+              finishPageLoad(pageLoadRequestId, {
+                succeeded: pageLoadSucceeded,
+                rowCount: pageLoadRowCount,
+              });
               if (
                 !continuationPending &&
                 firstPageRequestId !== null &&

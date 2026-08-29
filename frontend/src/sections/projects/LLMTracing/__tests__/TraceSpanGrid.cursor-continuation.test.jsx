@@ -174,22 +174,35 @@ const listResponse = ({
   },
 });
 
-const makeParams = (startRow = 0, endRow = startRow + 25) => ({
-  request: { startRow, endRow, sortModel: [] },
-  api: {
+const makeParams = (startRow = 0, endRow = startRow + 25) => {
+  let currentPage = Math.floor(startRow / (endRow - startRow));
+  let renderedNodes = [];
+  const api = {
     deselectAll: vi.fn(),
     forEachNode: vi.fn(),
+    getRenderedNodes: vi.fn(() => renderedNodes),
     hideOverlay: vi.fn(),
-    paginationGetCurrentPage: vi.fn(() => 0),
+    paginationGetCurrentPage: vi.fn(() => currentPage),
     paginationGoToFirstPage: vi.fn(),
-    paginationGoToPage: vi.fn(),
+    paginationGoToPage: vi.fn((nextPage) => {
+      currentPage = nextPage;
+    }),
     refreshServerSide: vi.fn(),
     retryServerSideLoads: vi.fn(),
     showNoRowsOverlay: vi.fn(),
-  },
-  success: vi.fn(),
-  fail: vi.fn(),
-});
+  };
+  return {
+    request: { startRow, endRow, sortModel: [] },
+    api,
+    success: vi.fn(({ rowData = [] }) => {
+      renderedNodes = rowData.map((data, index) => ({
+        data,
+        id: data.span_id ?? data.trace_id ?? String(startRow + index),
+      }));
+    }),
+    fail: vi.fn(),
+  };
+};
 
 const baseProps = () => ({
   columns: [],
@@ -340,12 +353,28 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
         "true",
       ),
     );
+    await waitFor(() =>
+      expect(screen.queryByText("Loading page…")).not.toBeInTheDocument(),
+    );
 
     await userEvent.click(
       screen.getByRole("button", { name: "Go to previous page" }),
     );
     expect(finalPageParams.api.paginationGoToPage).toHaveBeenCalledWith(0);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
     expect(getMock).toHaveBeenCalledTimes(2);
+
+    // Returning to a cached page does not invoke the datasource again. The
+    // transition still settles from the actual rendered row swap.
+    finalPageParams.api.getRenderedNodes.mockReturnValue(
+      rows.map((data) => ({
+        data,
+        id: data.span_id ?? data.trace_id,
+      })),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Loading page…")).not.toBeInTheDocument(),
+    );
   });
 
   it("shows a loading state while an explicitly requested page is pending", async () => {
@@ -400,9 +429,30 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     });
     expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
-    resolveSecondPage(listResponse({ rows: [] }));
+    const renderedSecondPageRow =
+      kind === "trace"
+        ? { trace_id: "trace-page-2", project_id: "project-1" }
+        : {
+            span_id: "span-page-2",
+            trace_id: "trace-page-2",
+            project_id: "project-1",
+            start_time: "2026-08-08T00:01:00Z",
+          };
+    // Model the real AG Grid handoff: the API response can settle before its
+    // target row nodes replace the previous page in the viewport.
+    secondPage.success.mockImplementation(() => {});
+    resolveSecondPage(listResponse({ rows: [renderedSecondPageRow] }));
     await act(async () => pendingRead);
 
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+    expect(gridState.props.loading).toBe(true);
+
+    secondPage.api.getRenderedNodes.mockReturnValue([
+      {
+        id: renderedSecondPageRow.span_id ?? renderedSecondPageRow.trace_id,
+        data: renderedSecondPageRow,
+      },
+    ]);
     await waitFor(() => {
       expect(screen.queryByText("Loading page…")).not.toBeInTheDocument();
       expect(gridState.props.loading).toBe(false);

@@ -132,6 +132,16 @@ export const OBSERVE_GRID_MAX_BLOCKS_IN_CACHE = readBoundedRuntimeInteger(
   { minimum: 1, maximum: 100 },
 );
 
+// A cursor page transition normally settles as soon as AG Grid paints a row
+// from the target page. This wall is only a fail-safe for a cached grid block
+// that never emits a usable render; an active HTTP read still owns its own
+// request timeout and is never hidden by this fallback.
+export const OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS = readBoundedRuntimeInteger(
+  "VITE_OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS",
+  60_000,
+  { minimum: 1_000, maximum: 120_000 },
+);
+
 export const OBSERVE_LIST_CELL_PREVIEW_MAX_CHARS = readBoundedRuntimeInteger(
   "VITE_OBSERVE_LIST_CELL_PREVIEW_MAX_CHARS",
   16 * 1024,

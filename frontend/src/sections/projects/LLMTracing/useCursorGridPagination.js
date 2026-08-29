@@ -1,9 +1,39 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   OBSERVE_LIST_DEFAULT_PAGE_SIZE,
   OBSERVE_LIST_PAGE_SIZE_OPTIONS,
+  OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
 } from "src/config/runtime_limits";
 import { withLiveGridApi } from "src/utils/gridApi";
+
+const requestRenderFrame = (callback) => {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.requestAnimationFrame === "function"
+  ) {
+    return window.requestAnimationFrame(callback);
+  }
+  return setTimeout(callback, 0);
+};
+
+const cancelRenderFrame = (frameId) => {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.cancelAnimationFrame === "function"
+  ) {
+    window.cancelAnimationFrame(frameId);
+    return;
+  }
+  clearTimeout(frameId);
+};
+
+const renderedRowTokens = (api) => {
+  const nodes = api?.getRenderedNodes?.();
+  if (!Array.isArray(nodes)) return [];
+  return nodes
+    .filter((node) => node?.data != null)
+    .map((node) => node.id ?? node.data);
+};
 
 /**
  * Cursor-backed lists can expose only pages whose opaque cursor chain has
@@ -16,33 +46,105 @@ export default function useCursorGridPagination(gridRef) {
   const [pageCount, setPageCount] = useState(1);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const discoveredRowCountRef = useRef(0);
-  const hasPublishedPageRef = useRef(false);
-  const publishedPagesRef = useRef(new Set());
   const pageLoadRequestRef = useRef(0);
+  const activePageLoadRequestRef = useRef(null);
+  const pageTransitionRef = useRef(null);
+  const pageTransitionSequenceRef = useRef(0);
+  const renderCheckFrameRef = useRef(null);
+
+  const stopRenderCheck = useCallback(() => {
+    if (renderCheckFrameRef.current === null) return;
+    cancelRenderFrame(renderCheckFrameRef.current);
+    renderCheckFrameRef.current = null;
+  }, []);
+
+  const scheduleRenderCheck = useCallback(
+    (transitionId) => {
+      stopRenderCheck();
+
+      const checkRenderedPage = () => {
+        renderCheckFrameRef.current = null;
+        const transition = pageTransitionRef.current;
+        if (!transition || transition.id !== transitionId) return;
+
+        const api = gridRef?.current?.api;
+        const currentPage = api?.paginationGetCurrentPage?.();
+        const nextTokens = renderedRowTokens(api);
+        const targetPageIsVisible = currentPage === transition.page - 1;
+        const targetRowsAreRendered =
+          targetPageIsVisible &&
+          nextTokens.length > 0 &&
+          (transition.previousRowTokens.size === 0 ||
+            nextTokens.some(
+              (token) => !transition.previousRowTokens.has(token),
+            ));
+        const activeRequest = activePageLoadRequestRef.current;
+        const timedOutWithoutRequest =
+          Date.now() >= transition.deadline &&
+          activeRequest?.page !== transition.page;
+
+        if (targetRowsAreRendered || timedOutWithoutRequest) {
+          pageTransitionRef.current = null;
+          if (activeRequest?.page !== transition.page) {
+            setIsPageLoading(false);
+          }
+          return;
+        }
+
+        renderCheckFrameRef.current = requestRenderFrame(checkRenderedPage);
+      };
+
+      renderCheckFrameRef.current = requestRenderFrame(checkRenderedPage);
+    },
+    [gridRef, stopRenderCheck],
+  );
 
   const beginPageLoad = useCallback((pageNumber) => {
-    // The grids already own their initial-load presentation. This state is for
-    // an explicit pagination transition, including a later uncached return to
-    // page one after at least one page has been published.
-    if (pageNumber === 0 && !hasPublishedPageRef.current) return null;
+    // AG Grid can prefetch a server-side block. Only an explicit navigation
+    // owns the page loader; background cache work must not block the controls.
+    const transition = pageTransitionRef.current;
+    const requestedPage = pageNumber + 1;
+    if (!transition || transition.page !== requestedPage) return null;
     const requestId = ++pageLoadRequestRef.current;
-    setIsPageLoading(true);
+    activePageLoadRequestRef.current = { id: requestId, page: requestedPage };
     return requestId;
   }, []);
 
-  const finishPageLoad = useCallback((requestId) => {
-    if (requestId !== null && requestId === pageLoadRequestRef.current) {
-      setIsPageLoading(false);
-    }
-  }, []);
+  const finishPageLoad = useCallback(
+    (requestId, { succeeded = false, rowCount = 0 } = {}) => {
+      if (requestId === null) return;
+      const activeRequest = activePageLoadRequestRef.current;
+      if (!activeRequest || activeRequest.id !== requestId) return;
+
+      activePageLoadRequestRef.current = null;
+      const transition = pageTransitionRef.current;
+      if (
+        transition?.page === activeRequest.page &&
+        (!succeeded || rowCount === 0)
+      ) {
+        pageTransitionRef.current = null;
+        stopRenderCheck();
+        setIsPageLoading(false);
+        return;
+      }
+
+      // A successful non-empty request is not visually complete until AG Grid
+      // swaps the rendered row nodes. The render check started by goToPage()
+      // owns the loader until that exact handoff.
+      if (!transition) setIsPageLoading(false);
+    },
+    [stopRenderCheck],
+  );
 
   const resetPagination = useCallback(
     ({ moveGrid = true } = {}) => {
       pageLoadRequestRef.current += 1;
+      activePageLoadRequestRef.current = null;
+      pageTransitionRef.current = null;
+      pageTransitionSequenceRef.current += 1;
+      stopRenderCheck();
       setIsPageLoading(false);
       discoveredRowCountRef.current = 0;
-      hasPublishedPageRef.current = false;
-      publishedPagesRef.current.clear();
       setPage(1);
       setPageCount(1);
       if (moveGrid) {
@@ -51,16 +153,14 @@ export default function useCursorGridPagination(gridRef) {
         );
       }
     },
-    [gridRef],
+    [gridRef, stopRenderCheck],
   );
 
   const publishPage = useCallback(({ request, rows, isLastPage }) => {
-    hasPublishedPageRef.current = true;
     const requestPageSize = request.endRow - request.startRow;
     const terminalRowCount = request.startRow + rows.length;
     const nextPageSentinelRowCount = request.endRow + 1;
     const publishedPage = Math.floor(request.startRow / requestPageSize) + 1;
-    publishedPagesRef.current.add(publishedPage);
 
     if (isLastPage) {
       discoveredRowCountRef.current = terminalRowCount;
@@ -86,26 +186,41 @@ export default function useCursorGridPagination(gridRef) {
       ) {
         return;
       }
-      // A datasource read starts on AG Grid's next turn. Mark an unseen page
-      // pending in the click handler so the current rows never disappear into
-      // an unlabelled blank frame before getRows() begins.
-      const navigationRequestId = publishedPagesRef.current.has(nextPage)
-        ? null
-        : beginPageLoad(nextPage - 1);
-      const moved = withLiveGridApi(gridRef?.current?.api, (api) =>
-        api.paginationGoToPage?.(nextPage - 1),
-      );
+      let transitionId = null;
+      const moved = withLiveGridApi(gridRef?.current?.api, (api) => {
+        transitionId = ++pageTransitionSequenceRef.current;
+        pageTransitionRef.current = {
+          id: transitionId,
+          page: nextPage,
+          previousRowTokens: new Set(renderedRowTokens(api)),
+          deadline: Date.now() + OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
+        };
+        setIsPageLoading(true);
+        api.paginationGoToPage?.(nextPage - 1);
+      });
       if (moved) {
         // Cursor pagination is driven exclusively by these controls. AG Grid
         // can briefly report page zero again when a terminal row count is
         // published, so keep the requested page authoritative until the
         // datasource confirms it in publishPage().
         setPage(nextPage);
+        scheduleRenderCheck(transitionId);
       } else {
-        finishPageLoad(navigationRequestId);
+        pageTransitionRef.current = null;
+        setIsPageLoading(false);
       }
     },
-    [beginPageLoad, finishPageLoad, gridRef, pageCount],
+    [gridRef, pageCount, scheduleRenderCheck],
+  );
+
+  useEffect(
+    () => () => {
+      stopRenderCheck();
+      pageLoadRequestRef.current += 1;
+      activePageLoadRequestRef.current = null;
+      pageTransitionRef.current = null;
+    },
+    [stopRenderCheck],
   );
 
   const changePageSize = useCallback(

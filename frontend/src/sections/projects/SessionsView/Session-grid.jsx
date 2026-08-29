@@ -280,6 +280,8 @@ const SessionGrid = React.forwardRef(
           getRows: async (params) => {
             let pageNumber = 0;
             let pageLoadRequestId = null;
+            let pageLoadSucceeded = false;
+            let pageLoadRowCount = 0;
             let requestGeneration = null;
             try {
               if (!isGridApiLive(params.api)) return;
@@ -491,6 +493,8 @@ const SessionGrid = React.forwardRef(
                 rowData: rows,
                 rowCount: discoveredRowCount,
               });
+              pageLoadSucceeded = true;
+              pageLoadRowCount = rows.length;
               setContinuationNotice(null);
             } catch (error) {
               if (isExpectedRequestCancellation(error)) {
@@ -536,7 +540,10 @@ const SessionGrid = React.forwardRef(
               // snackbar above is the explicit failure state instead.
               params.fail();
             } finally {
-              finishPageLoad(pageLoadRequestId);
+              finishPageLoad(pageLoadRequestId, {
+                succeeded: pageLoadSucceeded,
+                rowCount: pageLoadRowCount,
+              });
             }
           },
           getRowId: ({ data }) => {
