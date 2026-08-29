@@ -254,6 +254,7 @@ const SpanGrid = React.forwardRef(
     const [gridLoading, setGridLoading] = useState(enabled);
     const firstPageRequestRef = useRef(0);
     const preserveRowsDuringNextRefreshRef = useRef(false);
+    const gridElementRef = useRef(null);
     const {
       beginPageLoad,
       page,
@@ -265,7 +266,7 @@ const SpanGrid = React.forwardRef(
       isPageLoading,
       publishPage,
       resetPagination,
-    } = useCursorGridPagination(gridRef);
+    } = useCursorGridPagination(gridRef, gridElementRef);
 
     // Use ref to track latest columns for comparison without triggering dataSource recreation
     const columnsRef = useRef(columns);
@@ -851,6 +852,7 @@ const SpanGrid = React.forwardRef(
     }, [resetMetricIds]);
     return (
       <Box
+        ref={gridElementRef}
         sx={{
           height: "calc(100vh - 270px)",
           display: "flex",

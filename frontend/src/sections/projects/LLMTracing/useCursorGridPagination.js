@@ -35,8 +35,11 @@ const renderedRowTokens = (api) => {
     .map((node) => node.id ?? node.data);
 };
 
-const paintedGridRowSignature = (api) => {
-  const gridElement = api?.getGui?.();
+export const paintedGridRowSignature = (api, gridElementRef) => {
+  // getGui is not part of every AG Grid API build. The owning component
+  // supplies its stable DOM wrapper so production never falls back to the
+  // RowNode-only readiness check when that optional API is absent.
+  const gridElement = api?.getGui?.() ?? gridElementRef?.current;
   if (!gridElement || typeof gridElement.querySelectorAll !== "function") {
     return undefined;
   }
@@ -70,7 +73,7 @@ const paintedGridRowSignature = (api) => {
  * already been discovered. Keep AG Grid's synthetic row count and the visible
  * page controls aligned without publishing a guessed global total.
  */
-export default function useCursorGridPagination(gridRef) {
+export default function useCursorGridPagination(gridRef, gridElementRef) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(OBSERVE_LIST_DEFAULT_PAGE_SIZE);
   const [pageCount, setPageCount] = useState(1);
@@ -106,7 +109,10 @@ export default function useCursorGridPagination(gridRef) {
           nextTokens.some((token) => !transition.previousRowTokens.has(token));
         const targetRowsAreRendered =
           targetPageIsVisible && nextTokens.length > 0;
-        const paintedRowSignature = paintedGridRowSignature(api);
+        const paintedRowSignature = paintedGridRowSignature(
+          api,
+          gridElementRef,
+        );
         const canInspectPaintedRows =
           transition.previousPaintedRowSignature !== undefined &&
           paintedRowSignature !== undefined;
@@ -151,7 +157,7 @@ export default function useCursorGridPagination(gridRef) {
 
       renderCheckFrameRef.current = requestRenderFrame(checkRenderedPage);
     },
-    [gridRef, stopRenderCheck],
+    [gridElementRef, gridRef, stopRenderCheck],
   );
 
   const beginPageLoad = useCallback((pageNumber) => {
@@ -248,7 +254,10 @@ export default function useCursorGridPagination(gridRef) {
           id: transitionId,
           page: nextPage,
           previousRowTokens: new Set(renderedRowTokens(api)),
-          previousPaintedRowSignature: paintedGridRowSignature(api),
+          previousPaintedRowSignature: paintedGridRowSignature(
+            api,
+            gridElementRef,
+          ),
           lastReadyPaintedRowSignature: null,
           readyFrameCount: 0,
           deadline: Date.now() + OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
@@ -268,7 +277,7 @@ export default function useCursorGridPagination(gridRef) {
         setIsPageLoading(false);
       }
     },
-    [gridRef, pageCount, scheduleRenderCheck],
+    [gridElementRef, gridRef, pageCount, scheduleRenderCheck],
   );
 
   useEffect(

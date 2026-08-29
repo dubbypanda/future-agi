@@ -96,6 +96,7 @@ const SessionGrid = React.forwardRef(
     const [open, setOpen] = useState(false);
     const [currentRowData, setCurrentRowData] = useState(null);
     const [continuationNotice, setContinuationNotice] = useState(null);
+    const gridElementRef = useRef(null);
     const {
       beginPageLoad,
       page,
@@ -107,7 +108,7 @@ const SessionGrid = React.forwardRef(
       isPageLoading,
       publishPage,
       resetPagination,
-    } = useCursorGridPagination(gridApiRef);
+    } = useCursorGridPagination(gridApiRef, gridElementRef);
     const continueCursorSearch = useCallback(() => {
       if (!continuationNotice) return;
       if (retryServerSideCursorLoad(gridApiRef?.current?.api)) {
@@ -651,6 +652,7 @@ const SessionGrid = React.forwardRef(
               onContinue={continueCursorSearch}
             />
             <Box
+              ref={gridElementRef}
               className={`ag-theme-quartz ${className} ${cellHeight && cellHeight !== "Short" ? "cell-wrap" : ""}`}
               style={{ flex: 1, minHeight: 0 }}
             >

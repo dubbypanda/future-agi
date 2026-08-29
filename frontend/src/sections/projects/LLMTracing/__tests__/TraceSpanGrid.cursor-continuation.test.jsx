@@ -149,6 +149,7 @@ vi.mock("../LLMTracingSpanDetailDrawer", () => ({ default: () => null }));
 
 import SpanGrid from "../SpanGrid";
 import TraceGrid from "../TraceGrid";
+import { paintedGridRowSignature } from "../useCursorGridPagination";
 
 const listResponse = ({
   rows = [],
@@ -287,6 +288,24 @@ const renderGridSubject = ({ kind, ref, props, filters }) =>
   ) : (
     <SpanGrid ref={ref} {...props} filters={filters} compareType="primary" />
   );
+
+describe("painted grid row detection", () => {
+  it("uses the owning grid element when AG Grid does not expose getGui", () => {
+    const gridElement = document.createElement("div");
+    gridElement.innerHTML = `
+      <div class="ag-center-cols-container">
+        <div class="ag-row" row-index="0" row-id="trace-1">Trace one</div>
+      </div>
+    `;
+
+    expect(paintedGridRowSignature({}, { current: gridElement })).toContain(
+      "trace-1:Trace one",
+    );
+
+    gridElement.querySelector(".ag-row").textContent = "   ";
+    expect(paintedGridRowSignature({}, { current: gridElement })).toBeNull();
+  });
+});
 
 describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
   beforeEach(() => {
