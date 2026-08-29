@@ -35,29 +35,27 @@ const renderedRowTokens = (api) => {
     .map((node) => node.id ?? node.data);
 };
 
-const hasPaintedGridRows = (api) => {
+const paintedGridRowSignature = (api) => {
   const gridElement = api?.getGui?.();
-  if (!gridElement || typeof gridElement.querySelector !== "function") {
-    return null;
+  if (!gridElement || typeof gridElement.querySelectorAll !== "function") {
+    return undefined;
   }
 
-  const renderedIndexes = (api?.getRenderedNodes?.() ?? [])
-    .filter((node) => node?.data != null && Number.isSafeInteger(node.rowIndex))
-    .map((node) => node.rowIndex);
-
-  if (renderedIndexes.length > 0) {
-    return renderedIndexes.some((rowIndex) =>
-      gridElement.querySelector(
-        `.ag-center-cols-container .ag-row[row-index="${rowIndex}"]:not(.ag-row-loading)`,
-      ),
-    );
-  }
-
-  return Boolean(
-    gridElement.querySelector(
+  const rows = Array.from(
+    gridElement.querySelectorAll(
       ".ag-center-cols-container .ag-row[row-index]:not(.ag-row-loading)",
     ),
   );
+  if (rows.length === 0) return null;
+
+  // AG Grid resets row-index/row-id on each server-side page. Include the
+  // rendered cell text so an old page cannot satisfy the new-page paint check.
+  return rows
+    .map(
+      (row) =>
+        `${row.getAttribute?.("row-index") ?? ""}:${row.getAttribute?.("row-id") ?? ""}:${row.textContent ?? ""}`,
+    )
+    .join("\n");
 };
 
 /**
@@ -96,16 +94,21 @@ export default function useCursorGridPagination(gridRef) {
         const currentPage = api?.paginationGetCurrentPage?.();
         const nextTokens = renderedRowTokens(api);
         const targetPageIsVisible = currentPage === transition.page - 1;
+        const rowTokensChanged =
+          transition.previousRowTokens.size === 0 ||
+          nextTokens.some((token) => !transition.previousRowTokens.has(token));
         const targetRowsAreRendered =
-          targetPageIsVisible &&
-          nextTokens.length > 0 &&
-          (transition.previousRowTokens.size === 0 ||
-            nextTokens.some(
-              (token) => !transition.previousRowTokens.has(token),
-            ));
-        const paintedRows = hasPaintedGridRows(api);
+          targetPageIsVisible && nextTokens.length > 0;
+        const paintedRowSignature = paintedGridRowSignature(api);
+        const canInspectPaintedRows =
+          transition.previousPaintedRowSignature !== undefined &&
+          paintedRowSignature !== undefined;
         const targetRowsHavePainted =
-          targetRowsAreRendered && paintedRows !== false;
+          targetRowsAreRendered &&
+          (canInspectPaintedRows
+            ? paintedRowSignature !== null &&
+              paintedRowSignature !== transition.previousPaintedRowSignature
+            : rowTokensChanged);
         transition.readyFrameCount = targetRowsHavePainted
           ? transition.readyFrameCount + 1
           : 0;
@@ -227,6 +230,7 @@ export default function useCursorGridPagination(gridRef) {
           id: transitionId,
           page: nextPage,
           previousRowTokens: new Set(renderedRowTokens(api)),
+          previousPaintedRowSignature: paintedGridRowSignature(api),
           readyFrameCount: 0,
           deadline: Date.now() + OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
         };

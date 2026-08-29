@@ -178,11 +178,21 @@ const makeParams = (startRow = 0, endRow = startRow + 25) => {
   let currentPage = Math.floor(startRow / (endRow - startRow));
   let renderedNodes = [];
   let paintedRows = true;
+  let paintedSignature = `page-${currentPage + 1}`;
   const api = {
     deselectAll: vi.fn(),
     forEachNode: vi.fn(),
     getGui: vi.fn(() => ({
-      querySelector: vi.fn(() => (paintedRows ? {} : null)),
+      querySelectorAll: vi.fn(() =>
+        paintedRows
+          ? [
+              {
+                getAttribute: vi.fn(() => "0"),
+                textContent: paintedSignature,
+              },
+            ]
+          : [],
+      ),
     })),
     getRenderedNodes: vi.fn(() => renderedNodes),
     hideOverlay: vi.fn(),
@@ -196,6 +206,7 @@ const makeParams = (startRow = 0, endRow = startRow + 25) => {
     showNoRowsOverlay: vi.fn(),
     setPaintedRows: (nextPaintedRows) => {
       paintedRows = nextPaintedRows;
+      if (nextPaintedRows) paintedSignature = `page-${currentPage + 1}`;
     },
   };
   return {
@@ -206,6 +217,7 @@ const makeParams = (startRow = 0, endRow = startRow + 25) => {
         data,
         id: data.span_id ?? data.trace_id ?? String(startRow + index),
       }));
+      paintedSignature = `page-${currentPage + 1}`;
     }),
     fail: vi.fn(),
   };
@@ -379,6 +391,7 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
         id: data.span_id ?? data.trace_id,
       })),
     );
+    finalPageParams.api.setPaintedRows(true);
     await waitFor(() =>
       expect(screen.queryByText("Loading page…")).not.toBeInTheDocument(),
     );

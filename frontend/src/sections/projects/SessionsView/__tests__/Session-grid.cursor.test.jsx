@@ -126,9 +126,19 @@ const makeParams = ({ startRow = 0, sortModel = [] } = {}) => {
   let currentPage = Math.floor(startRow / 25);
   let renderedNodes = [];
   let paintedRows = true;
+  let paintedSignature = `page-${currentPage + 1}`;
   const api = {
     getGui: vi.fn(() => ({
-      querySelector: vi.fn(() => (paintedRows ? {} : null)),
+      querySelectorAll: vi.fn(() =>
+        paintedRows
+          ? [
+              {
+                getAttribute: vi.fn(() => "0"),
+                textContent: paintedSignature,
+              },
+            ]
+          : [],
+      ),
     })),
     getRenderedNodes: vi.fn(() => renderedNodes),
     paginationGetCurrentPage: vi.fn(() => currentPage),
@@ -141,6 +151,7 @@ const makeParams = ({ startRow = 0, sortModel = [] } = {}) => {
     retryServerSideLoads: vi.fn(),
     setPaintedRows: (nextPaintedRows) => {
       paintedRows = nextPaintedRows;
+      if (nextPaintedRows) paintedSignature = `page-${currentPage + 1}`;
     },
   };
   return {
@@ -151,6 +162,7 @@ const makeParams = ({ startRow = 0, sortModel = [] } = {}) => {
         data,
         id: data.session_id,
       }));
+      paintedSignature = `page-${currentPage + 1}`;
     }),
     fail: vi.fn(),
   };
