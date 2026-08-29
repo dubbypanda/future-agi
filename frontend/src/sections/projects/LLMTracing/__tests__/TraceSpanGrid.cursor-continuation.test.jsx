@@ -177,9 +177,13 @@ const listResponse = ({
 const makeParams = (startRow = 0, endRow = startRow + 25) => {
   let currentPage = Math.floor(startRow / (endRow - startRow));
   let renderedNodes = [];
+  let paintedRows = true;
   const api = {
     deselectAll: vi.fn(),
     forEachNode: vi.fn(),
+    getGui: vi.fn(() => ({
+      querySelector: vi.fn(() => (paintedRows ? {} : null)),
+    })),
     getRenderedNodes: vi.fn(() => renderedNodes),
     hideOverlay: vi.fn(),
     paginationGetCurrentPage: vi.fn(() => currentPage),
@@ -190,6 +194,9 @@ const makeParams = (startRow = 0, endRow = startRow + 25) => {
     refreshServerSide: vi.fn(),
     retryServerSideLoads: vi.fn(),
     showNoRowsOverlay: vi.fn(),
+    setPaintedRows: (nextPaintedRows) => {
+      paintedRows = nextPaintedRows;
+    },
   };
   return {
     request: { startRow, endRow, sortModel: [] },
@@ -441,6 +448,7 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     // Model the real AG Grid handoff: the API response can settle before its
     // target row nodes replace the previous page in the viewport.
     secondPage.success.mockImplementation(() => {});
+    secondPage.api.setPaintedRows(false);
     resolveSecondPage(listResponse({ rows: [renderedSecondPageRow] }));
     await act(async () => pendingRead);
 
@@ -453,6 +461,12 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
         data: renderedSecondPageRow,
       },
     ]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+
+    secondPage.api.setPaintedRows(true);
     await waitFor(() => {
       expect(screen.queryByText("Loading page…")).not.toBeInTheDocument();
       expect(gridState.props.loading).toBe(false);

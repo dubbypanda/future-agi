@@ -35,6 +35,19 @@ const renderedRowTokens = (api) => {
     .map((node) => node.id ?? node.data);
 };
 
+const hasPaintedGridRows = (api) => {
+  const gridElement = api?.getGui?.();
+  if (!gridElement || typeof gridElement.querySelector !== "function") {
+    return null;
+  }
+
+  return Boolean(
+    gridElement.querySelector(
+      ".ag-center-cols-container .ag-row[row-index]:not(.ag-row-loading)",
+    ),
+  );
+};
+
 /**
  * Cursor-backed lists can expose only pages whose opaque cursor chain has
  * already been discovered. Keep AG Grid's synthetic row count and the visible
@@ -78,12 +91,21 @@ export default function useCursorGridPagination(gridRef) {
             nextTokens.some(
               (token) => !transition.previousRowTokens.has(token),
             ));
+        const paintedRows = hasPaintedGridRows(api);
+        const targetRowsHavePainted =
+          targetRowsAreRendered && paintedRows !== false;
+        transition.readyFrameCount = targetRowsHavePainted
+          ? transition.readyFrameCount + 1
+          : 0;
         const activeRequest = activePageLoadRequestRef.current;
         const timedOutWithoutRequest =
           Date.now() >= transition.deadline &&
           activeRequest?.page !== transition.page;
 
-        if (targetRowsAreRendered || timedOutWithoutRequest) {
+        // AG Grid can expose the target RowNodes before it commits their DOM.
+        // Require a painted row plus one complete follow-up frame so React's
+        // loading state cannot be set and cleared inside the same paint.
+        if (transition.readyFrameCount >= 2 || timedOutWithoutRequest) {
           pageTransitionRef.current = null;
           if (activeRequest?.page !== transition.page) {
             setIsPageLoading(false);
@@ -193,6 +215,7 @@ export default function useCursorGridPagination(gridRef) {
           id: transitionId,
           page: nextPage,
           previousRowTokens: new Set(renderedRowTokens(api)),
+          readyFrameCount: 0,
           deadline: Date.now() + OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
         };
         setIsPageLoading(true);
