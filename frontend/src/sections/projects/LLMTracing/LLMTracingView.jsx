@@ -145,6 +145,7 @@ import { useParams, useNavigate } from "react-router";
 import axios, { endpoints } from "src/utils/axios";
 
 import { PROJECT_SOURCE } from "src/utils/constants";
+import { OBSERVE_LIST_REFRESH_EVENT } from "../observeEvents";
 import { useLLMTracingFilters } from "./useLLMTracingFilters";
 import { isTraceListProjectReady } from "./projectSourceMode";
 import { canonicalObserveViewMode } from "./viewMode";
@@ -1151,6 +1152,23 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   const projectSource = isUserMode
     ? PROJECT_SOURCE.OBSERVE
     : projectDetail?.source;
+
+  useEffect(() => {
+    if (projectSource !== PROJECT_SOURCE.SIMULATOR) return undefined;
+
+    const refreshSimulatorRows = () => {
+      primaryCallLogsGridRef.current?.refresh?.();
+      compareCallLogsGridRef.current?.refresh?.();
+    };
+
+    window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshSimulatorRows);
+    return () =>
+      window.removeEventListener(
+        OBSERVE_LIST_REFRESH_EVENT,
+        refreshSimulatorRows,
+      );
+  }, [projectSource]);
+
   const hydrateProjectFilterList = useCallback(
     (filters, createId) => {
       const hydrated = hydrateStoredFilterList(filters, createId);

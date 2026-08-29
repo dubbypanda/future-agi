@@ -43,6 +43,7 @@ import {
 import ListCursorContinuationNotice from "src/sections/projects/LLMTracing/ListCursorContinuationNotice";
 import CursorGridPagination from "src/sections/projects/LLMTracing/CursorGridPagination";
 import useCursorGridPagination from "src/sections/projects/LLMTracing/useCursorGridPagination";
+import { OBSERVE_LIST_REFRESH_EVENT } from "../observeEvents";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import {
@@ -96,6 +97,7 @@ const SessionGrid = React.forwardRef(
     const [open, setOpen] = useState(false);
     const [currentRowData, setCurrentRowData] = useState(null);
     const [continuationNotice, setContinuationNotice] = useState(null);
+    const activeListReadsRef = useRef(0);
     const gridElementRef = useRef(null);
     const {
       beginPageLoad,
@@ -115,6 +117,17 @@ const SessionGrid = React.forwardRef(
         setContinuationNotice(null);
       }
     }, [continuationNotice, gridApiRef]);
+    useEffect(() => {
+      const refreshRows = () => {
+        if (activeListReadsRef.current > 0) return;
+        withLiveGridApi(gridApiRef?.current?.api, (api) =>
+          api.refreshServerSide?.({ purge: false }),
+        );
+      };
+      window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
+      return () =>
+        window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
+    }, [gridApiRef]);
     const theme = useTheme();
     const agTheme = useAgThemeWith(getSessionGridThemeParams(theme));
     const handleDrawerClose = () => {
@@ -286,6 +299,7 @@ const SessionGrid = React.forwardRef(
             let requestGeneration = null;
             try {
               if (!isGridApiLive(params.api)) return;
+              activeListReadsRef.current += 1;
               const { request } = params;
 
               const requestPageSize = request.endRow - request.startRow;
@@ -541,6 +555,10 @@ const SessionGrid = React.forwardRef(
               // snackbar above is the explicit failure state instead.
               params.fail();
             } finally {
+              activeListReadsRef.current = Math.max(
+                0,
+                activeListReadsRef.current - 1,
+              );
               finishPageLoad(pageLoadRequestId, {
                 succeeded: pageLoadSucceeded,
                 rowCount: pageLoadRowCount,

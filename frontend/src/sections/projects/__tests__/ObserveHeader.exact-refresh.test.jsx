@@ -3,11 +3,16 @@ import PropTypes from "prop-types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "src/utils/test-utils";
 import ObserveHeader from "../ObserveHeader";
+import {
+  OBSERVE_LIST_REFRESH_EVENT,
+  OBSERVE_PAGE_CHANGED_EVENT,
+} from "../observeEvents";
 
 const h = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   useMutation: vi.fn(),
   getStorage: vi.fn(() => false),
+  setStorage: vi.fn(),
   observeId: "project-1",
   pathname: "/dashboard/observe/project-1/llm-tracing",
 }));
@@ -25,7 +30,7 @@ vi.mock("react-router", () => ({
 
 vi.mock("src/hooks/use-local-storage", () => ({
   getStorage: h.getStorage,
-  setStorage: vi.fn(),
+  setStorage: h.setStorage,
 }));
 vi.mock("src/routes/hooks/use-url-state", () => ({
   useUrlState: (_key, initial) => [initial, vi.fn()],
@@ -223,16 +228,40 @@ describe("ObserveHeader exact aggregation refresh state", () => {
     vi.useFakeTimers();
     h.getStorage.mockReturnValue(true);
     const aggregationRefresh = vi.fn();
+    const listRefresh = vi.fn();
     window.addEventListener("observe-refresh", aggregationRefresh, {
+      once: true,
+    });
+    window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, listRefresh, {
       once: true,
     });
     const refreshData = renderHeader();
 
     act(() => vi.advanceTimersByTime(10_000));
 
-    expect(refreshData).toHaveBeenCalledWith({ includeAggregations: false });
+    expect(refreshData).not.toHaveBeenCalled();
+    expect(listRefresh).toHaveBeenCalledOnce();
     expect(aggregationRefresh).not.toHaveBeenCalled();
     expect(screen.queryByText(/Last updated on/i)).not.toBeInTheDocument();
+  });
+
+  it("turns auto refresh off when an explicit paginator leaves page one", () => {
+    vi.useFakeTimers();
+    h.getStorage.mockReturnValue(true);
+    const listRefresh = vi.fn();
+    window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, listRefresh);
+    renderHeader();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(OBSERVE_PAGE_CHANGED_EVENT, { detail: { page: 2 } }),
+      );
+    });
+    expect(h.setStorage).toHaveBeenCalledWith("autoRefresh", false);
+
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(listRefresh).not.toHaveBeenCalled();
+    window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, listRefresh);
   });
 
   it.each([

@@ -150,6 +150,10 @@ vi.mock("../LLMTracingSpanDetailDrawer", () => ({ default: () => null }));
 import SpanGrid from "../SpanGrid";
 import TraceGrid from "../TraceGrid";
 import { paintedGridRowSignature } from "../useCursorGridPagination";
+import {
+  OBSERVE_LIST_REFRESH_EVENT,
+  OBSERVE_PAGE_CHANGED_EVENT,
+} from "../../observeEvents";
 
 const listResponse = ({
   rows = [],
@@ -342,6 +346,10 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
   });
 
   it("loads 25 rows by default and advances only from page controls", async () => {
+    const pageChanged = vi.fn();
+    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged, {
+      once: true,
+    });
     const rows = Array.from({ length: 25 }, (_, index) =>
       kind === "trace"
         ? { trace_id: `trace-${index}`, project_id: "project-1" }
@@ -397,6 +405,8 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
     expect(params.api.paginationGoToPage).toHaveBeenCalledWith(1);
+    expect(pageChanged).toHaveBeenCalledOnce();
+    expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
     expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
     expect(screen.getByRole("button", { name: "page 2" })).toHaveAttribute(
       "aria-current",
@@ -1133,6 +1143,50 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
       await replacementRead;
     });
     await waitFor(() => expect(gridState.props.loading).toBe(false));
+  });
+
+  it("uses the preserve-rows path for list-only auto refresh", async () => {
+    getMock.mockResolvedValueOnce(listResponse());
+    renderGrid(kind);
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    const params = makeParams();
+    gridState.api = params.api;
+    await getRows(params);
+    await waitFor(() => expect(gridState.props.loading).toBe(false));
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+
+    expect(params.api.refreshServerSide).toHaveBeenCalledWith({ purge: false });
+    expect(gridState.props.loading).toBe(false);
+  });
+
+  it("does not stack an auto refresh on an active list read", async () => {
+    let resolveResponse;
+    getMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    renderGrid(kind);
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    const params = makeParams();
+    gridState.api = params.api;
+    let pendingRead;
+    act(() => {
+      pendingRead = gridState.props.serverSideDatasource.getRows(params);
+    });
+    await waitFor(() => expect(resolveResponse).toBeTypeOf("function"));
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveResponse(listResponse());
+      await pendingRead;
+    });
   });
 });
 

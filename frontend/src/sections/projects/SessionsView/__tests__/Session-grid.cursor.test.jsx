@@ -75,6 +75,7 @@ vi.mock("../ReplaySessions/store", () => {
 });
 
 import SessionGrid from "../Session-grid";
+import { OBSERVE_LIST_REFRESH_EVENT } from "../../observeEvents";
 
 const sessionResponse = ({
   rows = [],
@@ -201,6 +202,44 @@ describe("SessionGrid cursor continuation", () => {
     expect(gridState.props.maxBlocksInCache).toBe(5);
     expect(gridState.props.maxConcurrentDatasourceRequests).toBe(1);
     expect(screen.getByLabelText("Results per page")).toHaveTextContent("25");
+  });
+
+  it("refreshes visible session rows without purging them", async () => {
+    renderGrid();
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+    const params = makeParams();
+    gridState.api = params.api;
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+
+    expect(params.api.refreshServerSide).toHaveBeenCalledWith({ purge: false });
+  });
+
+  it("does not stack session auto refreshes while a read is pending", async () => {
+    let resolveResponse;
+    getMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    renderGrid();
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+    const params = makeParams();
+    gridState.api = params.api;
+    let pendingRead;
+    act(() => {
+      pendingRead = gridState.props.serverSideDatasource.getRows(params);
+    });
+    await waitFor(() => expect(resolveResponse).toBeTypeOf("function"));
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveResponse(sessionResponse());
+      await pendingRead;
+    });
   });
 
   it("loads a numbered next page only after explicit navigation when cursor metadata is absent", async () => {

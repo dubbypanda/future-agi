@@ -68,6 +68,7 @@ import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
+import { OBSERVE_LIST_REFRESH_EVENT } from "../observeEvents";
 
 const traceRowIdentity = (row) => {
   const id = row?.trace_id || row?.id;
@@ -253,9 +254,17 @@ const TraceGrid = React.forwardRef(
       // their replacement is complete. Filter/range changes replace the
       // datasource so rows from a different query are never presented as
       // current.
-      const handler = () => refreshGrid(false);
-      window.addEventListener("observe-refresh", handler);
-      return () => window.removeEventListener("observe-refresh", handler);
+      const manualRefresh = () => refreshGrid(false);
+      const autoRefresh = () => {
+        if (inFlightPageLoads.current.size > 0) return;
+        refreshGrid(false);
+      };
+      window.addEventListener("observe-refresh", manualRefresh);
+      window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, autoRefresh);
+      return () => {
+        window.removeEventListener("observe-refresh", manualRefresh);
+        window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, autoRefresh);
+      };
     }, [refreshGrid]);
 
     // Keep the explicit reset event aligned with query-bound invalidation: both

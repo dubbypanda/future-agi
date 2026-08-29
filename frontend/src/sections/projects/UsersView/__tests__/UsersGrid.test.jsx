@@ -103,6 +103,10 @@ vi.mock("src/utils/axios", () => ({
 }));
 
 import UsersGrid from "../UsersGrid";
+import {
+  OBSERVE_LIST_REFRESH_EVENT,
+  OBSERVE_PAGE_CHANGED_EVENT,
+} from "../../observeEvents";
 
 const usersResponse = ({
   rows = [],
@@ -216,6 +220,51 @@ describe("UsersGrid deterministic pagination", () => {
     expect(gridState.props.cacheBlockSize).toBe(25);
     expect(gridState.props.maxBlocksInCache).toBe(5);
     expect(gridState.props.maxConcurrentDatasourceRequests).toBe(1);
+  });
+
+  it("preserves visible users on auto refresh and reports page navigation", () => {
+    renderGrid();
+    const params = makeGridParams();
+    gridState.api = params.api;
+    const pageChanged = vi.fn();
+    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged, {
+      once: true,
+    });
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).toHaveBeenCalledWith({ purge: false });
+
+    gridState.props.onPaginationChanged({
+      api: { paginationGetCurrentPage: () => 1 },
+    });
+    expect(pageChanged).toHaveBeenCalledOnce();
+    expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
+  });
+
+  it("does not stack user auto refreshes while a read is pending", async () => {
+    let resolveResponse;
+    getMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    renderGrid();
+    const params = makeGridParams();
+    gridState.api = params.api;
+    let pendingRead;
+    act(() => {
+      pendingRead = gridState.props.serverSideDatasource.getRows(params);
+    });
+    await waitFor(() => expect(resolveResponse).toBeTypeOf("function"));
+
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveResponse(usersResponse());
+      await pendingRead;
+    });
   });
 
   it("opts the first unsorted request into cursor mode with the active filters", async () => {

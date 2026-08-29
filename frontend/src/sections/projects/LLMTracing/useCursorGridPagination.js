@@ -5,6 +5,7 @@ import {
   OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
 } from "src/config/runtime_limits";
 import { withLiveGridApi } from "src/utils/gridApi";
+import { dispatchObservePageChanged } from "../observeEvents";
 
 const requestRenderFrame = (callback) => {
   if (
@@ -287,6 +288,7 @@ export default function useCursorGridPagination(gridRef, gridElementRef) {
         // published, so keep the requested page authoritative until the
         // datasource confirms it in publishPage().
         setPage(nextPage);
+        dispatchObservePageChanged(nextPage);
         scheduleRenderCheck(transitionId);
       } else {
         pageTransitionRef.current = null;

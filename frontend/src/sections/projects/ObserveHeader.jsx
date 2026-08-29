@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { flushSync } from "react-dom";
 import PropTypes from "prop-types";
 import {
@@ -28,6 +34,10 @@ import ConfigureProject from "../project-detail/ConfigureProject";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import { ObserveIconButton } from "./SharedComponents";
 import { useGetProjectDetails } from "src/api/project/project-detail";
+import {
+  OBSERVE_LIST_REFRESH_EVENT,
+  OBSERVE_PAGE_CHANGED_EVENT,
+} from "./observeEvents";
 
 // CustomBackButton removed — replaced with inline Box button
 
@@ -59,10 +69,10 @@ const ObserveHeader = ({ text, refreshData, resetFilters }) => {
   const [autoRefresh, _setAutoRefresh] = useState(
     () => getStorage("autoRefresh") ?? false,
   );
-  const setAutoRefresh = (value) => {
+  const setAutoRefresh = useCallback((value) => {
     _setAutoRefresh(value);
     setStorage("autoRefresh", value);
-  };
+  }, []);
   const [excludeSimulationCalls, setExcludeSimulationCalls] = useUrlState(
     "remove_simulation_calls",
     false,
@@ -104,9 +114,15 @@ const ObserveHeader = ({ text, refreshData, resetFilters }) => {
     let intervalId;
     if (autoRefresh) {
       intervalId = setInterval(() => {
-        // Auto-refresh is for row/list data only. Exact aggregations are
-        // refreshed solely by the explicit reload action below.
-        refreshData?.({ includeAggregations: false });
+        // Keep the current rows painted while their same-query replacement is
+        // fetched. Calling the parent refresh callback directly bypasses each
+        // grid's preserve-rows path and makes the whole table flash black.
+        // Exact aggregations remain an explicit reload-only operation.
+        window.dispatchEvent(
+          new CustomEvent(OBSERVE_LIST_REFRESH_EVENT, {
+            detail: { observeId },
+          }),
+        );
       }, 10000);
     }
     return () => {
@@ -114,7 +130,17 @@ const ObserveHeader = ({ text, refreshData, resetFilters }) => {
         clearInterval(intervalId);
       }
     };
-  }, [autoRefresh, refreshData]);
+  }, [autoRefresh, observeId]);
+
+  useEffect(() => {
+    if (!autoRefresh) return undefined;
+    const handlePageChanged = (event) => {
+      if (Number(event?.detail?.page) > 1) setAutoRefresh(false);
+    };
+    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, handlePageChanged);
+    return () =>
+      window.removeEventListener(OBSERVE_PAGE_CHANGED_EVENT, handlePageChanged);
+  }, [autoRefresh, setAutoRefresh]);
 
   useEffect(() => {
     setLastUpdated(null);

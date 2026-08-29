@@ -41,11 +41,15 @@ import {
   sanitizeUserSortModel,
 } from "./userSortContract";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
-import { isGridApiLive } from "src/utils/gridApi";
+import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import {
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
 } from "src/config/runtime_limits";
+import {
+  dispatchObservePageChanged,
+  OBSERVE_LIST_REFRESH_EVENT,
+} from "../observeEvents";
 
 const getUsersGridThemeParams = (theme) => ({
   columnBorder: false,
@@ -76,6 +80,7 @@ const UsersGrid = React.memo(
     const theme = useTheme();
     const agTheme = useAgThemeWith(getUsersGridThemeParams(theme));
     const gridApiRef = useRef(null);
+    const activeListReadsRef = useRef(0);
     const cursorPagination = useRef(
       createListCursorPagination({
         pageParam: "current_page_index",
@@ -117,6 +122,18 @@ const UsersGrid = React.memo(
     );
 
     const navigate = useNavigate();
+
+    useEffect(() => {
+      const refreshRows = () => {
+        if (activeListReadsRef.current > 0) return;
+        withLiveGridApi(gridApiRef.current?.api, (api) =>
+          api.refreshServerSide?.({ purge: false }),
+        );
+      };
+      window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
+      return () =>
+        window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
+    }, []);
 
     useEffect(() => {
       const initial = getUsersColumnConfig();
@@ -240,6 +257,7 @@ const UsersGrid = React.memo(
           let continuationPending = false;
           try {
             if (!isGridApiLive(params.api)) return;
+            activeListReadsRef.current += 1;
             setIsLoading(true);
             params.api.hideOverlay();
             const { request } = params;
@@ -524,6 +542,10 @@ const UsersGrid = React.memo(
             setSearchState("error");
             failServerSideGridRead(params);
           } finally {
+            activeListReadsRef.current = Math.max(
+              0,
+              activeListReadsRef.current - 1,
+            );
             if (!continuationPending) setIsLoading(false);
           }
         },
@@ -771,6 +793,12 @@ const UsersGrid = React.memo(
               onCellClicked={onCellClicked}
               onRowSelected={onSelectionChanged}
               onGridReady={onGridReady}
+              onPaginationChanged={({ api }) => {
+                const page = Number(api?.paginationGetCurrentPage?.()) + 1;
+                if (Number.isSafeInteger(page) && page > 1) {
+                  dispatchObservePageChanged(page);
+                }
+              }}
               noRowsOverlayComponent={() =>
                 continuationNotice
                   ? null
