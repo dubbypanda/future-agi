@@ -295,6 +295,7 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     expect(gridState.props.paginationPageSize).toBe(25);
     expect(gridState.props.cacheBlockSize).toBe(25);
     expect(gridState.props.suppressPaginationPanel).toBe(true);
+    expect(gridState.props.onPaginationChanged).toBeUndefined();
     expect(screen.getByLabelText("Results per page")).toHaveTextContent("25");
 
     const params = makeParams();
@@ -315,6 +316,10 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
     expect(params.api.paginationGoToPage).toHaveBeenCalledWith(1);
+    expect(screen.getByRole("button", { name: "page 2" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
     // The page button itself does not prefetch; AG Grid requests page two only
     // after performing the explicit pagination transition.
     expect(getMock).toHaveBeenCalledTimes(1);

@@ -50,13 +50,6 @@ export default function useCursorGridPagination(gridRef) {
     return discoveredRowCount;
   }, []);
 
-  const onPaginationChanged = useCallback((event) => {
-    const currentPage = event.api?.paginationGetCurrentPage?.();
-    if (Number.isSafeInteger(currentPage) && currentPage >= 0) {
-      setPage(currentPage + 1);
-    }
-  }, []);
-
   const goToPage = useCallback(
     (nextPage) => {
       if (
@@ -66,9 +59,16 @@ export default function useCursorGridPagination(gridRef) {
       ) {
         return;
       }
-      withLiveGridApi(gridRef?.current?.api, (api) =>
+      const moved = withLiveGridApi(gridRef?.current?.api, (api) =>
         api.paginationGoToPage?.(nextPage - 1),
       );
+      if (moved) {
+        // Cursor pagination is driven exclusively by these controls. AG Grid
+        // can briefly report page zero again when a terminal row count is
+        // published, so keep the requested page authoritative until the
+        // datasource confirms it in publishPage().
+        setPage(nextPage);
+      }
     },
     [gridRef, pageCount],
   );
@@ -94,14 +94,12 @@ export default function useCursorGridPagination(gridRef) {
       pageSize,
       changePageSize,
       goToPage,
-      onPaginationChanged,
       publishPage,
       resetPagination,
     }),
     [
       changePageSize,
       goToPage,
-      onPaginationChanged,
       page,
       pageCount,
       pageSize,

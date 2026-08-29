@@ -260,7 +260,6 @@ const SpanGrid = React.forwardRef(
       pageSize,
       changePageSize,
       goToPage,
-      onPaginationChanged,
       publishPage,
       resetPagination,
     } = useCursorGridPagination(gridRef);
@@ -891,7 +890,6 @@ const SpanGrid = React.forwardRef(
           paginationPageSize={pageSize}
           paginationPageSizeSelector={false}
           suppressPaginationPanel={true}
-          onPaginationChanged={onPaginationChanged}
           cacheBlockSize={pageSize}
           maxBlocksInCache={OBSERVE_GRID_MAX_BLOCKS_IN_CACHE}
           maxConcurrentDatasourceRequests={OBSERVE_GRID_MAX_CONCURRENT_REQUESTS}
