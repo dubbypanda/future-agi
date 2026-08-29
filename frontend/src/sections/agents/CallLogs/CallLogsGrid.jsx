@@ -55,6 +55,7 @@ import {
   OBSERVE_LIST_DEFAULT_PAGE_SIZE,
   OBSERVE_LIST_PAGE_SIZE_OPTIONS,
 } from "src/config/runtime_limits";
+import { dispatchObservePageChanged } from "src/sections/projects/observeEvents";
 
 const CELL_HEIGHT_MAP = { Short: 40, Medium: 52, Large: 68, "Extra Large": 88 };
 
@@ -129,9 +130,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(
-    OBSERVE_LIST_DEFAULT_PAGE_SIZE,
-  );
+  const [pageLimit, setPageLimit] = useState(OBSERVE_LIST_DEFAULT_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [cursorTransportRevision, advanceCursorTransport] = useState(0);
   const cursorPagination = useRef(
@@ -161,6 +160,9 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     showMetricsIds: undefined,
     isLoading: undefined,
   });
+  const lastUsableRowsRef = useRef([]);
+  const retainedRefreshRowsRef = useRef([]);
+  const preserveRowsDuringRefreshRef = useRef(false);
   const { reset: resetToggleAnnotationsStore } =
     useShallowToggleAnnotationsStore((state) => ({
       reset: state.reset,
@@ -191,6 +193,9 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   // changes. A cursor is signed against the complete normalized request, not
   // only the visible filter array.
   if (lastCursorQuerySignature !== cursorQuerySignature) {
+    lastUsableRowsRef.current = [];
+    retainedRefreshRowsRef.current = [];
+    preserveRowsDuringRefreshRef.current = false;
     cursorPagination.current.reset();
     setLastCursorQuerySignature(cursorQuerySignature);
     setPage(1);
@@ -232,32 +237,50 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     showMetricsIds: state.showMetricsIds,
   }));
   const gridRef = useRef(null);
-  const refreshRows = useCallback(() => {
-    if (module === "project") {
-      // Project pages use a forward-only signed cursor chain. Replaying the
-      // currently visible page during auto-refresh can return a different
-      // signed successor and invalidate an otherwise proven chain. Start a
-      // fresh generation at page one instead.
-      cursorPagination.current.reset();
-      setPage(1);
-      setTotalPages(1);
-      advanceCursorTransport((revision) => revision + 1);
-      return;
+  const refreshRows = useCallback(
+    ({ preserveRows = false } = {}) => {
+      if (module === "project") {
+        // Project pages use a forward-only signed cursor chain. Replaying the
+        // currently visible page can return a different signed successor, so
+        // every explicit refresh starts a new page-one generation. Auto-refresh
+        // snapshots the proven page-one rows while that replacement is read.
+        preserveRowsDuringRefreshRef.current =
+          preserveRows && lastUsableRowsRef.current.length > 0;
+        retainedRefreshRowsRef.current = preserveRows
+          ? lastUsableRowsRef.current
+          : [];
+        cursorPagination.current.reset();
+        setPage(1);
+        if (!preserveRowsDuringRefreshRef.current) setTotalPages(1);
+        advanceCursorTransport((revision) => revision + 1);
+        return true;
+      }
+      queryClient.invalidateQueries({ queryKey: ["callLogs", module, id] });
+      return true;
+    },
+    [id, module, queryClient],
+  );
+  const autoRefreshRows = useCallback(() => {
+    if (!enabled) return false;
+    if (module === "project" && page > 1) {
+      dispatchObservePageChanged(page);
+      return false;
     }
-    queryClient.invalidateQueries({ queryKey: ["callLogs", module, id] });
-  }, [id, module, queryClient]);
+    return refreshRows({ preserveRows: true });
+  }, [enabled, module, page, refreshRows]);
   useImperativeHandle(
     forwardedRef,
     () => ({
       deselectAll: () => gridRef.current?.api?.deselectAll(),
       refresh: refreshRows,
+      autoRefresh: autoRefreshRows,
       // Read api lazily so callers always hit the live grid instance,
       // not a null captured at forwardRef-mount time.
       get api() {
         return gridRef.current?.api;
       },
     }),
-    [refreshRows],
+    [autoRefreshRows, refreshRows],
   );
   const bufferedPage =
     module === "project"
@@ -310,12 +333,16 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
       }),
     [cursorContinuationPaused, data, error],
   );
-  const responseRows =
-    isListCursorContinuationLimitError(error) || hasBufferedSameGenerationError
-      ? bufferedPage?.rows || []
-      : Array.isArray(data?.results)
-        ? data.results
-        : [];
+  const responseRows = useMemo(
+    () =>
+      isListCursorContinuationLimitError(error) ||
+      hasBufferedSameGenerationError
+        ? bufferedPage?.rows || []
+        : Array.isArray(data?.results)
+          ? data.results
+          : [],
+    [bufferedPage, data, error, hasBufferedSameGenerationError],
+  );
   const hasCursorContinuation =
     module === "project" &&
     (exactPage
@@ -338,6 +365,18 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   const isUsableListRead =
     !error &&
     (isCompleteRead || responseRows.length > 0 || hasCursorContinuation);
+  const hasRetainedRefreshRows =
+    preserveRowsDuringRefreshRef.current &&
+    retainedRefreshRowsRef.current.length > 0 &&
+    (isLoading || Boolean(error));
+  const showLoadingSkeletons = isLoading && !hasRetainedRefreshRows;
+
+  useEffect(() => {
+    if (isLoading || error || !data || !isUsableListRead) return;
+    lastUsableRowsRef.current = responseRows;
+    preserveRowsDuringRefreshRef.current = false;
+    retainedRefreshRowsRef.current = [];
+  }, [data, error, isLoading, isUsableListRead, responseRows]);
 
   useEffect(() => {
     if (
@@ -415,7 +454,8 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   ]);
 
   const rows = useMemo(() => {
-    if (isLoading) {
+    if (hasRetainedRefreshRows) return retainedRefreshRowsRef.current;
+    if (showLoadingSkeletons) {
       return Array.from({ length: 10 }, (_, index) => ({
         id: index,
         call_summary: "",
@@ -426,7 +466,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
       }));
     }
     return responseRows;
-  }, [isLoading, responseRows]);
+  }, [hasRetainedRefreshRows, responseRows, showLoadingSkeletons]);
 
   // Pass full column list to parent (base + eval/annotation) for DisplayPanel.
   // Use a ref to avoid re-firing when callLogsColumnDefs reference changes
@@ -492,13 +532,17 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   if (
     previousConfigRef.current.configLength !== configLength ||
     previousConfigRef.current.showMetricsIds !== showMetricsIds ||
-    previousConfigRef.current.isLoading !== isLoading
+    previousConfigRef.current.isLoading !== showLoadingSkeletons
   ) {
-    previousConfigRef.current = { configLength, showMetricsIds, isLoading };
+    previousConfigRef.current = {
+      configLength,
+      showMetricsIds,
+      isLoading: showLoadingSkeletons,
+    };
     setCallLogsColumnDefs(
       getCallLogsColumnDefs(
         rows,
-        isLoading,
+        showLoadingSkeletons,
         null,
         module,
         data?.config,
@@ -544,7 +588,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
         flex: 0,
         minWidth: 120,
         hide: c.isVisible === false,
-        cellRenderer: isLoading
+        cellRenderer: showLoadingSkeletons
           ? CustomColLoadingSkeleton
           : CustomColCellRenderer,
         valueGetter: (params) => {
@@ -584,7 +628,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
       return ai - bi;
     });
     return combined;
-  }, [callLogsColumnDefs, columnVisibility, isLoading]);
+  }, [callLogsColumnDefs, columnVisibility, showLoadingSkeletons]);
   useEffect(() => {
     return () => {
       resetToggleAnnotationsStore();
@@ -820,6 +864,8 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
               id="page-size-select"
               value={pageLimit}
               onChange={(e) => {
+                preserveRowsDuringRefreshRef.current = false;
+                retainedRefreshRowsRef.current = [];
                 cursorPagination.current.reset();
                 setPage(1);
                 setPageLimit(Number(e.target.value));
@@ -842,6 +888,10 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
             color="primary"
             disabled={!isUsableListRead}
             onChange={(e, value) => {
+              if (value === page) return;
+              preserveRowsDuringRefreshRef.current = false;
+              retainedRefreshRowsRef.current = [];
+              if (module === "project") dispatchObservePageChanged(value);
               setPage(value);
             }}
             renderItem={(item) => (

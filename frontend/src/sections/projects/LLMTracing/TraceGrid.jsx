@@ -259,6 +259,7 @@ const TraceGrid = React.forwardRef(
       // current.
       const manualRefresh = () => refreshGrid(false);
       const autoRefresh = () => {
+        if (!enabled) return;
         if (page > 1) {
           dispatchObservePageChanged(page);
           return;
@@ -272,7 +273,7 @@ const TraceGrid = React.forwardRef(
         window.removeEventListener("observe-refresh", manualRefresh);
         window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, autoRefresh);
       };
-    }, [page, refreshGrid]);
+    }, [enabled, page, refreshGrid]);
 
     // Keep the explicit reset event aligned with query-bound invalidation: both
     // paths clear AG Grid, the mirrored store, and the local header state.

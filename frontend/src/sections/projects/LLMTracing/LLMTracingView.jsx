@@ -1157,8 +1157,11 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     if (projectSource !== PROJECT_SOURCE.SIMULATOR) return undefined;
 
     const refreshSimulatorRows = () => {
-      primaryCallLogsGridRef.current?.refresh?.();
-      compareCallLogsGridRef.current?.refresh?.();
+      const activeGridRef =
+        selectedGraph === "compare"
+          ? compareCallLogsGridRef
+          : primaryCallLogsGridRef;
+      activeGridRef.current?.autoRefresh?.();
     };
 
     window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshSimulatorRows);
@@ -1167,7 +1170,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
         OBSERVE_LIST_REFRESH_EVENT,
         refreshSimulatorRows,
       );
-  }, [projectSource]);
+  }, [projectSource, selectedGraph]);
 
   const hydrateProjectFilterList = useCallback(
     (filters, createId) => {
@@ -5123,7 +5126,10 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                 ref={primaryCallLogsGridRef}
                 module="project"
                 id={observeId}
-                enabled={projectSource === PROJECT_SOURCE.SIMULATOR}
+                enabled={
+                  projectSource === PROJECT_SOURCE.SIMULATOR &&
+                  selectedGraph === "primary"
+                }
                 cellHeight={cellHeight}
                 setExtraFilters={setExtraFilters}
                 columnVisibility={columns["primary-trace"]}

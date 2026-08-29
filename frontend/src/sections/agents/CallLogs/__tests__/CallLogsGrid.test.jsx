@@ -5,17 +5,18 @@ import { act, render, screen, userEvent, waitFor } from "src/utils/test-utils";
 const {
   agGridState,
   agentDetailsState,
+  getCallLogsColumnDefsMock,
   prefetchCallLogsMock,
   queryClientMock,
   useCallLogsMock,
-} =
-  vi.hoisted(() => ({
-    agGridState: { props: null },
-    agentDetailsState: { selectedVersion: "version-1" },
-    prefetchCallLogsMock: vi.fn(),
-    queryClientMock: { prefetchQuery: vi.fn() },
-    useCallLogsMock: vi.fn(),
-  }));
+} = vi.hoisted(() => ({
+  agGridState: { props: null },
+  agentDetailsState: { selectedVersion: "version-1" },
+  getCallLogsColumnDefsMock: vi.fn(() => []),
+  prefetchCallLogsMock: vi.fn(),
+  queryClientMock: { prefetchQuery: vi.fn() },
+  useCallLogsMock: vi.fn(),
+}));
 
 vi.mock("ag-grid-react", async () => {
   const ReactModule = await import("react");
@@ -41,7 +42,7 @@ vi.mock("src/hooks/use-ag-theme", () => ({
   useAgTheme: () => ({ withParams: () => ({}) }),
 }));
 vi.mock("src/sections/agents/helper", () => ({
-  getCallLogsColumnDefs: () => [],
+  getCallLogsColumnDefs: (...args) => getCallLogsColumnDefsMock(...args),
   prefetchCallLogs: (...args) => prefetchCallLogsMock(...args),
   useCallLogs: (...args) => useCallLogsMock(...args),
 }));
@@ -70,6 +71,7 @@ vi.mock("src/sections/project-detail/CompareDrawer/NoRowsOverlay", () => ({
 }));
 
 import CallLogsGrid from "../CallLogsGrid";
+import { OBSERVE_PAGE_CHANGED_EVENT } from "src/sections/projects/observeEvents";
 
 const incompleteData = {
   count: 0,
@@ -102,6 +104,7 @@ describe("CallLogsGrid bounded-read state", () => {
   beforeEach(() => {
     agGridState.props = null;
     agentDetailsState.selectedVersion = "version-1";
+    getCallLogsColumnDefsMock.mockClear();
     prefetchCallLogsMock.mockReset();
     useCallLogsMock.mockReset();
   });
@@ -165,15 +168,7 @@ describe("CallLogsGrid bounded-read state", () => {
       data: completeData,
       isLoading: false,
       error: null,
-      queryKey: [
-        "callLogs",
-        "simulate",
-        "agent-1",
-        "version-1",
-        25,
-        {},
-        1,
-      ],
+      queryKey: ["callLogs", "simulate", "agent-1", "version-1", 25, {}, 1],
     });
 
     render(<CallLogsGrid id="agent-1" module="simulate" hideDrawer />);
@@ -221,13 +216,12 @@ describe("CallLogsGrid bounded-read state", () => {
     );
 
     agentDetailsState.selectedVersion = "version-2";
-    view.rerender(
-      <CallLogsGrid id="project-1" module="project" hideDrawer />,
-    );
+    view.rerender(<CallLogsGrid id="project-1" module="project" hideDrawer />);
 
-    expect(
-      screen.getByRole("button", { name: "page 2" }),
-    ).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "page 2" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
     expect(useCallLogsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 2, pageLimit: 25 }),
     );
@@ -444,12 +438,7 @@ describe("CallLogsGrid bounded-read state", () => {
     }));
     const ref = React.createRef();
     render(
-      <CallLogsGrid
-        ref={ref}
-        id="project-1"
-        module="project"
-        hideDrawer
-      />,
+      <CallLogsGrid ref={ref} id="project-1" module="project" hideDrawer />,
     );
 
     await userEvent.click(
@@ -473,6 +462,106 @@ describe("CallLogsGrid bounded-read state", () => {
       "true",
     );
     expect(prefetchCallLogsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps proven page-one rows painted during an automatic refresh", async () => {
+    useCallLogsMock.mockImplementation(({ paginationRevision }) =>
+      paginationRevision === 0
+        ? {
+            data: completeData,
+            isLoading: false,
+            error: null,
+            queryKey: ["callLogs", "project", "project-1", 25, {}, 1, 0],
+          }
+        : {
+            data: undefined,
+            isLoading: true,
+            error: null,
+            queryKey: ["callLogs", "project", "project-1", 25, {}, 1, 1],
+          },
+    );
+    const ref = React.createRef();
+    render(
+      <CallLogsGrid ref={ref} id="project-1" module="project" hideDrawer />,
+    );
+
+    await waitFor(() =>
+      expect(agGridState.props.rowData).toEqual(completeData.results),
+    );
+    getCallLogsColumnDefsMock.mockClear();
+
+    act(() => ref.current.autoRefresh());
+
+    await waitFor(() =>
+      expect(useCallLogsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, paginationRevision: 1 }),
+      ),
+    );
+    expect(agGridState.props.rowData).toEqual(completeData.results);
+    expect(
+      getCallLogsColumnDefsMock.mock.calls.every(
+        ([, renderLoadingSkeletons]) => renderLoadingSkeletons === false,
+      ),
+    ).toBe(true);
+  });
+
+  it("disables auto-refresh instead of resetting a later project page", async () => {
+    useCallLogsMock.mockImplementation(({ page, paginationRevision }) => ({
+      data:
+        page === 1
+          ? completeData
+          : {
+              ...completeData,
+              current_page: 2,
+              total_pages: 2,
+              has_more: false,
+              next_cursor: null,
+            },
+      isLoading: false,
+      error: null,
+      queryKey: [
+        "callLogs",
+        "project",
+        "project-1",
+        25,
+        {},
+        page,
+        paginationRevision,
+      ],
+    }));
+    const ref = React.createRef();
+    const pageChanged = vi.fn();
+    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged);
+    render(
+      <CallLogsGrid ref={ref} id="project-1" module="project" hideDrawer />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /go to page 2/i }),
+    );
+    await waitFor(() =>
+      expect(useCallLogsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2, paginationRevision: 0 }),
+      ),
+    );
+    pageChanged.mockClear();
+
+    let refreshed;
+    act(() => {
+      refreshed = ref.current.autoRefresh();
+    });
+
+    expect(refreshed).toBe(false);
+    expect(pageChanged).toHaveBeenCalledOnce();
+    expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
+    expect(useCallLogsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, paginationRevision: 0 }),
+    );
+    expect(screen.getByRole("button", { name: "page 2" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    window.removeEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged);
   });
 
   it("disables AG Grid's stale loading announcement for an exact empty result", () => {
