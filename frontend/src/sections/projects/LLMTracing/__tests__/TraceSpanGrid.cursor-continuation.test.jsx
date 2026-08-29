@@ -507,6 +507,20 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
             project_id: "project-1",
             start_time: "2026-08-08T00:01:00Z",
           };
+    // AG Grid may expose speculative target RowNodes before the datasource
+    // promise settles. That model state must not dismiss the visible loader.
+    secondPage.api.getRenderedNodes.mockReturnValue([
+      {
+        id: renderedSecondPageRow.span_id ?? renderedSecondPageRow.trace_id,
+        data: renderedSecondPageRow,
+      },
+    ]);
+    secondPage.api.setPaintedRows(true);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+
     // Model the real AG Grid handoff: the API response can settle before its
     // target row nodes replace the previous page in the viewport.
     secondPage.success.mockImplementation(() => {});

@@ -146,14 +146,21 @@ export default function useCursorGridPagination(gridRef, gridElementRef) {
           transition.readyFrameCount = 1;
         }
         const activeRequest = activePageLoadRequestRef.current;
+        const targetRequestIsActive = activeRequest?.page === transition.page;
         const timedOutWithoutRequest =
           Date.now() >= transition.deadline &&
           activeRequest?.page !== transition.page;
 
         // AG Grid can expose the target RowNodes before it commits their DOM.
-        // Require a painted row plus one complete follow-up frame so React's
-        // loading state cannot be set and cleared inside the same paint.
-        if (transition.readyFrameCount >= 2 || timedOutWithoutRequest) {
+        // It can also publish those nodes while the server-side datasource is
+        // still awaiting the page response. Never settle from that speculative
+        // model state: wait for the target request to finish, then require a
+        // painted row plus one complete follow-up frame so React's loading
+        // state cannot be set and cleared inside the same paint.
+        if (
+          (!targetRequestIsActive && transition.readyFrameCount >= 2) ||
+          timedOutWithoutRequest
+        ) {
           pageTransitionRef.current = null;
           if (activeRequest?.page !== transition.page) {
             setIsPageLoading(false);
