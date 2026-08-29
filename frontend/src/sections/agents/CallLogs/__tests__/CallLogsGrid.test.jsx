@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, userEvent, waitFor } from "src/utils/test-utils";
+import { act, render, screen, userEvent, waitFor } from "src/utils/test-utils";
 
 const {
   agGridState,
@@ -128,7 +128,7 @@ describe("CallLogsGrid bounded-read state", () => {
     await waitFor(() => expect(prefetchCallLogsMock).not.toHaveBeenCalled());
   });
 
-  it("keeps complete-page rendering and next-page prefetch unchanged", async () => {
+  it("keeps exact project pagination usable without speculative cursor reads", async () => {
     useCallLogsMock.mockReturnValue({
       data: completeData,
       isLoading: false,
@@ -138,7 +138,7 @@ describe("CallLogsGrid bounded-read state", () => {
 
     render(<CallLogsGrid id="project-1" module="project" hideDrawer />);
 
-    await waitFor(() => expect(prefetchCallLogsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(prefetchCallLogsMock).not.toHaveBeenCalled());
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(agGridState.props.rowData).toEqual(completeData.results);
     expect(agGridState.props.loading).toBe(false);
@@ -149,20 +149,6 @@ describe("CallLogsGrid bounded-read state", () => {
       screen.queryByRole("button", { name: /go to page 3/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Next").closest("button")).not.toBeDisabled();
-    expect(prefetchCallLogsMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        module: "project",
-        id: "project-1",
-        page: 2,
-        pageLimit: 25,
-        paginationParams: {
-          cursor_mode: true,
-          cursor: "signed-voice-page-2",
-          page_size: 25,
-        },
-      }),
-    );
     expect(useCallLogsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         paginationParams: {
@@ -170,6 +156,37 @@ describe("CallLogsGrid bounded-read state", () => {
           page: 1,
           page_size: 25,
         },
+      }),
+    );
+  });
+
+  it("retains next-page prefetch for numbered agent-definition reads", async () => {
+    useCallLogsMock.mockReturnValue({
+      data: completeData,
+      isLoading: false,
+      error: null,
+      queryKey: [
+        "callLogs",
+        "simulate",
+        "agent-1",
+        "version-1",
+        25,
+        {},
+        1,
+      ],
+    });
+
+    render(<CallLogsGrid id="agent-1" module="simulate" hideDrawer />);
+
+    await waitFor(() => expect(prefetchCallLogsMock).toHaveBeenCalledOnce());
+    expect(prefetchCallLogsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        module: "simulate",
+        id: "agent-1",
+        version: "version-1",
+        page: 2,
+        pageLimit: 25,
       }),
     );
   });
@@ -216,7 +233,7 @@ describe("CallLogsGrid bounded-read state", () => {
     );
   });
 
-  it("does not repeat prefetch when equivalent filter params are recreated", async () => {
+  it("does not prefetch exact project cursors when filter params are recreated", async () => {
     useCallLogsMock.mockReturnValue({
       data: completeData,
       isLoading: false,
@@ -242,10 +259,10 @@ describe("CallLogsGrid bounded-read state", () => {
       />,
     );
 
-    await waitFor(() => expect(prefetchCallLogsMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(prefetchCallLogsMock).not.toHaveBeenCalled());
 
     // LLMTracingView recreates this object on ordinary parent renders. That
-    // must not restart the already-issued speculative page-two request.
+    // must neither reset the cursor generation nor issue a speculative read.
     view.rerender(
       <CallLogsGrid
         id="project-1"
@@ -255,7 +272,7 @@ describe("CallLogsGrid bounded-read state", () => {
       />,
     );
 
-    expect(prefetchCallLogsMock).toHaveBeenCalledOnce();
+    expect(prefetchCallLogsMock).not.toHaveBeenCalled();
     expect(useCallLogsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ paginationRevision: 0 }),
     );
@@ -327,7 +344,7 @@ describe("CallLogsGrid bounded-read state", () => {
       ),
     );
     expect(agGridState.props.rowData).toEqual(completeData.results);
-    await waitFor(() => expect(prefetchCallLogsMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(prefetchCallLogsMock).not.toHaveBeenCalled());
   });
 
   it("keeps buffered rows visible and surfaces retry for any same-generation transport error", async () => {
@@ -395,10 +412,67 @@ describe("CallLogsGrid bounded-read state", () => {
 
     render(<CallLogsGrid id="project-1" module="project" hideDrawer />);
 
-    await waitFor(() => expect(prefetchCallLogsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(prefetchCallLogsMock).not.toHaveBeenCalled());
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(agGridState.props.rowData).toEqual(completeData.results);
     expect(screen.getByText("Next").closest("button")).not.toBeDisabled();
+  });
+
+  it("refreshes project data from a new page-one cursor generation", async () => {
+    useCallLogsMock.mockImplementation(({ page, paginationRevision }) => ({
+      data:
+        page === 1
+          ? completeData
+          : {
+              ...completeData,
+              current_page: 2,
+              total_pages: 2,
+              has_more: false,
+              next_cursor: null,
+            },
+      isLoading: false,
+      error: null,
+      queryKey: [
+        "callLogs",
+        "project",
+        "project-1",
+        25,
+        {},
+        page,
+        paginationRevision,
+      ],
+    }));
+    const ref = React.createRef();
+    render(
+      <CallLogsGrid
+        ref={ref}
+        id="project-1"
+        module="project"
+        hideDrawer
+      />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /go to page 2/i }),
+    );
+    await waitFor(() =>
+      expect(useCallLogsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2, paginationRevision: 0 }),
+      ),
+    );
+
+    act(() => ref.current.refresh());
+
+    await waitFor(() =>
+      expect(useCallLogsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, paginationRevision: 1 }),
+      ),
+    );
+    expect(screen.getByRole("button", { name: "page 1" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(prefetchCallLogsMock).not.toHaveBeenCalled();
   });
 
   it("disables AG Grid's stale loading announcement for an exact empty result", () => {

@@ -1054,8 +1054,22 @@ export const useCallLogs = ({
     // CallLogsGrid owns a concise retry/empty state. Never let a failed
     // ClickHouse-backed list request reach the global raw-error snackbar.
     meta: { errorHandled: true },
-    retry: (failureCount, queryError) =>
-      !isListCursorContinuationLimitError(queryError) && failureCount < 1,
+    ...(isProjectModule
+      ? {
+          // Exact project cursors are single-use client state. Do not replay a
+          // visible page on focus, remount, reconnect, or automatic retry;
+          // CallLogsGrid explicitly refreshes from a new page-one generation.
+          staleTime: Infinity,
+          refetchOnWindowFocus: false,
+          refetchOnMount: false,
+          refetchOnReconnect: false,
+          retry: false,
+        }
+      : {
+          retry: (failureCount, queryError) =>
+            !isListCursorContinuationLimitError(queryError) &&
+            failureCount < 1,
+        }),
   });
   return { queryKey, data, isLoading, error };
 };

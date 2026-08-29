@@ -1879,9 +1879,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       }
       trackEvent(Events.pObserveRefreshClicked);
       if (projectSource === PROJECT_SOURCE.SIMULATOR) {
-        queryClient.invalidateQueries({
-          queryKey: ["callLogs"],
-        });
+        primaryCallLogsGridRef.current?.refresh?.();
       } else {
         refreshGridRef(primaryTraceGridRef);
         refreshGridRef(primarySpanGridRef);
@@ -1902,8 +1900,12 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
         setLatestActive(true);
       }
       trackEvent(Events.pObserveRefreshClicked);
-      refreshGridRef(compareTraceGridRef);
-      refreshGridRef(compareSpanGridRef);
+      if (projectSource === PROJECT_SOURCE.SIMULATOR) {
+        compareCallLogsGridRef.current?.refresh?.();
+      } else {
+        refreshGridRef(compareTraceGridRef);
+        refreshGridRef(compareSpanGridRef);
+      }
 
       if (includeAggregations) {
         queryClient.invalidateQueries({
@@ -1911,7 +1913,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
         });
       }
     },
-    [queryClient],
+    [projectSource, queryClient],
   );
 
   const refreshAll = useCallback(

@@ -232,17 +232,32 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     showMetricsIds: state.showMetricsIds,
   }));
   const gridRef = useRef(null);
+  const refreshRows = useCallback(() => {
+    if (module === "project") {
+      // Project pages use a forward-only signed cursor chain. Replaying the
+      // currently visible page during auto-refresh can return a different
+      // signed successor and invalidate an otherwise proven chain. Start a
+      // fresh generation at page one instead.
+      cursorPagination.current.reset();
+      setPage(1);
+      setTotalPages(1);
+      advanceCursorTransport((revision) => revision + 1);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["callLogs", module, id] });
+  }, [id, module, queryClient]);
   useImperativeHandle(
     forwardedRef,
     () => ({
       deselectAll: () => gridRef.current?.api?.deselectAll(),
+      refresh: refreshRows,
       // Read api lazily so callers always hit the live grid instance,
       // not a null captured at forwardRef-mount time.
       get api() {
         return gridRef.current?.api;
       },
     }),
-    [],
+    [refreshRows],
   );
   const bufferedPage =
     module === "project"
@@ -438,20 +453,18 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     }
   }, [callLogsColumnDefs, onConfigLoaded]);
 
-  // Prefetch next page so pagination feels instant
+  // Numbered agent-definition pages are safe to prefetch. Project pages use
+  // a mutable, forward-only signed cursor chain; speculative reads can be
+  // replayed by React Query when they become visible, racing the same chain
+  // and multiplying expensive list calls.
   useEffect(() => {
     if (
+      module !== "project" &&
       isUsableListRead &&
       responseRows.length > 0 &&
       page < totalPages &&
       (!exactPage || exactPage.canPrefetch)
     ) {
-      const nextPaginationParams =
-        module === "project"
-          ? cursorPagination.current.requestParams(page, {
-              page_size: pageLimit,
-            })
-          : undefined;
       prefetchCallLogs(queryClient, {
         module,
         id,
@@ -459,14 +472,6 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
         page: page + 1,
         pageLimit,
         params: paramsRef.current,
-        paginationParams: nextPaginationParams,
-        paginationRevision: cursorTransportRevision,
-        cursorPagination:
-          module === "project" ? cursorPagination.current : undefined,
-        paginationGeneration:
-          module === "project"
-            ? cursorPagination.current.generation()
-            : undefined,
       });
     }
   }, [
@@ -478,9 +483,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
     id,
     selectedVersion,
     pageLimit,
-    cursorQuerySignature,
     exactPage,
-    cursorTransportRevision,
     isUsableListRead,
     responseRows.length,
   ]);

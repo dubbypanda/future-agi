@@ -29,13 +29,14 @@ vi.mock("src/utils/axios", () => ({
   },
 }));
 
-function createWrapper() {
+function createWrapper(onClient) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
+  onClient?.(client);
 
   function Wrapper({ children }) {
     return (
@@ -99,6 +100,41 @@ describe("useCallLogs", () => {
         project_id: "project-1",
       },
     });
+  });
+
+  it("keeps exact project cursor pages out of implicit refetch and retry paths", async () => {
+    let queryClient;
+    const wrapper = createWrapper((client) => {
+      queryClient = client;
+    });
+    const { result } = renderHook(
+      () =>
+        useCallLogs({
+          module: "project",
+          id: "project-1",
+          version: undefined,
+          page: 1,
+          pageLimit: 25,
+          params: { project_id: "project-1" },
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(axiosMocks.get).toHaveBeenCalledTimes(1));
+    const query = queryClient.getQueryCache().find({
+      queryKey: result.current.queryKey,
+      exact: true,
+    });
+
+    expect(query.options).toEqual(
+      expect.objectContaining({
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        retry: false,
+      }),
+    );
   });
 
   it("uses an opaque voice continuation without also sending a numbered page", async () => {
