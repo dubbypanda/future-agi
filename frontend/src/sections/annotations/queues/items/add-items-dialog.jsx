@@ -2701,7 +2701,6 @@ function TraceSelector({
         filterData={openQuickFilter}
         onClose={() => setOpenQuickFilter(null)}
         setFilters={setFilters}
-        setFilterOpen={setFilterOpen}
       />
     </Box>
   );
@@ -3324,7 +3323,6 @@ function SpanSelector({ onSetSelection, onSelectAll }) {
         filterData={openQuickFilter}
         onClose={() => setOpenQuickFilter(null)}
         setFilters={setFilters}
-        setFilterOpen={setFilterOpen}
       />
     </Box>
   );

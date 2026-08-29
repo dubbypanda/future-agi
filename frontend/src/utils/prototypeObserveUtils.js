@@ -164,6 +164,12 @@ export const getSystemMetricFilterDefinition = () => {
     stringConnector: "is",
     dependents: [
       {
+        propertyName: "Duration",
+        propertyId: "duration",
+        stringConnector: "is",
+        filterType: { type: "number" },
+      },
+      {
         propertyName: "Agent latency",
         propertyId: "avg_agent_latency_ms",
         stringConnector: "is",
@@ -184,6 +190,12 @@ export const getSystemMetricFilterDefinition = () => {
       {
         propertyName: "Agent WPM",
         propertyId: "bot_wpm",
+        stringConnector: "is",
+        filterType: { type: "number" },
+      },
+      {
+        propertyName: "User WPM",
+        propertyId: "user_wpm",
         stringConnector: "is",
         filterType: { type: "number" },
       },

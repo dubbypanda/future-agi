@@ -414,6 +414,11 @@ export const avoidDuplicateFilterSet = (prev, filter) => {
       return acc;
     }
     if (filtersSharePropertyIdentity(f, filter)) {
+      // Rows can share a column_id, and replacing each one pushed `filter`
+      // per match — duplicate chips, and removing one left the filter applied.
+      if (filterAdded) {
+        return acc;
+      }
       filterAdded = true;
       return [...acc, filter];
     }
