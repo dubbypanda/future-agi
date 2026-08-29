@@ -97,6 +97,11 @@ const installIntersectionObserver = () => {
   return { observers, emit };
 };
 
+const advanceMetricPagination = (sentinel, intersection) => {
+  intersection.emit(true);
+  fireEvent.wheel(sentinel.parentElement, { deltaY: 1 });
+};
+
 const deferred = () => {
   let resolve;
   const promise = new Promise((done) => {
@@ -297,7 +302,7 @@ describe("PrimaryGraph", () => {
     );
   });
 
-  it("automatically loads three legacy metric pages when responses omit page", async () => {
+  it("loads legacy metric pages after bounded scroll gestures when responses omit page", async () => {
     const intersection = installIntersectionObserver();
     const secondPage = deferred();
     const thirdPage = deferred();
@@ -338,8 +343,7 @@ describe("PrimaryGraph", () => {
     ).not.toBeInTheDocument();
     expect(axios.get).toHaveBeenCalledTimes(1);
 
-    intersection.emit(true);
-    intersection.emit(true);
+    advanceMetricPagination(sentinel, intersection);
     await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
     expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
       params: expect.objectContaining({ page: 2, page_size: 200 }),
@@ -369,8 +373,9 @@ describe("PrimaryGraph", () => {
     });
 
     expect(await screen.findByText("QA Annotation")).toBeVisible();
-    // The end remains visible after a short page, so its new cursor advances
-    // without another scroll gesture.
+    // Each new continuation requires another user advance gesture, even while
+    // the sentinel remains visible after a short page.
+    fireEvent.wheel(sentinel.parentElement, { deltaY: 1 });
     await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3));
     expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
       params: expect.objectContaining({ page: 3, page_size: 200 }),
@@ -445,8 +450,10 @@ describe("PrimaryGraph", () => {
     const { rerender } = render(graph("project-one"));
 
     fireEvent.click(await screen.findByText("Latency"));
-    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
-    intersection.emit(true);
+    let sentinel = await screen.findByTestId(
+      "primary-graph-metric-pagination-sentinel",
+    );
+    advanceMetricPagination(sentinel, intersection);
     await waitFor(() =>
       expect(
         axios.get.mock.calls.some(
@@ -457,8 +464,10 @@ describe("PrimaryGraph", () => {
     );
 
     rerender(graph("project-two"));
-    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
-    intersection.emit(true);
+    sentinel = await screen.findByTestId(
+      "primary-graph-metric-pagination-sentinel",
+    );
+    advanceMetricPagination(sentinel, intersection);
     await waitFor(() =>
       expect(
         axios.get.mock.calls.some(
@@ -469,7 +478,7 @@ describe("PrimaryGraph", () => {
     );
   });
 
-  it("requires an explicit retry after an automatic metric page fails", async () => {
+  it("requires an explicit retry after a gesture-triggered metric page fails", async () => {
     const intersection = installIntersectionObserver();
     let pageTwoAttempts = 0;
     const response = (result) => ({ data: { result } });
@@ -522,9 +531,11 @@ describe("PrimaryGraph", () => {
       <PrimaryGraph observeIdOverride="project-override" />,
     );
     fireEvent.click(await screen.findByText("Latency"));
-    await screen.findByTestId("primary-graph-metric-pagination-sentinel");
+    const sentinel = await screen.findByTestId(
+      "primary-graph-metric-pagination-sentinel",
+    );
 
-    intersection.emit(true);
+    advanceMetricPagination(sentinel, intersection);
     const retry = await screen.findByRole("button", {
       name: "Retry loading more metrics",
     });

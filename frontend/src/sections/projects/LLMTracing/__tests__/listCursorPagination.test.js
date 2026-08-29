@@ -971,6 +971,38 @@ describe("list cursor pagination", () => {
     );
   });
 
+  it("reuses a completed page without replaying its signed cursor", async () => {
+    const pagination = createListCursorPagination();
+    const rows = Array.from({ length: 25 }, (_, index) => ({
+      id: index + 1,
+    }));
+    const firstPage = await loadExactPage({
+      pagination,
+      responses: [exactResponse(rows, true, "after-25")],
+    });
+    const replayLoad = vi.fn(() =>
+      Promise.resolve(exactResponse(rows, true, "changed-successor")),
+    );
+
+    const revisitedPage = await loadExactListPage({
+      pagination,
+      pageNumber: 0,
+      targetRowCount: 25,
+      loadResponse: replayLoad,
+      nextResponse: vi.fn(),
+      rowsFromResponse: (response) => response.rows,
+      metadataFromResponse: (response) => response.metadata,
+      rowIdentity: (row) => row.id,
+    });
+
+    expect(replayLoad).not.toHaveBeenCalled();
+    expect(revisitedPage.rows).toEqual(firstPage.rows);
+    expect(revisitedPage.isLastPage).toBe(false);
+    expect(pagination.requestParams(1, { page_size: 25 }).cursor).toBe(
+      "after-25",
+    );
+  });
+
   it("deduplicates a replayed boundary row by stable identity", async () => {
     const pagination = createListCursorPagination();
     const page = await loadExactPage({

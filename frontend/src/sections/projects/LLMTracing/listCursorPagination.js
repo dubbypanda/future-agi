@@ -243,6 +243,12 @@ export const createListCursorPagination = ({
   const cursorByPage = new Map([[0, null]]);
   const transportCursorByPage = new Map();
   const bufferedVisiblePageByPage = new Map();
+  // Completed pages must outlive React Query's inactive-query GC. Exact
+  // cursors are forward-only: replaying an older transport request after its
+  // query-cache entry expires can legitimately produce a different signed
+  // successor and invalidate the proven chain. This cache is scoped to one
+  // cursor generation and is released on reset/component teardown.
+  const completedVisiblePageByPage = new Map();
   // A bounded AG Grid cache may legitimately re-read an evicted block. Record
   // the proven cursor transition graph so an identical replay is idempotent,
   // while a non-advancing cursor, cycle, or changed successor still fails
@@ -307,6 +313,7 @@ export const createListCursorPagination = ({
     cursorByPage.set(0, null);
     transportCursorByPage.clear();
     bufferedVisiblePageByPage.clear();
+    completedVisiblePageByPage.clear();
     cursorSuccessorByInput.clear();
   };
 
@@ -319,6 +326,7 @@ export const createListCursorPagination = ({
     cursorByPage.set(0, null);
     transportCursorByPage.clear();
     bufferedVisiblePageByPage.clear();
+    completedVisiblePageByPage.clear();
     cursorSuccessorByInput.clear();
   };
 
@@ -447,6 +455,32 @@ export const createListCursorPagination = ({
     return { ...buffered, rows: [...buffered.rows] };
   };
 
+  const completedVisiblePage = (pageNumber) => {
+    const completed = completedVisiblePageByPage.get(pageNumber);
+    if (!completed) return null;
+    return {
+      ...completed,
+      rows: [...completed.rows],
+      metadata: { ...completed.metadata },
+    };
+  };
+
+  const cacheCompletedVisiblePage = (
+    pageNumber,
+    { rows, response, metadata, isLastPage, canPrefetch },
+  ) => {
+    if (!Array.isArray(rows)) {
+      throw new Error("Invalid completed list rows");
+    }
+    completedVisiblePageByPage.set(pageNumber, {
+      rows: [...rows],
+      response,
+      metadata: { ...(metadata || {}) },
+      isLastPage: Boolean(isLastPage),
+      canPrefetch: Boolean(canPrefetch),
+    });
+  };
+
   const recordVisibleContinuation = (
     pageNumber,
     metadata,
@@ -522,6 +556,8 @@ export const createListCursorPagination = ({
     recordResponse,
     recordEmptyContinuation,
     bufferedVisiblePage,
+    completedVisiblePage,
+    cacheCompletedVisiblePage,
     recordVisibleContinuation,
     completeVisiblePage,
     isLastPage,
@@ -603,6 +639,19 @@ export const loadExactListPage = async ({
     (typeof pagination.cancellationSignal === "function"
       ? pagination.cancellationSignal()
       : undefined);
+
+  const completed = pagination.completedVisiblePage?.(pageNumber);
+  if (completed) {
+    return {
+      response: completed.response,
+      rows: completed.rows.slice(0, targetRowCount),
+      metadata: completed.metadata,
+      pending: false,
+      stale: false,
+      isLastPage: completed.isLastPage,
+      canPrefetch: completed.canPrefetch,
+    };
+  }
 
   let buffered = pagination.bufferedVisiblePage(pageNumber);
   const accumulatedRows = [];
@@ -729,7 +778,8 @@ export const loadExactListPage = async ({
   const isLastPage =
     overflowRows.length === 0 &&
     pagination.isLastPage(metadata, rows.length, targetRowCount);
-  return {
+  const canPrefetch = !isLastPage && overflowRows.length === 0;
+  const completedPage = {
     response,
     rows,
     metadata,
@@ -740,8 +790,10 @@ export const loadExactListPage = async ({
     // starts *after* those buffered rows, so prefetching it as the next page
     // would either discard that response or replay the same cursor when the
     // buffered page later asks for its remaining rows.
-    canPrefetch: !isLastPage && overflowRows.length === 0,
+    canPrefetch,
   };
+  pagination.cacheCompletedVisiblePage?.(pageNumber, completedPage);
+  return completedPage;
 };
 
 export const resumePendingListPage = ({

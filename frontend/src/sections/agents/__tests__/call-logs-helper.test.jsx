@@ -338,6 +338,67 @@ describe("useCallLogs", () => {
     expect(result.current.data.results[0].id).not.toBe("voice-call-1");
   });
 
+  it("returns to a completed voice page after its query-cache entry is removed", async () => {
+    const pagination = createListCursorPagination({
+      pageParam: "page",
+      pageOffset: 1,
+    });
+    let queryClient;
+    const wrapper = createWrapper((client) => {
+      queryClient = client;
+    });
+    axiosMocks.get
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            results: [{ id: "voice-page-1" }],
+            has_more: true,
+            next_cursor: "signed-voice-page-2",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            results: [{ id: "voice-page-2" }],
+            has_more: false,
+            next_cursor: null,
+          },
+        },
+      });
+
+    const { result, rerender } = renderHook(
+      ({ page }) =>
+        useCallLogs({
+          module: "project",
+          id: "project-1",
+          page,
+          pageLimit: 1,
+          params: { project_id: "project-1" },
+          cursorPagination: pagination,
+          paginationGeneration: pagination.generation(),
+        }),
+      { initialProps: { page: 1 }, wrapper },
+    );
+
+    await waitFor(() =>
+      expect(result.current.data?.results).toEqual([{ id: "voice-page-1" }]),
+    );
+    const firstPageQueryKey = result.current.queryKey;
+
+    rerender({ page: 2 });
+    await waitFor(() =>
+      expect(result.current.data?.results).toEqual([{ id: "voice-page-2" }]),
+    );
+    queryClient.removeQueries({ queryKey: firstPageQueryKey, exact: true });
+
+    rerender({ page: 1 });
+    await waitFor(() =>
+      expect(result.current.data?.results).toEqual([{ id: "voice-page-1" }]),
+    );
+    expect(axiosMocks.get).toHaveBeenCalledTimes(2);
+  });
+
   it("retries voice page one once without cursor fields on a legacy API", async () => {
     const pagination = createListCursorPagination({
       pageParam: "page",
