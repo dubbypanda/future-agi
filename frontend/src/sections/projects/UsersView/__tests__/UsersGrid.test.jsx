@@ -208,6 +208,12 @@ describe("UsersGrid deterministic pagination", () => {
   it("bounds retained blocks and concurrent server-side reads", () => {
     renderGrid();
 
+    expect(gridState.props.pagination).toBe(true);
+    expect(gridState.props.paginationPageSize).toBe(25);
+    expect(gridState.props.paginationPageSizeSelector).toEqual([
+      10, 25, 50, 100,
+    ]);
+    expect(gridState.props.cacheBlockSize).toBe(25);
     expect(gridState.props.maxBlocksInCache).toBe(5);
     expect(gridState.props.maxConcurrentDatasourceRequests).toBe(1);
   });

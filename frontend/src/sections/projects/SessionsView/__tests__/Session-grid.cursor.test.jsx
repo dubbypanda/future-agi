@@ -154,11 +154,17 @@ describe("SessionGrid cursor continuation", () => {
 
     expect(gridState.props.getRowHeight).toBeUndefined();
     expect(gridState.props.rowHeight).toBe(40);
+    expect(gridState.props.pagination).toBe(true);
+    expect(gridState.props.paginationPageSize).toBe(25);
+    expect(gridState.props.paginationPageSizeSelector).toBe(false);
+    expect(gridState.props.suppressPaginationPanel).toBe(true);
+    expect(gridState.props.cacheBlockSize).toBe(25);
     expect(gridState.props.maxBlocksInCache).toBe(5);
     expect(gridState.props.maxConcurrentDatasourceRequests).toBe(1);
+    expect(screen.getByLabelText("Results per page")).toHaveTextContent("25");
   });
 
-  it("falls back to numbered prefetch when a sorted response omits cursor metadata", async () => {
+  it("loads a numbered next page only after explicit navigation when cursor metadata is absent", async () => {
     getMock
       .mockResolvedValueOnce(
         sessionResponse({
@@ -170,10 +176,10 @@ describe("SessionGrid cursor continuation", () => {
     renderGrid();
     await waitFor(() => expect(gridState.props).not.toBeNull());
 
-    const params = makeParams({
+    const firstPage = makeParams({
       sortModel: [{ colId: "started_at", sort: "desc" }],
     });
-    await getRows(params);
+    await getRows(firstPage);
 
     expect(getMock.mock.calls[0][1].params).toEqual(
       expect.objectContaining({
@@ -184,19 +190,31 @@ describe("SessionGrid cursor continuation", () => {
         ]),
       }),
     );
+    expect(getMock).toHaveBeenCalledTimes(1);
+    expect(firstPage.success).toHaveBeenCalledWith({
+      rowData: Array.from({ length: 25 }, (_, index) => row(index)),
+      rowCount: 26,
+    });
+
+    const secondPage = makeParams({
+      startRow: 25,
+      sortModel: [{ colId: "started_at", sort: "desc" }],
+    });
+    await getRows(secondPage);
+
+    expect(getMock).toHaveBeenCalledTimes(2);
     expect(getMock.mock.calls[1][1].params).toEqual(
       expect.objectContaining({ page_number: 1 }),
     );
     expect(getMock.mock.calls[1][1].params).not.toHaveProperty("cursor_mode");
     expect(getMock.mock.calls[1][1].params).not.toHaveProperty("cursor");
-    expect(params.success).toHaveBeenCalledTimes(1);
+    expect(secondPage.success).toHaveBeenCalledWith({
+      rowData: [row(25)],
+      rowCount: 26,
+    });
   });
 
-  it("consumes a rejected cursor prefetch before retrying the page as numbered", async () => {
-    let rejectPrefetch;
-    const prefetchedCursorPage = new Promise((_resolve, reject) => {
-      rejectPrefetch = reject;
-    });
+  it("falls back to numbered pagination when an explicit cursor page is rejected by an older API", async () => {
     const legacyCursorError = {
       response: {
         status: 400,
@@ -217,7 +235,7 @@ describe("SessionGrid cursor continuation", () => {
           lowerBound: true,
         }),
       )
-      .mockReturnValueOnce(prefetchedCursorPage)
+      .mockRejectedValueOnce(legacyCursorError)
       .mockResolvedValueOnce(
         sessionResponse({ rows: [row(25)], totalRows: 26 }),
       );
@@ -226,13 +244,10 @@ describe("SessionGrid cursor continuation", () => {
 
     const firstPage = makeParams();
     await getRows(firstPage);
-    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(getMock).toHaveBeenCalledTimes(1);
 
     const secondPage = makeParams({ startRow: 25 });
-    const secondPageRead =
-      gridState.props.serverSideDatasource.getRows(secondPage);
-    rejectPrefetch(legacyCursorError);
-    await act(async () => secondPageRead);
+    await getRows(secondPage);
 
     expect(getMock).toHaveBeenCalledTimes(3);
     expect(getMock.mock.calls[1][1].params).toEqual(
@@ -348,7 +363,7 @@ describe("SessionGrid cursor continuation", () => {
     await getRows(firstPage);
     expect(firstPage.success).toHaveBeenCalledWith({
       rowData: Array.from({ length: 25 }, (_, index) => row(index + 1)),
-      rowCount: -1,
+      rowCount: 26,
     });
 
     const secondPage = makeParams({ startRow: 25 });

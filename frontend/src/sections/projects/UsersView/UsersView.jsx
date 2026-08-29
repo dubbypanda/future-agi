@@ -12,8 +12,6 @@ import PropTypes from "prop-types";
 import { Box, Typography } from "@mui/material";
 import { useParams, useLocation, useNavigate } from "react-router";
 import { Helmet } from "react-helmet-async";
-import { formatDate } from "src/utils/report-utils";
-import { endOfToday, sub } from "date-fns";
 import { useUrlState } from "src/routes/hooks/use-url-state";
 import { endpoints } from "src/utils/axios";
 import { useObserveHeader } from "src/sections/project/context/ObserveHeaderContext";
@@ -53,6 +51,10 @@ import { useShallow } from "zustand/react/shallow";
 import { filtersContentEqual } from "../saved-view-utils";
 import { useCursorAttributeInventory } from "../LLMTracing/useCursorAttributeInventory";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
+import {
+  DEFAULT_OBSERVE_LIST_DATE_OPTION,
+  getDefaultObserveListDateRangeForMode,
+} from "../dateRangeDefaults";
 
 // ---------------------------------------------------------------------------
 // User filter fields for TraceFilterPanel
@@ -111,19 +113,13 @@ const defaultFilterBase = [
   },
 ];
 
-const getDefaultDateRange = () => ({
-  dateFilter: [
-    formatDate(sub(new Date(), { days: 90 })),
-    formatDate(endOfToday()),
-  ],
-  dateOption: "3M",
-});
+const getDefaultDateRange = () => getDefaultObserveListDateRangeForMode(false);
 
 const getDateLabel = (dateFilter) => {
-  if (!dateFilter) return "Past 3M";
+  if (!dateFilter) return `Past ${DEFAULT_OBSERVE_LIST_DATE_OPTION}`;
   return dateFilter.dateOption === "Custom"
     ? "Custom range"
-    : dateFilter.dateOption || "Past 3M";
+    : dateFilter.dateOption || `Past ${DEFAULT_OBSERVE_LIST_DATE_OPTION}`;
 };
 
 const noopExtraProperties = () => ({});

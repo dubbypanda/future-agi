@@ -38,8 +38,11 @@ import {
   loadExactListPage,
   retryServerSideCursorLoad,
   resumePendingListPage,
+  shareInFlightListPage,
 } from "src/sections/projects/LLMTracing/listCursorPagination";
 import ListCursorContinuationNotice from "src/sections/projects/LLMTracing/ListCursorContinuationNotice";
+import CursorGridPagination from "src/sections/projects/LLMTracing/CursorGridPagination";
+import useCursorGridPagination from "src/sections/projects/LLMTracing/useCursorGridPagination";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import {
@@ -61,7 +64,6 @@ const getSessionGridThemeParams = (theme) => ({
   rowHoverColor: "rgba(120,87,252,0.04)",
 });
 
-const DATASET_ROWS_LIMIT = 25;
 const sessionRowIdentity = (row) => {
   const id = row?.session_id || row?.id;
   return id ? `${row?.project_id || ""}:${id}` : null;
@@ -94,6 +96,15 @@ const SessionGrid = React.forwardRef(
     const [open, setOpen] = useState(false);
     const [currentRowData, setCurrentRowData] = useState(null);
     const [continuationNotice, setContinuationNotice] = useState(null);
+    const {
+      page,
+      pageCount,
+      pageSize,
+      changePageSize,
+      goToPage,
+      publishPage,
+      resetPagination,
+    } = useCursorGridPagination(gridApiRef);
     const continueCursorSearch = useCallback(() => {
       if (!continuationNotice) return;
       if (retryServerSideCursorLoad(gridApiRef?.current?.api)) {
@@ -236,14 +247,30 @@ const SessionGrid = React.forwardRef(
 
     const [filteredColumnDefs, setFilteredColumnDefs] = useState([]);
 
-    // Prefetch cache: stores next page data so scroll feels instant
-    const prefetchCache = useRef(new Map());
+    const inFlightPageLoads = useRef(new Map());
     const cursorPagination = useRef(createListCursorPagination());
     const cursorQueryKeyRef = useRef(null);
+    const paginationRequestKey = useMemo(
+      () =>
+        JSON.stringify({
+          projectId: projectId || null,
+          filters: toBackendFilters(filters),
+          dateInterval: dateInterval || null,
+          pageSize,
+        }),
+      [dateInterval, filters, pageSize, projectId],
+    );
+    const previousPaginationRequestKeyRef = useRef(paginationRequestKey);
+    useEffect(() => {
+      if (previousPaginationRequestKeyRef.current !== paginationRequestKey) {
+        resetPagination();
+      }
+      previousPaginationRequestKeyRef.current = paginationRequestKey;
+    }, [paginationRequestKey, resetPagination]);
 
     const dataSource = useMemo(
       () => {
-        prefetchCache.current.clear();
+        inFlightPageLoads.current.clear();
         cursorPagination.current.reset();
         cursorQueryKeyRef.current = null;
         return {
@@ -254,7 +281,8 @@ const SessionGrid = React.forwardRef(
               if (!isGridApiLive(params.api)) return;
               const { request } = params;
 
-              pageNumber = Math.floor(request.startRow / DATASET_ROWS_LIMIT);
+              const requestPageSize = request.endRow - request.startRow;
+              pageNumber = Math.floor(request.startRow / requestPageSize);
               const sortParams = (request?.sortModel || []).map(
                 ({ colId, sort }) => ({
                   column_id: colId,
@@ -267,10 +295,10 @@ const SessionGrid = React.forwardRef(
                 filters: backendFilters,
                 dateInterval: dateInterval || null,
                 sort: sortParams,
-                pageSize: DATASET_ROWS_LIMIT,
+                pageSize: requestPageSize,
               });
               if (cursorQueryKeyRef.current !== queryKey) {
-                prefetchCache.current.clear();
+                inFlightPageLoads.current.clear();
                 cursorPagination.current.reset();
                 cursorQueryKeyRef.current = queryKey;
               }
@@ -282,42 +310,37 @@ const SessionGrid = React.forwardRef(
                   // project_id as org-scoped (used by the cross-project
                   // user detail page).
                   ...(projectId ? { project_id: projectId } : {}),
-                  page_size: DATASET_ROWS_LIMIT,
+                  page_size: requestPageSize,
                   sort_params: JSON.stringify(sortParams),
                   filters: JSON.stringify(backendFilters),
                   ...(dateInterval && { interval: dateInterval }),
                 });
 
-              // Await the in-flight prefetch promise if present, else fetch —
-              // dedupes a concurrent getRows for the same page.
-              let cached = prefetchCache.current.get(pageNumber);
-              prefetchCache.current.delete(pageNumber);
-              const exactPage = await loadExactListPage({
-                pagination: cursorPagination.current,
-                pageNumber,
-                targetRowCount: DATASET_ROWS_LIMIT,
-                loadResponse: (signal) => {
-                  const prefetched = cached;
-                  cached = undefined;
-                  return (
-                    prefetched ||
-                    axios.get(endpoints.project.projectSessionList(), {
-                      params: buildParams(pageNumber),
-                      signal,
-                    })
-                  );
-                },
-                rowsFromResponse: (response) =>
-                  response?.data?.result?.table || [],
-                metadataFromResponse: (response) =>
-                  response?.data?.result?.metadata || {},
-                rowIdentity: sessionRowIdentity,
-                isCurrent: () =>
-                  cursorPagination.current.isCurrent(requestGeneration),
-                nextResponse: (_cursor, signal) =>
-                  axios.get(endpoints.project.projectSessionList(), {
-                    params: buildParams(pageNumber),
-                    signal,
+              const exactPage = await shareInFlightListPage({
+                inFlight: inFlightPageLoads.current,
+                key: `${requestGeneration}:${pageNumber}`,
+                load: () =>
+                  loadExactListPage({
+                    pagination: cursorPagination.current,
+                    pageNumber,
+                    targetRowCount: requestPageSize,
+                    loadResponse: (signal) =>
+                      axios.get(endpoints.project.projectSessionList(), {
+                        params: buildParams(pageNumber),
+                        signal,
+                      }),
+                    rowsFromResponse: (response) =>
+                      response?.data?.result?.table || [],
+                    metadataFromResponse: (response) =>
+                      response?.data?.result?.metadata || {},
+                    rowIdentity: sessionRowIdentity,
+                    isCurrent: () =>
+                      cursorPagination.current.isCurrent(requestGeneration),
+                    nextResponse: (_cursor, signal) =>
+                      axios.get(endpoints.project.projectSessionList(), {
+                        params: buildParams(pageNumber),
+                        signal,
+                      }),
                   }),
               });
               if (!isGridApiLive(params.api)) return;
@@ -453,32 +476,17 @@ const SessionGrid = React.forwardRef(
                 totalState.totalRowCountIsLowerBound;
               useSessionsGridStore.setState(totalState);
 
-              const lastRow = isLastPage ? request.startRow + rows.length : -1;
+              const discoveredRowCount = publishPage({
+                request,
+                rows,
+                isLastPage,
+              });
 
               params.success({
                 rowData: rows,
-                rowCount: lastRow,
+                rowCount: discoveredRowCount,
               });
               setContinuationNotice(null);
-
-              // Prefetch next page so scroll feels instant. Cache the promise
-              // (not the resolved value) so a concurrent getRows dedupes.
-              if (exactPage.canPrefetch) {
-                const prefetchGeneration = requestGeneration;
-                const prefetch = axios.get(
-                  endpoints.project.projectSessionList(),
-                  { params: buildParams(pageNumber + 1) },
-                );
-                prefetchCache.current.set(pageNumber + 1, prefetch);
-                prefetch.catch(() => {
-                  if (
-                    cursorPagination.current.isCurrent(prefetchGeneration) &&
-                    prefetchCache.current.get(pageNumber + 1) === prefetch
-                  ) {
-                    prefetchCache.current.delete(pageNumber + 1);
-                  }
-                });
-              }
             } catch (error) {
               if (isExpectedRequestCancellation(error)) {
                 return;
@@ -504,7 +512,7 @@ const SessionGrid = React.forwardRef(
                   error,
                 )
               ) {
-                prefetchCache.current.clear();
+                inFlightPageLoads.current.clear();
                 cursorPagination.current.disableCursor();
                 params.fail();
                 params.api?.refreshServerSide?.({ purge: true });
@@ -529,8 +537,10 @@ const SessionGrid = React.forwardRef(
           },
         };
       },
+      // Semantic inputs are serialized above so referential-only parent
+      // renders do not reset the cursor chain or the visible page.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [filters, projectId, dateInterval],
+      [paginationRequestKey, publishPage],
     );
 
     const [finalColumnDefs, setFinalColumnDefs] = useState([]);
@@ -631,6 +641,7 @@ const SessionGrid = React.forwardRef(
               style={{ flex: 1, minHeight: 0 }}
             >
               <AgGridReact
+                key={`session-grid-${pageSize}`}
                 ref={gridApiRef}
                 columnDefs={finalColumnDefs}
                 rowHeight={
@@ -643,8 +654,11 @@ const SessionGrid = React.forwardRef(
                 theme={agTheme}
                 rowModelType="serverSide"
                 serverSideDatasource={dataSource}
-                pagination={false}
-                cacheBlockSize={DATASET_ROWS_LIMIT}
+                pagination={true}
+                paginationPageSize={pageSize}
+                paginationPageSizeSelector={false}
+                suppressPaginationPanel={true}
+                cacheBlockSize={pageSize}
                 maxBlocksInCache={OBSERVE_GRID_MAX_BLOCKS_IN_CACHE}
                 maxConcurrentDatasourceRequests={
                   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS
@@ -654,7 +668,7 @@ const SessionGrid = React.forwardRef(
                 noRowsOverlayComponent={
                   continuationNotice ? () => null : undefined
                 }
-                serverSideInitialRowCount={DATASET_ROWS_LIMIT}
+                serverSideInitialRowCount={pageSize}
                 defaultColDef={defaultColDef}
                 rowStyle={{ cursor: "pointer" }}
                 onRowClicked={onRowClicked}
@@ -678,6 +692,14 @@ const SessionGrid = React.forwardRef(
                 onGridReady={onGridReady}
               />
             </Box>
+            <CursorGridPagination
+              disabled={Boolean(continuationNotice)}
+              page={page}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+            />
             {currentRowData ? (
               <TracesDrawer
                 open={open}

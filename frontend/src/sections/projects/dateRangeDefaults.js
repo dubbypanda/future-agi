@@ -1,6 +1,8 @@
 import { endOfToday, startOfToday, startOfTomorrow, sub } from "date-fns";
 import { formatDate } from "src/utils/report-utils";
 
+export const DEFAULT_OBSERVE_LIST_DATE_OPTION = "7D";
+
 export const getDefaultDateRange = (dateOption) => {
   if (dateOption === "Today") {
     return {
@@ -22,3 +24,6 @@ export const getDefaultDateRange = (dateOption) => {
 
 export const getDefaultDateRangeForMode = (isUserMode, projectDateOption) =>
   getDefaultDateRange(isUserMode ? "Today" : projectDateOption);
+
+export const getDefaultObserveListDateRangeForMode = (isUserMode) =>
+  getDefaultDateRangeForMode(isUserMode, DEFAULT_OBSERVE_LIST_DATE_OPTION);

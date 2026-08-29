@@ -77,7 +77,10 @@ import {
   isColumnOrderDirty,
 } from "../LLMTracing/savedViewColumns";
 import { filtersContentEqual } from "../saved-view-utils";
-import { getDefaultDateRangeForMode } from "../dateRangeDefaults";
+import {
+  DEFAULT_OBSERVE_LIST_DATE_OPTION,
+  getDefaultObserveListDateRangeForMode,
+} from "../dateRangeDefaults";
 import { useCursorAttributeInventory } from "../LLMTracing/useCursorAttributeInventory";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
@@ -165,10 +168,12 @@ export const getDateLabel = (dateFilter) => {
     return PRESET_DATE_LABELS[option] || `Past ${option}`;
   }
   const dates = dateFilter?.dateFilter;
-  if (!dates || dates.length < 2) return "Past 6M";
+  if (!dates || dates.length < 2)
+    return `Past ${DEFAULT_OBSERVE_LIST_DATE_OPTION}`;
   const start = new Date(dates[0]);
   const end = new Date(dates[1]);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return "Past 6M";
+  if (isNaN(start.getTime()) || isNaN(end.getTime()))
+    return `Past ${DEFAULT_OBSERVE_LIST_DATE_OPTION}`;
   return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
 };
 
@@ -192,7 +197,7 @@ const SessionsView = ({ mode = "project", userIdForUserMode = null }) => {
 
   // --- Filter & date state (reuse trace filter hook) ---
   const defaultDateFilter = useMemo(
-    () => getDefaultDateRangeForMode(isUserMode, "6M"),
+    () => getDefaultObserveListDateRangeForMode(isUserMode),
     [isUserMode],
   );
   const [sessionColumns, setSessionColumns] = useState([]);
