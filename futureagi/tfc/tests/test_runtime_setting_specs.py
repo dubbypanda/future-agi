@@ -69,9 +69,19 @@ def test_large_tenant_reads_scan_widely_without_unbounding_memory_or_results():
     assert values["CLICKHOUSE_APPLICATION_READ_MAX_BYTES"] == 1024**4
     assert values["DASHBOARD_TRACE_READ_MAX_MEMORY_BYTES"] == 36 * 1024**3
     assert values["OBSERVABILITY_LIST_MAX_MEMORY_BYTES"] == 36 * 1024**3
+    assert values["OBSERVABILITY_LIST_CELL_PREVIEW_MAX_BYTES"] == 16 * 1024
     assert values["DASHBOARD_TRACE_READ_MAX_RESULT_BYTES"] == 64 * 1024**2
     assert values["DASHBOARD_FILTER_VALUE_MAX_RESULT_BYTES"] == 64 * 1024**2
     assert values["ATTRIBUTE_READ_MAX_RESULT_BYTES"] == 64 * 1024**2
+
+
+def test_exact_graph_workers_have_a_larger_bounded_wall_than_http_reads():
+    values = load_numeric_settings(INTERACTIVE_READ_SETTING_SPECS, source={})
+
+    assert values["INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS"] == 30_000
+    assert values["GRAPH_BACKGROUND_WALL_MS"] == 120_000
+    assert values["CLICKHOUSE_REVIEWED_READ_TIMEOUT_CEILING_MS"] == 120_000
+    validate_interactive_read_settings(values)
 
 
 def test_blank_source_value_uses_fallback_before_default():

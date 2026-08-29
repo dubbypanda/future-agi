@@ -12,11 +12,9 @@ import React, {
 } from "react";
 import { useAgTheme } from "src/hooks/use-ag-theme";
 import axios, { endpoints } from "src/utils/axios";
-import { getRandomId } from "src/utils/utils";
 import NumberQuickFilterPopover from "src/components/ComplexFilter/QuickFilterComponents/NumberQuickFilterPopover/NumberQuickFilterPopover";
 import NoRowsOverlay from "src/sections/project-detail/CompareDrawer/NoRowsOverlay";
 import {
-  AllowedGroups,
   applyQuickFilters,
   TRACE_DEFAULT_COLUMNS,
   getTraceListColumnDefs,
@@ -65,8 +63,12 @@ import {
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
 } from "src/config/runtime_limits";
+import { boundObserveListRow } from "./observeListPayload";
+import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
+import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
+import CursorGridPagination from "./CursorGridPagination";
+import useCursorGridPagination from "./useCursorGridPagination";
 
-const ROWS_LIMIT = 25;
 const traceRowIdentity = (row) => {
   const id = row?.trace_id || row?.id;
   return id ? `${row?.project_id || ""}:${id}` : null;
@@ -131,6 +133,16 @@ const TraceGrid = React.forwardRef(
     const [gridLoading, setGridLoading] = useState(enabled);
     const firstPageRequestRef = useRef(0);
     const preserveRowsDuringNextRefreshRef = useRef(false);
+    const {
+      page,
+      pageCount,
+      pageSize,
+      changePageSize,
+      goToPage,
+      onPaginationChanged,
+      publishPage,
+      resetPagination,
+    } = useCursorGridPagination(gridRef);
 
     // Use ref to track latest columns for comparison without triggering dataSource recreation
     const columnsRef = useRef(columns);
@@ -154,11 +166,14 @@ const TraceGrid = React.forwardRef(
       (purge = true) => {
         inFlightPageLoads.current.clear();
         cursorPagination.current.reset();
+        resetPagination();
         preserveRowsDuringNextRefreshRef.current = !purge;
         if (purge) setGridLoading(enabled);
-        gridRef?.current?.api?.refreshServerSide({ purge });
+        withLiveGridApi(gridRef?.current?.api, (api) =>
+          api.refreshServerSide({ purge }),
+        );
       },
-      [enabled, gridRef],
+      [enabled, gridRef, resetPagination],
     );
     const continueCursorSearch = useCallback(() => {
       if (!continuationNotice) return;
@@ -196,15 +211,25 @@ const TraceGrid = React.forwardRef(
         JSON.stringify({
           selectionQueryKey,
           requestedAttributeKeys: requestedAttributeKeysKey,
+          pageSize,
         }),
-      [selectionQueryKey, requestedAttributeKeysKey],
+      [selectionQueryKey, requestedAttributeKeysKey, pageSize],
     );
+    const previousFilterRequestKeyRef = useRef(filterRequestKey);
+    useEffect(() => {
+      if (previousFilterRequestKeyRef.current !== filterRequestKey) {
+        resetPagination();
+      }
+      previousFilterRequestKeyRef.current = filterRequestKey;
+    }, [filterRequestKey, resetPagination]);
     const clearSelection = useCallback(() => {
       const api = gridRef?.current?.api;
-      api?.deselectAll?.();
-      api?.setServerSideSelectionState?.({
-        selectAll: false,
-        toggledNodes: [],
+      withLiveGridApi(api, (liveApi) => {
+        liveApi.deselectAll?.();
+        liveApi.setServerSideSelectionState?.({
+          selectAll: false,
+          toggledNodes: [],
+        });
       });
       setSelectedAll(false);
       useTraceGridStore.setState({
@@ -291,7 +316,7 @@ const TraceGrid = React.forwardRef(
               // Disabled/unresolved is not an exact empty response. Reporting
               // success here makes AG Grid publish "No traces" without ever
               // calling the list API.
-              params.fail();
+              withLiveGridApi(params.api, () => params.fail?.());
               return;
             }
             let pageNumber = 0;
@@ -303,8 +328,8 @@ const TraceGrid = React.forwardRef(
               const { request } = params;
               requestGeneration = cursorPagination.current.generation();
 
-              const pageSize = request.endRow - request.startRow;
-              pageNumber = Math.floor(request.startRow / pageSize);
+              const requestPageSize = request.endRow - request.startRow;
+              pageNumber = Math.floor(request.startRow / requestPageSize);
               if (pageNumber === 0) {
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
@@ -322,7 +347,7 @@ const TraceGrid = React.forwardRef(
                   // project_id as org-scoped (used by the cross-project user
                   // detail page).
                   ...(projectId ? { project_id: projectId } : {}),
-                  page_size: ROWS_LIMIT,
+                  page_size: requestPageSize,
                   // JSON preserves attribute paths containing commas. The API
                   // rejects oversized requests; neither side truncates.
                   ...(requestedAttributeKeysKey === "[]"
@@ -346,10 +371,11 @@ const TraceGrid = React.forwardRef(
                   loadExactListPage({
                     pagination: cursorPagination.current,
                     pageNumber,
-                    targetRowCount: ROWS_LIMIT,
+                    targetRowCount: requestPageSize,
                     loadResponse: (signal) =>
                       loadTraceObservePage(buildParams(pageNumber), signal),
-                    rowsFromResponse: (response) => response.data.table,
+                    rowsFromResponse: (response) =>
+                      response.data.table.map(boundObserveListRow),
                     metadataFromResponse: (response) => response.data.metadata,
                     rowIdentity: traceRowIdentity,
                     isCurrent: () =>
@@ -358,6 +384,7 @@ const TraceGrid = React.forwardRef(
                       loadTraceObservePage(buildParams(pageNumber), signal),
                   }),
               });
+              if (!isGridApiLive(params.api)) return;
               if (!cursorPagination.current.isCurrent(requestGeneration)) {
                 // A newer filter/range owns the grid now. Do not let this stale
                 // response replace its loading state with an empty overlay.
@@ -373,7 +400,10 @@ const TraceGrid = React.forwardRef(
                 resumePendingListPage({
                   page: exactPage,
                   resume: () => {
-                    if (cursorPagination.current.isCurrent(requestGeneration)) {
+                    if (
+                      cursorPagination.current.isCurrent(requestGeneration) &&
+                      isGridApiLive(params.api)
+                    ) {
                       params.fail();
                       if (params.api?.retryServerSideLoads) {
                         params.api.retryServerSideLoads();
@@ -450,20 +480,22 @@ const TraceGrid = React.forwardRef(
                 totalState.totalRowCountIsLowerBound;
               useTraceGridStore.setState(totalState);
 
-              // Infinite-scroll behavior: don't tell AG Grid the total upfront.
-              // Use -1 (unknown) so it only extends the scrollbar as pages load.
-              // When we get fewer rows than requested, that's the last page.
               const isLastPage = exactPage.isLastPage;
-              const lastRow = isLastPage ? request.startRow + rows.length : -1;
+              const discoveredRowCount = publishPage({
+                request,
+                rows,
+                isLastPage,
+              });
 
               params.success({
                 rowData: rows,
-                rowCount: lastRow,
+                rowCount: discoveredRowCount,
               });
               setContinuationNotice(null);
 
               // Collect all loaded trace IDs for prev/next navigation
               setTimeout(() => {
+                if (!isGridApiLive(params.api)) return;
                 const ids = [];
                 params.api.forEachNode((node) => {
                   if (node.data?.trace_id) ids.push(node.data.trace_id);
@@ -471,6 +503,10 @@ const TraceGrid = React.forwardRef(
                 if (ids.length > 0) setVisibleTraceIds(ids);
               }, 0);
             } catch (error) {
+              if (isExpectedRequestCancellation(error)) {
+                return;
+              }
+              if (!isGridApiLive(params.api)) return;
               if (isListCursorContinuationLimitError(error)) {
                 // Keep the signed checkpoint and any existing rows. This is a
                 // bounded exact read awaiting an explicit retry, not an empty
@@ -526,6 +562,7 @@ const TraceGrid = React.forwardRef(
         // request key changes for every semantic input used above without
         // changing for referential-only parent renders.
         filterRequestKey,
+        publishPage,
         setLoading,
       ],
     );
@@ -611,6 +648,7 @@ const TraceGrid = React.forwardRef(
       [columns, setColumns],
     );
     const onSelectionChanged = useCallback((params) => {
+      if (!isGridApiLive(params.api)) return;
       // In server-side row model, ssState.toggledNodes is authoritative —
       // an empty array is a valid, meaningful state (e.g. when selectAll is
       // true, [] means "no deselections, everything is selected"). Only
@@ -651,6 +689,7 @@ const TraceGrid = React.forwardRef(
           // onSelectionChanged logic — trust server-side state verbatim so
           // toggling under selectAll correctly inverts the selection.
           setTimeout(() => {
+            if (!isGridApiLive(event.api)) return;
             const isServerSide =
               typeof event.api.getServerSideSelectionState === "function";
             const ssState = isServerSide
@@ -725,6 +764,7 @@ const TraceGrid = React.forwardRef(
           onContinue={continueCursorSearch}
         />
         <AgGridReact
+          key={`trace-grid-${pageSize}`}
           style={{ flex: 1, minHeight: 0 }}
           className={`clean-data-table ${continuationNotice ? "ag-grid-cursor-paused" : ""} ${shouldDisable ? "ag-grid-disabled" : ""}`}
           theme={agTheme.withParams({
@@ -750,8 +790,12 @@ const TraceGrid = React.forwardRef(
           tooltipHideDelay={2000}
           tooltipInteraction={true}
           rowSelection={{ mode: "multiRow", enableClickSelection: false }}
-          pagination={false}
-          cacheBlockSize={ROWS_LIMIT}
+          pagination={true}
+          paginationPageSize={pageSize}
+          paginationPageSizeSelector={false}
+          suppressPaginationPanel={true}
+          onPaginationChanged={onPaginationChanged}
+          cacheBlockSize={pageSize}
           maxBlocksInCache={OBSERVE_GRID_MAX_BLOCKS_IN_CACHE}
           maxConcurrentDatasourceRequests={OBSERVE_GRID_MAX_CONCURRENT_REQUESTS}
           rowBuffer={5}
@@ -782,6 +826,7 @@ const TraceGrid = React.forwardRef(
             if (event.column.colId !== APP_CONSTANTS.AG_GRID_SELECTION_COLUMN) {
               return;
             }
+            if (!isGridApiLive(event.api)) return;
 
             if (selectedAll) {
               event.api.deselectAll();
@@ -805,6 +850,14 @@ const TraceGrid = React.forwardRef(
             }
             return null;
           }}
+        />
+        <CursorGridPagination
+          disabled={!enabled || gridLoading || Boolean(continuationNotice)}
+          page={page}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          onPageChange={goToPage}
+          onPageSizeChange={changePageSize}
         />
         <LLMTracingTraceDetailDrawer refreshGrid={refreshGrid} />
         <NumberQuickFilterPopover
