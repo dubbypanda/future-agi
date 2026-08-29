@@ -240,6 +240,8 @@ describe("SessionGrid cursor continuation", () => {
     const firstPage = makeParams();
     await getRows(firstPage);
     await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+    expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
     const secondPage = makeParams({ startRow: 25 });
     gridState.api = secondPage.api;

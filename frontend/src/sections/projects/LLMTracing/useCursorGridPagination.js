@@ -17,6 +17,7 @@ export default function useCursorGridPagination(gridRef) {
   const [isPageLoading, setIsPageLoading] = useState(false);
   const discoveredRowCountRef = useRef(0);
   const hasPublishedPageRef = useRef(false);
+  const publishedPagesRef = useRef(new Set());
   const pageLoadRequestRef = useRef(0);
 
   const beginPageLoad = useCallback((pageNumber) => {
@@ -41,6 +42,7 @@ export default function useCursorGridPagination(gridRef) {
       setIsPageLoading(false);
       discoveredRowCountRef.current = 0;
       hasPublishedPageRef.current = false;
+      publishedPagesRef.current.clear();
       setPage(1);
       setPageCount(1);
       if (moveGrid) {
@@ -57,6 +59,8 @@ export default function useCursorGridPagination(gridRef) {
     const requestPageSize = request.endRow - request.startRow;
     const terminalRowCount = request.startRow + rows.length;
     const nextPageSentinelRowCount = request.endRow + 1;
+    const publishedPage = Math.floor(request.startRow / requestPageSize) + 1;
+    publishedPagesRef.current.add(publishedPage);
 
     if (isLastPage) {
       discoveredRowCountRef.current = terminalRowCount;
@@ -68,7 +72,7 @@ export default function useCursorGridPagination(gridRef) {
     }
 
     const discoveredRowCount = discoveredRowCountRef.current;
-    setPage(Math.floor(request.startRow / requestPageSize) + 1);
+    setPage(publishedPage);
     setPageCount(Math.max(1, Math.ceil(discoveredRowCount / requestPageSize)));
     return discoveredRowCount;
   }, []);
@@ -82,6 +86,12 @@ export default function useCursorGridPagination(gridRef) {
       ) {
         return;
       }
+      // A datasource read starts on AG Grid's next turn. Mark an unseen page
+      // pending in the click handler so the current rows never disappear into
+      // an unlabelled blank frame before getRows() begins.
+      const navigationRequestId = publishedPagesRef.current.has(nextPage)
+        ? null
+        : beginPageLoad(nextPage - 1);
       const moved = withLiveGridApi(gridRef?.current?.api, (api) =>
         api.paginationGoToPage?.(nextPage - 1),
       );
@@ -91,9 +101,11 @@ export default function useCursorGridPagination(gridRef) {
         // published, so keep the requested page authoritative until the
         // datasource confirms it in publishPage().
         setPage(nextPage);
+      } else {
+        finishPageLoad(navigationRequestId);
       }
     },
-    [gridRef, pageCount],
+    [beginPageLoad, finishPageLoad, gridRef, pageCount],
   );
 
   const changePageSize = useCallback(
