@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import {
   Box,
+  CircularProgress,
   MenuItem,
   Pagination,
   PaginationItem,
@@ -13,6 +14,7 @@ import { OBSERVE_LIST_PAGE_SIZE_OPTIONS } from "src/config/runtime_limits";
 
 export default function CursorGridPagination({
   disabled = false,
+  loading = false,
   onPageChange,
   onPageSizeChange,
   page,
@@ -55,13 +57,30 @@ export default function CursorGridPagination({
         </Select>
       </Stack>
 
+      <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
+        {loading ? (
+          <Stack
+            role="status"
+            aria-live="polite"
+            direction="row"
+            alignItems="center"
+            gap={1}
+          >
+            <CircularProgress size={16} />
+            <Typography typography="s2" color="text.secondary">
+              Loading page…
+            </Typography>
+          </Stack>
+        ) : null}
+      </Box>
+
       <Pagination
         count={pageCount}
         variant="outlined"
         shape="rounded"
         page={Math.min(page, pageCount)}
         color="primary"
-        disabled={disabled}
+        disabled={disabled || loading}
         onChange={(_event, value) => onPageChange(value)}
         renderItem={(item) => (
           <PaginationItem
@@ -90,6 +109,7 @@ export default function CursorGridPagination({
 
 CursorGridPagination.propTypes = {
   disabled: PropTypes.bool,
+  loading: PropTypes.bool,
   onPageChange: PropTypes.func.isRequired,
   onPageSizeChange: PropTypes.func.isRequired,
   page: PropTypes.number.isRequired,

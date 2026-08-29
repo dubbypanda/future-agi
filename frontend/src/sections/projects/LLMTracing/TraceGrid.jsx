@@ -134,11 +134,14 @@ const TraceGrid = React.forwardRef(
     const firstPageRequestRef = useRef(0);
     const preserveRowsDuringNextRefreshRef = useRef(false);
     const {
+      beginPageLoad,
       page,
       pageCount,
       pageSize,
       changePageSize,
+      finishPageLoad,
       goToPage,
+      isPageLoading,
       publishPage,
       resetPagination,
     } = useCursorGridPagination(gridRef);
@@ -320,6 +323,7 @@ const TraceGrid = React.forwardRef(
             }
             let pageNumber = 0;
             let firstPageRequestId = null;
+            let pageLoadRequestId = null;
             let requestGeneration = null;
             let continuationPending = false;
             try {
@@ -329,6 +333,7 @@ const TraceGrid = React.forwardRef(
 
               const requestPageSize = request.endRow - request.startRow;
               pageNumber = Math.floor(request.startRow / requestPageSize);
+              pageLoadRequestId = beginPageLoad(pageNumber);
               if (pageNumber === 0) {
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
@@ -530,6 +535,7 @@ const TraceGrid = React.forwardRef(
               setReadMessage(QUERY_FAILED_RETRY_MESSAGE);
               failServerSideGridRead(params);
             } finally {
+              finishPageLoad(pageLoadRequestId);
               if (
                 !continuationPending &&
                 firstPageRequestId !== null &&
@@ -561,6 +567,8 @@ const TraceGrid = React.forwardRef(
         // request key changes for every semantic input used above without
         // changing for referential-only parent renders.
         filterRequestKey,
+        beginPageLoad,
+        finishPageLoad,
         publishPage,
         setLoading,
       ],
@@ -800,7 +808,7 @@ const TraceGrid = React.forwardRef(
           suppressServerSideFullWidthLoadingRow={true}
           rowModelType="serverSide"
           serverSideDatasource={dataSource}
-          loading={isGridReadPending}
+          loading={isGridReadPending || isPageLoading}
           noRowsOverlayComponent={() =>
             isGridReadPending || continuationNotice
               ? null
@@ -850,7 +858,13 @@ const TraceGrid = React.forwardRef(
           }}
         />
         <CursorGridPagination
-          disabled={!enabled || gridLoading || Boolean(continuationNotice)}
+          disabled={
+            !enabled ||
+            gridLoading ||
+            isPageLoading ||
+            Boolean(continuationNotice)
+          }
+          loading={isPageLoading}
           page={page}
           pageCount={pageCount}
           pageSize={pageSize}

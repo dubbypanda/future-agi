@@ -346,6 +346,65 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     expect(getMock).toHaveBeenCalledTimes(2);
   });
 
+  it("shows a loading state while an explicitly requested page is pending", async () => {
+    const firstPageRows = Array.from({ length: 25 }, (_, index) =>
+      kind === "trace"
+        ? { trace_id: `trace-${index}`, project_id: "project-1" }
+        : {
+            span_id: `span-${index}`,
+            trace_id: `trace-${index}`,
+            project_id: "project-1",
+            start_time: `2026-08-08T00:00:${String(index).padStart(2, "0")}Z`,
+          },
+    );
+    let resolveSecondPage;
+    getMock
+      .mockResolvedValueOnce(
+        listResponse({
+          rows: firstPageRows,
+          hasMore: true,
+          nextCursor: "page-2",
+          totalRows: 26,
+          lowerBound: true,
+        }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondPage = resolve;
+          }),
+      );
+
+    renderGrid(kind);
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    const firstPage = makeParams();
+    await getRows(firstPage);
+    await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
+
+    const secondPage = makeParams(25, 50);
+    gridState.api = secondPage.api;
+    let pendingRead;
+    await act(async () => {
+      pendingRead = gridState.props.serverSideDatasource.getRows(secondPage);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+      expect(gridState.props.loading).toBe(true);
+    });
+    expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
+
+    resolveSecondPage(listResponse({ rows: [] }));
+    await act(async () => pendingRead);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading page…")).not.toBeInTheDocument();
+      expect(gridState.props.loading).toBe(false);
+    });
+  });
+
   it("offers a bounded page-size selector and resets to 50 rows", async () => {
     getMock.mockResolvedValueOnce(listResponse({ rows: [] }));
     renderGrid(kind);

@@ -125,6 +125,8 @@ const renderGrid = () =>
 const makeParams = ({ startRow = 0, sortModel = [] } = {}) => ({
   request: { startRow, endRow: startRow + 25, sortModel },
   api: {
+    paginationGoToFirstPage: vi.fn(),
+    paginationGoToPage: vi.fn(),
     showNoRowsOverlay: vi.fn(),
     refreshServerSide: vi.fn(),
     retryServerSideLoads: vi.fn(),
@@ -211,6 +213,61 @@ describe("SessionGrid cursor continuation", () => {
     expect(secondPage.success).toHaveBeenCalledWith({
       rowData: [row(25)],
       rowCount: 26,
+    });
+  });
+
+  it("shows a loading state while an explicitly requested session page is pending", async () => {
+    let resolveSecondPage;
+    getMock
+      .mockResolvedValueOnce(
+        sessionResponse({
+          rows: Array.from({ length: 25 }, (_, index) => row(index)),
+          hasMore: true,
+          nextCursor: "page-2",
+          totalRows: 25,
+          lowerBound: true,
+        }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondPage = resolve;
+          }),
+      );
+    renderGrid();
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    const firstPage = makeParams();
+    await getRows(firstPage);
+    await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
+
+    const secondPage = makeParams({ startRow: 25 });
+    gridState.api = secondPage.api;
+    let pendingRead;
+    await act(async () => {
+      pendingRead = gridState.props.serverSideDatasource.getRows(secondPage);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+      expect(gridState.props.loading).toBe(true);
+    });
+    expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
+
+    resolveSecondPage(
+      sessionResponse({
+        rows: [row(25)],
+        hasMore: false,
+        nextCursor: null,
+        totalRows: 26,
+      }),
+    );
+    await act(async () => pendingRead);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading page…")).not.toBeInTheDocument();
+      expect(gridState.props.loading).toBe(false);
     });
   });
 

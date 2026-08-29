@@ -14,11 +14,33 @@ export default function useCursorGridPagination(gridRef) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(OBSERVE_LIST_DEFAULT_PAGE_SIZE);
   const [pageCount, setPageCount] = useState(1);
+  const [isPageLoading, setIsPageLoading] = useState(false);
   const discoveredRowCountRef = useRef(0);
+  const hasPublishedPageRef = useRef(false);
+  const pageLoadRequestRef = useRef(0);
+
+  const beginPageLoad = useCallback((pageNumber) => {
+    // The grids already own their initial-load presentation. This state is for
+    // an explicit pagination transition, including a later uncached return to
+    // page one after at least one page has been published.
+    if (pageNumber === 0 && !hasPublishedPageRef.current) return null;
+    const requestId = ++pageLoadRequestRef.current;
+    setIsPageLoading(true);
+    return requestId;
+  }, []);
+
+  const finishPageLoad = useCallback((requestId) => {
+    if (requestId !== null && requestId === pageLoadRequestRef.current) {
+      setIsPageLoading(false);
+    }
+  }, []);
 
   const resetPagination = useCallback(
     ({ moveGrid = true } = {}) => {
+      pageLoadRequestRef.current += 1;
+      setIsPageLoading(false);
       discoveredRowCountRef.current = 0;
+      hasPublishedPageRef.current = false;
       setPage(1);
       setPageCount(1);
       if (moveGrid) {
@@ -31,6 +53,7 @@ export default function useCursorGridPagination(gridRef) {
   );
 
   const publishPage = useCallback(({ request, rows, isLastPage }) => {
+    hasPublishedPageRef.current = true;
     const requestPageSize = request.endRow - request.startRow;
     const terminalRowCount = request.startRow + rows.length;
     const nextPageSentinelRowCount = request.endRow + 1;
@@ -89,17 +112,23 @@ export default function useCursorGridPagination(gridRef) {
 
   return useMemo(
     () => ({
+      beginPageLoad,
       page,
       pageCount,
       pageSize,
       changePageSize,
+      finishPageLoad,
       goToPage,
+      isPageLoading,
       publishPage,
       resetPagination,
     }),
     [
+      beginPageLoad,
       changePageSize,
+      finishPageLoad,
       goToPage,
+      isPageLoading,
       page,
       pageCount,
       pageSize,

@@ -97,11 +97,14 @@ const SessionGrid = React.forwardRef(
     const [currentRowData, setCurrentRowData] = useState(null);
     const [continuationNotice, setContinuationNotice] = useState(null);
     const {
+      beginPageLoad,
       page,
       pageCount,
       pageSize,
       changePageSize,
+      finishPageLoad,
       goToPage,
+      isPageLoading,
       publishPage,
       resetPagination,
     } = useCursorGridPagination(gridApiRef);
@@ -276,6 +279,7 @@ const SessionGrid = React.forwardRef(
         return {
           getRows: async (params) => {
             let pageNumber = 0;
+            let pageLoadRequestId = null;
             let requestGeneration = null;
             try {
               if (!isGridApiLive(params.api)) return;
@@ -283,6 +287,7 @@ const SessionGrid = React.forwardRef(
 
               const requestPageSize = request.endRow - request.startRow;
               pageNumber = Math.floor(request.startRow / requestPageSize);
+              pageLoadRequestId = beginPageLoad(pageNumber);
               const sortParams = (request?.sortModel || []).map(
                 ({ colId, sort }) => ({
                   column_id: colId,
@@ -530,6 +535,8 @@ const SessionGrid = React.forwardRef(
               // degraded/error response as an exact empty result; the retry
               // snackbar above is the explicit failure state instead.
               params.fail();
+            } finally {
+              finishPageLoad(pageLoadRequestId);
             }
           },
           getRowId: ({ data }) => {
@@ -540,7 +547,7 @@ const SessionGrid = React.forwardRef(
       // Semantic inputs are serialized above so referential-only parent
       // renders do not reset the cursor chain or the visible page.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [paginationRequestKey, publishPage],
+      [beginPageLoad, finishPageLoad, paginationRequestKey, publishPage],
     );
 
     const [finalColumnDefs, setFinalColumnDefs] = useState([]);
@@ -664,6 +671,7 @@ const SessionGrid = React.forwardRef(
                   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS
                 }
                 rowBuffer={5}
+                loading={isPageLoading}
                 suppressServerSideFullWidthLoadingRow={true}
                 noRowsOverlayComponent={
                   continuationNotice ? () => null : undefined
@@ -693,7 +701,8 @@ const SessionGrid = React.forwardRef(
               />
             </Box>
             <CursorGridPagination
-              disabled={Boolean(continuationNotice)}
+              disabled={isPageLoading || Boolean(continuationNotice)}
+              loading={isPageLoading}
               page={page}
               pageCount={pageCount}
               pageSize={pageSize}
