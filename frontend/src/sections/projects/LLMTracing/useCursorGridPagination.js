@@ -50,10 +50,17 @@ const paintedGridRowSignature = (api) => {
 
   // AG Grid resets row-index/row-id on each server-side page. Include the
   // rendered cell text so an old page cannot satisfy the new-page paint check.
-  return rows
+  // During a block swap AG Grid can retain row shells after clearing every
+  // cell. Those shells are not a painted page and must keep the loader active.
+  const paintedRows = rows
+    .map((row) => ({ row, text: (row.textContent ?? "").trim() }))
+    .filter(({ text }) => text.length > 0);
+  if (paintedRows.length === 0) return null;
+
+  return paintedRows
     .map(
-      (row) =>
-        `${row.getAttribute?.("row-index") ?? ""}:${row.getAttribute?.("row-id") ?? ""}:${row.textContent ?? ""}`,
+      ({ row, text }) =>
+        `${row.getAttribute?.("row-index") ?? ""}:${row.getAttribute?.("row-id") ?? ""}:${text}`,
     )
     .join("\n");
 };
@@ -105,13 +112,24 @@ export default function useCursorGridPagination(gridRef) {
           paintedRowSignature !== undefined;
         const targetRowsHavePainted =
           targetRowsAreRendered &&
-          (canInspectPaintedRows
-            ? paintedRowSignature !== null &&
-              paintedRowSignature !== transition.previousPaintedRowSignature
-            : rowTokensChanged);
-        transition.readyFrameCount = targetRowsHavePainted
-          ? transition.readyFrameCount + 1
-          : 0;
+          rowTokensChanged &&
+          (!canInspectPaintedRows ||
+            (paintedRowSignature !== null &&
+              paintedRowSignature !== transition.previousPaintedRowSignature));
+
+        if (!targetRowsHavePainted) {
+          transition.lastReadyPaintedRowSignature = null;
+          transition.readyFrameCount = 0;
+        } else if (!canInspectPaintedRows) {
+          transition.readyFrameCount += 1;
+        } else if (
+          transition.lastReadyPaintedRowSignature === paintedRowSignature
+        ) {
+          transition.readyFrameCount += 1;
+        } else {
+          transition.lastReadyPaintedRowSignature = paintedRowSignature;
+          transition.readyFrameCount = 1;
+        }
         const activeRequest = activePageLoadRequestRef.current;
         const timedOutWithoutRequest =
           Date.now() >= transition.deadline &&
@@ -231,6 +249,7 @@ export default function useCursorGridPagination(gridRef) {
           page: nextPage,
           previousRowTokens: new Set(renderedRowTokens(api)),
           previousPaintedRowSignature: paintedGridRowSignature(api),
+          lastReadyPaintedRowSignature: null,
           readyFrameCount: 0,
           deadline: Date.now() + OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS,
         };

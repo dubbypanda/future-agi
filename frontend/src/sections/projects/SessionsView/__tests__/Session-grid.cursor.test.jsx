@@ -153,6 +153,10 @@ const makeParams = ({ startRow = 0, sortModel = [] } = {}) => {
       paintedRows = nextPaintedRows;
       if (nextPaintedRows) paintedSignature = `page-${currentPage + 1}`;
     },
+    setPaintedText: (text) => {
+      paintedRows = true;
+      paintedSignature = text;
+    },
   };
   return {
     request: { startRow, endRow: startRow + 25, sortModel },
@@ -308,6 +312,12 @@ describe("SessionGrid cursor continuation", () => {
     secondPage.api.getRenderedNodes.mockReturnValue([
       { id: "session-25", data: row(25) },
     ]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+
+    secondPage.api.setPaintedText("   ");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });

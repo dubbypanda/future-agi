@@ -208,6 +208,10 @@ const makeParams = (startRow = 0, endRow = startRow + 25) => {
       paintedRows = nextPaintedRows;
       if (nextPaintedRows) paintedSignature = `page-${currentPage + 1}`;
     },
+    setPaintedText: (text) => {
+      paintedRows = true;
+      paintedSignature = text;
+    },
   };
   return {
     request: { startRow, endRow, sortModel: [] },
@@ -474,6 +478,14 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
         data: renderedSecondPageRow,
       },
     ]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
+
+    // AG Grid briefly retains row shells whose cells have been cleared. Empty
+    // shells are not a painted target page and must not dismiss the loader.
+    secondPage.api.setPaintedText("   ");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
