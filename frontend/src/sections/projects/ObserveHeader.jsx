@@ -133,14 +133,13 @@ const ObserveHeader = ({ text, refreshData, resetFilters }) => {
   }, [autoRefresh, observeId]);
 
   useEffect(() => {
-    if (!autoRefresh) return undefined;
     const handlePageChanged = (event) => {
       if (Number(event?.detail?.page) > 1) setAutoRefresh(false);
     };
     window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, handlePageChanged);
     return () =>
       window.removeEventListener(OBSERVE_PAGE_CHANGED_EVENT, handlePageChanged);
-  }, [autoRefresh, setAutoRefresh]);
+  }, [setAutoRefresh]);
 
   useEffect(() => {
     setLastUpdated(null);

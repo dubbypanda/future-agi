@@ -407,6 +407,9 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     expect(params.api.paginationGoToPage).toHaveBeenCalledWith(1);
     expect(pageChanged).toHaveBeenCalledOnce();
     expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
+    params.api.refreshServerSide.mockClear();
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
     expect(screen.getByRole("button", { name: "page 2" })).toHaveAttribute(
       "aria-current",

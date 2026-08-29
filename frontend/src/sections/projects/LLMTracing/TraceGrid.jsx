@@ -68,7 +68,10 @@ import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
-import { OBSERVE_LIST_REFRESH_EVENT } from "../observeEvents";
+import {
+  dispatchObservePageChanged,
+  OBSERVE_LIST_REFRESH_EVENT,
+} from "../observeEvents";
 
 const traceRowIdentity = (row) => {
   const id = row?.trace_id || row?.id;
@@ -256,6 +259,10 @@ const TraceGrid = React.forwardRef(
       // current.
       const manualRefresh = () => refreshGrid(false);
       const autoRefresh = () => {
+        if (page > 1) {
+          dispatchObservePageChanged(page);
+          return;
+        }
         if (inFlightPageLoads.current.size > 0) return;
         refreshGrid(false);
       };
@@ -265,7 +272,7 @@ const TraceGrid = React.forwardRef(
         window.removeEventListener("observe-refresh", manualRefresh);
         window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, autoRefresh);
       };
-    }, [refreshGrid]);
+    }, [page, refreshGrid]);
 
     // Keep the explicit reset event aligned with query-bound invalidation: both
     // paths clear AG Grid, the mirrored store, and the local header state.

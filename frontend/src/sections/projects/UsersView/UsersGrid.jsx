@@ -125,6 +125,12 @@ const UsersGrid = React.memo(
 
     useEffect(() => {
       const refreshRows = () => {
+        const currentPage =
+          Number(gridApiRef.current?.api?.paginationGetCurrentPage?.()) + 1;
+        if (Number.isSafeInteger(currentPage) && currentPage > 1) {
+          dispatchObservePageChanged(currentPage);
+          return;
+        }
         if (activeListReadsRef.current > 0) return;
         withLiveGridApi(gridApiRef.current?.api, (api) =>
           api.refreshServerSide?.({ purge: false }),

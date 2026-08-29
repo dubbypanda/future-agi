@@ -225,20 +225,26 @@ describe("UsersGrid deterministic pagination", () => {
   it("preserves visible users on auto refresh and reports page navigation", () => {
     renderGrid();
     const params = makeGridParams();
+    params.api.paginationGetCurrentPage = vi.fn(() => 0);
     gridState.api = params.api;
     const pageChanged = vi.fn();
-    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged, {
-      once: true,
-    });
+    window.addEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged);
 
     act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
     expect(params.api.refreshServerSide).toHaveBeenCalledWith({ purge: false });
 
+    params.api.refreshServerSide.mockClear();
+    params.api.paginationGetCurrentPage.mockReturnValue(1);
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(params.api.refreshServerSide).not.toHaveBeenCalled();
+    expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
+
     gridState.props.onPaginationChanged({
       api: { paginationGetCurrentPage: () => 1 },
     });
-    expect(pageChanged).toHaveBeenCalledOnce();
-    expect(pageChanged.mock.calls[0][0].detail).toEqual({ page: 2 });
+    expect(pageChanged).toHaveBeenCalledTimes(2);
+    expect(pageChanged.mock.calls[1][0].detail).toEqual({ page: 2 });
+    window.removeEventListener(OBSERVE_PAGE_CHANGED_EVENT, pageChanged);
   });
 
   it("does not stack user auto refreshes while a read is pending", async () => {

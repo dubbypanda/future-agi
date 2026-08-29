@@ -264,6 +264,19 @@ describe("ObserveHeader exact aggregation refresh state", () => {
     window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, listRefresh);
   });
 
+  it("keeps the page-change shutoff armed while auto refresh is off", () => {
+    h.getStorage.mockReturnValue(false);
+    renderHeader();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(OBSERVE_PAGE_CHANGED_EVENT, { detail: { page: 2 } }),
+      );
+    });
+
+    expect(h.setStorage).toHaveBeenCalledWith("autoRefresh", false);
+  });
+
   it.each([
     ["LLM Tracing", "/dashboard/observe/project-1/llm-tracing"],
     ["Sessions", "/dashboard/observe/project-1/sessions"],

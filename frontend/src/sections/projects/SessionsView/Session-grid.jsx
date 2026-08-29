@@ -43,7 +43,10 @@ import {
 import ListCursorContinuationNotice from "src/sections/projects/LLMTracing/ListCursorContinuationNotice";
 import CursorGridPagination from "src/sections/projects/LLMTracing/CursorGridPagination";
 import useCursorGridPagination from "src/sections/projects/LLMTracing/useCursorGridPagination";
-import { OBSERVE_LIST_REFRESH_EVENT } from "../observeEvents";
+import {
+  dispatchObservePageChanged,
+  OBSERVE_LIST_REFRESH_EVENT,
+} from "../observeEvents";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import {
@@ -119,6 +122,10 @@ const SessionGrid = React.forwardRef(
     }, [continuationNotice, gridApiRef]);
     useEffect(() => {
       const refreshRows = () => {
+        if (page > 1) {
+          dispatchObservePageChanged(page);
+          return;
+        }
         if (activeListReadsRef.current > 0) return;
         withLiveGridApi(gridApiRef?.current?.api, (api) =>
           api.refreshServerSide?.({ purge: false }),
@@ -127,7 +134,7 @@ const SessionGrid = React.forwardRef(
       window.addEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
       return () =>
         window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
-    }, [gridApiRef]);
+    }, [gridApiRef, page]);
     const theme = useTheme();
     const agTheme = useAgThemeWith(getSessionGridThemeParams(theme));
     const handleDrawerClose = () => {

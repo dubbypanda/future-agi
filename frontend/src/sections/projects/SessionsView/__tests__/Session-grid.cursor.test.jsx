@@ -316,6 +316,9 @@ describe("SessionGrid cursor continuation", () => {
     const firstPage = makeParams();
     await getRows(firstPage);
     await userEvent.click(screen.getByRole("button", { name: "Go to page 2" }));
+    firstPage.api.refreshServerSide.mockClear();
+    act(() => window.dispatchEvent(new Event(OBSERVE_LIST_REFRESH_EVENT)));
+    expect(firstPage.api.refreshServerSide).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
     expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
