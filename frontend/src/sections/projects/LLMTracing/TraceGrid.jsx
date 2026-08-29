@@ -815,7 +815,10 @@ const TraceGrid = React.forwardRef(
           suppressServerSideFullWidthLoadingRow={true}
           rowModelType="serverSide"
           serverSideDatasource={dataSource}
-          loading={isGridReadPending || isPageLoading}
+          // Keep page-transition feedback in CursorGridPagination. Feeding the
+          // same flag back into AG Grid suppresses the target rows whose paint
+          // is used to finish that transition.
+          loading={isGridReadPending}
           noRowsOverlayComponent={() =>
             isGridReadPending || continuationNotice
               ? null

@@ -914,7 +914,9 @@ const SpanGrid = React.forwardRef(
           tooltipHideDelay={2000}
           tooltipInteraction={true}
           serverSideDatasource={dataSource}
-          loading={gridLoading || isPageLoading}
+          // The footer owns explicit page-transition feedback. AG Grid must be
+          // free to paint the target rows before that transition can settle.
+          loading={gridLoading}
           suppressServerSideFullWidthLoadingRow={true}
           noRowsOverlayComponent={() =>
             continuationNotice

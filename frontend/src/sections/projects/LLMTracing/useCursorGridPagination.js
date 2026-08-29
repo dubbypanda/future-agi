@@ -41,6 +41,18 @@ const hasPaintedGridRows = (api) => {
     return null;
   }
 
+  const renderedIndexes = (api?.getRenderedNodes?.() ?? [])
+    .filter((node) => node?.data != null && Number.isSafeInteger(node.rowIndex))
+    .map((node) => node.rowIndex);
+
+  if (renderedIndexes.length > 0) {
+    return renderedIndexes.some((rowIndex) =>
+      gridElement.querySelector(
+        `.ag-center-cols-container .ag-row[row-index="${rowIndex}"]:not(.ag-row-loading)`,
+      ),
+    );
+  }
+
   return Boolean(
     gridElement.querySelector(
       ".ag-center-cols-container .ag-row[row-index]:not(.ag-row-loading)",

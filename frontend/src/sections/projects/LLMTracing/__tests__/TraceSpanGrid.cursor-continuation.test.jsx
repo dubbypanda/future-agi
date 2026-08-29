@@ -432,7 +432,7 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
 
     await waitFor(() => {
       expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
-      expect(gridState.props.loading).toBe(true);
+      expect(gridState.props.loading).toBe(false);
     });
     expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
@@ -453,7 +453,7 @@ describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {
     await act(async () => pendingRead);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
-    expect(gridState.props.loading).toBe(true);
+    expect(gridState.props.loading).toBe(false);
 
     secondPage.api.getRenderedNodes.mockReturnValue([
       {

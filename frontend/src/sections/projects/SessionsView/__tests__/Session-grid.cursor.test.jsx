@@ -274,7 +274,7 @@ describe("SessionGrid cursor continuation", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
-      expect(gridState.props.loading).toBe(true);
+      expect(gridState.props.loading).toBe(false);
     });
     expect(screen.getByRole("button", { name: "page 2" })).toBeDisabled();
 
@@ -291,7 +291,7 @@ describe("SessionGrid cursor continuation", () => {
     await act(async () => pendingRead);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading page…");
-    expect(gridState.props.loading).toBe(true);
+    expect(gridState.props.loading).toBe(false);
 
     secondPage.api.getRenderedNodes.mockReturnValue([
       { id: "session-25", data: row(25) },

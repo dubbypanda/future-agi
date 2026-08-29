@@ -678,7 +678,10 @@ const SessionGrid = React.forwardRef(
                   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS
                 }
                 rowBuffer={5}
-                loading={isPageLoading}
+                // CursorGridPagination owns explicit navigation feedback.
+                // Blocking AG Grid here prevents the target rows from painting
+                // and creates a circular page-transition dependency.
+                loading={false}
                 suppressServerSideFullWidthLoadingRow={true}
                 noRowsOverlayComponent={
                   continuationNotice ? () => null : undefined
