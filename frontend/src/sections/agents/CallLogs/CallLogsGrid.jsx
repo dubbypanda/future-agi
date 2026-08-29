@@ -51,6 +51,10 @@ import {
 } from "src/sections/projects/LLMTracing/listCursorPagination";
 import NumberQuickFilterPopover from "src/components/ComplexFilter/QuickFilterComponents/NumberQuickFilterPopover/NumberQuickFilterPopover";
 import { applyQuickFilters } from "src/sections/projects/LLMTracing/common";
+import {
+  OBSERVE_LIST_DEFAULT_PAGE_SIZE,
+  OBSERVE_LIST_PAGE_SIZE_OPTIONS,
+} from "src/config/runtime_limits";
 
 const CELL_HEIGHT_MAP = { Short: 40, Medium: 52, Large: 68, "Extra Large": 88 };
 
@@ -125,7 +129,9 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(15);
+  const [pageLimit, setPageLimit] = useState(
+    OBSERVE_LIST_DEFAULT_PAGE_SIZE,
+  );
   const [totalPages, setTotalPages] = useState(1);
   const [cursorTransportRevision, advanceCursorTransport] = useState(0);
   const cursorPagination = useRef(
@@ -135,7 +141,10 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   const cursorQuerySignature = JSON.stringify({
     id,
     module,
-    selectedVersion,
+    // Project call logs do not use the agent-definition version. Including
+    // that unrelated global store value reset the visible page and cursor
+    // chain whenever another agent view hydrated its selected version.
+    ...(module === "project" ? {} : { selectedVersion }),
     params,
   });
   // LLMTracingView builds request params inline. Keep the latest equivalent
@@ -814,7 +823,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
               }}
               sx={{ height: 36, bgcolor: "background.paper" }}
             >
-              {[10, 15, 25, 50].map((size) => (
+              {OBSERVE_LIST_PAGE_SIZE_OPTIONS.map((size) => (
                 <MenuItem key={size} value={size}>
                   {size}
                 </MenuItem>

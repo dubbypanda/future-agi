@@ -2,9 +2,16 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, userEvent, waitFor } from "src/utils/test-utils";
 
-const { agGridState, prefetchCallLogsMock, queryClientMock, useCallLogsMock } =
+const {
+  agGridState,
+  agentDetailsState,
+  prefetchCallLogsMock,
+  queryClientMock,
+  useCallLogsMock,
+} =
   vi.hoisted(() => ({
     agGridState: { props: null },
+    agentDetailsState: { selectedVersion: "version-1" },
     prefetchCallLogsMock: vi.fn(),
     queryClientMock: { prefetchQuery: vi.fn() },
     useCallLogsMock: vi.fn(),
@@ -39,7 +46,7 @@ vi.mock("src/sections/agents/helper", () => ({
   useCallLogs: (...args) => useCallLogsMock(...args),
 }));
 vi.mock("src/sections/agents/store/agentDetailsStore", () => ({
-  useAgentDetailsStore: () => ({ selectedVersion: "version-1" }),
+  useAgentDetailsStore: () => agentDetailsState,
 }));
 vi.mock("src/sections/agents/store", () => ({
   useShallowToggleAnnotationsStore: (selector) =>
@@ -94,6 +101,7 @@ const completeData = {
 describe("CallLogsGrid bounded-read state", () => {
   beforeEach(() => {
     agGridState.props = null;
+    agentDetailsState.selectedVersion = "version-1";
     prefetchCallLogsMock.mockReset();
     useCallLogsMock.mockReset();
   });
@@ -147,11 +155,11 @@ describe("CallLogsGrid bounded-read state", () => {
         module: "project",
         id: "project-1",
         page: 2,
-        pageLimit: 15,
+        pageLimit: 25,
         paginationParams: {
           cursor_mode: true,
           cursor: "signed-voice-page-2",
-          page_size: 15,
+          page_size: 25,
         },
       }),
     );
@@ -160,9 +168,51 @@ describe("CallLogsGrid bounded-read state", () => {
         paginationParams: {
           cursor_mode: true,
           page: 1,
-          page_size: 15,
+          page_size: 25,
         },
       }),
+    );
+  });
+
+  it("keeps project pagination stable when an unrelated agent version changes", async () => {
+    useCallLogsMock.mockImplementation(({ page }) => ({
+      data:
+        page === 1
+          ? completeData
+          : {
+              ...completeData,
+              current_page: 2,
+              total_pages: 2,
+              has_more: false,
+              next_cursor: null,
+            },
+      isLoading: false,
+      error: null,
+      queryKey: ["callLogs", "project", "project-1", 25, {}, page],
+    }));
+    const view = render(
+      <CallLogsGrid id="project-1" module="project" hideDrawer />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /go to page 2/i }),
+    );
+    await waitFor(() =>
+      expect(useCallLogsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2, pageLimit: 25 }),
+      ),
+    );
+
+    agentDetailsState.selectedVersion = "version-2";
+    view.rerender(
+      <CallLogsGrid id="project-1" module="project" hideDrawer />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "page 2" }),
+    ).toHaveAttribute("aria-current", "true");
+    expect(useCallLogsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, pageLimit: 25 }),
     );
   });
 
