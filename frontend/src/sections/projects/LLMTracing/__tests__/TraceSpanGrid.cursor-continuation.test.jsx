@@ -305,6 +305,32 @@ describe("painted grid row detection", () => {
     gridElement.querySelector(".ag-row").textContent = "   ";
     expect(paintedGridRowSignature({}, { current: gridElement })).toBeNull();
   });
+
+  it("prefers the visible owning grid over a stale AG Grid GUI", () => {
+    const staleGridElement = document.createElement("div");
+    staleGridElement.innerHTML = `
+      <div class="ag-center-cols-container">
+        <div class="ag-row" row-index="0" row-id="trace-old">Old page</div>
+      </div>
+    `;
+    const visibleGridElement = document.createElement("div");
+    visibleGridElement.innerHTML = `
+      <div class="ag-center-cols-container">
+        <div class="ag-row" row-index="0" row-id="trace-new">   </div>
+      </div>
+    `;
+    const api = { getGui: vi.fn(() => staleGridElement) };
+
+    expect(
+      paintedGridRowSignature(api, { current: visibleGridElement }),
+    ).toBeNull();
+    expect(api.getGui).not.toHaveBeenCalled();
+
+    visibleGridElement.querySelector(".ag-row").textContent = "New page";
+    expect(
+      paintedGridRowSignature(api, { current: visibleGridElement }),
+    ).toContain("trace-new:New page");
+  });
 });
 
 describe.each(["trace", "span"])("%s grid explicit pagination", (kind) => {

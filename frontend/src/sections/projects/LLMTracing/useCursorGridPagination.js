@@ -36,10 +36,19 @@ const renderedRowTokens = (api) => {
 };
 
 export const paintedGridRowSignature = (api, gridElementRef) => {
-  // getGui is not part of every AG Grid API build. The owning component
-  // supplies its stable DOM wrapper so production never falls back to the
-  // RowNode-only readiness check when that optional API is absent.
-  const gridElement = api?.getGui?.() ?? gridElementRef?.current;
+  // Prefer the owning component's live wrapper once AG Grid has mounted into
+  // it. Some production builds expose getGui(), but the returned element can
+  // lag behind the visible server-side block while AG Grid swaps pages. That
+  // stale tree made a transition look painted while the on-screen grid was
+  // still blank. Tests and older grid builds can keep using getGui() until the
+  // wrapper contains the actual grid DOM.
+  const owningGridElement = gridElementRef?.current;
+  const ownsLiveGridDom = Boolean(
+    owningGridElement?.querySelector?.(".ag-center-cols-container"),
+  );
+  const gridElement = ownsLiveGridDom
+    ? owningGridElement
+    : api?.getGui?.() ?? owningGridElement;
   if (!gridElement || typeof gridElement.querySelectorAll !== "function") {
     return undefined;
   }
