@@ -436,6 +436,30 @@ def test_scope_reconciliation_does_not_overwrite_corrupt_registry(
     assert path.read_bytes() == corrupt
 
 
+def test_scope_reconciliation_accepts_authorization_inventory_larger_than_registry(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    retained = _assignment(1)
+    deauthorized = _assignment(2)
+    registry.publish(retained)
+    registry.publish(deauthorized)
+    authorized = (
+        retained.workspace_id,
+        *(
+            _uuid(50_000 + index)
+            for index in range(MAX_REVISION_FENCE_ENTRIES + 1)
+        ),
+    )
+
+    assert len(authorized) > MAX_REVISION_FENCE_ENTRIES
+    assert registry.reconcile_authorized_workspaces(authorized) == 1
+    assert decode_revision_fence_registry(path.read_bytes(), now=NOW) == (
+        retained.document,
+    )
+
+
 def test_entry_and_byte_limits_fail_without_replacing_registry(
     tmp_path: Path,
 ) -> None:
