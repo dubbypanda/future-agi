@@ -53,6 +53,9 @@ const intersectPaginationSentinel = (isIntersecting = true) =>
     ]),
   );
 
+const advanceVisiblePagination = () =>
+  fireEvent.wheel(screen.getByRole("listbox"), { deltaY: 1 });
+
 describe("AutocompleteTextValueSelector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -137,6 +140,9 @@ describe("AutocompleteTextValueSelector", () => {
       screen.queryByRole("option", { name: "Load more values" }),
     ).not.toBeInTheDocument();
     intersectPaginationSentinel();
+    await act(async () => Promise.resolve());
+    expect(mocks.get).toHaveBeenCalledOnce();
+    advanceVisiblePagination();
 
     expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
     expect(screen.getAllByRole("option", { name: "completed" })).toHaveLength(
@@ -187,7 +193,9 @@ describe("AutocompleteTextValueSelector", () => {
     fireEvent.mouseDown(screen.getByRole("combobox"));
     await screen.findByRole("option", { name: "completed" });
     intersectPaginationSentinel();
+    advanceVisiblePagination();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
 
     await act(async () => {
@@ -207,7 +215,7 @@ describe("AutocompleteTextValueSelector", () => {
     expect(mocks.get).toHaveBeenCalledTimes(2);
   });
 
-  it("attempts each new signed cursor once while the end sentinel remains visible", async () => {
+  it("requires one new user gesture for each signed cursor while the end sentinel remains visible", async () => {
     let resolveSecondPage;
     let resolveThirdPage;
     mocks.get
@@ -245,7 +253,9 @@ describe("AutocompleteTextValueSelector", () => {
     fireEvent.mouseDown(screen.getByRole("combobox"));
     await screen.findByRole("option", { name: "completed" });
     intersectPaginationSentinel();
+    advanceVisiblePagination();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
     await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
 
     await act(async () => {
@@ -260,10 +270,11 @@ describe("AutocompleteTextValueSelector", () => {
       });
     });
     expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
-    await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(3));
+    await act(async () => Promise.resolve());
+    expect(mocks.get).toHaveBeenCalledTimes(2);
 
-    intersectPaginationSentinel();
-    intersectPaginationSentinel();
+    advanceVisiblePagination();
+    advanceVisiblePagination();
     await act(async () => Promise.resolve());
     expect(mocks.get).toHaveBeenCalledTimes(3);
 
@@ -375,7 +386,7 @@ describe("AutocompleteTextValueSelector", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("automatically traverses duplicate-heavy pages without a manual continuation row", async () => {
+  it("traverses duplicate-heavy pages one user gesture at a time without a manual continuation row", async () => {
     mocks.get
       .mockResolvedValueOnce({
         data: {
@@ -431,11 +442,17 @@ describe("AutocompleteTextValueSelector", () => {
       await screen.findByRole("option", { name: "completed" }),
     ).toBeVisible();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
 
     expect(await screen.findByRole("option", { name: "ended" })).toBeVisible();
     expect(
       screen.queryByRole("option", { name: "Load more values" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "failed" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    advanceVisiblePagination();
     expect(await screen.findByRole("option", { name: "failed" })).toBeVisible();
     expect(screen.getAllByRole("option", { name: "completed" })).toHaveLength(
       1,
@@ -598,10 +615,14 @@ describe("AutocompleteTextValueSelector", () => {
       await screen.findByRole("option", { name: "initial" }),
     ).toBeVisible();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Retry loading values" }),
     );
+    expect(await screen.findByRole("option", { name: "fresh" })).toBeVisible();
+    intersectPaginationSentinel();
+    advanceVisiblePagination();
 
     expect(
       await screen.findByRole("option", { name: "recovered" }),
@@ -705,6 +726,7 @@ describe("AutocompleteTextValueSelector", () => {
       await screen.findByRole("option", { name: "completed" }),
     ).toBeVisible();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
 
     const retry = await screen.findByRole("button", {
       name: "Retry loading values",
@@ -876,6 +898,7 @@ describe("AutocompleteTextValueSelector", () => {
     fireEvent.mouseDown(screen.getByRole("combobox"));
     expect(await screen.findByRole("option", { name: "recent" })).toBeVisible();
     intersectPaginationSentinel();
+    advanceVisiblePagination();
     expect(await screen.findByRole("option", { name: "older" })).toBeVisible();
     expect(mocks.get.mock.calls[1][1].params.cursor).toBe("next-bounded-batch");
     expect(

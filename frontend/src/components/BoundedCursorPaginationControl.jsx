@@ -166,7 +166,10 @@ const BoundedCursorPaginationControl = ({
     if (!requireUserAdvanceGesture || !shouldRender) return undefined;
 
     const sentinel = sentinelRef.current;
-    const root = rootRef?.current || sentinel?.parentElement;
+    const root =
+      rootRef?.current ||
+      sentinel?.closest?.('[role="listbox"]') ||
+      sentinel?.parentElement;
     if (!root?.addEventListener) return undefined;
 
     const recordAdvanceGesture = (event) => {
@@ -210,7 +213,10 @@ const BoundedCursorPaginationControl = ({
     ) {
       return undefined;
     }
-    const root = rootRef?.current || sentinel.parentElement;
+    const root =
+      rootRef?.current ||
+      sentinel.closest?.('[role="listbox"]') ||
+      sentinel.parentElement;
     const observer = new IntersectionObserver(
       ([entry]) => {
         const isIntersecting = Boolean(entry?.isIntersecting);
