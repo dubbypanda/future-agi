@@ -205,7 +205,6 @@ import type {
   ApiKeyRequestApi,
   ApiKeyResponseApi,
   ApiKeySuccessResponseApi,
-  ApiSelectionTooLargeErrorApi,
   ApiTextErrorResponseApi,
   ApiTooLargeErrorApi,
   ApiTracesSpanAttributeDetailListParams,
@@ -24543,7 +24542,7 @@ export type modelHubAnnotationQueuesItemsAddItemsResponse200 = {
 };
 
 export type modelHubAnnotationQueuesItemsAddItemsResponse400 = {
-  data: ApiSelectionTooLargeErrorApi;
+  data: ApiTextErrorResponseApi;
   status: 400;
 };
 

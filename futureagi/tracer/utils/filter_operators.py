@@ -52,6 +52,15 @@ FILTER_TYPE_ALLOWED_OPS: dict[str, set[str]] = {
     filter_type: set(ops)
     for filter_type, ops in _OPERATORS["filterTypeAllowed"].items()
 }
+SESSION_NUMERIC_MEMBERSHIP_COLUMNS = frozenset(
+    {
+        "duration",
+        "total_cost",
+        "total_tokens",
+        "traces_count",
+        "total_traces_count",
+    }
+)
 FIELD_TYPE_ALIASES: dict[str, str] = dict(_CONTRACT["fieldTypes"]["aliases"])
 FILTER_COLUMN_TYPES: set[str] = set(_CONTRACT["columnTypes"]["allowed"])
 COL_TYPE_ALIASES: dict[str, str] = dict(_CONTRACT["columnTypes"]["aliases"])
@@ -80,6 +89,39 @@ def normalize_filter_type(filter_type: str | None) -> str:
     if not filter_type:
         return ""
     return FIELD_TYPE_ALIASES.get(str(filter_type).lower(), str(filter_type).lower())
+
+
+def filter_op_is_allowed(
+    filter_type: str | None,
+    filter_op: str | None,
+    *,
+    column_id: str | None = None,
+    column_type: str | None = None,
+    allow_session_numeric_membership: bool = False,
+) -> bool:
+    """Return whether one field/operator pair is part of the public contract.
+
+    Session aggregates are the one numeric family with finite membership
+    semantics. The shared FE contract intentionally does not publish numeric
+    ``in``/``not_in``, so callers must opt into that endpoint-specific extension
+    explicitly. Keep it column- and family-scoped even after opt-in so ordinary
+    scalar numbers and numeric span attributes retain the canonical vocabulary.
+    """
+
+    normalized_type = normalize_filter_type(filter_type)
+    allowed_ops = FILTER_TYPE_ALLOWED_OPS.get(normalized_type)
+    if allowed_ops is None:
+        return False
+    if filter_op in allowed_ops:
+        return True
+    return (
+        allow_session_numeric_membership
+        and normalized_type == "number"
+        and filter_op in LIST_FILTER_OPS
+        and isinstance(column_id, str)
+        and column_id in SESSION_NUMERIC_MEMBERSHIP_COLUMNS
+        and column_type == "SYSTEM_METRIC"
+    )
 
 
 def normalize_span_attribute_filter_type(

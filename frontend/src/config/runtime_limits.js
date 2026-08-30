@@ -39,6 +39,21 @@ export const INTERACTIVE_REQUEST_TIMEOUT_MS = readBoundedRuntimeInteger(
   { minimum: 1_000, maximum: 60_000 },
 );
 
+// Filter-mode queue adds commit one exact server-bounded batch at a time.
+// Bound both the number of sequential continuations and their aggregate browser
+// wall while allowing measured runtime tuning without rebuilding the frontend.
+export const MAX_ADD_QUEUE_CONTINUATION_PAGES = readBoundedRuntimeInteger(
+  "VITE_ADD_QUEUE_CONTINUATION_MAX_PAGES",
+  100,
+  { minimum: 1, maximum: 1_000 },
+);
+
+export const MAX_ADD_QUEUE_CONTINUATION_WALL_MS = readBoundedRuntimeInteger(
+  "VITE_ADD_QUEUE_CONTINUATION_WALL_MS",
+  10 * 60 * 1_000,
+  { minimum: INTERACTIVE_REQUEST_TIMEOUT_MS, maximum: 60 * 60 * 1_000 },
+);
+
 export const ANALYTICS_REQUEST_TIMEOUT_MS = readBoundedRuntimeInteger(
   "VITE_ANALYTICS_REQUEST_TIMEOUT_MS",
   30_000,
@@ -130,6 +145,17 @@ export const OBSERVE_GRID_MAX_BLOCKS_IN_CACHE = readBoundedRuntimeInteger(
   "VITE_OBSERVE_GRID_MAX_BLOCKS_IN_CACHE",
   5,
   { minimum: 1, maximum: 100 },
+);
+
+// Cursor tokens are much smaller than row payloads, but a tab that traverses
+// an unbounded result set must not retain one token and transition edge per
+// page forever. Keep a generous, runtime-tunable LRU of random-access
+// checkpoints; an older evicted page fails closed and can be restarted from
+// page one without allowing stale cursor branches to mix.
+export const OBSERVE_CURSOR_MAX_CHECKPOINTS = readBoundedRuntimeInteger(
+  "VITE_OBSERVE_CURSOR_MAX_CHECKPOINTS",
+  4_096,
+  { minimum: OBSERVE_GRID_MAX_BLOCKS_IN_CACHE + 1, maximum: 16_384 },
 );
 
 // A cursor page transition normally settles as soon as AG Grid paints a row

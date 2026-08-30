@@ -103,7 +103,7 @@ Required runtime and output variables:
 | `FI_PROPERTY_CATALOG_PRODUCER_STREAM_ID` | Stable canonical UUID; never change for an existing stream |
 | `FI_PROPERTY_CATALOG_WORKSPACE_SCOPE_MODE` | `revision_fence` for a control-plane rollout, or `static` with an allowlist |
 | `FI_PROPERTY_CATALOG_WORKSPACE_ALLOWLIST` | Sorted canonical UUIDs for `static`; absent for `revision_fence` |
-| `FI_PROPERTY_CATALOG_REVISION_FENCE_FILE` | Absolute path to the atomic canonical fence file |
+| `FI_PROPERTY_CATALOG_REVISION_FENCE_FILE` | Absolute path to the atomic canonical version-2 multi-tenant fence registry (maximum 256 workspaces) |
 | `FI_PROPERTY_CATALOG_SPOOL_DIR` | Absolute path on an exclusive persistent volume |
 | `FI_PROPERTY_CATALOG_KAFKA_BROKERS` | Ordered-output brokers |
 | `FI_PROPERTY_CATALOG_KAFKA_TOPIC` | Ordered-output topic; distinct from candidate topic |

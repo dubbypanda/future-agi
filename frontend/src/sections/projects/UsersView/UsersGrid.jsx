@@ -30,6 +30,10 @@ import {
   retryServerSideCursorLoad,
   resumePendingListPage,
 } from "../LLMTracing/listCursorPagination";
+import {
+  boundObserveListRow,
+  compactObserveListResponse,
+} from "../LLMTracing/observeListPayload";
 import ListCursorContinuationNotice from "../LLMTracing/ListCursorContinuationNotice";
 import {
   failServerSideGridRead,
@@ -78,7 +82,11 @@ const UsersGrid = React.memo(
     cellHeight,
   }) => {
     const theme = useTheme();
-    const agTheme = useAgThemeWith(getUsersGridThemeParams(theme));
+    const gridThemeParams = useMemo(
+      () => getUsersGridThemeParams(theme),
+      [theme],
+    );
+    const agTheme = useAgThemeWith(gridThemeParams);
     const gridApiRef = useRef(null);
     const activeListReadsRef = useRef(0);
     const cursorPagination = useRef(
@@ -383,11 +391,14 @@ const UsersGrid = React.memo(
                     signal,
                   }),
                 rowsFromResponse: (response) =>
-                  response?.data?.result?.table || [],
+                  (response?.data?.result?.table || []).map(
+                    boundObserveListRow,
+                  ),
                 metadataFromResponse: (response) =>
                   response?.data?.result?.metadata ||
                   response?.data?.result ||
                   {},
+                compactResponse: compactObserveListResponse,
                 rowIdentity: userRowIdentity,
                 isCurrent: () =>
                   cursorPagination.current.isCurrent(requestGeneration),

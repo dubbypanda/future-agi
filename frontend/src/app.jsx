@@ -49,6 +49,7 @@ import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { setRecaptchaExecutor } from "./utils/recaptchaService";
 import { AudioPlaybackProvider } from "./components/custom-audio/context-provider/AudioPlaybackContext";
 import { getSafeActionErrorMessage } from "./utils/errorUtils";
+import { syncMixpanelSessionReplay } from "./utils/Mixpanel";
 
 // ----------------------------------------------------------------------
 const _extractParts = (result) => {
@@ -132,6 +133,7 @@ export default function App() {
     if (window.Appcues) {
       window.Appcues.page();
     }
+    syncMixpanelSessionReplay(location.pathname);
   }, [location.pathname]);
 
   const logError = (error, info) => {

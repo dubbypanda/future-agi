@@ -108,6 +108,64 @@ class TestTraceObserveListResponseContract:
 
         assert serializer.is_valid(), serializer.errors
 
+    def test_session_list_allows_nullable_core_cells_and_dynamic_only_rows(self):
+        payload = self._payload(
+            [
+                {
+                    "session_id": None,
+                    "session_name": None,
+                    "duration": None,
+                    "dynamic.flag": True,
+                },
+                {"dynamic.only": {"nested": [1, None, "ok"]}},
+            ]
+        )
+
+        serializer = TraceSessionListResponseSerializer(data=payload)
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["result"]["table"][0]["dynamic.flag"]
+        assert serializer.validated_data["result"]["table"][1]["dynamic.only"] == {
+            "nested": [1, None, "ok"]
+        }
+
+    def test_session_list_types_stable_cells_and_allows_dynamic_cells(self):
+        payload = self._payload(
+            [
+                {
+                    "session_id": "session-1",
+                    "session_name": "checkout",
+                    "project_id": "a2f1c9d0-0000-4000-8000-000000000003",
+                    "start_time": "2026-08-29T12:00:00Z",
+                    "end_time": "2026-08-29T12:01:00Z",
+                    "duration": 60.0,
+                    "total_cost": 0.012,
+                    "total_tokens": 42,
+                    "total_traces_count": 2,
+                    "first_message": {"role": "user", "content": "hello"},
+                    "custom.plan": "pro",
+                    "a2f1c9d0-0000-4000-8000-000000000004": 0.9,
+                }
+            ]
+        )
+
+        serializer = TraceSessionListResponseSerializer(data=payload)
+
+        assert serializer.is_valid(), serializer.errors
+        row = serializer.validated_data["result"]["table"][0]
+        assert row["custom.plan"] == "pro"
+        assert row["a2f1c9d0-0000-4000-8000-000000000004"] == 0.9
+
+    def test_session_list_rejects_malformed_stable_cell(self):
+        payload = self._payload(
+            [{"session_id": "session-1", "total_tokens": {"wrong": "shape"}}]
+        )
+
+        serializer = TraceSessionListResponseSerializer(data=payload)
+
+        assert not serializer.is_valid()
+        assert "total_tokens" in serializer.errors["result"]["table"][0]
+
     def test_rejects_missing_metadata(self):
         payload = {
             "status": True,
@@ -147,6 +205,16 @@ class TestTraceObserveListResponseContract:
         ]
         assert "query_provenance" not in trace_metadata
         assert "ordering_exact" not in trace_metadata
+
+        session_table = definitions["TraceSessionListResult"]["properties"]["table"]
+        assert session_table["items"]["$ref"].rsplit("/", 1)[-1] == (
+            "TraceSessionTableRow"
+        )
+        session_row = definitions["TraceSessionTableRow"]
+        assert "session_id" not in session_row.get("required", [])
+        assert session_row["properties"]["session_id"]["x-nullable"] is True
+        assert session_row["additionalProperties"]["x-json-value"] is True
+        assert session_row["additionalProperties"]["x-nullable"] is True
 
     def test_swagger_table_cells_are_json_values(self):
         """The cell schema must carry x-json-value (and nullability). drf-yasg

@@ -48,6 +48,23 @@ class ListCursor:
     scan_before_id: Any = None
 
 
+def _utc_datetime(value: datetime, field_name: str) -> datetime:
+    """Normalize driver-produced naive UTC values before cursor validation."""
+
+    if not isinstance(value, datetime):
+        raise ValueError(f"{field_name} must be a datetime")
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _optional_utc_datetime(
+    value: datetime | None,
+    field_name: str,
+) -> datetime | None:
+    return None if value is None else _utc_datetime(value, field_name)
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, datetime):
         normalized = value.replace(tzinfo=UTC) if value.tzinfo is None else value
@@ -286,6 +303,14 @@ def encode_list_cursor(
     scan_before_start_time: datetime | None = None,
     scan_before_id: Any = None,
 ) -> str:
+    window_start = _utc_datetime(window_start, "window_start")
+    window_end = _utc_datetime(window_end, "window_end")
+    scan_slice_start = _optional_utc_datetime(scan_slice_start, "scan_slice_start")
+    scan_slice_end = _optional_utc_datetime(scan_slice_end, "scan_slice_end")
+    scan_before_start_time = _optional_utc_datetime(
+        scan_before_start_time,
+        "scan_before_start_time",
+    )
     if (
         not resource
         or page_size <= 0
@@ -327,6 +352,30 @@ def encode_list_cursor(
     return signing.dumps(
         payload, key=settings.SECRET_KEY, salt=CURSOR_SALT, compress=True
     )
+
+
+def list_cursor_boundary_fingerprint(token: str | None) -> str | None:
+    """Return a stable, explicit identity for one opaque cursor boundary.
+
+    ``TimestampSigner`` deliberately changes the transport token when the same
+    cursor payload is signed at a different time.  Clients must never parse that
+    private wire format to decide whether an evicted page replay is consistent,
+    so list responses publish this digest of the verified payload separately.
+    """
+
+    if token is None:
+        return None
+    try:
+        payload = signing.loads(
+            token,
+            key=settings.SECRET_KEY,
+            salt=CURSOR_SALT,
+        )
+    except (signing.BadSignature, TypeError, ValueError) as exc:
+        raise RuntimeError("generated list cursor could not be verified") from exc
+    if not isinstance(payload, dict) or payload.get("v") != CURSOR_VERSION:
+        raise RuntimeError("generated list cursor payload is invalid")
+    return _digest(payload)
 
 
 def decode_list_cursor(
@@ -474,6 +523,7 @@ def cursor_page_metadata(
         "total_rows_is_lower_bound": has_more,
         "has_more": has_more,
         "next_cursor": next_cursor,
+        "next_cursor_fingerprint": list_cursor_boundary_fingerprint(next_cursor),
     }
 
 
@@ -497,6 +547,7 @@ __all__ = [
     "cursor_scope_for_request",
     "decode_list_cursor",
     "encode_list_cursor",
+    "list_cursor_boundary_fingerprint",
     "frozen_window_filter",
     "normalize_filter_conjunction",
     "normalize_cursor_query",

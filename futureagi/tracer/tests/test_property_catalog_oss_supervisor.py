@@ -63,6 +63,7 @@ def _config() -> subject.OssSupervisorConfig:
         catalog_epoch=7,
         projection_version=3,
         producer_stream_id=PRODUCER,
+        revision_fence_file="/runtime/fence.json",
         poll_seconds=60,
         workspace_batch_size=512,
         project_batch_size=512,
@@ -141,6 +142,7 @@ def test_supervisor_gate_accepts_only_bounded_explicit_local_configuration() -> 
         catalog_epoch=7,
         projection_version=3,
         producer_stream_id=PRODUCER,
+        revision_fence_file="/runtime/fence.json",
         poll_seconds=300,
         workspace_batch_size=128,
         project_batch_size=64,
@@ -524,7 +526,9 @@ def test_workspace_settings_are_isolated_and_hour_bounded() -> None:
     assert first.PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME == "writer-host"
 
 
-def test_cycle_isolates_workspace_failure_and_continues() -> None:
+def test_cycle_reconciles_shared_fence_inventory_then_isolates_workspace_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first = _scope()
     second = _scope(
         workspace_id=WORKSPACE_OTHER,
@@ -533,34 +537,83 @@ def test_cycle_isolates_workspace_failure_and_continues() -> None:
     )
     attempted: list[str] = []
     errors: list[tuple[str, str]] = []
-    original = subject._run_workspace
+    events: list[tuple[str, Any]] = []
+
+    class FenceRegistry:
+        def __init__(self, path: str, *, now: Any) -> None:
+            events.append(("registry", (path, now())))
+
+        def reconcile_authorized_workspaces(
+            self,
+            workspace_ids: tuple[str, ...],
+        ) -> int:
+            events.append(("reconcile", workspace_ids))
+            return 0
 
     def run(**kwargs: Any) -> bool:
         workspace_id = kwargs["scope"].workspace_id
+        events.append(("workspace", workspace_id))
         attempted.append(workspace_id)
         if workspace_id == first.workspace_id:
             raise RuntimeError("isolated failure")
         return True
 
-    try:
-        subject._run_workspace = run
-        result = subject._run_cycle(
-            scopes=(first, second),
-            skipped=(WORKSPACE_EMPTY,),
-            settings_object=_settings(),
-            config=_config(),
-            observation=SimpleNamespace(),  # type: ignore[arg-type]
-            now=datetime(2026, 8, 26, 12, tzinfo=UTC),
-            on_error=lambda workspace_id, exc: errors.append((workspace_id, str(exc))),
-        )
-    finally:
-        subject._run_workspace = original
+    monkeypatch.setattr(subject, "AtomicMultiTenantFenceFile", FenceRegistry)
+    monkeypatch.setattr(subject, "_run_workspace", run)
+    now = datetime(2026, 8, 26, 12, tzinfo=UTC)
+    result = subject._run_cycle(
+        scopes=(first, second),
+        skipped=(WORKSPACE_EMPTY,),
+        settings_object=_settings(),
+        config=_config(),
+        observation=SimpleNamespace(),  # type: ignore[arg-type]
+        now=now,
+        on_error=lambda workspace_id, exc: errors.append((workspace_id, str(exc))),
+    )
 
+    assert events[:2] == [
+        ("registry", ("/runtime/fence.json", now)),
+        (
+            "reconcile",
+            tuple(sorted((WORKSPACE_DEFAULT, WORKSPACE_EMPTY, WORKSPACE_OTHER))),
+        ),
+    ]
     assert attempted == [first.workspace_id, second.workspace_id]
     assert result.processed == (second.workspace_id,)
     assert result.skipped == (WORKSPACE_EMPTY,)
     assert result.failures == {first.workspace_id: "isolated failure"}
     assert errors == [(first.workspace_id, "isolated failure")]
+
+
+def test_runtime_uses_the_shared_multitenant_fence_sink(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class Factory:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+        def __call__(self, request: object) -> object:
+            captured["request"] = request
+            return "runtime"
+
+    monkeypatch.setattr(subject, "PropertyCatalogDevRuntimeFactory", Factory)
+    monkeypatch.setattr(
+        subject,
+        "require_checked_in_property_catalog_dev_runtime",
+        lambda runtime: runtime,
+    )
+
+    runtime = subject._runtime(
+        request="request",  # type: ignore[arg-type]
+        proxy="proxy",  # type: ignore[arg-type]
+        scope=_scope(),
+    )
+
+    assert runtime == "runtime"
+    assert captured["fence_sink_factory"] is subject.AtomicMultiTenantFenceFile
+    assert captured["request"] == "request"
 
 
 def test_default_workspace_probe_maps_only_discovered_legacy_projects(

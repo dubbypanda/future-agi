@@ -446,6 +446,45 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             not in {"created_at", "start_time"}
         ]
 
+    def _uses_full_window_time_only_bulk_identity_scan(self) -> bool:
+        """Use one finite ordered seed for a time-only bulk continuation.
+
+        Filter-mode queue adds freeze an all-history window when the request
+        omits an explicit date. Walking that empty 1971-to-now tail in two-day
+        slices can outlive the client's bounded continuation budget after the
+        last real row has already been committed. This narrow mode still reads
+        only one project's root identities with an ordered keyset and a finite
+        LIMIT. If the wide seed exceeds its read budget, the shared selector
+        halves it before publishing anything, preserving the bounded fallback.
+        """
+
+        request_start, request_end = self._bounded_request_window
+        return bool(
+            self._bounded_internal_scan
+            and self._bounded_identity_only
+            and self._bounded_bulk_scan
+            and not self._bounded_population_proof
+            and not self._bounded_global_span_witnesses
+            and self.project_id is not None
+            and self.project_ids is None
+            and not self.sort_params
+            and not self.search
+            and not self._active_non_time_filters()
+            and self._bounded_sampling_rate is None
+            and request_end - request_start >= timedelta(minutes=5)
+        )
+
+    def should_retry_filter_wide_read_budget(self) -> bool:
+        """Allow safe halving only for the opt-in full-window bulk seed.
+
+        The ordinary selector fails closed after any required ClickHouse read
+        exceeds its budget.  This one mode deliberately starts with the whole
+        frozen request window, so it can retry that unpublished identity-only
+        seed on narrower adjacent slices without changing membership or order.
+        """
+
+        return self._uses_full_window_time_only_bulk_identity_scan()
+
     def requires_cursor_for_long_filtered_read(self) -> bool:
         """Whether a long filtered list must retain a signed scan checkpoint."""
 
@@ -1389,6 +1428,8 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         request_start, request_end = self._bounded_request_window
         request_width = request_end - request_start
+        if self._uses_full_window_time_only_bulk_identity_scan():
+            return request_width
         if (
             not self._bounded_identity_only
             and not self._bounded_internal_scan
@@ -1448,6 +1489,8 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         request_start, request_end = self._bounded_request_window
         request_width = request_end - request_start
+        if self._uses_full_window_time_only_bulk_identity_scan():
+            return request_width
         if self._uses_default_newest_first_partition_walk():
             return request_width
         if (

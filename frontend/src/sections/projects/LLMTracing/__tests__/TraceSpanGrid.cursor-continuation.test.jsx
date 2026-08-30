@@ -6,12 +6,14 @@ const {
   getMock,
   gridState,
   resetMetricIds,
+  themeParamReferences,
   traceGridSetState,
   spanGridSetState,
 } = vi.hoisted(() => ({
   getMock: vi.fn(),
   gridState: { api: null, props: null },
   resetMetricIds: vi.fn(),
+  themeParamReferences: [],
   traceGridSetState: vi.fn(),
   spanGridSetState: vi.fn(),
 }));
@@ -37,7 +39,10 @@ vi.mock("ag-grid-react", async () => {
 });
 vi.mock("src/styles/clean-data-table.css", () => ({}));
 vi.mock("src/hooks/use-ag-theme", () => ({
-  useAgTheme: () => ({ withParams: () => ({}) }),
+  useAgThemeWith: (params) => {
+    themeParamReferences.push(params);
+    return {};
+  },
 }));
 vi.mock("src/utils/axios", () => ({
   default: { get: (...args) => getMock(...args) },
@@ -292,6 +297,26 @@ const renderGridSubject = ({ kind, ref, props, filters }) =>
   ) : (
     <SpanGrid ref={ref} {...props} filters={filters} compareType="primary" />
   );
+
+describe.each(["trace", "span"])("%s grid theme retention", (kind) => {
+  beforeEach(() => {
+    themeParamReferences.length = 0;
+  });
+
+  it("reuses one AG Grid theme parameter object across rerenders", () => {
+    const ref = React.createRef();
+    const props = baseProps();
+    const filters = [{ column_id: "created_at" }];
+    const subject = renderGridSubject({ kind, ref, props, filters });
+    const { rerender } = render(subject);
+    const firstParams = themeParamReferences.at(-1);
+
+    rerender(renderGridSubject({ kind, ref, props, filters }));
+
+    expect(firstParams).toBeDefined();
+    expect(themeParamReferences.at(-1)).toBe(firstParams);
+  });
+});
 
 describe("painted grid row detection", () => {
   it("uses the owning grid element when AG Grid does not expose getGui", () => {

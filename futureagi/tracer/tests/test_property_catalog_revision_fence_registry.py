@@ -314,7 +314,9 @@ def test_decoder_rejects_invalid_workspace_revision_status_and_hash(
         decode_revision_fence_registry(raw, now=NOW)
 
 
-def test_registry_rejects_expired_and_overwide_live_fences(tmp_path: Path) -> None:
+def test_registry_accepts_protocol_maximum_and_rejects_overwide_live_fences(
+    tmp_path: Path,
+) -> None:
     registry = AtomicMultiTenantFenceFile(
         tmp_path / "revision-fence.json",
         now=lambda: NOW,
@@ -335,11 +337,23 @@ def test_registry_rejects_expired_and_overwide_live_fences(tmp_path: Path) -> No
     with pytest.raises(RevisionFenceRegistryError, match="expired"):
         registry.publish(expired_drain)
 
+    maximum = _assignment(
+        status="draining",
+        issued_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(minutes=59),
+        drain_deadline=NOW + timedelta(minutes=59),
+    )
+    registry.publish(maximum)
+    assert decode_revision_fence_registry(
+        registry.path.read_bytes(),
+        now=NOW,
+    ) == (maximum.document,)
+
     overwide = _assignment(
         status="draining",
         issued_at=NOW - timedelta(minutes=1),
-        expires_at=NOW + timedelta(minutes=35),
-        drain_deadline=NOW + timedelta(minutes=30),
+        expires_at=NOW + timedelta(minutes=59, microseconds=1),
+        drain_deadline=NOW + timedelta(minutes=59, microseconds=1),
     )
     with pytest.raises(RevisionFenceRegistryError, match="too wide"):
         registry.publish(overwide)

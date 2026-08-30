@@ -58,7 +58,9 @@ import {
   collectExactListRows,
   createListCursorProtocolError,
   isListCursorProtocolError,
+  listCursorBoundaryIdentity,
   listContinuationParams,
+  rememberBoundedListCursorIdentity,
   requestListWithLegacyCursorFallback,
 } from "src/sections/projects/LLMTracing/listCursorPagination";
 import {
@@ -350,34 +352,39 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
       // backend chain fails closed instead of spinning forever. The pending
       // continuation itself is deliberately not in this set until this
       // request consumes it.
-      const requestedCursors = new Set(
-        attemptListContinuation?.requestedCursors || [],
+      const requestedCursorIdentities = new Set(
+        attemptListContinuation?.requestedCursorIdentities || [],
       );
+      const cursorIdentityByToken = new Map();
       if (attemptCursor) {
-        if (requestedCursors.has(attemptCursor)) {
-          throw createListCursorProtocolError(
-            "List API returned a repeated continuation cursor",
-          );
-        }
-        requestedCursors.add(attemptCursor);
+        const attemptCursorIdentity =
+          attemptListContinuation?.cursorIdentity ||
+          listCursorBoundaryIdentity({ next_cursor: attemptCursor });
+        rememberBoundedListCursorIdentity(
+          requestedCursorIdentities,
+          attemptCursorIdentity,
+        );
+        cursorIdentityByToken.set(attemptCursor, attemptCursorIdentity);
       }
 
       const recordContinuation = (metadata) => {
         const nextCursor = metadata?.next_cursor;
-        if (
-          typeof nextCursor !== "string" ||
-          nextCursor.length === 0 ||
-          requestedCursors.has(nextCursor)
-        ) {
+        const nextCursorIdentity = listCursorBoundaryIdentity(metadata);
+        if (typeof nextCursor !== "string" || nextCursor.length === 0) {
           throw createListCursorProtocolError(
             "List API returned a repeated continuation cursor",
           );
         }
-        requestedCursors.add(nextCursor);
+        rememberBoundedListCursorIdentity(
+          requestedCursorIdentities,
+          nextCursorIdentity,
+        );
+        cursorIdentityByToken.set(nextCursor, nextCursorIdentity);
       };
 
       const continuationResult = (
         nextCursor,
+        nextCursorIdentity,
         accumulatedRows = [],
         continuationMetadata = {},
       ) => {
@@ -385,14 +392,18 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
         // The shared per-attempt follower checks cycles inside one bounded
         // attempt. This second guard covers a cycle that lands exactly on the
         // attempt boundary and points back to any cursor consumed earlier.
-        if (requestedCursors.has(nextCursor)) {
+        if (
+          typeof nextCursorIdentity !== "string" ||
+          requestedCursorIdentities.has(nextCursorIdentity)
+        ) {
           throw createListCursorProtocolError(
             "List API returned a repeated continuation cursor",
           );
         }
         return {
           cursor: nextCursor,
-          requestedCursors: [...requestedCursors],
+          cursorIdentity: nextCursorIdentity,
+          requestedCursorIdentities: [...requestedCursorIdentities],
           rows: accumulatedRows,
           ...continuationMetadata,
         };
@@ -420,12 +431,16 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
             failedCursor.length > 0 &&
             !isListCursorProtocolError(error)
           ) {
+            const failedCursorIdentity =
+              cursorIdentityByToken.get(failedCursor) ||
+              listCursorBoundaryIdentity({ next_cursor: failedCursor });
             failedListContinuationRef.current = {
               scopeKey: previewScopeKey,
               ...attemptListContinuation,
               cursor: failedCursor,
-              requestedCursors: [...requestedCursors].filter(
-                (cursor) => cursor !== failedCursor,
+              cursorIdentity: failedCursorIdentity,
+              requestedCursorIdentities: [...requestedCursorIdentities].filter(
+                (identity) => identity !== failedCursorIdentity,
               ),
               rows: attemptListContinuation?.rows || [],
             };
@@ -496,10 +511,15 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
           total,
           totalIsLowerBound,
           columns: result.config,
-          continuation: continuationResult(exactRows.nextCursor, rowsOut, {
-            total,
-            totalIsLowerBound,
-          }),
+          continuation: continuationResult(
+            exactRows.nextCursor,
+            exactRows.nextCursorIdentity,
+            rowsOut,
+            {
+              total,
+              totalIsLowerBound,
+            },
+          ),
         });
       }
 
@@ -571,15 +591,24 @@ const TaskLivePreview = forwardRef(function TaskLivePreview(
         total,
         totalIsLowerBound,
         columns: result.config,
-        continuation: continuationResult(exactRows.nextCursor, rowsOut, {
-          total,
-          totalIsLowerBound,
-        }),
+        continuation: continuationResult(
+          exactRows.nextCursor,
+          exactRows.nextCursorIdentity,
+          rowsOut,
+          {
+            total,
+            totalIsLowerBound,
+          },
+        ),
       });
     },
     enabled: !!projectId && previewProjectKindReady,
     refetchOnWindowFocus: false,
     staleTime: 10000,
+    // Each continuation result contains the current accumulated preview rows.
+    // Drop the superseded cursor-keyed query as soon as it becomes inactive so
+    // N browsed rows retain one O(N) result rather than N cumulative snapshots.
+    gcTime: 0,
     // A continuation is the same immutable preview scope. Keep its current row
     // visible while the next exact match is resolved.
     placeholderData:

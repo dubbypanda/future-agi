@@ -70,6 +70,23 @@ def _span_attr_filter(filter_op="equals", filter_value="alpha"):
     }
 
 
+def _session_numeric_membership_filter(
+    filter_op="in",
+    *,
+    column_type="SYSTEM_METRIC",
+    filter_value=None,
+):
+    return {
+        "column_id": "duration",
+        "filter_config": {
+            "col_type": column_type,
+            "filter_type": "number",
+            "filter_op": filter_op,
+            "filter_value": [1, 2] if filter_value is None else filter_value,
+        },
+    }
+
+
 class TestFilterSerializerContracts:
     @pytest.mark.parametrize(
         "serializer_class",
@@ -529,6 +546,163 @@ class TestFilterSerializerContracts:
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["req_data_config"]["id"] == "session_count"
+
+    @pytest.mark.parametrize("filter_op", ["in", "not_in"])
+    def test_session_list_retrieve_and_graph_accept_numeric_membership(self, filter_op):
+        filter_item = _session_numeric_membership_filter(filter_op)
+        serializers = (
+            TraceSessionListQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionRetrieveQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionGraphDataRequestSerializer(
+                data={
+                    "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                    "req_data_config": {
+                        "id": "session_count",
+                        "type": "SYSTEM_METRIC",
+                    },
+                    "filters": [filter_item],
+                }
+            ),
+        )
+
+        for serializer in serializers:
+            assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize("filter_op", ["in", "not_in"])
+    @pytest.mark.parametrize(
+        "filter_value",
+        [
+            ["abc"],
+            [{}],
+            [True],
+            [float("inf")],
+        ],
+    )
+    def test_session_list_retrieve_and_graph_reject_non_numeric_membership_values(
+        self,
+        filter_op,
+        filter_value,
+    ):
+        filter_item = _session_numeric_membership_filter(
+            filter_op,
+            filter_value=filter_value,
+        )
+        serializers = (
+            TraceSessionListQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionRetrieveQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionGraphDataRequestSerializer(
+                data={
+                    "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                    "req_data_config": {
+                        "id": "session_count",
+                        "type": "SYSTEM_METRIC",
+                    },
+                    "filters": [filter_item],
+                }
+            ),
+        )
+
+        for serializer in serializers:
+            assert not serializer.is_valid()
+            assert "filters" in serializer.errors
+
+    @pytest.mark.parametrize("filter_op", ["in", "not_in"])
+    @pytest.mark.parametrize("column_type", ["EVAL_METRIC", "NORMAL"])
+    def test_session_serializers_reject_non_system_numeric_membership(
+        self,
+        filter_op,
+        column_type,
+    ):
+        filter_item = _session_numeric_membership_filter(
+            filter_op,
+            column_type=column_type,
+        )
+        serializers = (
+            TraceSessionListQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionRetrieveQuerySerializer(
+                data={"filters": json.dumps([filter_item])}
+            ),
+            TraceSessionGraphDataRequestSerializer(
+                data={
+                    "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                    "req_data_config": {
+                        "id": "session_count",
+                        "type": "SYSTEM_METRIC",
+                    },
+                    "filters": [filter_item],
+                }
+            ),
+        )
+
+        for serializer in serializers:
+            assert not serializer.is_valid()
+            assert "filters" in serializer.errors
+
+    @pytest.mark.parametrize("filter_op", ["in", "not_in"])
+    @pytest.mark.parametrize(
+        ("serializer_class", "base_data"),
+        [
+            (
+                TraceListQuerySerializer,
+                {"project_version_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f"},
+            ),
+            (TraceObserveListQuerySerializer, {}),
+            (
+                TraceExportQuerySerializer,
+                {"project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f"},
+            ),
+            (
+                SpanListQuerySerializer,
+                {"project_version_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f"},
+            ),
+            (SpanObserveListQuerySerializer, {}),
+            (
+                SpanExportQuerySerializer,
+                {"project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f"},
+            ),
+        ],
+    )
+    def test_trace_and_span_apis_reject_session_numeric_membership(
+        self,
+        filter_op,
+        serializer_class,
+        base_data,
+    ):
+        serializer = serializer_class(
+            data={
+                **base_data,
+                "filters": json.dumps([_session_numeric_membership_filter(filter_op)]),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "filters" in serializer.errors
+
+    @pytest.mark.parametrize("filter_op", ["in", "not_in"])
+    def test_trace_and_span_graph_contract_rejects_session_numeric_membership(
+        self,
+        filter_op,
+    ):
+        serializer = ObserveGraphDataRequestSerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "req_data_config": {"id": "latency", "type": "SYSTEM_METRIC"},
+                "filters": [_session_numeric_membership_filter(filter_op)],
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "filters" in serializer.errors
 
     def test_session_graph_request_rejects_legacy_filter_shape(self):
         serializer = TraceSessionGraphDataRequestSerializer(

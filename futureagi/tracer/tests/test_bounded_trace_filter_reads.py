@@ -7622,6 +7622,64 @@ def test_default_trace_builder_allows_tail_first_walk_to_cover_full_window() -> 
     assert project_version.recommended_filter_max_slice_width() == timedelta(days=365)
 
 
+def test_time_only_bulk_identity_scan_uses_one_finite_full_window_seed() -> None:
+    filters = [_time_filter(END - timedelta(days=365), END)]
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=filters,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert builder.recommended_filter_initial_slice_width() == timedelta(days=365)
+    assert builder.recommended_filter_max_slice_width() == timedelta(days=365)
+    assert builder.should_retry_filter_wide_read_budget() is True
+
+    query, params = builder.build_filter_ordered_seed_page(
+        slice_start=END - timedelta(days=365),
+        slice_end=END,
+        limit=201,
+    )
+    compact_query = " ".join(query.split())
+    assert "PREWHERE project_id = %(project_id)s" in compact_query
+    assert "ORDER BY start_time DESC, trace_id DESC" in compact_query
+    assert "LIMIT %(filter_seed_limit)s" in compact_query
+    assert params["filter_seed_limit"] == 201
+
+
+def test_filtered_bulk_identity_scan_keeps_bounded_slice_defaults() -> None:
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(END - timedelta(days=365), END),
+            _attribute_filter("final_status", "Rejected"),
+        ],
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert builder.recommended_filter_initial_slice_width() is None
+    assert builder.recommended_filter_max_slice_width() is None
+    assert builder.should_retry_filter_wide_read_budget() is False
+
+
+def test_wide_bulk_seed_retry_stays_off_for_ordinary_and_multi_project_reads() -> None:
+    filters = [_time_filter(END - timedelta(days=365), END)]
+    ordinary = TraceListQueryBuilderV2(project_id=PROJECT_ID, filters=filters)
+    multi_project_bulk = TraceListQueryBuilderV2(
+        project_ids=[PROJECT_ID, "00000000-0000-4000-8000-000000000002"],
+        filters=filters,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert ordinary.should_retry_filter_wide_read_budget() is False
+    assert multi_project_bulk.should_retry_filter_wide_read_budget() is False
+
+
 def test_session_numbered_page_ceiling_is_deterministic() -> None:
     common = {
         "page_size": 30,
@@ -15325,12 +15383,12 @@ def test_opt_in_numbered_retry_never_hides_a_failed_read() -> None:
         for attempt in page.attempts
         if attempt.kind == "seed" and attempt.error_code is None
     ]
-    assert successful_intervals == [
-        (END - timedelta(minutes=30), END),
-        (END - timedelta(minutes=60), END - timedelta(minutes=30)),
-        (END - timedelta(minutes=90), END - timedelta(minutes=60)),
-        (start, END - timedelta(minutes=90)),
-    ]
+    assert successful_intervals[0] == (END - timedelta(minutes=5), END)
+    assert successful_intervals[-1][0] == start
+    assert all(
+        interval_end - interval_start <= timedelta(minutes=30)
+        for interval_start, interval_end in successful_intervals
+    )
     assert all(
         older_end == newer_start
         for (newer_start, _newer_end), (_older_start, older_end) in zip(

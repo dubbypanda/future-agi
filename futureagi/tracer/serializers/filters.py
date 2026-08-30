@@ -23,6 +23,7 @@ from tracer.utils.filter_operators import (
     RANGE_FILTER_OPS,
     SPAN_ATTR_ALLOWED_OPS,
     STRUCTURED_SPAN_ATTR_ALLOWED_OPS,
+    filter_op_is_allowed,
     normalize_filter_type,
     normalize_span_attribute_filter_type,
     validate_json_map_filter_value,
@@ -538,6 +539,8 @@ class FilterItemField(serializers.JSONField):
     class Meta:
         swagger_schema_fields = FILTER_ITEM_SCHEMA
 
+    allow_session_numeric_membership = False
+
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
         if not isinstance(value, dict):
@@ -553,6 +556,12 @@ class FilterItemField(serializers.JSONField):
         if extra_keys:
             raise serializers.ValidationError(
                 f"Unknown filter item keys: {', '.join(extra_keys)}"
+            )
+
+        column_id = value.get("column_id")
+        if not isinstance(column_id, str) or not column_id.strip():
+            raise serializers.ValidationError(
+                "column_id must be a non-empty string."
             )
 
         config = value.get("filter_config")
@@ -608,7 +617,13 @@ class FilterItemField(serializers.JSONField):
             raise serializers.ValidationError(
                 f"Unsupported filter_type {filter_type!r}."
             )
-        if filter_op not in allowed_ops:
+        if filter_op not in allowed_ops and not filter_op_is_allowed(
+            filter_type,
+            filter_op,
+            column_id=value.get("column_id"),
+            column_type=config.get("col_type"),
+            allow_session_numeric_membership=self.allow_session_numeric_membership,
+        ):
             raise serializers.ValidationError(
                 f"Unsupported filter_op {filter_op!r} for filter_type {filter_type!r}."
             )
@@ -625,6 +640,33 @@ class FilterItemField(serializers.JSONField):
                 )
         elif filter_op not in NO_VALUE_FILTER_OPS and "filter_value" not in config:
             raise serializers.ValidationError(f"{filter_op!r} requires filter_value.")
+
+        is_session_numeric_membership = (
+            self.allow_session_numeric_membership
+            and filter_type == "number"
+            and filter_op in LIST_FILTER_OPS
+            and config.get("col_type") == "SYSTEM_METRIC"
+        )
+        if is_session_numeric_membership:
+            normalized_values = []
+            for item in filter_value:
+                if isinstance(item, bool):
+                    raise serializers.ValidationError(
+                        "Session numeric membership values must be finite numbers."
+                    )
+                try:
+                    normalized_item = float(item)
+                except (TypeError, ValueError, OverflowError):
+                    raise serializers.ValidationError(
+                        "Session numeric membership values must be finite numbers."
+                    ) from None
+                if not math.isfinite(normalized_item):
+                    raise serializers.ValidationError(
+                        "Session numeric membership values must be finite numbers."
+                    )
+                normalized_values.append(normalized_item)
+            config["filter_value"] = normalized_values
+            filter_value = normalized_values
 
         if attribute_value_types is not None:
             if not is_span_attribute or filter_op not in LIST_FILTER_OPS:
@@ -837,6 +879,12 @@ class FilterItemField(serializers.JSONField):
         return value
 
 
+class SessionFilterItemField(FilterItemField):
+    """Filter item with the bounded session-aggregate membership extension."""
+
+    allow_session_numeric_membership = True
+
+
 class FilterListField(serializers.ListField):
     """List wrapper that carries the exact filter-item OpenAPI shape.
 
@@ -854,6 +902,12 @@ class FilterListField(serializers.ListField):
         parsed = parse_filter_list_payload(data)
         validate_filter_list_complexity(parsed)
         return super().to_internal_value(parsed)
+
+
+class SessionFilterListField(FilterListField):
+    """Session-only filter list; all other surfaces retain the FE contract."""
+
+    child = SessionFilterItemField()
 
 
 class BoundedFilterListField(FilterListField):
@@ -876,6 +930,12 @@ class BoundedFilterListField(FilterListField):
         return value
 
 
+class SessionBoundedFilterListField(BoundedFilterListField):
+    """Bounded session-only filter list with numeric aggregate membership."""
+
+    child = SessionFilterItemField()
+
+
 class FilterListQueryParamField(serializers.CharField):
     """Query-param version of FilterListField.
 
@@ -892,6 +952,11 @@ class FilterListQueryParamField(serializers.CharField):
         return FilterListField().run_validation(data)
 
 
+class SessionFilterListQueryParamField(FilterListQueryParamField):
+    def to_internal_value(self, data):
+        return SessionFilterListField().run_validation(data)
+
+
 class BoundedFilterListQueryParamField(FilterListQueryParamField):
     """List filter contract whose time predicate is one prunable interval."""
 
@@ -900,6 +965,11 @@ class BoundedFilterListQueryParamField(FilterListQueryParamField):
 
     def to_internal_value(self, data):
         return BoundedFilterListField().run_validation(data)
+
+
+class SessionBoundedFilterListQueryParamField(BoundedFilterListQueryParamField):
+    def to_internal_value(self, data):
+        return SessionBoundedFilterListField().run_validation(data)
 
 
 class JsonObjectQueryParamField(serializers.Field):
@@ -1319,6 +1389,20 @@ def bounded_filter_list_query_param_field(
     **kwargs: Any,
 ) -> BoundedFilterListQueryParamField:
     return BoundedFilterListQueryParamField(**kwargs)
+
+
+def session_filter_list_query_param_field(**kwargs):
+    return SessionFilterListQueryParamField(**kwargs)
+
+
+def session_bounded_filter_list_field(**kwargs):
+    return SessionBoundedFilterListField(**kwargs)
+
+
+def session_bounded_filter_list_query_param_field(
+    **kwargs: Any,
+) -> SessionBoundedFilterListQueryParamField:
+    return SessionBoundedFilterListQueryParamField(**kwargs)
 
 
 def eval_task_filters_field(**kwargs):

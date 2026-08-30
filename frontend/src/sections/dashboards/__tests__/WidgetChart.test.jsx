@@ -279,6 +279,52 @@ describe("WidgetChart — queued exact refresh", () => {
     expect(screen.getByTestId("apex-line")).toBeInTheDocument();
   });
 
+  it("keeps one stable pending state while a background poll is in flight", async () => {
+    vi.useFakeTimers();
+    const pendingResponse = {
+      data: {
+        result: {
+          metrics: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: true,
+        },
+      },
+    };
+    h.query.mutate
+      .mockImplementationOnce((_request, options) =>
+        options?.onSuccess?.(pendingResponse),
+      )
+      .mockImplementationOnce(() => {});
+
+    const { rerender } = render(
+      <WidgetChart
+        widget={baseWidget}
+        dashboardId="dashboard-1"
+        globalDateRange={null}
+      />,
+    );
+
+    expect(screen.getByText(PREPARING_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(h.query.mutate).toHaveBeenCalledTimes(2);
+
+    h.query.isPending = true;
+    rerender(
+      <WidgetChart
+        widget={baseWidget}
+        dashboardId="dashboard-1"
+        globalDateRange={null}
+      />,
+    );
+
+    expect(screen.getByText(PREPARING_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
   it("renders a complete rollup without reporting it as exact", () => {
     const rollupResponse = queryResult([
       { timestamp: "2026-07-09T00:00:00Z", value: 12 },

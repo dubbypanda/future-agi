@@ -300,6 +300,7 @@ const METRIC_CATEGORIES = [
     key: "custom_attribute",
     label: "Trace Attributes",
     icon: "mdi:tune-variant",
+    source: "traces",
     category: "custom_attribute",
   },
 ];

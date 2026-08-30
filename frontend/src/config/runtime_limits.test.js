@@ -12,7 +12,11 @@ import {
   FILTER_AUTO_APPLY_DEBOUNCE_MS,
   formatRuntimeSeconds,
   INTERACTIVE_MAX_PAGE_SIZE,
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
   INTERACTIVE_TABLE_PAGE_SIZE,
+  MAX_ADD_QUEUE_CONTINUATION_PAGES,
+  MAX_ADD_QUEUE_CONTINUATION_WALL_MS,
+  OBSERVE_CURSOR_MAX_CHECKPOINTS,
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
   OBSERVE_LIST_DEFAULT_PAGE_SIZE,
@@ -174,6 +178,10 @@ describe("runtime limit relationships", () => {
     expect(OBSERVE_GRID_MAX_CONCURRENT_REQUESTS).toBe(1);
     expect(OBSERVE_GRID_MAX_BLOCKS_IN_CACHE).toBeGreaterThanOrEqual(2);
     expect(OBSERVE_GRID_MAX_BLOCKS_IN_CACHE).toBeLessThanOrEqual(10);
+    expect(OBSERVE_CURSOR_MAX_CHECKPOINTS).toBeGreaterThan(
+      OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
+    );
+    expect(OBSERVE_CURSOR_MAX_CHECKPOINTS).toBeLessThanOrEqual(16_384);
     expect(OBSERVE_PAGE_TRANSITION_MAX_WAIT_MS).toBeGreaterThanOrEqual(30_000);
     expect(OBSERVE_LIST_DEFAULT_PAGE_SIZE).toBe(25);
     expect(OBSERVE_LIST_PAGE_SIZE_OPTIONS).toContain(
@@ -181,6 +189,17 @@ describe("runtime limit relationships", () => {
     );
     expect(Math.max(...OBSERVE_LIST_PAGE_SIZE_OPTIONS)).toBeLessThanOrEqual(
       INTERACTIVE_MAX_PAGE_SIZE,
+    );
+  });
+
+  it("keeps annotation-queue continuation finite and above one request wall", () => {
+    expect(MAX_ADD_QUEUE_CONTINUATION_PAGES).toBeGreaterThanOrEqual(1);
+    expect(MAX_ADD_QUEUE_CONTINUATION_PAGES).toBeLessThanOrEqual(1_000);
+    expect(MAX_ADD_QUEUE_CONTINUATION_WALL_MS).toBeGreaterThanOrEqual(
+      INTERACTIVE_REQUEST_TIMEOUT_MS,
+    );
+    expect(MAX_ADD_QUEUE_CONTINUATION_WALL_MS).toBeLessThanOrEqual(
+      60 * 60 * 1_000,
     );
   });
 

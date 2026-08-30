@@ -1245,6 +1245,13 @@ def read_bounded_filter_page(
     # successful half-width read makes the next slice double back to the same
     # known-bad width and repeatedly burns the per-statement timeout.
     forced_width_cap: timedelta | None = None
+    # A builder may deliberately seed the complete request window for a
+    # one-project, time-only identity scan.  If that optimistic read exceeds
+    # its statement budget, logarithmically halving a multi-year window can
+    # consume the entire request deadline before reaching a known-conservative
+    # slice.  Keep the failed-width ceiling for later widening, but make the
+    # immediate recovery attempt use the normal five-minute slice.
+    retry_slice_width: timedelta | None = None
     page_complete = False
     degraded_error_code: str | None = None
     safe_slice_end = slice_end
@@ -2401,7 +2408,8 @@ def read_bounded_filter_page(
             for _ in range(remaining_attempts):
                 scheduled_coverage += scheduled_width
                 scheduled_width = min(scheduled_width * 2, max_slice_width)
-            active_width = slice_width
+            active_width = retry_slice_width or slice_width
+            retry_slice_width = None
             # Cursor-mode scans are intentionally resumable across requests.
             # Do not inflate their first finite slice merely to schedule the
             # entire request window inside this request's attempt count; that
@@ -2454,6 +2462,7 @@ def read_bounded_filter_page(
                         if forced_width_cap is None
                         else min(forced_width_cap, reduced_width_cap)
                     )
+                    retry_slice_width = _INITIAL_SLICE
                     active_slice_start = None
                     before_start_time = None
                     before_id = None

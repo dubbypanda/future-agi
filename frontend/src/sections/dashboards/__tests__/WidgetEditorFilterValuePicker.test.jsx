@@ -1346,10 +1346,12 @@ describe("WidgetEditor filter-value picker", () => {
       }),
     ).toEqual(
       expect.objectContaining({
+        category: "custom_attribute",
         enabled: true,
         excludeCustomAttributes: true,
         pageSize: 20,
         role: "metric",
+        source: "traces",
       }),
     );
     expect(

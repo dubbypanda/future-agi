@@ -41,7 +41,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -59,6 +60,7 @@ from simulate.utils.persona_filtering import (
 from tfc.settings.runtime_setting_specs import bounded_bulk_worst_case_query_count
 from tracer.models.project import Project, ProjectSourceChoices
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
+from tracer.services.clickhouse.list_cursor import ListCursor, frozen_window_filter
 from tracer.services.clickhouse.read_budget import ReadDeadline
 from tracer.services.clickhouse.v2.query_builders.filters import (
     ClickHouseFilterBuilderV2,
@@ -98,9 +100,10 @@ def _use_authoritative_eval_source(builder):
 class ResolveResult:
     """Result of a filter-based ID resolution."""
 
-    ids: list[UUID]
+    ids: list[UUID | str]
     total_matching: int
     truncated: bool
+    continuation: ListCursor | None = None
 
 
 _USER_SCOPED_COLUMN_IDS = {"my_annotations", "annotator"}
@@ -192,6 +195,140 @@ def _supports_bounded_bulk_prefix(*, cap: int, exclude_count: int) -> bool:
     )
 
 
+def _cursor_order_token(cursor: ListCursor | None) -> Any:
+    if cursor is None:
+        return None
+    if len(cursor.order) < 2 or not isinstance(cursor.order[0], datetime):
+        raise ValueError("invalid bulk-selection cursor order")
+    return cursor.order[1] if len(cursor.order) == 2 else tuple(cursor.order[1:])
+
+
+def _bulk_row_order(*, builder, row: dict[str, Any]) -> tuple[Any, ...]:
+    start_time = row.get("_seed_order_start") or row.get("start_time")
+    if not isinstance(start_time, datetime):
+        raise BulkSelectionReadIncomplete("selection_cursor_order_unavailable")
+    token = builder.bounded_filter_row_order_token(row)
+    if isinstance(token, tuple):
+        return (start_time, *token)
+    return start_time, token
+
+
+def _bulk_partial_order(
+    *,
+    builder,
+    key_field: str,
+    rows: list[dict[str, Any]],
+    page,
+    cursor: ListCursor | None,
+) -> tuple[Any, ...]:
+    """Return the consumed raw boundary, including checkpoint-only progress."""
+
+    if rows:
+        return _bulk_row_order(builder=builder, row=rows[-1])
+    if cursor is not None:
+        return tuple(cursor.order)
+    checkpoint_time = getattr(page, "continuation_before_start_time", None) or getattr(
+        page, "continuation_slice_end", None
+    )
+    if not isinstance(checkpoint_time, datetime):
+        raise BulkSelectionReadIncomplete("selection_cursor_checkpoint_unavailable")
+    checkpoint_token = getattr(page, "continuation_before_id", None)
+    if checkpoint_token is None:
+        sentinel = "\U0010ffff"
+        checkpoint_token = builder.bounded_filter_row_order_token(
+            {
+                key_field: sentinel,
+                "trace_id": sentinel,
+                "project_id": sentinel,
+                "session_id": sentinel,
+            }
+        )
+    if isinstance(checkpoint_token, tuple):
+        return checkpoint_time, *checkpoint_token
+    return checkpoint_time, checkpoint_token
+
+
+def _resumable_bounded_result(
+    *,
+    builder,
+    filters: list[dict],
+    page,
+    rows: list[dict[str, Any]],
+    selected_rows: list[dict[str, Any]],
+    key_field: str,
+    cap: int,
+    cursor: ListCursor | None,
+) -> ResolveResult:
+    """Publish one exact batch and retain every unconsumed scan boundary."""
+
+    overflow = len(selected_rows) > cap
+    published_rows = selected_rows[:cap]
+    ids = [str(row[key_field]) for row in published_rows]
+    checkpoint_progress = bool(
+        not getattr(page, "complete", True)
+        and getattr(page, "continuation_slice_end", None) is not None
+    )
+    has_more = bool(overflow or getattr(page, "has_more", False) or checkpoint_progress)
+    seen_rows = (cursor.seen_rows if cursor is not None else 0) + len(ids)
+    total_matching = seen_rows + (1 if overflow else 0)
+    if not has_more:
+        return ResolveResult(
+            ids=ids,
+            total_matching=total_matching,
+            truncated=False,
+        )
+
+    # If a selected sentinel overflowed the batch, resume after the last
+    # published selected row so that sentinel is reconsidered next time. If all
+    # selected rows fit, every raw row has already been checked (including score
+    # and exclusion predicates), so advance after the final raw row instead.
+    boundary_rows = published_rows if overflow else rows
+    order = _bulk_partial_order(
+        builder=builder,
+        key_field=key_field,
+        rows=boundary_rows,
+        page=page,
+        cursor=cursor,
+    )
+    if cursor is not None:
+        window_start, window_end = cursor.window_start, cursor.window_end
+    else:
+        window_start, window_end = builder.parse_time_range(filters)
+    retain_scan_checkpoint = not getattr(page, "has_more", False) and not overflow
+    continuation = ListCursor(
+        window_start=window_start,
+        window_end=window_end,
+        order=order,
+        seen_rows=seen_rows,
+        scan_slice_start=(
+            getattr(page, "continuation_slice_start", None)
+            if retain_scan_checkpoint
+            else None
+        ),
+        scan_slice_end=(
+            getattr(page, "continuation_slice_end", None)
+            if retain_scan_checkpoint
+            else None
+        ),
+        scan_before_start_time=(
+            getattr(page, "continuation_before_start_time", None)
+            if retain_scan_checkpoint
+            else None
+        ),
+        scan_before_id=(
+            getattr(page, "continuation_before_id", None)
+            if retain_scan_checkpoint
+            else None
+        ),
+    )
+    return ResolveResult(
+        ids=ids,
+        total_matching=total_matching,
+        truncated=True,
+        continuation=continuation,
+    )
+
+
 def _read_bounded_bulk_page(
     *,
     builder,
@@ -201,6 +338,8 @@ def _read_bounded_bulk_page(
     cap,
     exclude_count=0,
     classify_batch_size=None,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ):
     """Resolve enough raw IDs to prove a cap+1 non-excluded prefix."""
@@ -223,6 +362,11 @@ def _read_bounded_bulk_page(
         if deadline is not None
         else _BULK_BOUNDED_DEADLINE_MS
     )
+    wide_read_retry_recommendation = getattr(
+        builder,
+        "should_retry_filter_wide_read_budget",
+        None,
+    )
     page = read_bounded_filter_page(
         builder=builder,
         analytics=analytics,
@@ -238,10 +382,30 @@ def _read_bounded_bulk_page(
         max_candidates=_BULK_BOUNDED_MAX_CANDIDATES,
         max_query_count=_BULK_BOUNDED_MAX_QUERY_COUNT,
         classify_batch_size=classify_batch_size,
+        cursor_start_time=cursor.order[0] if cursor is not None else None,
+        cursor_order_token=_cursor_order_token(cursor),
+        continuation_slice_start=(
+            cursor.scan_slice_start if cursor is not None else None
+        ),
+        continuation_slice_end=(cursor.scan_slice_end if cursor is not None else None),
+        continuation_before_start_time=(
+            cursor.scan_before_start_time if cursor is not None else None
+        ),
+        continuation_before_id=(cursor.scan_before_id if cursor is not None else None),
+        retry_wide_read_budget=bool(
+            wide_read_retry_recommendation()
+            if callable(wide_read_retry_recommendation)
+            else False
+        ),
+        include_incomplete_rows=resumable,
+        bounded_continuation=resumable,
     )
     if deadline is not None:
         deadline.remaining_ms(floor_ms=1)
-    if not page.complete:
+    if not page.complete and (
+        not resumable
+        or (not page.has_more and getattr(page, "continuation_slice_end", None) is None)
+    ):
         raise BulkSelectionReadIncomplete(page.error_code or "scan_budget_exceeded")
     return page
 
@@ -321,6 +485,8 @@ def _resolve_voice_call_ids_clickhouse(
     cap: int,
     remove_simulation_calls: bool,
     annotation_label_ids: list[str],
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Resolve voice-call trace IDs via ClickHouse, mirroring ``list_voice_calls``.
@@ -380,6 +546,8 @@ def _resolve_voice_call_ids_clickhouse(
                 if remove_simulation_calls
                 else _BULK_BOUNDED_CLASSIFY_BATCH_SIZE
             ),
+            cursor=cursor,
+            resumable=resumable,
             **_optional_deadline_kwargs(deadline),
         )
         rows = bounded_page.rows
@@ -395,11 +563,23 @@ def _resolve_voice_call_ids_clickhouse(
             error_type=type(exc).__name__,
         )
         raise
-    ids = [str(row.get("trace_id", "")) for row in rows if row.get("trace_id")]
+    excl = {str(i) for i in (exclude_ids or set())}
+    selected_rows = [
+        row for row in rows if row.get("trace_id") and str(row["trace_id"]) not in excl
+    ]
+    ids = [str(row["trace_id"]) for row in selected_rows]
 
-    if exclude_ids:
-        excl = {str(i) for i in exclude_ids}
-        ids = [i for i in ids if i not in excl]
+    if resumable:
+        return _resumable_bounded_result(
+            builder=builder,
+            filters=filters or [],
+            page=bounded_page,
+            rows=rows,
+            selected_rows=selected_rows,
+            key_field="trace_id",
+            cap=cap,
+            cursor=cursor,
+        )
 
     # The bounded read overscans by the complete exclusion set. Its sentinel
     # therefore describes the post-exclusion set; never publish an unproven
@@ -430,6 +610,8 @@ def _resolve_trace_ids_clickhouse(
     exclude_ids: set,
     cap: int,
     annotation_label_ids: list[str],
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Resolve regular trace IDs via ClickHouse, mirroring ``list_traces_of_session``.
@@ -492,6 +674,8 @@ def _resolve_trace_ids_clickhouse(
             key_field="trace_id",
             cap=cap,
             exclude_count=len(excl),
+            cursor=cursor,
+            resumable=resumable,
             **_optional_deadline_kwargs(deadline),
         )
         rows = bounded_page.rows
@@ -507,9 +691,22 @@ def _resolve_trace_ids_clickhouse(
             error_type=type(exc).__name__,
         )
         raise
-    ids = [str(r.get("trace_id", "")) for r in rows if r.get("trace_id")]
-    if excl:
-        ids = [i for i in ids if i not in excl]
+    selected_rows = [
+        row for row in rows if row.get("trace_id") and str(row["trace_id"]) not in excl
+    ]
+    ids = [str(row["trace_id"]) for row in selected_rows]
+
+    if resumable:
+        return _resumable_bounded_result(
+            builder=builder,
+            filters=filters or [],
+            page=bounded_page,
+            rows=rows,
+            selected_rows=selected_rows,
+            key_field="trace_id",
+            cap=cap,
+            cursor=cursor,
+        )
 
     # The bounded read overscans by the complete exclusion-set size, so its
     # sentinel now describes the post-exclusion set. A has-more result with no
@@ -544,6 +741,8 @@ def resolve_filtered_trace_ids(
     user=None,
     is_voice_call: bool = False,
     remove_simulation_calls: bool = False,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Return trace IDs matching ``filters`` in ``project_id``, minus ``exclude_ids``.
@@ -610,7 +809,9 @@ def resolve_filtered_trace_ids(
     # both the trace and voice branches; span/session self-inject inside their
     # single resolver.
     ch_filters = list(filters or [])
-    if not _has_explicit_time_filter(filters):
+    if cursor is not None:
+        ch_filters.append(frozen_window_filter(cursor))
+    elif not _has_explicit_time_filter(filters):
         ch_filters.append(_all_history_time_filter())
 
     if is_voice_call:
@@ -621,6 +822,8 @@ def resolve_filtered_trace_ids(
             cap=cap,
             remove_simulation_calls=remove_simulation_calls,
             annotation_label_ids=annotation_label_ids,
+            cursor=cursor,
+            resumable=resumable,
             **_optional_deadline_kwargs(deadline),
         )
     return _resolve_trace_ids_clickhouse(
@@ -629,6 +832,8 @@ def resolve_filtered_trace_ids(
         exclude_ids=set(exclude_ids or ()),
         cap=cap,
         annotation_label_ids=annotation_label_ids,
+        cursor=cursor,
+        resumable=resumable,
         **_optional_deadline_kwargs(deadline),
     )
 
@@ -671,6 +876,8 @@ def _resolve_span_ids_clickhouse(
     exclude_ids: set,
     cap: int,
     annotation_label_ids: list[str],
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Resolve span IDs from ClickHouse, mirroring ``list_spans_observe``.
@@ -690,7 +897,9 @@ def _resolve_span_ids_clickhouse(
     from tracer.services.clickhouse.v2.query_service import V2AnalyticsQueryService
 
     ch_filters = list(filters or [])
-    if not _has_explicit_time_filter(ch_filters):
+    if cursor is not None:
+        ch_filters.append(frozen_window_filter(cursor))
+    elif not _has_explicit_time_filter(ch_filters):
         ch_filters.append(_all_history_time_filter())
 
     analytics = V2AnalyticsQueryService()
@@ -721,6 +930,8 @@ def _resolve_span_ids_clickhouse(
             key_field="id",
             cap=cap,
             exclude_count=len(excl),
+            cursor=cursor,
+            resumable=resumable,
             **_optional_deadline_kwargs(deadline),
         )
         rows = bounded_page.rows
@@ -745,8 +956,22 @@ def _resolve_span_ids_clickhouse(
         # wrong entity later. Surface only a stable error code; the API layer
         # converts resolver failures to its sanitized retryable response.
         raise BulkSelectionAmbiguousIdentity("ambiguous_span_identity")
-    if excl:
-        ids = [i for i in ids if i not in excl]
+    selected_rows = [
+        row for row in rows if row.get("id") and str(row["id"]) not in excl
+    ]
+    ids = [str(row["id"]) for row in selected_rows]
+
+    if resumable:
+        return _resumable_bounded_result(
+            builder=builder,
+            filters=ch_filters,
+            page=bounded_page,
+            rows=rows,
+            selected_rows=selected_rows,
+            key_field="id",
+            cap=cap,
+            cursor=cursor,
+        )
 
     if bounded_has_more and len(ids) <= cap:
         raise BulkSelectionReadIncomplete("excluded_prefix_unproven")
@@ -775,6 +1000,8 @@ def resolve_filtered_span_ids(
     workspace=None,
     cap: int = 10_000,
     user=None,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Return span IDs matching ``filters`` in ``project_id``, minus ``exclude_ids``.
@@ -827,6 +1054,8 @@ def resolve_filtered_span_ids(
         exclude_ids=set(exclude_ids or ()),
         cap=cap,
         annotation_label_ids=annotation_label_ids,
+        cursor=cursor,
+        resumable=resumable,
         **_optional_deadline_kwargs(deadline),
     )
 
@@ -1009,6 +1238,8 @@ def _resolve_session_ids_clickhouse(
     exclude_ids: set,
     organization,
     cap: int,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Re-derive the filter-matched session-id set from ClickHouse.
@@ -1046,7 +1277,9 @@ def _resolve_session_ids_clickhouse(
     # request envelope.  No ClickHouse statement scans 1971→now: the reader
     # walks adjacent newest-first slices, seeds at most 200 session IDs, and
     # classifies only those IDs against latest physical state.
-    if not _has_explicit_time_filter(non_score_filters):
+    if cursor is not None:
+        ch_filters.append(frozen_window_filter(cursor))
+    elif not _has_explicit_time_filter(non_score_filters):
         ch_filters.append(_all_history_time_filter())
 
     analytics = V2AnalyticsQueryService()
@@ -1075,6 +1308,8 @@ def _resolve_session_ids_clickhouse(
             key_field="session_id",
             cap=cap,
             exclude_count=len(excl),
+            cursor=cursor,
+            resumable=resumable,
             **_optional_deadline_kwargs(deadline),
         )
         rows = bounded_page.rows
@@ -1099,8 +1334,25 @@ def _resolve_session_ids_clickhouse(
             **_optional_deadline_kwargs(deadline),
         )
 
-    if excl:
-        ids = [i for i in ids if i not in excl]
+    selected_ids = {session_id for session_id in ids if session_id not in excl}
+    selected_rows = [
+        row
+        for row in rows
+        if row.get("session_id") and str(row["session_id"]) in selected_ids
+    ]
+    ids = [str(row["session_id"]) for row in selected_rows]
+
+    if resumable:
+        return _resumable_bounded_result(
+            builder=builder,
+            filters=ch_filters,
+            page=bounded_page,
+            rows=rows,
+            selected_rows=selected_rows,
+            key_field="session_id",
+            cap=cap,
+            cursor=cursor,
+        )
 
     # With post-CH score intersection, a complete score-filtered prefix is only
     # provable when the bounded CH page itself is exhausted.  Never claim a
@@ -1136,6 +1388,8 @@ def resolve_filtered_session_ids(
     workspace=None,
     cap: int = 10_000,
     user=None,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Return session IDs matching ``filters`` in ``project_id``.
@@ -1189,6 +1443,8 @@ def resolve_filtered_session_ids(
         exclude_ids=set(exclude_ids or set()),
         organization=organization,
         cap=cap,
+        cursor=cursor,
+        resumable=resumable,
         **_optional_deadline_kwargs(deadline),
     )
 
@@ -1421,6 +1677,8 @@ def resolve_filtered_call_execution_ids(
     workspace=None,
     cap: int = 10_000,
     user=None,
+    cursor: ListCursor | None = None,
+    resumable: bool = False,
     deadline: ReadDeadline | None = None,
 ) -> ResolveResult:
     """Return CallExecution IDs under ``agent_definition_id=project_id``.
@@ -1477,10 +1735,64 @@ def resolve_filtered_call_execution_ids(
                     + ", ".join(unsupported)
                 )
 
+    cursor_window: tuple[datetime, datetime] | None = None
+    if resumable:
+        if cursor is not None:
+            if (
+                len(cursor.order) != 2
+                or not isinstance(cursor.order[0], datetime)
+                or not isinstance(cursor.order[1], str)
+            ):
+                raise ValueError("invalid bulk-selection cursor order")
+            cursor_window = cursor.window_start, cursor.window_end
+        else:
+            cursor_window = (
+                datetime(1971, 1, 1, tzinfo=UTC),
+                datetime.now(UTC),
+            )
+        # ``apply_created_at_filters`` above owns the PostgreSQL contract:
+        # equals matches a calendar day, between includes its upper endpoint,
+        # and complement-only filters retain both sides of the exclusion. Do
+        # not reinterpret those predicates as one ClickHouse half-open window.
+        # Freeze only the request-time upper fence so rows inserted after page
+        # one cannot enter a continuation chain.
+        qs = qs.filter(created_at__lte=cursor_window[1])
+        if cursor is not None:
+            qs = qs.filter(
+                Q(created_at__lt=cursor.order[0])
+                | Q(created_at=cursor.order[0], id__lt=cursor.order[1])
+            )
+
     if exclude_ids:
         qs = qs.exclude(id__in=list(exclude_ids))
 
     qs = qs.order_by("-created_at", "-id")
+
+    if resumable:
+        capped_rows = list(qs.values("id", "created_at")[: cap + 1])
+        if deadline is not None:
+            deadline.remaining_ms(floor_ms=1)
+        overflow = len(capped_rows) > cap
+        published_rows = capped_rows[:cap]
+        ids = [row["id"] for row in published_rows]
+        seen_rows = (cursor.seen_rows if cursor is not None else 0) + len(ids)
+        continuation = None
+        if overflow:
+            last = published_rows[-1]
+            assert cursor_window is not None
+            continuation = ListCursor(
+                window_start=cursor_window[0],
+                window_end=cursor_window[1],
+                order=(last["created_at"], str(last["id"])),
+                seen_rows=seen_rows,
+            )
+        total_matching = seen_rows + (1 if overflow else 0)
+        return ResolveResult(
+            ids=ids,
+            total_matching=total_matching,
+            truncated=overflow,
+            continuation=continuation,
+        )
 
     # See resolve_filtered_trace_ids — cap+1 fetch instead of COUNT(*).
     capped = list(qs.values_list("id", flat=True)[: cap + 1])

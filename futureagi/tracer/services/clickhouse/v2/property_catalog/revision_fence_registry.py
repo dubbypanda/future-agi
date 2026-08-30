@@ -28,7 +28,11 @@ MAX_REVISION_FENCE_BYTES = 1 << 20
 MAX_REVISION_FENCE_PROJECTS = 256
 
 _FENCE_SHA_DOMAIN = "futureagi.property-catalog.revision-fence.v2"
-_MAX_DRAIN_LEASE = timedelta(minutes=30)
+# Keep the structural protocol bound aligned with Go's maxRevisionLease and the
+# reviewed PROPERTY_CATALOG_MAX_REVISION_LEASE_SECONDS setting ceiling. Runtime
+# admission may choose a shorter configured lease, but either implementation
+# must be able to decode every valid cross-language fence.
+_MAX_DRAIN_LEASE = timedelta(minutes=60)
 _TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _DOCUMENT_FIELDS = ("format", "version", "fences")
 _FENCE_FIELDS = (

@@ -157,6 +157,16 @@ def build_numeric_filter_predicate(
         sql_op = "NOT BETWEEN" if normalized_op == "not_between" else "BETWEEN"
         return f"{expression} {sql_op} %({lower_param})s AND %({upper_param})s"
 
+    if normalized_op in LIST_OPS:
+        if not isinstance(filter_value, (list, tuple)):
+            return "0 = 1"
+        values = tuple(filter_value)
+        if not values:
+            return "1 = 1" if normalized_op == "not_in" else "0 = 1"
+        params[param_prefix] = values
+        sql_op = "NOT IN" if normalized_op == "not_in" else "IN"
+        return f"{expression} {sql_op} %({param_prefix})s"
+
     comparison_op = {
         "equals": "=",
         "not_equals": "!=",

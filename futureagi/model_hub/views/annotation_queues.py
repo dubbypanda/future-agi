@@ -150,7 +150,6 @@ from simulate.utils.stored_transcript_roles import get_displayable_transcript_ro
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_errors import ApiErrorCode
 from tfc.utils.api_serializers import (
-    ApiSelectionTooLargeErrorSerializer,
     ApiTextErrorResponseSerializer,
     ApiTooLargeErrorSerializer,
     EmptyRequestSerializer,
@@ -162,6 +161,13 @@ from tfc.utils.pagination import ExtendedPageNumberPagination
 from tracer.models.observation_span import EvalLogger
 from tracer.models.project import Project
 from tracer.models.span_notes import SpanNotes
+from tracer.services.clickhouse.list_cursor import (
+    ListCursorError,
+    cursor_scope_for_request,
+    decode_list_cursor,
+    encode_list_cursor,
+    list_cursor_boundary_fingerprint,
+)
 from tracer.services.clickhouse.read_budget import ReadDeadline, ReadDeadlineExceeded
 from tracer.services.clickhouse.v2.query_settings import ch_query_settings
 
@@ -175,9 +181,8 @@ ERROR_RESPONSES = {
     500: ApiTextErrorResponseSerializer,
 }
 
-# Shared cap for filter-mode bulk add. Phase 11 may introduce an async job
-# path for selections exceeding this; until then, the endpoint errors with
-# ``selection_too_large`` so the UI can prompt the user to narrow the filter.
+# Shared per-request batch cap for filter-mode bulk add. Larger exact selections
+# continue through an opaque signed cursor instead of being rejected.
 MAX_SELECTION_CAP = settings.BULK_SELECTION_MAX_CAP
 
 # Finish the request-owned backend transaction before the separately configured
@@ -4962,7 +4967,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         request_serializer=AddItemsSerializer,
         responses={
             200: QueueAddItemsResponseSerializer,
-            400: ApiSelectionTooLargeErrorSerializer,
+            400: ApiTextErrorResponseSerializer,
             403: ApiTextErrorResponseSerializer,
             404: ApiTextErrorResponseSerializer,
             413: ApiTooLargeErrorSerializer,
@@ -5022,7 +5027,16 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
 
         try:
             with transaction.atomic(), _bounded_add_items_postgres(deadline):
-                queue = AnnotationQueue.objects.get(
+                # Every page commits independently, and clients may retry a page
+                # after an unknown transport outcome. Serialize all mutations for
+                # one queue before duplicate detection and order allocation so two
+                # managers cannot both observe the same empty suffix and race the
+                # conditional source-identity constraints during bulk_create.
+                # The workspace-aware manager may add nullable workspace joins.
+                # Lock only the queue row: PostgreSQL rejects an unscoped
+                # ``FOR UPDATE`` when the query includes the nullable side of an
+                # outer join.
+                queue = AnnotationQueue.objects.select_for_update(of=("self",)).get(
                     pk=queue_id,
                     organization=request.organization,
                     deleted=False,
@@ -5177,6 +5191,23 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
         project_id = selection["project_id"]
         filter_payload = selection.get("filter", [])
         exclude_ids = set(selection.get("exclude_ids", []))
+        cursor_token = selection.get("cursor")
+        cursor_scope = cursor_scope_for_request(
+            request,
+            project_ids=[str(project_id)],
+        )
+        cursor_query = {
+            "queue_id": str(queue.id),
+            "mode": selection["mode"],
+            "source_type": source_type,
+            "project_id": str(project_id),
+            "filters": filter_payload,
+            "exclude_ids": sorted(str(value) for value in exclude_ids),
+            "is_voice_call": bool(selection.get("is_voice_call", False)),
+            "remove_simulation_calls": bool(
+                selection.get("remove_simulation_calls", False)
+            ),
+        }
 
         resolver = FILTER_MODE_RESOLVERS.get(source_type)
         if resolver is None:
@@ -5187,6 +5218,15 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             )
 
         try:
+            cursor_state = None
+            if cursor_token:
+                cursor_state = decode_list_cursor(
+                    cursor_token,
+                    resource=f"annotation_queue_bulk_{source_type}",
+                    scope=cursor_scope,
+                    query=cursor_query,
+                    page_size=MAX_SELECTION_CAP,
+                )
             resolver_kwargs = {
                 "project_id": project_id,
                 "filters": filter_payload,
@@ -5195,6 +5235,8 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 "workspace": getattr(request, "workspace", None),
                 "cap": MAX_SELECTION_CAP,
                 "user": request.user,
+                "cursor": cursor_state,
+                "resumable": True,
                 "deadline": deadline,
             }
             # Voice-call flags are only honored by the trace resolver.
@@ -5211,6 +5253,12 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             _add_items_deadline_checkpoint(deadline)
         except Project.DoesNotExist:
             return self._gm.not_found("Project not found in organization.")
+        except ListCursorError as exc:
+            return self._gm.custom_error_response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                result=str(exc),
+                code=exc.code,
+            )
         except ValueError as e:
             return self._gm.bad_request(str(e))
         except ReadDeadlineExceeded:
@@ -5238,28 +5286,37 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 code="source_resolve_unavailable",
             )
 
-        if result.truncated:
-            message = (
-                f"Selection matches {result.total_matching} items, "
-                f"which exceeds the {MAX_SELECTION_CAP}-item cap. "
-                "Narrow the filter and retry."
+        next_cursor = None
+        next_cursor_fingerprint = None
+        if result.continuation is not None:
+            continuation = result.continuation
+            next_cursor = encode_list_cursor(
+                resource=f"annotation_queue_bulk_{source_type}",
+                scope=cursor_scope,
+                query=cursor_query,
+                page_size=MAX_SELECTION_CAP,
+                window_start=continuation.window_start,
+                window_end=continuation.window_end,
+                order=continuation.order,
+                seen_rows=continuation.seen_rows,
+                scan_slice_start=continuation.scan_slice_start,
+                scan_slice_end=continuation.scan_slice_end,
+                scan_before_start_time=continuation.scan_before_start_time,
+                scan_before_id=continuation.scan_before_id,
             )
-            return Response(
-                {
-                    "status": False,
-                    "result": None,
-                    "type": "selection_too_large",
-                    "code": "selection_too_large",
-                    "detail": message,
-                    "message": message,
-                    "error": {
-                        "type": "selection_too_large",
-                        "message": message,
-                        "total_matching": result.total_matching,
-                        "cap": MAX_SELECTION_CAP,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            next_cursor_fingerprint = list_cursor_boundary_fingerprint(next_cursor)
+        elif result.truncated:
+            # Every endpoint-owned resolver supports resumable mode. Refuse a
+            # silent partial write if a future resolver forgets that contract.
+            logger.error(
+                "queue_add_items_filter_mode_missing_continuation",
+                queue_id=str(queue.id),
+                source_type=source_type,
+            )
+            return self._gm.custom_error_response(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                result="Could not continue the selection safely. Nothing was added.",
+                code="source_resolve_unavailable",
             )
 
         resolved_ids = result.ids
@@ -5344,6 +5401,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
             project_id=str(project_id),
             source_type=source_type,
             total_matching=result.total_matching,
+            has_more=result.continuation is not None,
             exclude_count=len(exclude_ids),
             unavailable_count=unavailable_count,
             added=added,
@@ -5357,6 +5415,10 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 "errors": errors,
                 "queue_status": new_status,
                 "total_matching": result.total_matching,
+                "total_matching_is_lower_bound": result.truncated,
+                "has_more": result.continuation is not None,
+                "next_cursor": next_cursor,
+                "next_cursor_fingerprint": next_cursor_fingerprint,
             }
         )
 

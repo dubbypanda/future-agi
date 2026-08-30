@@ -44,6 +44,9 @@ from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.exact_graph_predicates import (
     compile_exact_graph_row_predicates,
 )
+from tracer.services.clickhouse.query_builders.filters import (
+    build_numeric_filter_predicate,
+)
 from tracer.services.clickhouse.query_builders.latest_filter_predicates import (
     compile_exact_graph_filter_predicates,
     compile_span_attribute_row_predicate,
@@ -2626,14 +2629,6 @@ def _session_having_clause(
     """Compile the aggregate/message filters accepted by the session list API."""
 
     clauses: list[str] = []
-    operators = {
-        "equals": "=",
-        "not_equals": "!=",
-        "greater_than": ">",
-        "less_than": "<",
-        "greater_than_or_equal": ">=",
-        "less_than_or_equal": "<=",
-    }
     counter = 0
     for item in filters:
         column_id = item.get("column_id") or item.get("columnId")
@@ -2682,16 +2677,17 @@ def _session_having_clause(
             clauses.append(f"{message_column} {text_operator} %({param_name})s")
             continue
 
-        operator = operators.get(str(filter_op or ""))
-        if operator is None:
-            # Match SessionTimeSeriesQueryBuilder: a syntactically valid but
-            # unsupported aggregate operation must fail closed, not broaden.
-            clauses.append("0 = 1")
-            continue
         counter += 1
         param_name = f"session_having_{counter}"
-        params[param_name] = filter_value
-        clauses.append(f"{column} {operator} %({param_name})s")
+        clauses.append(
+            build_numeric_filter_predicate(
+                column,
+                filter_op,
+                filter_value,
+                param_prefix=param_name,
+                params=params,
+            )
+        )
     return " AND ".join(clauses)
 
 
@@ -2960,12 +2956,23 @@ def _session_aggregate_source_sql(
             "snapshot_scan_end_date": snapshot_scan_end,
         }
     )
+    root_datetime_predicate, root_datetime_params = (
+        BaseQueryBuilder.bounded_datetime_exclusion_sql(
+            filters,
+            column="start_time",
+            param_prefix="exact_session_time_exclusion",
+        )
+    )
+    params.update(root_datetime_params)
+    root_datetime_fragment = (
+        f"\n          AND {root_datetime_predicate}" if root_datetime_predicate else ""
+    )
     # ``toStartOfHour(start_time)`` is part of the deployed CH25 replacement
     # identity. A producer may correct start_time across an exact request
     # boundary while keeping the same physical identity. FINAL must therefore
     # see both complete boundary hours; apply the frozen request window only
     # after that collapse so an older live row cannot survive a newer tombstone.
-    session_root_rows = """
+    session_root_rows = f"""
         SELECT *
         FROM (
             SELECT *
@@ -2976,6 +2983,7 @@ def _session_aggregate_source_sql(
         ) AS snapshot_roots
         WHERE snapshot_roots.start_time >= %(snapshot_start_date)s
           AND snapshot_roots.start_time < %(snapshot_end_date)s
+          {root_datetime_fragment}
           AND snapshot_roots.is_deleted = 0
           AND (snapshot_roots.parent_span_id IS NULL OR
                snapshot_roots.parent_span_id = '')
@@ -3016,6 +3024,19 @@ def _session_aggregate_source_sql(
     membership_ctes = ""
     selected_session_predicates: list[str] = []
     if membership_plan.scalar_predicates:
+        scalar_datetime_predicate, scalar_datetime_params = (
+            BaseQueryBuilder.bounded_datetime_exclusion_sql(
+                filters,
+                column="latest_start_time",
+                param_prefix="exact_session_scalar_time_exclusion",
+            )
+        )
+        params.update(scalar_datetime_params)
+        scalar_datetime_fragment = (
+            f"\n          AND {scalar_datetime_predicate}"
+            if scalar_datetime_predicate
+            else ""
+        )
         scalar_aggregate_select = ",\n            ".join(
             membership_plan.scalar_aggregates
         )
@@ -3062,6 +3083,7 @@ def _session_aggregate_source_sql(
         WHERE latest_is_deleted = 0
           AND latest_start_time >= %(snapshot_start_date)s
           AND latest_start_time < %(snapshot_end_date)s
+          {scalar_datetime_fragment}
           AND isNotNull(latest_trace_session_id)
           AND latest_trace_session_id !=
               toUUID('00000000-0000-0000-0000-000000000000')

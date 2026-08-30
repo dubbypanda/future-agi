@@ -113,6 +113,7 @@ from tracer.services.clickhouse.list_cursor import (
     encode_list_cursor,
     exact_total_explicitly_required,
     frozen_window_filter,
+    list_cursor_boundary_fingerprint,
     snapshot_cursor_supported,
 )
 from tracer.services.clickhouse.list_request_deadline import bounded_list_request
@@ -6463,6 +6464,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             )
         if cursor_enabled:
             response_data["next_cursor"] = next_cursor
+            response_data["next_cursor_fingerprint"] = (
+                list_cursor_boundary_fingerprint(next_cursor)
+            )
         if bounded_page.error_code and not public_chunk_complete:
             response_data["query_error_code"] = bounded_page.error_code
         if response_data["count_is_lower_bound"] and exact_total_explicitly_required(
@@ -7183,6 +7187,9 @@ class UsersView(APIView):
                     )
                 payload = dict(cursor_read.payload)
                 payload["next_cursor"] = next_cursor
+                payload["next_cursor_fingerprint"] = (
+                    list_cursor_boundary_fingerprint(next_cursor)
+                )
                 return self._gm.success_response(payload)
 
             payload = manager.list_payload(

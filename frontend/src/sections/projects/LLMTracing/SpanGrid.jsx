@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAgTheme } from "src/hooks/use-ag-theme";
+import { useAgThemeWith } from "src/hooks/use-ag-theme";
 import { getRandomId, safeParse } from "src/utils/utils";
 import axios, { endpoints } from "src/utils/axios";
 import { useParams } from "src/routes/hooks";
@@ -71,7 +71,10 @@ import {
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
 } from "src/config/runtime_limits";
-import { boundObserveListRow } from "./observeListPayload";
+import {
+  boundObserveListRow,
+  compactObserveListResponse,
+} from "./observeListPayload";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
@@ -243,8 +246,23 @@ const SpanGrid = React.forwardRef(
         reset: state.reset,
       }));
 
-    const agTheme = useAgTheme();
     const theme = useTheme();
+    const gridThemeParams = useMemo(
+      () => ({
+        columnBorder: false,
+        headerColumnBorder: false,
+        wrapperBorder: { width: 0 },
+        wrapperBorderRadius: 0,
+        rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
+        headerFontSize: "13px",
+        headerFontWeight: theme.typography.fontWeightMedium,
+        headerBackgroundColor: "transparent",
+        headerTextColor: theme.palette.text.primary,
+        rowHoverColor: "rgba(120,87,252,0.04)",
+      }),
+      [theme],
+    );
+    const agTheme = useAgThemeWith(gridThemeParams);
     const { observeId } = useParams();
     const { setSpanDetailDrawerOpen } = useLLMTracingStoreShallow((state) => ({
       setSpanDetailDrawerOpen: state.setSpanDetailDrawerOpen,
@@ -578,6 +596,7 @@ const SpanGrid = React.forwardRef(
                     rowsFromResponse: (response) =>
                       response.data.table.map(boundObserveListRow),
                     metadataFromResponse: (response) => response.data.metadata,
+                    compactResponse: compactObserveListResponse,
                     rowIdentity: getSpanPhysicalRowId,
                     isCurrent: () =>
                       cursorPagination.current.isCurrent(requestGeneration),
@@ -902,18 +921,7 @@ const SpanGrid = React.forwardRef(
           className={`${cellHeight && cellHeight !== "Short" ? "cell-wrap " : ""}clean-data-table${continuationNotice ? " ag-grid-cursor-paused" : ""}`}
           // rowSelection={{ mode: "multiRow" }}
           rowHeight={userTraceRowHeightMapping[cellHeight]?.height ?? 40}
-          theme={agTheme.withParams({
-            columnBorder: false,
-            headerColumnBorder: false,
-            wrapperBorder: { width: 0 },
-            wrapperBorderRadius: 0,
-            rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
-            headerFontSize: "13px",
-            headerFontWeight: theme.typography.fontWeightMedium,
-            headerBackgroundColor: "transparent",
-            headerTextColor: theme.palette.text.primary,
-            rowHoverColor: "rgba(120,87,252,0.04)",
-          })}
+          theme={agTheme}
           ref={gridRef}
           columnDefs={columnDefs}
           onColumnMoved={onColumnMoved}

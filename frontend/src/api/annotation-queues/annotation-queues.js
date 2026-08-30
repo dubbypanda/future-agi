@@ -13,7 +13,11 @@ import { selectContractedList } from "src/api/contract-validation";
 import { ModelHubAnnotationQueuesForSourceResponse } from "src/generated/api-contracts/api.zod";
 import { paramsSerializer } from "src/utils/utils";
 import { getSafeActionErrorMessage } from "src/utils/errorUtils";
-import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+import {
+  INTERACTIVE_REQUEST_TIMEOUT_MS,
+  MAX_ADD_QUEUE_CONTINUATION_PAGES,
+  MAX_ADD_QUEUE_CONTINUATION_WALL_MS,
+} from "src/config/runtime_limits";
 import {
   AUTOMATION_RULE_LIST_PAGE_SIZE,
   readAutomationRulePage,
@@ -434,6 +438,9 @@ export const useQueueItems = (queueId, filters = {}, options = {}) => {
 };
 
 export const ADD_QUEUE_ITEMS_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
+const MAX_ADD_QUEUE_CURSOR_LENGTH = 4096;
+const MAX_ADD_QUEUE_ERROR_SAMPLES = 20;
+const MAX_ADD_QUEUE_ERROR_SAMPLE_CHARS = 512;
 
 const ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES = new Set([
   "ERR_CANCELED",
@@ -442,6 +449,113 @@ const ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES = new Set([
   "ERR_NETWORK",
   "ECONNRESET",
 ]);
+
+const emptyAddResult = () => ({
+  added: 0,
+  duplicates: 0,
+  errors: [],
+  error_count: 0,
+  queue_status: null,
+  total_matching: 0,
+  total_matching_is_lower_bound: false,
+  has_more: false,
+  next_cursor: null,
+  next_cursor_fingerprint: undefined,
+});
+
+const responseAddResult = (response) =>
+  response?.data?.result || response?.data || {};
+
+const mergeAddResult = (aggregate, response) => {
+  const result = responseAddResult(response);
+  const pageErrors = Array.isArray(result.errors) ? result.errors : [];
+  const remainingErrorSlots = Math.max(
+    MAX_ADD_QUEUE_ERROR_SAMPLES - aggregate.errors.length,
+    0,
+  );
+  const errorSamples = [];
+  for (
+    let index = 0;
+    index < pageErrors.length && errorSamples.length < remainingErrorSlots;
+    index += 1
+  ) {
+    const error = pageErrors[index];
+    if (typeof error === "string") {
+      errorSamples.push(error.slice(0, MAX_ADD_QUEUE_ERROR_SAMPLE_CHARS));
+    }
+  }
+  return {
+    added: aggregate.added + (Number(result.added) || 0),
+    duplicates: aggregate.duplicates + (Number(result.duplicates) || 0),
+    errors: [...aggregate.errors, ...errorSamples],
+    error_count: Math.min(
+      Number.MAX_SAFE_INTEGER,
+      aggregate.error_count + pageErrors.length,
+    ),
+    queue_status: result.queue_status ?? aggregate.queue_status,
+    // The resumable backend reports cumulative selection progress, so retain
+    // the latest value rather than summing it across pages.
+    total_matching:
+      Number.isSafeInteger(result.total_matching) && result.total_matching >= 0
+        ? result.total_matching
+        : aggregate.total_matching,
+    total_matching_is_lower_bound:
+      result.total_matching_is_lower_bound === true,
+    has_more: result.has_more === true,
+    next_cursor: result.next_cursor ?? null,
+    next_cursor_fingerprint:
+      result.next_cursor_fingerprint === undefined
+        ? aggregate.next_cursor_fingerprint
+        : result.next_cursor_fingerprint,
+  };
+};
+
+const continuationError = (message, aggregate, code) => {
+  const error = new Error(message);
+  error.code = code;
+  error.partialAddResult = aggregate;
+  return error;
+};
+
+const validContinuationCursor = (cursor) =>
+  typeof cursor === "string" &&
+  cursor.trim().length > 0 &&
+  cursor.length <= MAX_ADD_QUEUE_CURSOR_LENGTH;
+
+const ADD_QUEUE_CURSOR_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
+
+const queueContinuationIdentity = ({
+  next_cursor,
+  next_cursor_fingerprint,
+}) => {
+  if (next_cursor_fingerprint === undefined) {
+    return `opaque-token:${next_cursor}`;
+  }
+  if (
+    typeof next_cursor_fingerprint !== "string" ||
+    !ADD_QUEUE_CURSOR_FINGERPRINT_PATTERN.test(next_cursor_fingerprint)
+  ) {
+    return null;
+  }
+  return `boundary:${next_cursor_fingerprint}`;
+};
+
+const postFilterAddPage = async (endpoint, selection, timeoutMs) => {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await axios.post(
+      endpoint,
+      { selection },
+      {
+        signal: controller.signal,
+        timeout: timeoutMs,
+      },
+    );
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+};
 
 export const postAddQueueItems = async ({
   queueId,
@@ -457,19 +571,99 @@ export const postAddQueueItems = async ({
     return axios.post(endpoint, payload);
   }
 
-  const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(
-    () => controller.abort(),
-    ADD_QUEUE_ITEMS_TIMEOUT_MS,
-  );
-  try {
-    return await axios.post(endpoint, payload, {
-      signal: controller.signal,
-      timeout: ADD_QUEUE_ITEMS_TIMEOUT_MS,
-    });
-  } finally {
-    globalThis.clearTimeout(timeoutId);
+  if (selection.cursor && !validContinuationCursor(selection.cursor)) {
+    throw continuationError(
+      "The add-items continuation cursor is invalid. Refresh the queue before retrying.",
+      emptyAddResult(),
+      "invalid_bulk_continuation",
+    );
   }
+  const startedAt = Date.now();
+  const consumedCursorIdentities = new Set(
+    selection.cursor ? [`opaque-token:${selection.cursor}`] : [],
+  );
+  let aggregate = emptyAddResult();
+  let currentSelection = selection;
+  let lastResponse = null;
+
+  for (let page = 0; page < MAX_ADD_QUEUE_CONTINUATION_PAGES; page += 1) {
+    const remainingWallMs =
+      MAX_ADD_QUEUE_CONTINUATION_WALL_MS - (Date.now() - startedAt);
+    if (remainingWallMs <= 0) {
+      throw continuationError(
+        "Adding the full selection exceeded the browser continuation wall. Refresh the queue before retrying.",
+        aggregate,
+        "bulk_continuation_wall_exceeded",
+      );
+    }
+    try {
+      lastResponse = await postFilterAddPage(
+        endpoint,
+        currentSelection,
+        Math.min(ADD_QUEUE_ITEMS_TIMEOUT_MS, remainingWallMs),
+      );
+    } catch (error) {
+      if (error && typeof error === "object") {
+        error.partialAddResult = aggregate;
+      }
+      throw error;
+    }
+    const pageResult = responseAddResult(lastResponse);
+    if (
+      pageResult.has_more !== true &&
+      (pageResult.next_cursor != null ||
+        pageResult.next_cursor_fingerprint != null)
+    ) {
+      const partialAddResult = mergeAddResult(aggregate, lastResponse);
+      throw continuationError(
+        "The server returned contradictory terminal add-items metadata. Refresh the queue before retrying.",
+        partialAddResult,
+        "invalid_bulk_continuation",
+      );
+    }
+    aggregate = mergeAddResult(aggregate, lastResponse);
+    if (!aggregate.has_more) {
+      const terminal = {
+        ...aggregate,
+        total_matching_is_lower_bound: false,
+        has_more: false,
+        next_cursor: null,
+        next_cursor_fingerprint: null,
+      };
+      return {
+        ...lastResponse,
+        data: {
+          ...(lastResponse?.data || {}),
+          result: terminal,
+        },
+      };
+    }
+
+    const nextCursor = aggregate.next_cursor;
+    const nextCursorIdentity = queueContinuationIdentity(aggregate);
+    if (!validContinuationCursor(nextCursor) || !nextCursorIdentity) {
+      throw continuationError(
+        "The server returned an invalid add-items continuation. Refresh the queue before retrying.",
+        aggregate,
+        "invalid_bulk_continuation",
+      );
+    }
+    if (consumedCursorIdentities.has(nextCursorIdentity)) {
+      throw continuationError(
+        "The server repeated an add-items continuation. Refresh the queue before retrying.",
+        aggregate,
+        "repeated_bulk_continuation",
+      );
+    }
+    consumedCursorIdentities.add(nextCursorIdentity);
+    currentSelection = { ...selection, cursor: nextCursor };
+  }
+
+  throw continuationError(
+    "Adding the full selection exceeded the safe continuation limit. Refresh the queue before retrying.",
+    aggregate,
+    "bulk_continuation_limit_exceeded",
+  );
 };
 
 export const useAddQueueItems = () => {
@@ -484,23 +678,39 @@ export const useAddQueueItems = () => {
         queryKey: annotationQueueKeys.all,
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const partial = error?.partialAddResult;
+      const confirmedAdded = Number(partial?.added) || 0;
       const semanticCode = error?.response?.data?.code || error?.code;
-      if (semanticCode === "add_items_deadline_exceeded") {
+      const transportCode = error?.transportCode || error?.code;
+      const possiblyCommitted =
+        partial != null ||
+        ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES.has(transportCode);
+      if (possiblyCommitted && variables?.queueId) {
+        queryClient.invalidateQueries({
+          queryKey: queueItemKeys.all(variables.queueId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: annotationQueueKeys.all,
+        });
+      }
+      if (ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES.has(transportCode)) {
         enqueueSnackbar(
-          extractErrorMessage(
-            error,
-            "Adding matching items took too long. Nothing was added. Please retry.",
-          ),
+          confirmedAdded > 0
+            ? `${confirmedAdded} item${confirmedAdded === 1 ? " was" : "s were"} confirmed added, but we couldn't confirm the next batch. Refresh the queue and check before retrying.`
+            : "We couldn't confirm whether the items were added. Refresh the queue and check before retrying.",
           { variant: "error" },
         );
         return;
       }
-
-      const transportCode = error?.transportCode || error?.code;
-      if (ADD_QUEUE_ITEMS_UNKNOWN_OUTCOME_TRANSPORT_CODES.has(transportCode)) {
+      if (semanticCode === "add_items_deadline_exceeded") {
         enqueueSnackbar(
-          "We couldn't confirm whether the items were added. Refresh the queue and check before retrying.",
+          confirmedAdded > 0
+            ? `${confirmedAdded} item${confirmedAdded === 1 ? " was" : "s were"} added before continuation timed out. Retry to finish the selection.`
+            : extractErrorMessage(
+                error,
+                "Adding matching items took too long. Nothing was added. Please retry.",
+              ),
           { variant: "error" },
         );
         return;

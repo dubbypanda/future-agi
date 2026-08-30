@@ -65,6 +65,15 @@ ClickHouse identifier and must differ from the source database. The bootstrap
 scripts reject unsafe or source-identical names, malformed credentials, and
 any target that does not contain exactly the six pinned tables.
 
+The supervisor and sequencer share one canonical version-2 multi-tenant fence
+registry. Before each cycle the supervisor reconciles the exact active
+workspace inventory under the registry lock, and every workspace publication
+preserves the other tenants. The registry is deliberately bounded to 256
+workspaces; an over-bound inventory or corrupt registry fails the whole cycle
+closed before any workspace lifecycle work starts. Its cross-language drain
+lease codec accepts the reviewed 60-minute protocol ceiling; deployments may
+configure a shorter lifecycle lease.
+
 User-facing catalog reads remain `off` by default. That is intentional: a new
 install has no workspace until onboarding, and forcing `read` before its first
 activation would turn an otherwise healthy OSS page into a 503. The Kafka
