@@ -99,7 +99,10 @@ def test_reviewed_read_timeout_ceiling_allows_30000_for_dedicated_client(
     assert execute.call_args.kwargs["timeout_ms"] == 30_000
 
 
-@pytest.mark.parametrize("ceiling_ms", [True, 0, 30_001])
+@pytest.mark.parametrize(
+    "ceiling_ms",
+    [True, 0, django_settings.CLICKHOUSE_REVIEWED_READ_TIMEOUT_CEILING_MS + 1],
+)
 def test_read_timeout_ceiling_rejects_unreviewed_values(ceiling_ms):
     with pytest.raises(ValueError, match="ceiling"):
         _client(
