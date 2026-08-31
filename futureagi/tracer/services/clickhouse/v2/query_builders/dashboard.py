@@ -47,6 +47,8 @@ _USAGE_CDC_COLUMN_RE = re.compile(
     r"(?P<column>_peerdb_is_deleted|_peerdb_version)\b"
 )
 
+MERGED_SPAN_COMPATIBILITY_CONFIG_KEY = "_merged_span_compatibility"
+
 
 def _protect_usage_cdc_columns(sql: str) -> str:
     return _USAGE_CDC_COLUMN_RE.sub(
@@ -101,6 +103,13 @@ class DashboardQueryBuilderV2(V2RewriteMixin, DashboardQueryBuilder):
 
     def __init__(self, query_config: dict) -> None:
         super().__init__(query_config)
+        # Public dashboard compatibility reads intentionally mirror the
+        # previously deployed merged-row behavior for a narrowly admitted set
+        # of unfiltered widgets. Exact/background reads continue to collapse
+        # every physical version explicitly.
+        self._latest_state_spans_required = not bool(
+            query_config.get(MERGED_SPAN_COMPATIBILITY_CONFIG_KEY, False)
+        )
         # A preset range is relative to ``now``. Freeze it once per request so
         # every concurrent metric uses identical endpoints—even across
         # midnight while an asynchronous dashboard refresh is running.
@@ -127,7 +136,7 @@ class DashboardQueryBuilderV2(V2RewriteMixin, DashboardQueryBuilder):
         More complex shapes keep the general builder path.
         """
 
-        if (
+        if self.config.get(MERGED_SPAN_COMPATIBILITY_CONFIG_KEY, False) or (
             metric.get("attribute_type", "number") != "number"
             or self.breakdowns
             or self.global_filters
@@ -278,4 +287,7 @@ class DashboardQueryBuilderV2(V2RewriteMixin, DashboardQueryBuilder):
         return sql, params
 
 
-__all__ = ["DashboardQueryBuilderV2"]
+__all__ = [
+    "DashboardQueryBuilderV2",
+    "MERGED_SPAN_COMPATIBILITY_CONFIG_KEY",
+]
