@@ -71,6 +71,7 @@ import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
+import useImmediateGridQueryTransition from "./useImmediateGridQueryTransition";
 import {
   dispatchObservePageChanged,
   OBSERVE_LIST_REFRESH_EVENT,
@@ -240,13 +241,13 @@ const TraceGrid = React.forwardRef(
         }),
       [selectionQueryKey, requestedAttributeKeysKey, pageSize],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-    useEffect(() => {
-      if (previousFilterRequestKeyRef.current !== filterRequestKey) {
-        resetPagination();
-      }
-      previousFilterRequestKeyRef.current = filterRequestKey;
-    }, [filterRequestKey, resetPagination]);
+    const { handoffToFirstPageRequest, transitionLoading } =
+      useImmediateGridQueryTransition({
+        enabled,
+        filterRequestKey,
+        gridRef,
+        resetPagination,
+      });
     const clearSelection = useCallback(() => {
       const api = gridRef?.current?.api;
       withLiveGridApi(api, (liveApi) => {
@@ -373,6 +374,7 @@ const TraceGrid = React.forwardRef(
               pageNumber = Math.floor(request.startRow / requestPageSize);
               pageLoadRequestId = beginPageLoad(pageNumber);
               if (pageNumber === 0) {
+                handoffToFirstPageRequest(filterRequestKey);
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
                   preserveRowsDuringNextRefreshRef.current;
@@ -616,6 +618,7 @@ const TraceGrid = React.forwardRef(
         filterRequestKey,
         beginPageLoad,
         finishPageLoad,
+        handoffToFirstPageRequest,
         publishPage,
         setLoading,
       ],
@@ -782,11 +785,7 @@ const TraceGrid = React.forwardRef(
         validatedSteps[currentStep - 1]
       );
     }, [openReplaySessionDrawer, currentStep, validatedSteps]);
-    // Controlled loading starts only when AG Grid actually asks this
-    // datasource for page zero. URL/config hydration can replace a datasource
-    // before AG Grid starts its request; deriving loading from the request key
-    // leaves the overlay stuck when no replacement call follows.
-    const isGridReadPending = gridLoading;
+    const isGridReadPending = gridLoading || transitionLoading;
 
     return (
       <Box

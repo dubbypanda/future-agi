@@ -79,6 +79,7 @@ import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
+import useImmediateGridQueryTransition from "./useImmediateGridQueryTransition";
 import {
   dispatchObservePageChanged,
   OBSERVE_LIST_REFRESH_EVENT,
@@ -344,13 +345,13 @@ const SpanGrid = React.forwardRef(
       () => JSON.stringify({ selectionQueryKey, pageSize }),
       [pageSize, selectionQueryKey],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-    useEffect(() => {
-      if (previousFilterRequestKeyRef.current !== filterRequestKey) {
-        resetPagination();
-      }
-      previousFilterRequestKeyRef.current = filterRequestKey;
-    }, [filterRequestKey, resetPagination]);
+    const { handoffToFirstPageRequest, transitionLoading } =
+      useImmediateGridQueryTransition({
+        enabled,
+        filterRequestKey,
+        gridRef,
+        resetPagination,
+      });
     const clearSelection = useCallback(() => {
       const api = gridRef?.current?.api;
       withLiveGridApi(api, (liveApi) => {
@@ -557,6 +558,7 @@ const SpanGrid = React.forwardRef(
               pageNumber = Math.floor(request.startRow / requestPageSize);
               pageLoadRequestId = beginPageLoad(pageNumber);
               if (pageNumber === 0) {
+                handoffToFirstPageRequest(filterRequestKey);
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
                   preserveRowsDuringNextRefreshRef.current;
@@ -778,6 +780,7 @@ const SpanGrid = React.forwardRef(
         filterRequestKey,
         beginPageLoad,
         finishPageLoad,
+        handoffToFirstPageRequest,
         publishPage,
         setLoading,
       ],
@@ -943,7 +946,7 @@ const SpanGrid = React.forwardRef(
           serverSideDatasource={dataSource}
           // The footer owns explicit page-transition feedback. AG Grid must be
           // free to paint the target rows before that transition can settle.
-          loading={gridLoading}
+          loading={gridLoading || transitionLoading}
           suppressServerSideFullWidthLoadingRow={true}
           noRowsOverlayComponent={() =>
             continuationNotice
@@ -994,6 +997,7 @@ const SpanGrid = React.forwardRef(
           disabled={
             !enabled ||
             gridLoading ||
+            transitionLoading ||
             isPageLoading ||
             Boolean(continuationNotice)
           }

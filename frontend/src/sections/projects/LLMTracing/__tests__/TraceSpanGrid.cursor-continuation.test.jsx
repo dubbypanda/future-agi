@@ -1122,7 +1122,7 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
     await waitFor(() => expect(gridState.props.loading).toBe(false));
   });
 
-  it("shows replacement loading only after AG Grid starts that read", async () => {
+  it("shows replacement loading immediately and hands it to the first read", async () => {
     let resolveReplacement;
     getMock.mockResolvedValueOnce(listResponse()).mockImplementationOnce(
       () =>
@@ -1151,11 +1151,23 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
     await waitFor(() => expect(gridState.props.loading).toBe(false));
 
     const initialDataSource = gridState.props.serverSideDatasource;
-    view.rerender(renderSubject([{ column_id: "status" }]));
+    view.rerender(
+      renderSubject([
+        {
+          column_id: "conversation.transcript.0.message.content",
+          col_type: "SPAN_ATTRIBUTE",
+          filter_config: {
+            filter_op: "in",
+            filter_type: "text",
+            filter_value: ["Hello"],
+          },
+        },
+      ]),
+    );
     await waitFor(() =>
       expect(gridState.props.serverSideDatasource).not.toBe(initialDataSource),
     );
-    expect(gridState.props.loading).toBe(false);
+    expect(gridState.props.loading).toBe(true);
 
     const replacementParams = makeParams();
     let replacementRead;
@@ -1171,6 +1183,53 @@ describe.each(["trace", "span"])("%s grid loading lifecycle", (kind) => {
       await replacementRead;
     });
     await waitFor(() => expect(gridState.props.loading).toBe(false));
+  });
+
+  it("clears immediate replacement loading if AG Grid never starts the read", async () => {
+    getMock.mockResolvedValueOnce(listResponse());
+
+    const ref = React.createRef();
+    const props = baseProps();
+    const renderSubject = (filters) =>
+      kind === "trace" ? (
+        <TraceGrid
+          ref={ref}
+          {...props}
+          filters={filters}
+          projectId="project-1"
+        />
+      ) : (
+        <SpanGrid ref={ref} {...props} filters={filters} />
+      );
+    const view = render(renderSubject(props.filters));
+    await waitFor(() => expect(gridState.props).not.toBeNull());
+
+    await getRows(makeParams());
+    await waitFor(() => expect(gridState.props.loading).toBe(false));
+
+    const initialDataSource = gridState.props.serverSideDatasource;
+    view.rerender(
+      renderSubject([
+        {
+          column_id: "prompt_slug",
+          col_type: "SPAN_ATTRIBUTE",
+          filter_config: {
+            filter_op: "in",
+            filter_type: "text",
+            filter_value: ["agent"],
+          },
+        },
+      ]),
+    );
+    await waitFor(() =>
+      expect(gridState.props.serverSideDatasource).not.toBe(initialDataSource),
+    );
+    expect(gridState.props.loading).toBe(true);
+
+    await waitFor(() => expect(gridState.props.loading).toBe(false), {
+      timeout: 1500,
+    });
+    expect(getMock).toHaveBeenCalledOnce();
   });
 
   it("uses the preserve-rows path for list-only auto refresh", async () => {
