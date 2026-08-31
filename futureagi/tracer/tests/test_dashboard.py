@@ -35,6 +35,7 @@ from tracer.serializers.dashboard import (
     DashboardFilterValuesResponseSerializer,
     DashboardQueryApiResponseSerializer,
     DashboardQuerySerializer,
+    DashboardQuerySeriesSerializer,
     DashboardWidgetSerializer,
 )
 from tracer.services.clickhouse.attribute_cursor_state import (
@@ -6981,6 +6982,20 @@ class TestDashboardQueryBuilderFormatResults:
 
 
 class TestSerializerValidation:
+    def test_query_series_serializer_accepts_empty_breakdown_label(self):
+        serializer = DashboardQuerySeriesSerializer(
+            data={
+                "name": "",
+                "data": [{"timestamp": "2026-08-31T00:00:00Z", "value": 1.0}],
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data == {
+            "name": "",
+            "data": [{"timestamp": "2026-08-31T00:00:00Z", "value": 1.0}],
+        }
+
     def test_widget_serializer_width_too_large(self):
         data = {
             "name": "Test",

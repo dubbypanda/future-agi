@@ -8055,6 +8055,7 @@ def test_observe_trace_long_filter_cursor_reaches_bounded_reader() -> None:
     assert response[0] == "ok"
     bounded_reader.assert_called_once()
     assert bounded_reader.call_args.kwargs["bounded_continuation"] is True
+    assert bounded_reader.call_args.kwargs["carry_continuation_slice_width"] is True
     assert bounded_reader.call_args.kwargs.get("retry_wide_read_budget", False) is False
     analytics.execute_ch_query.assert_not_called()
 
@@ -9283,6 +9284,7 @@ def test_voice_page_size_500_cursor_publishes_safe_exact_partial_chunk() -> None
     assert bounded_reader.call_args.kwargs["page_size"] == 500
     assert bounded_reader.call_args.kwargs["include_incomplete_rows"] is True
     assert bounded_reader.call_args.kwargs["bounded_continuation"] is True
+    assert bounded_reader.call_args.kwargs["carry_continuation_slice_width"] is True
 
 
 def test_voice_cursor_publishes_safe_checkpoint_after_failed_attempt() -> None:
@@ -10741,6 +10743,77 @@ def test_year_cursor_empty_checkpoint_advances_page_n_without_repeating_slice() 
     assert second.rows == []
     assert second.continuation_slice_start is None
     assert second.continuation_slice_end == END - timedelta(hours=2)
+
+
+def test_empty_cursor_carries_adaptive_slice_growth_across_requests() -> None:
+    """Sparse exact scans must not restart at one hour on every HTTP page."""
+
+    request_start = END - timedelta(days=365)
+    first_builder = _CursorZeroProbeWideInitialFakeBuilder(
+        [],
+        start=request_start,
+        end=END,
+        match_rows=[],
+        recommended_batch_size=2,
+        recommended_seed_batch_size=2,
+    )
+    first_executor = _FakeExecutor(first_builder)
+    first = read_bounded_filter_page(
+        builder=first_builder,
+        analytics=first_executor,
+        filters=[_time_filter(request_start, END)],
+        key_field="id",
+        page_number=0,
+        page_size=2,
+        deadline_ms=8_000,
+        max_seed_attempts=1,
+        max_candidates=2,
+        max_query_count=50,
+        classify_batch_size=2,
+        include_incomplete_rows=True,
+        bounded_continuation=True,
+        carry_continuation_slice_width=True,
+    )
+
+    assert first_executor.calls[0][1]["slice_start"] == END - timedelta(hours=1)
+    assert first_executor.calls[0][1]["slice_end"] == END
+    assert first.continuation_slice_start == END - timedelta(hours=3)
+    assert first.continuation_slice_end == END - timedelta(hours=1)
+    assert first.continuation_before_start_time is None
+
+    second_builder = _CursorZeroProbeWideInitialFakeBuilder(
+        [],
+        start=request_start,
+        end=END,
+        match_rows=[],
+        recommended_batch_size=2,
+        recommended_seed_batch_size=2,
+    )
+    second_executor = _FakeExecutor(second_builder)
+    second = read_bounded_filter_page(
+        builder=second_builder,
+        analytics=second_executor,
+        filters=[_time_filter(request_start, END)],
+        key_field="id",
+        page_number=0,
+        page_size=2,
+        deadline_ms=8_000,
+        max_seed_attempts=1,
+        max_candidates=2,
+        max_query_count=50,
+        classify_batch_size=2,
+        include_incomplete_rows=True,
+        bounded_continuation=True,
+        carry_continuation_slice_width=True,
+        continuation_slice_start=first.continuation_slice_start,
+        continuation_slice_end=first.continuation_slice_end,
+    )
+
+    assert second_executor.calls[0][1]["slice_start"] == END - timedelta(hours=3)
+    assert second_executor.calls[0][1]["slice_end"] == END - timedelta(hours=1)
+    assert second.continuation_slice_start == END - timedelta(hours=7)
+    assert second.continuation_slice_end == END - timedelta(hours=3)
+    assert second.continuation_before_start_time is None
 
 
 def test_cursor_seed_uses_page_sentinel_and_ten_candidate_classify_batches() -> None:

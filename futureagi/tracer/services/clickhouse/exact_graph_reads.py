@@ -618,10 +618,88 @@ def _enumerate_authoritative_anchor_trace_ids(
         # when the requested root window covers only a small share of history.
         return None
 
+    @dataclass(frozen=True)
+    class AdaptivePartitionResult:
+        trace_ids: set[str]
+        safe_width: timedelta
+        split_for_budget: bool
+
+    def partition_lanes(
+        range_start: datetime,
+        range_end: datetime,
+    ) -> list[tuple[datetime, datetime]]:
+        """Split an hour-aligned range into at most two independent lanes."""
+
+        total_hours = int((range_end - range_start).total_seconds() // 3600)
+        if total_hours <= 0:
+            return []
+        initial_hours = max(
+            1,
+            int(EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH.total_seconds() // 3600),
+        )
+        lane_count = min(
+            EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS,
+            max(1, (total_hours + initial_hours - 1) // initial_hours),
+        )
+        lane_count = max(1, lane_count)
+        base_hours, extra_hours = divmod(total_hours, lane_count)
+        lanes: list[tuple[datetime, datetime]] = []
+        lane_start = range_start
+        for lane_index in range(lane_count):
+            lane_hours = base_hours + (1 if lane_index < extra_hours else 0)
+            lane_end = lane_start + timedelta(hours=lane_hours)
+            lanes.append((lane_start, lane_end))
+            lane_start = lane_end
+        return lanes
+
+    def scan_adaptive_lane(
+        lane_start: datetime,
+        lane_end: datetime,
+        scanner: Any,
+    ) -> set[str]:
+        """Scan one lane with exponential growth and fail-closed bisection.
+
+        Successful slices double in width so sparse, long-retention projects do
+        not issue one query per two retained hours. A read-budget failure is
+        recursively and exactly covered by whole-hour children; the most
+        conservative proven-safe child width becomes a ceiling for this lane so the
+        same rejected width is not retried over and over.
+        """
+
+        lane_trace_ids: set[str] = set()
+        cursor = lane_start
+        next_width = min(
+            EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH,
+            lane_end - lane_start,
+        )
+        safe_width_cap: timedelta | None = None
+        while cursor < lane_end:
+            remaining = lane_end - cursor
+            width = min(next_width, remaining)
+            result = scanner(cursor, cursor + width)
+            lane_trace_ids.update(result.trace_ids)
+            cursor += width
+            if result.split_for_budget:
+                safe_width_cap = (
+                    result.safe_width
+                    if safe_width_cap is None
+                    else min(safe_width_cap, result.safe_width)
+                )
+                next_width = safe_width_cap
+            else:
+                next_width = width * 2
+                if safe_width_cap is not None:
+                    next_width = min(next_width, safe_width_cap)
+            next_width = max(
+                EXACT_GRAPH_TRACE_ANCHOR_MIN_PARTITION_WIDTH,
+                next_width,
+            )
+        return lane_trace_ids
+
     def scan_partition(
         partition_start: datetime,
         partition_end: datetime,
-    ) -> set[str]:
+    ) -> AdaptivePartitionResult:
         """Read one range, splitting only on whole-hour resource failures."""
 
         nonlocal query_count, rows_returned
@@ -677,7 +755,11 @@ def _enumerate_authoritative_anchor_trace_ids(
                         "Exact trace graph anchor cursor returned unordered identities."
                     )
                 if len(page_rows) < EXACT_GRAPH_TRACE_ANCHOR_RESULT_SENTINEL:
-                    return partition_trace_ids
+                    return AdaptivePartitionResult(
+                        trace_ids=partition_trace_ids,
+                        safe_width=partition_end - partition_start,
+                        split_for_budget=False,
+                    )
                 next_trace_id = page_trace_ids[-1] if page_trace_ids else ""
                 if not next_trace_id or next_trace_id == before_trace_id:
                     raise ExactGraphReadError(
@@ -697,25 +779,23 @@ def _enumerate_authoritative_anchor_trace_ids(
             midpoint = partition_start + timedelta(hours=left_hours)
             if not partition_start < midpoint < partition_end:
                 raise
-            return scan_partition(partition_start, midpoint) | scan_partition(
-                midpoint, partition_end
+            left_result = scan_partition(partition_start, midpoint)
+            right_result = scan_partition(midpoint, partition_end)
+            return AdaptivePartitionResult(
+                trace_ids=left_result.trace_ids | right_result.trace_ids,
+                safe_width=min(left_result.safe_width, right_result.safe_width),
+                split_for_budget=True,
             )
 
-    partitions: list[tuple[datetime, datetime]] = []
-    partition_start = scan_start
-    while partition_start < scan_end:
-        partition_end = min(
-            partition_start + EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH,
-            scan_end,
-        )
-        partitions.append((partition_start, partition_end))
-        partition_start = partition_end
+    lanes = partition_lanes(scan_start, scan_end)
 
     candidate_trace_ids: set[str] = set()
-    worker_count = min(EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS, len(partitions))
+    worker_count = len(lanes)
     if worker_count <= 1:
-        for partition_start, partition_end in partitions:
-            candidate_trace_ids.update(scan_partition(partition_start, partition_end))
+        for lane_start, lane_end in lanes:
+            candidate_trace_ids.update(
+                scan_adaptive_lane(lane_start, lane_end, scan_partition)
+            )
     else:
         # Each future owns one disjoint whole-hour-aligned top-level range.
         # Recursive retries stay inside that range.  If any future fails, the
@@ -726,7 +806,13 @@ def _enumerate_authoritative_anchor_trace_ids(
             thread_name_prefix="exact-graph-anchor",
         ) as executor:
             futures = [
-                executor.submit(scan_partition, start, end) for start, end in partitions
+                executor.submit(
+                    scan_adaptive_lane,
+                    lane_start,
+                    lane_end,
+                    scan_partition,
+                )
+                for lane_start, lane_end in lanes
             ]
             try:
                 for future in as_completed(futures):
@@ -755,7 +841,7 @@ def _enumerate_authoritative_anchor_trace_ids(
         def scan_root_partition(
             partition_start: datetime,
             partition_end: datetime,
-        ) -> set[str]:
+        ) -> AdaptivePartitionResult:
             """Return matching trace IDs whose latest live root is in range."""
 
             nonlocal query_count, rows_returned
@@ -816,7 +902,11 @@ def _enumerate_authoritative_anchor_trace_ids(
                             "Exact trace graph root cursor returned unordered identities."
                         )
                     if len(page_rows) < EXACT_GRAPH_TRACE_ANCHOR_RESULT_SENTINEL:
-                        return partition_verified_ids
+                        return AdaptivePartitionResult(
+                            trace_ids=partition_verified_ids,
+                            safe_width=partition_end - partition_start,
+                            split_for_budget=False,
+                        )
                     next_trace_id = page_trace_ids[-1] if page_trace_ids else ""
                     if not next_trace_id or next_trace_id == before_trace_id:
                         raise ExactGraphReadError(
@@ -833,10 +923,16 @@ def _enumerate_authoritative_anchor_trace_ids(
                 midpoint = partition_start + timedelta(hours=left_hours)
                 if not partition_start < midpoint < partition_end:
                     raise
-                return scan_root_partition(
+                left_result = scan_root_partition(
                     partition_start,
                     midpoint,
-                ) | scan_root_partition(midpoint, partition_end)
+                )
+                right_result = scan_root_partition(midpoint, partition_end)
+                return AdaptivePartitionResult(
+                    trace_ids=left_result.trace_ids | right_result.trace_ids,
+                    safe_width=min(left_result.safe_width, right_result.safe_width),
+                    split_for_budget=True,
+                )
 
         root_scan_start = request_start.replace(
             minute=0,
@@ -850,25 +946,18 @@ def _enumerate_authoritative_anchor_trace_ids(
         )
         if root_scan_end < request_end:
             root_scan_end += timedelta(hours=1)
-        root_partitions: list[tuple[datetime, datetime]] = []
-        root_partition_start = root_scan_start
-        while root_partition_start < root_scan_end:
-            root_partition_end = min(
-                root_partition_start + EXACT_GRAPH_TRACE_ANCHOR_PARTITION_WIDTH,
-                root_scan_end,
-            )
-            root_partitions.append((root_partition_start, root_partition_end))
-            root_partition_start = root_partition_end
+        root_lanes = partition_lanes(root_scan_start, root_scan_end)
 
         verified_trace_ids: set[str] = set()
-        root_worker_count = min(
-            EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS,
-            len(root_partitions),
-        )
+        root_worker_count = len(root_lanes)
         if root_worker_count <= 1:
-            for root_partition_start, root_partition_end in root_partitions:
+            for root_lane_start, root_lane_end in root_lanes:
                 verified_trace_ids.update(
-                    scan_root_partition(root_partition_start, root_partition_end)
+                    scan_adaptive_lane(
+                        root_lane_start,
+                        root_lane_end,
+                        scan_root_partition,
+                    )
                 )
         else:
             with ThreadPoolExecutor(
@@ -876,8 +965,13 @@ def _enumerate_authoritative_anchor_trace_ids(
                 thread_name_prefix="exact-graph-roots",
             ) as executor:
                 futures = [
-                    executor.submit(scan_root_partition, start, end)
-                    for start, end in root_partitions
+                    executor.submit(
+                        scan_adaptive_lane,
+                        lane_start,
+                        lane_end,
+                        scan_root_partition,
+                    )
+                    for lane_start, lane_end in root_lanes
                 ]
                 try:
                     for future in as_completed(futures):

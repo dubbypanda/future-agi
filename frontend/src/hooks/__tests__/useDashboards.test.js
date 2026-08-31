@@ -424,6 +424,76 @@ describe("usePropertyCatalog", () => {
     ...overrides,
   });
 
+  it("reports a cached remote search refetch as pending", async () => {
+    let resolveRefetch;
+    const refetchResponse = new Promise((resolve) => {
+      resolveRefetch = resolve;
+    });
+    mocks.get
+      .mockResolvedValueOnce({ data: { result: page() } })
+      .mockImplementationOnce(() => refetchResponse);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(
+      () => usePropertyCatalog({ search: "customer" }),
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.isRemoteCatalogSearchPending).toBe(false);
+
+    let pendingRefetch;
+    act(() => {
+      pendingRefetch = result.current.refetch();
+    });
+    await waitFor(() => expect(result.current.isFetching).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRemoteCatalogSearchPending).toBe(true);
+    expect(result.current.isRemoteCatalogNextPagePending).toBe(false);
+
+    resolveRefetch({ data: { result: page() } });
+    await act(async () => pendingRefetch);
+    await waitFor(() =>
+      expect(result.current.isRemoteCatalogSearchPending).toBe(false),
+    );
+  });
+
+  it("reports a remote cursor page independently from search loading", async () => {
+    let resolveNextPage;
+    const nextPageResponse = new Promise((resolve) => {
+      resolveNextPage = resolve;
+    });
+    mocks.get
+      .mockResolvedValueOnce({
+        data: { result: page({ has_more: true, next_cursor: "cursor-2" }) },
+      })
+      .mockImplementationOnce(() => nextPageResponse);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(
+      () => usePropertyCatalog({ search: "customer" }),
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+
+    let pendingNextPage;
+    act(() => {
+      pendingNextPage = result.current.fetchNextPage();
+    });
+    await waitFor(() => expect(result.current.isFetchingNextPage).toBe(true));
+    expect(result.current.isRemoteCatalogSearchPending).toBe(false);
+    expect(result.current.isRemoteCatalogNextPagePending).toBe(true);
+
+    resolveNextPage({ data: { result: page() } });
+    await act(async () => pendingNextPage);
+    await waitFor(() =>
+      expect(result.current.isRemoteCatalogNextPagePending).toBe(false),
+    );
+  });
+
   it("walks one signed immutable catalog without page numbers", async () => {
     mocks.get
       .mockResolvedValueOnce({

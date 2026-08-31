@@ -101949,7 +101949,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         name: {
           title: "Name",
           type: "string",
-          minLength: 1,
         },
         data: {
           type: "array",

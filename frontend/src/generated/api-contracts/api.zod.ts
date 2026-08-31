@@ -44308,7 +44308,7 @@ export const TracerDashboardQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),
@@ -45141,7 +45141,7 @@ export const TracerDashboardWidgetsPreviewQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),
@@ -45618,7 +45618,7 @@ export const TracerDashboardWidgetsExecuteQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),

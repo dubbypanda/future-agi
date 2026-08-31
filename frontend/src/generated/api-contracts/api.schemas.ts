@@ -20688,7 +20688,6 @@ export interface DashboardQuerySeriesPointApi {
 }
 
 export interface DashboardQuerySeriesApi {
-  /** @minLength 1 */
   name: string;
   data: DashboardQuerySeriesPointApi[];
 }

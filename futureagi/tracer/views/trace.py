@@ -4736,6 +4736,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                     cursor_state.scan_before_id if cursor_state is not None else None
                 ),
                 bounded_continuation=cursor_enabled,
+                carry_continuation_slice_width=cursor_enabled,
             )
             if not bounded_page.complete:
                 if bounded_page.error_code == PAGE_DEPTH_EXCEEDED_CODE:
@@ -5804,6 +5805,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 cursor_state.scan_before_id if cursor_state is not None else None
             ),
             bounded_continuation=cursor_enabled,
+            carry_continuation_slice_width=cursor_enabled,
         )
         if not bounded_page.complete:
             if bounded_page.error_code == PAGE_DEPTH_EXCEEDED_CODE:

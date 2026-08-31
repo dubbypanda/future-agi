@@ -297,14 +297,14 @@ def test_exact_graph_anchor_partition_reduces_direct_model_before_filtering():
         replay_start,
     )
 
-    assert "lowerUTF8(toString(model)) = %(latest_filter_param_0)s" in compact[
-        :replay_start
-    ]
+    assert (
+        "lowerUTF8(toString(model)) = %(latest_filter_param_0)s"
+        in compact[:replay_start]
+    )
     assert "argMax(tuple(model), _version).1 AS latest_column_value_0" in compact
     assert (
-        "lowerUTF8(toString(latest_column_value_0))" not in compact[
-            replay_start:identity_end
-        ]
+        "lowerUTF8(toString(latest_column_value_0))"
+        not in compact[replay_start:identity_end]
     )
     assert (
         "lowerUTF8(toString(latest_column_value_0)) = %(latest_filter_param_0)s"
@@ -1012,18 +1012,147 @@ def test_authoritative_anchor_orchestrator_covers_contiguous_full_partitions(
 
     expected_partitions = [
         (datetime(2026, 7, 27, 0, 0), datetime(2026, 7, 27, 2, 0)),
-        (datetime(2026, 7, 27, 2, 0), datetime(2026, 7, 27, 4, 0)),
-        (datetime(2026, 7, 27, 4, 0), datetime(2026, 7, 27, 6, 0)),
+        (datetime(2026, 7, 27, 2, 0), datetime(2026, 7, 27, 6, 0)),
         (datetime(2026, 7, 27, 6, 0), datetime(2026, 7, 27, 7, 0)),
     ]
     assert [(call[0], call[1]) for call in builder.partition_calls] == (
         expected_partitions
     )
     assert result == (
-        ["trace-00-02", "trace-02-04", "trace-04-06", "trace-06-07"],
-        6,
+        ["trace-00-02", "trace-02-06", "trace-06-07"],
+        5,
+        7,
+    )
+
+
+@pytest.mark.unit
+def test_authoritative_anchor_orchestrator_caps_width_after_budget_split(
+    monkeypatch,
+):
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    monkeypatch.setattr(exact_module, "EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS", 1)
+
+    builder = _AuthoritativeAnchorBuilderFake()
+    safe_width = timedelta(hours=2)
+
+    class Analytics:
+        @staticmethod
+        def execute_ch_query(query: str, params: dict[str, Any], **kwargs: Any):
+            del params, kwargs
+            if query == "bounds":
+                return SimpleNamespace(
+                    data=[
+                        {
+                            "min_start_time": datetime(2026, 7, 27, 0, 15),
+                            "max_start_time": datetime(2026, 7, 27, 7, 45),
+                        }
+                    ],
+                    columns=["min_start_time", "max_start_time"],
+                )
+            if query == "partition:first":
+                partition_start, partition_end, _, _ = builder.partition_calls[-1]
+                if partition_end - partition_start > safe_width:
+                    raise ServerException("bounded read exceeded", code=159)
+                return SimpleNamespace(
+                    data=[
+                        {
+                            "trace_id": (
+                                f"trace-{partition_start.hour:02d}-"
+                                f"{partition_end.hour:02d}"
+                            )
+                        }
+                    ],
+                    columns=["trace_id"],
+                )
+            if query == "roots":
+                return SimpleNamespace(
+                    data=[
+                        {"trace_id": trace_id} for trace_id in builder.root_calls[-1][0]
+                    ],
+                    columns=["trace_id"],
+                )
+            raise AssertionError(f"unexpected fake query: {query}")
+
+    result = exact_module._enumerate_authoritative_anchor_trace_ids(
+        analytics=Analytics(),
+        builder=builder,
+        request_start=WINDOW_START,
+        request_end=WINDOW_END,
+        started=monotonic(),
+    )
+
+    attempted_widths = [
+        partition_end - partition_start
+        for partition_start, partition_end, _, _ in builder.partition_calls
+    ]
+    assert attempted_widths == [
+        timedelta(hours=2),
+        timedelta(hours=4),
+        timedelta(hours=2),
+        timedelta(hours=2),
+        timedelta(hours=2),
+    ]
+    assert result == (
+        ["trace-00-02", "trace-02-04", "trace-04-06", "trace-06-08"],
+        7,
         9,
     )
+
+
+@pytest.mark.unit
+def test_authoritative_anchor_orchestrator_grows_across_sparse_year(monkeypatch):
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    monkeypatch.setattr(exact_module, "EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS", 1)
+
+    builder = _AuthoritativeAnchorBuilderFake()
+    retention_start = datetime(2025, 1, 1, 0, 0)
+    retention_end = datetime(2026, 1, 1, 0, 0)
+
+    class Analytics:
+        @staticmethod
+        def execute_ch_query(query: str, params: dict[str, Any], **kwargs: Any):
+            del params, kwargs
+            if query == "bounds":
+                return SimpleNamespace(
+                    data=[
+                        {
+                            "min_start_time": retention_start,
+                            "max_start_time": retention_end - timedelta(minutes=1),
+                        }
+                    ],
+                    columns=["min_start_time", "max_start_time"],
+                )
+            if query == "partition:first":
+                return SimpleNamespace(data=[], columns=["trace_id"])
+            raise AssertionError(f"unexpected fake query: {query}")
+
+    result = exact_module._enumerate_authoritative_anchor_trace_ids(
+        analytics=Analytics(),
+        builder=builder,
+        request_start=retention_start,
+        request_end=retention_end,
+        started=monotonic(),
+    )
+
+    partitions = [(call[0], call[1]) for call in builder.partition_calls]
+    assert len(partitions) == 13
+    assert [end - start for start, end in partitions[:4]] == [
+        timedelta(hours=2),
+        timedelta(hours=4),
+        timedelta(hours=8),
+        timedelta(hours=16),
+    ]
+    assert partitions[0][0] == retention_start
+    assert partitions[-1][1] == retention_end
+    assert all(
+        current_end == next_start
+        for (_, current_end), (next_start, _) in zip(
+            partitions, partitions[1:], strict=False
+        )
+    )
+    assert result == ([], 14, 1)
 
 
 @pytest.mark.unit

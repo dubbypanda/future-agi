@@ -113,6 +113,8 @@ const settledPropertyCatalog = ({ metrics = [], categoryCounts } = {}) => ({
   error: null,
   isLoading: false,
   isFetching: false,
+  isRemoteCatalogSearchPending: false,
+  isRemoteCatalogNextPagePending: false,
   isError: false,
   isSuccess: true,
   hasNextPage: false,
@@ -206,6 +208,33 @@ describe("JSON array picker value identity", () => {
 });
 
 describe("PropertyPickerPaginationControl", () => {
+  it("names an in-flight catalog continuation explicitly", () => {
+    render(
+      <PropertyPickerPaginationControl
+        resetKey="project-one"
+        scrollRootRef={{ current: document.createElement("div") }}
+        attributePageAvailable={false}
+        attributeContinuationKey={null}
+        isFetchingAttributePage={false}
+        attributePageError={false}
+        onLoadMoreAttributes={vi.fn()}
+        catalogPageAvailable
+        catalogContinuationKey="catalog-cursor-2"
+        isFetchingCatalogPage
+        catalogPageError={false}
+        onLoadMoreCatalog={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(
+      screen.getByText("Loading next property catalog page…"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Loading more properties…"),
+    ).not.toBeInTheDocument();
+  });
+
   it("advances both property inventories through one single-flight intersection", () => {
     const loadAttributes = vi.fn(() => new Promise(() => {}));
     const loadCatalog = vi.fn(() => new Promise(() => {}));
@@ -1929,9 +1958,10 @@ describe("voice-call property search aliases", () => {
       search
         ? {
             ...settledPropertyCatalog({ metrics: [] }),
-            isLoading: true,
+            isLoading: false,
             isFetching: true,
-            isSuccess: false,
+            isRemoteCatalogSearchPending: true,
+            isSuccess: true,
           }
         : settledPropertyCatalog({ metrics: [costSystemMetric] }),
     );
@@ -1948,11 +1978,9 @@ describe("voice-call property search aliases", () => {
 
     expect(screen.getByText("Cost")).toBeInTheDocument();
     expect(
-      screen.getByRole("status", { name: "Loading matching attributes" }),
+      screen.getByRole("status", { name: "Searching property catalog" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Loading matching attributes…"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Searching property catalog…")).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
   });

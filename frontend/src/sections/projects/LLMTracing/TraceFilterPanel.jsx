@@ -1643,7 +1643,7 @@ export function PropertyPickerPaginationControl({
           loadNextPage: onLoadMoreCatalog,
         },
       ]}
-      loadingLabel="Loading more properties…"
+      loadingLabel="Loading next property catalog page…"
       retryLabel={
         catalogPageError && !attributePageError
           ? "Retry loading properties"
@@ -1851,7 +1851,8 @@ function PropertyPicker({
     ? searchedCatalog.continuationKey
     : catalogContinuationKey;
   const effectiveIsFetchingNextCatalogPage = searchedCatalogOwnsResults
-    ? searchedCatalog.isFetchingNextPage
+    ? searchedCatalog.isRemoteCatalogNextPagePending ??
+      searchedCatalog.isFetchingNextPage
     : isFetchingNextCatalogPage;
   const effectiveCatalogNextPageError = searchedCatalogOwnsResults
     ? Boolean(
@@ -1866,7 +1867,8 @@ function PropertyPicker({
     unifiedCatalogSearchPending ||
       (unifiedCatalogScopeActive &&
         !searchedCatalog.legacyFallbackRequired &&
-        searchedCatalog.isLoading),
+        (searchedCatalog.isRemoteCatalogSearchPending ||
+          searchedCatalog.isLoading)),
   );
   const legacyAttributeFallbackActive = Boolean(
     open &&
@@ -2495,7 +2497,9 @@ function PropertyPicker({
                   >
                     <CircularProgress size={16} />
                     <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-                      Loading properties…
+                      {trimmedSearch
+                        ? "Searching property catalog…"
+                        : "Loading properties…"}
                     </Typography>
                   </Box>
                 )}
@@ -2504,7 +2508,7 @@ function PropertyPicker({
                 unifiedCatalogSearchLoading && (
                   <Box
                     role="status"
-                    aria-label="Loading matching attributes"
+                    aria-label="Searching property catalog"
                     sx={{
                       display: "flex",
                       alignItems: "center",
@@ -2516,7 +2520,7 @@ function PropertyPicker({
                   >
                     <CircularProgress size={14} />
                     <Typography sx={{ fontSize: 11 }}>
-                      Loading matching attributes…
+                      Searching property catalog…
                     </Typography>
                   </Box>
                 )}

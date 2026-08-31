@@ -653,6 +653,16 @@ export function usePropertyCatalog({
   }
   const cursorChainStopped = chainFailureReason !== null;
   const metrics = cursorChainStopped ? [] : candidateMetrics;
+  const isRemoteCatalogSearchPending = Boolean(
+    enabled &&
+      !legacyFallbackRequired &&
+      boundedSearch &&
+      query.isFetching &&
+      !query.isFetchingNextPage,
+  );
+  const isRemoteCatalogNextPagePending = Boolean(
+    enabled && !legacyFallbackRequired && query.isFetchingNextPage,
+  );
 
   return {
     ...query,
@@ -673,6 +683,8 @@ export function usePropertyCatalog({
     cursorChainStopped,
     cursorStopReason: chainFailureReason,
     legacyFallbackRequired,
+    isRemoteCatalogSearchPending,
+    isRemoteCatalogNextPagePending,
     queryReadState:
       query.isError || cursorChainStopped ? "degraded" : "complete",
   };
