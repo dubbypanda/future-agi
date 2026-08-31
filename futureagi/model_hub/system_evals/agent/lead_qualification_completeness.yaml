@@ -47,6 +47,8 @@ config:
     conversation:
     - TEXT
     - AUDIO
+    - JSON
+    - LIST
   rule_prompt: "You are evaluating whether an agent qualifies a lead completely and correctly over the course of a conversation.\n\
     \n## Criteria\n1. Needs discovery and suitability: The agent elicits the qualifying details its prompt defines and aligns\
     \ any recommendation or routing to what the customer actually needs.\n2. Progressive qualification: The agent builds on\

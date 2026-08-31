@@ -7,7 +7,7 @@ criteria: "You are evaluating whether the agent responded correctly upon reachin
   \ instructions for voicemail handling.\n2. No live-call behavior: The agent does not proceed as if speaking to a live customer\
   \ (e.g. asking questions, waiting for responses).\n\n## Anti-bias Rules\n- If the agent prompt instructs hang up only, leaving\
   \ a message is a FAIL and vice versa.\n- A brief pause before hanging up is NOT incorrect behavior.\n- Evaluate against\
-  \ what the agent prompt defines as correct voicemail handling.\n\n## Scoring\n- Return PASS if call did not go to the VOICEMAIL\
+  \ what the agent prompt defines as correct voicemail handling.\n\n## Scoring\n- Return PASS if call did not go to voicemail, or if it did\
   \ and the agent handled the voicemail correctly per the agent prompt (hung up cleanly or left an appropriate message).\n\
   - Return FAIL if the agent proceeded as if speaking to a live person, left a message when instructed to hang up, or hung\
   \ up when instructed to leave a message.\n\n## Input\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n<audio_url>{{conversation}}</audio_url>"
@@ -46,7 +46,7 @@ config:
     \ customer (e.g. asking questions, waiting for responses).\n\n## Anti-bias Rules\n- If the agent prompt instructs hang\
     \ up only, leaving a message is a FAIL and vice versa.\n- A brief pause before hanging up is NOT incorrect behavior.\n\
     - Evaluate against what the agent prompt defines as correct voicemail handling.\n\n## Scoring\n- Return PASS if call did\
-    \ not go to the VOICEMAIL and the agent handled the voicemail correctly per the agent prompt (hung up cleanly or left\
+    \ not go to voicemail, or if it did and the agent handled the voicemail correctly per the agent prompt (hung up cleanly or left\
     \ an appropriate message).\n- Return FAIL if the agent proceeded as if speaking to a live person, left a message when\
     \ instructed to hang up, or hung up when instructed to leave a message.\n\n## Input\n<agent_prompt>{{agent_prompt}}</agent_prompt>\n\
     <audio_url>{{conversation}}</audio_url>"

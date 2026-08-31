@@ -48,6 +48,8 @@ config:
     conversation:
     - TEXT
     - AUDIO
+    - JSON
+    - LIST
   rule_prompt: "You are evaluating whether an insurance agent correctly handles a claim intake / first-notice-of-loss (FNOL)\
     \ conversation.\n\n## Criteria\n1. Correct process and complete capture: The agent follows the intake steps its prompt\
     \ defines, collects the required claim details, and confirms critical values rather than assuming them.\n2. No coverage\
