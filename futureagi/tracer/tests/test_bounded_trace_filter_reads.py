@@ -375,9 +375,7 @@ def test_customer_final_status_trace_query_uses_indexed_any_span_anchor() -> Non
     assert "start_time < fromUnixTimestamp64Micro(%(filter_slice_end_us)s)" in seed_sql
     assert "has(span_attr_str.keys, %(latest_filter_key_0)s)" in seed_sql
     assert "indexHint(has(mapKeys(span_attr_str), %(latest_filter_key_0)s))" in seed_sql
-    assert (
-        "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))" in seed_sql
-    )
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))" in seed_sql
     assert "arrayMap(x -> lower(x), mapValues(span_attr_str))" not in seed_sql
     assert seed_params["latest_filter_key_0"] == "final_status"
     assert seed_params["latest_filter_param_0"] == ("rejected",)
@@ -2089,6 +2087,76 @@ def test_nested_array_path_keeps_interactive_candidate_witness() -> None:
     assert builder.recommended_filter_max_query_count() == 128
 
 
+@pytest.mark.parametrize(
+    "builder_cls",
+    [
+        TraceListQueryBuilder,
+        TraceListQueryBuilderV2,
+        VoiceCallListQueryBuilder,
+        VoiceCallListQueryBuilderV2,
+    ],
+)
+def test_long_exact_text_attribute_uses_finite_candidate_witness(
+    builder_cls,
+) -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-1776781471202"
+    )
+    builder = builder_cls(
+        project_id=PROJECT_ID,
+        page_size=25,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+    )
+
+    assert builder.prefer_filter_candidate_witness_probe_first() is True
+    assert builder.recommended_filter_seed_batch_size() == 512
+    assert builder.recommended_filter_max_query_count() == 128
+    assert builder.recommended_filter_candidate_witness_probe_strata() == 1
+    if isinstance(builder, VoiceCallListQueryBuilder):
+        assert builder.recommended_filter_cursor_seed_batch_size() == 512
+
+    sql, params = builder.build_filter_candidate_witness_probe(
+        [{"project_id": PROJECT_ID, "trace_id": "trace-a"}]
+    )
+    assert "trace_id IN %(filter_candidate_trace_ids)s" in sql
+    assert params["latest_filter_key_0"] == "conversation.recording.mono.assistant"
+    assert params["latest_filter_param_0"] == (recording_url,)
+
+
+@pytest.mark.parametrize(
+    "value,operation",
+    [
+        (["Rejected"], "in"),
+        (["x" * 64], "not_in"),
+        (["x" * 64, "short"], "in"),
+    ],
+)
+def test_scalar_text_candidate_witness_keeps_nonselective_shapes_on_exact_path(
+    value: object,
+    operation: str,
+) -> None:
+    builder = TraceListQueryBuilder(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "final_status",
+                value,
+                operation=operation,
+            ),
+        ],
+    )
+
+    assert builder.prefer_filter_candidate_witness_probe_first() is False
+
+
 def test_scalar_first_multi_filter_witness_selects_nested_leaf() -> None:
     nested_key = "conversation.transcript.16.message.role"
     builder = TraceListQueryBuilder(
@@ -3357,9 +3425,7 @@ def test_v2_span_seed_uses_typed_value_witness_before_exact_replay() -> None:
     assert (
         "indexHint(has(mapKeys(attrs_string), %(latest_filter_key_0)s))" in prompt_sql
     )
-    assert (
-        "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in prompt_sql
-    )
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in prompt_sql
     assert "arrayMap(x -> lower(x), mapValues(attrs_string))" not in prompt_sql
     assert prompt_params["latest_filter_param_0"] == "agent_2_identity_disclosure"
     assert prompt_params["latest_filter_key_0"] == "prompt_slug"

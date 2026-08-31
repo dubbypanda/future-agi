@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import PropTypes from "prop-types";
 import { act, fireEvent, render, waitFor } from "src/utils/test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TraceFilterPanel, {
@@ -167,7 +168,7 @@ describe("TraceFilterPanel auto-apply behavior", () => {
     type: "number",
   };
 
-  const renderPanel = (currentFilters, { open = true } = {}) => {
+  const renderPanel = (currentFilters, { open = true, ...panelProps } = {}) => {
     const onApply = vi.fn();
     const onClose = vi.fn();
     const anchorEl = document.createElement("button");
@@ -185,6 +186,7 @@ describe("TraceFilterPanel auto-apply behavior", () => {
           currentFilters={currentFilters}
           properties={[NUMERIC_PROP]}
           showQueryTab={false}
+          {...panelProps}
           {...props}
         />
       </QueryClientProvider>
@@ -229,6 +231,57 @@ describe("TraceFilterPanel auto-apply behavior", () => {
 
     expect(onApply).toHaveBeenCalledTimes(1);
     expect(serializeFilterSet(onApply.mock.calls[0][0])).toContain("7");
+  });
+
+  it("applies a committed picker value immediately without a duplicate", () => {
+    const ExactValuePicker = ({ onChange }) => (
+      <button
+        type="button"
+        onClick={() => onChange(["exact text"], ["string"])}
+      >
+        Choose exact text
+      </button>
+    );
+    ExactValuePicker.propTypes = { onChange: PropTypes.func.isRequired };
+    const { onApply, utils } = renderPanel(
+      [
+        {
+          field: "conversation.transcript.0.message.content",
+          fieldType: "string",
+          fieldCategory: "attribute",
+          operator: "equals",
+          value: ["old text"],
+          valueTypes: ["string"],
+        },
+      ],
+      {
+        properties: [
+          {
+            id: "conversation.transcript.0.message.content",
+            name: "Transcript message",
+            category: "attribute",
+            type: "string",
+          },
+        ],
+        ValuePickerOverride: ExactValuePicker,
+      },
+    );
+
+    act(() => {
+      fireEvent.click(utils.getByRole("button", { name: "Choose exact text" }));
+    });
+
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onApply.mock.calls[0][0][0]).toMatchObject({
+      field: "conversation.transcript.0.message.content",
+      value: ["exact text"],
+      valueTypes: ["string"],
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(onApply).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the debounce alive when the parent recreates onApply", () => {

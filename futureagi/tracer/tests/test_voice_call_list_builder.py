@@ -357,6 +357,164 @@ def test_voice_multi_filter_exact_zero_probe_intersects_independent_span_witness
 
 
 @pytest.mark.unit
+def test_v2_voice_long_exact_text_candidate_witness_uses_v2_schema():
+    from tracer.services.clickhouse.v2.query_builders.voice_call_list import (
+        VoiceCallListQueryBuilderV2,
+    )
+
+    end = datetime(2026, 8, 8, tzinfo=UTC)
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-1776781471202"
+    )
+    filters = [
+        {
+            "column_id": "created_at",
+            "filter_config": {
+                "filter_type": "datetime",
+                "filter_op": "between",
+                "filter_value": [end - timedelta(days=365), end],
+            },
+        },
+        {
+            "column_id": "conversation.recording.mono.assistant",
+            "filter_config": {
+                "filter_type": "text",
+                "filter_op": "in",
+                "filter_value": [recording_url],
+                "col_type": "SPAN_ATTRIBUTE",
+            },
+        },
+    ]
+    builder = VoiceCallListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        page_size=25,
+        filters=filters,
+    )
+
+    sql, params = builder.build_filter_candidate_witness_probe(
+        [{"project_id": PROJECT_ID, "trace_id": "trace-a"}]
+    )
+
+    assert builder.prefer_filter_candidate_witness_probe_first() is True
+    assert builder.recommended_filter_cursor_seed_batch_size() == 512
+    assert "attrs_string" in sql
+    assert "span_attr_str" not in sql
+    assert params["latest_filter_key_0"] == "conversation.recording.mono.assistant"
+    assert params["latest_filter_param_0"] == (recording_url,)
+
+
+@pytest.mark.unit
+def test_voice_long_exact_text_filter_prefilters_one_finite_seed_then_hydrates():
+    from tracer.selectors.trace_filter_reads import read_bounded_filter_page
+    from tracer.services.clickhouse.query_service import QueryResult
+    from tracer.services.clickhouse.v2.query_builders.voice_call_list import (
+        VoiceCallListQueryBuilderV2,
+    )
+
+    end = datetime(2026, 8, 8)
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-1776781471202"
+    )
+    filters = [
+        {
+            "column_id": "created_at",
+            "filter_config": {
+                "filter_type": "datetime",
+                "filter_op": "between",
+                "filter_value": [end - timedelta(days=365), end],
+            },
+        },
+        {
+            "column_id": "conversation.recording.mono.assistant",
+            "filter_config": {
+                "filter_type": "text",
+                "filter_op": "in",
+                "filter_value": [recording_url],
+                "col_type": "SPAN_ATTRIBUTE",
+            },
+        },
+    ]
+    candidates = [
+        {
+            "project_id": PROJECT_ID,
+            "trace_id": f"trace-{index:02d}",
+            "root_span_id": f"root-{index:02d}",
+            "start_time": end - timedelta(seconds=index + 1),
+        }
+        for index in range(26)
+    ]
+    exact_matches = candidates
+    hydrated = [{**row, "trace_name": "call"} for row in exact_matches[:25]]
+
+    class Executor:
+        supports_per_query_read_settings = True
+
+        def __init__(self):
+            self.calls = []
+            self.results = [
+                candidates,
+                exact_matches,
+                exact_matches[:10],
+                exact_matches[10:20],
+                exact_matches[20:],
+                hydrated,
+            ]
+
+        def execute_ch_query(self, query, params, **kwargs):
+            self.calls.append((query, params, kwargs))
+            assert self.results, [
+                (
+                    "hydrate"
+                    if "page_hydration_root_identities" in call_params
+                    else "prefilter"
+                    if "filter_candidate_trace_ids" in call_params
+                    else "classify"
+                    if "candidate_trace_ids" in call_params
+                    else "seed"
+                    if "filter_seed_limit" in call_params
+                    else sorted(call_params)
+                )
+                for _call_query, call_params, _call_kwargs in self.calls
+            ]
+            rows = self.results.pop(0)
+            return QueryResult(
+                data=rows,
+                row_count=len(rows),
+                backend_used="clickhouse",
+                query_time_ms=1,
+            )
+
+    executor = Executor()
+    page = read_bounded_filter_page(
+        builder=VoiceCallListQueryBuilderV2(
+            project_id=PROJECT_ID,
+            page_size=25,
+            filters=filters,
+        ),
+        analytics=executor,
+        filters=filters,
+        key_field="trace_id",
+        page_number=0,
+        page_size=25,
+        deadline_ms=5_000,
+    )
+
+    assert page.complete is True
+    assert [row["trace_id"] for row in page.rows] == [
+        row["trace_id"] for row in exact_matches[:25]
+    ]
+    assert [attempt.kind for attempt in page.attempts] == [
+        "seed",
+        "prefilter",
+        "classify",
+        "classify",
+        "classify",
+        "hydrate",
+    ]
+    assert executor.results == []
+
+
+@pytest.mark.unit
 def test_voice_exact_zero_probe_rejects_single_or_structured_filter_shapes():
     end = datetime(2026, 8, 8, tzinfo=UTC)
     single_filter = VoiceCallListQueryBuilder(

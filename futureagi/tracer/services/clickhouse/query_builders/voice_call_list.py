@@ -147,7 +147,10 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
     # ------------------------------------------------------------------
 
     def _bounded_delegate(
-        self, *, candidate_full_state: bool = False
+        self,
+        *,
+        candidate_full_state: bool = False,
+        public_candidate_witness: bool = False,
     ) -> TraceListQueryBuilder:
         """Build the trace selector used by every voice-list page.
 
@@ -196,7 +199,15 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
                 self.annotation_label_ids if self._annotation_label_set_known else None
             ),
             eval_filter_metadata=self.eval_filter_metadata,
-            bounded_internal_scan=True,
+            # The voice wrapper is normally an internal trace-selector proxy.
+            # Candidate-witness capability checks must retain the public list
+            # planning contract, otherwise the trace builder intentionally
+            # disables its interactive finite prefilter. The private root
+            # marker remains in the filters and the final classifier still
+            # enforces the conversation-root invariant.
+            bounded_internal_scan=(
+                self._bounded_internal_scan or not public_candidate_witness
+            ),
             bounded_identity_only=self._bounded_identity_only,
         )
         delegate.TABLE = self.TABLE
@@ -204,6 +215,11 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         # compiler as this builder (v1 locally, v2 after dispatch).
         delegate._FILTER_BUILDER_CLS = self._FILTER_BUILDER_CLS
         return delegate
+
+    def _candidate_witness_delegate(self) -> TraceListQueryBuilder:
+        """Return the trace planner with public voice-list capabilities."""
+
+        return self._bounded_delegate(public_candidate_witness=True)
 
     def supports_bounded_filter_scan(self) -> bool:
         """Voice pages always use finite latest-state selection."""
@@ -261,15 +277,23 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_initial_slice_width(self) -> timedelta | None:
         """Read the frozen window once when an exact relation narrows roots."""
 
-        if not self.supports_filter_candidate_seed_page():
+        if self.supports_filter_candidate_seed_page():
+            request_start, request_end = self._bounded_request_window
+            return request_end - request_start
+        if not self.prefer_filter_candidate_witness_probe_first():
             return None
-        request_start, request_end = self._bounded_request_window
-        return request_end - request_start
+        return (
+            self._candidate_witness_delegate().recommended_filter_initial_slice_width()
+        )
 
     def recommended_filter_max_slice_width(self) -> timedelta | None:
         """Keep relation-first continuation on the same full-window contract."""
 
-        return self.recommended_filter_initial_slice_width()
+        if self.supports_filter_candidate_seed_page():
+            return self.recommended_filter_initial_slice_width()
+        if not self.prefer_filter_candidate_witness_probe_first():
+            return None
+        return self._candidate_witness_delegate().recommended_filter_max_slice_width()
 
     def allow_filter_anchor_probe_for_initial_continuation(self) -> bool:
         """Let fresh cursor pages use the trace selector's sparse proof."""
@@ -328,6 +352,10 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_seed_batch_size(self) -> int:
         """Acquire the same finite root batch as the delegated trace selector."""
 
+        if self.prefer_filter_candidate_witness_probe_first():
+            return (
+                self._candidate_witness_delegate().recommended_filter_seed_batch_size()
+            )
         return self._bounded_delegate().recommended_filter_seed_batch_size()
 
     def recommended_filter_cursor_seed_batch_size(self) -> int:
@@ -341,6 +369,13 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         selector still enforces its query, candidate, memory, byte and wall
         limits and checkpoints only fully classified roots.
         """
+
+        if self.prefer_filter_candidate_witness_probe_first():
+            # The candidate probe is capped to this same finite 512-root
+            # envelope. Amortize selective exact values in one witness query
+            # instead of repeating a ten-root classifier across many HTTP
+            # continuation requests.
+            return self.recommended_filter_seed_batch_size()
 
         delegate = self._bounded_delegate()
         classify_batch_size = int(
@@ -373,6 +408,63 @@ class VoiceCallListQueryBuilder(BaseQueryBuilder):
         """Retain the trace selector's filter-shape-specific safety ceiling."""
 
         return self._bounded_delegate().recommended_filter_classify_batch_size()
+
+    def prefer_filter_candidate_witness_probe_first(self) -> bool:
+        """Prefilter only selective long exact text on public voice lists.
+
+        Voice lists already have tuned finite classifier batches for nested
+        numeric/array paths. Keep those established plans stable and use the
+        public witness only for long URL/transcript values that would otherwise
+        require many sparse continuation requests.
+        """
+
+        if self._bounded_sampling_rate is not None:
+            return False
+        delegate = self._candidate_witness_delegate()
+        return bool(
+            delegate.prefer_filter_candidate_witness_probe_first()
+            and any(
+                delegate._candidate_witness_filter_is_selective_exact_text(item)
+                for item in self.filters
+                if isinstance(item, dict)
+            )
+        )
+
+    def recommended_filter_max_query_count(self) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_max_query_count()
+
+    def recommended_filter_candidate_witness_probe_strata(self) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_candidate_witness_probe_strata()
+
+    def filter_candidate_witness_replays_global_membership(self) -> bool:
+        return self._candidate_witness_delegate().filter_candidate_witness_replays_global_membership()
+
+    def recommended_filter_candidate_witness_probe_timeout_ms(self) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_candidate_witness_probe_timeout_ms()
+
+    def recommended_filter_candidate_witness_probe_max_bytes(self) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_candidate_witness_probe_max_bytes()
+
+    def recommended_filter_candidate_witness_probe_total_ms(self) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_candidate_witness_probe_total_ms()
+
+    def recommended_filter_candidate_witness_fallback_classify_batch_size(
+        self,
+    ) -> int | None:
+        return self._candidate_witness_delegate().recommended_filter_candidate_witness_fallback_classify_batch_size()
+
+    def build_filter_candidate_witness_probe(
+        self,
+        seed_rows: list[dict[str, Any]],
+        *,
+        slice_start: datetime | None = None,
+        slice_end: datetime | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        return self._candidate_witness_delegate().build_filter_candidate_witness_probe(
+            seed_rows,
+            slice_start=slice_start,
+            slice_end=slice_end,
+        )
 
     def recommended_filter_unindexed_micro_seed_width(self) -> timedelta | None:
         """Expose the delegated bounded JSON probe for provider call type."""

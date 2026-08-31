@@ -3468,12 +3468,16 @@ function FilterRow({
   const safeOperator = normalizeFilterRowOperator(filter).operator;
   const currentOpDef = allOps.find((o) => o.value === safeOperator);
   const updateRow = useCallback(
-    (changes) =>
-      onChange(index, {
-        ...filter,
-        operator: safeOperator,
-        ...changes,
-      }),
+    (changes, options) =>
+      onChange(
+        index,
+        {
+          ...filter,
+          operator: safeOperator,
+          ...changes,
+        },
+        options,
+      ),
     [filter, index, onChange, safeOperator],
   );
   const rowFreeSoloValues =
@@ -3886,7 +3890,14 @@ function FilterRow({
         freeSoloValues={rowFreeSoloValues}
         singleSelect={SINGLE_VALUE_OPS.has(safeOperator) && !isArray}
         onChange={(newVal, newValueTypes = []) =>
-          updateRow({ value: newVal, valueTypes: newValueTypes })
+          updateRow(
+            { value: newVal, valueTypes: newValueTypes },
+            // A picker click is a complete user choice, unlike a partially
+            // typed number/map/text editor. Publish it immediately so the
+            // request/loading transition does not sit behind the panel's
+            // general-purpose typing debounce.
+            { commit: true },
+          )
         }
       />
     );
@@ -4789,20 +4800,6 @@ const TraceFilterPanel = ({
     [operatorFilter, queryPropertyById],
   );
 
-  const handleChange = useCallback((idx, updated) => {
-    setRows((prev) => prev.map((r, i) => (i === idx ? updated : r)));
-  }, []);
-
-  const handleRemove = useCallback(
-    (idx) => {
-      setRows((prev) => {
-        const next = prev.filter((_, i) => i !== idx);
-        return next.length ? next : [{ ...effectiveDefaultRow }];
-      });
-    },
-    [effectiveDefaultRow],
-  );
-
   // Auto-apply: filters take effect as soon as a value is chosen (debounced),
   // so there's no Apply button — only Clear all. We apply WITHOUT closing the
   // popover so the user can keep adjusting filters and see them apply live.
@@ -4824,6 +4821,30 @@ const TraceFilterPanel = ({
     lastAppliedRef.current = serialized;
     onApplyRef.current(next);
   }, []);
+
+  const handleChange = useCallback(
+    (idx, updated, { commit = false } = {}) => {
+      const nextRows = rows.map((r, i) => (i === idx ? updated : r));
+      setRows(nextRows);
+      if (!commit) return;
+      if (autoApplyTimerRef.current) {
+        clearTimeout(autoApplyTimerRef.current);
+        autoApplyTimerRef.current = null;
+      }
+      applyIfChanged(nextRows);
+    },
+    [applyIfChanged, rows],
+  );
+
+  const handleRemove = useCallback(
+    (idx) => {
+      setRows((prev) => {
+        const next = prev.filter((_, i) => i !== idx);
+        return next.length ? next : [{ ...effectiveDefaultRow }];
+      });
+    },
+    [effectiveDefaultRow],
+  );
 
   useEffect(() => {
     if (!open) return undefined;

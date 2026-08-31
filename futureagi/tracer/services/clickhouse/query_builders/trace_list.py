@@ -129,6 +129,12 @@ _LONG_WINDOW_ANCHOR_MAX_BYTES_TO_READ = 192 * 1024 * 1024
 # every root batch while preserving chronological fallback for heavy Map/JSON.
 _LONG_WINDOW_CANDIDATE_WITNESS_STRATA = 1
 _LONG_WINDOW_ORDERED_ROOT_INITIAL_SLICE = timedelta(hours=1)
+# Long exact text values (recording URLs, UUID-like IDs, and full transcript
+# messages) are normally highly selective but expensive to rediscover by
+# replaying every span in tiny root batches. This is only a physical-plan
+# heuristic: the finite candidate witness remains a necessary prefilter and
+# the ordinary latest-state classifier still decides exact membership.
+_SELECTIVE_EXACT_TEXT_MIN_LENGTH = 32
 _USER_DETAIL_FILTER_TIMEOUT_MS = 9_500
 _UNINDEXED_POSITIVE_MICRO_SEED_WIDTH = timedelta(minutes=5)
 _UNINDEXED_POSITIVE_MICRO_SEED_STRATA = 4
@@ -1417,6 +1423,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if self._bounded_bulk_scan:
             return 200
         plans, _ = self._partition_trace_filter_plans(self._bounded_filters())
+        public_non_time_filters = [
+            item
+            for item in self._active_non_time_filters()
+            if not item.get("_eval_task_trace_root")
+        ]
         request_start, request_end = self._bounded_request_window
         if (
             request_end - request_start <= timedelta(hours=1)
@@ -1435,7 +1446,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 not self._bounded_identity_only
                 and not self._bounded_internal_scan
                 and not self.search
-                and len(self._active_non_time_filters()) == 1
+                and len(public_non_time_filters) == 1
                 and self._positive_typed_map_anchor_plan() is not None
             ):
                 return 512
@@ -2637,8 +2648,53 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         )
 
     @staticmethod
+    def _candidate_witness_filter_is_selective_exact_text(
+        item: dict[str, Any],
+    ) -> bool:
+        """Return whether one exact text leaf is selective enough to prefilter."""
+
+        key = str(item.get("column_id") or item.get("columnId") or "")
+        if key in {"created_at", "start_time"}:
+            return False
+        config = item.get("filter_config") or item.get("filterConfig") or {}
+        if not isinstance(config, dict):
+            return False
+        filter_type = normalize_span_attribute_filter_type(
+            str(config.get("filter_type") or config.get("filterType") or ""),
+            config.get("filter_value", config.get("filterValue")),
+        )
+        col_type = str(config.get("col_type") or config.get("colType") or "").upper()
+        operation = normalize_filter_op(
+            str(config.get("filter_op") or config.get("filterOp") or "")
+        )
+        if (
+            col_type != "SPAN_ATTRIBUTE"
+            or filter_type != "text"
+            or operation not in {"equals", "in"}
+        ):
+            return False
+        raw_value = config.get("filter_value", config.get("filterValue"))
+        values = raw_value if isinstance(raw_value, (list, tuple)) else [raw_value]
+        return bool(
+            values
+            and all(
+                isinstance(value, str)
+                and len(value.strip()) >= _SELECTIVE_EXACT_TEXT_MIN_LENGTH
+                for value in values
+            )
+        )
+
+    @staticmethod
     def _candidate_witness_filter_is_expensive(item: dict[str, Any]) -> bool:
-        """Return whether one filter has structured/nested replay cost."""
+        """Return whether one filter merits finite candidate prefiltering.
+
+        Structured values and flattened array paths are expensive to replay.
+        Long exact text values are a second important shape: they are usually
+        selective (recording URLs, external IDs, full messages), so resolving
+        one necessary typed-Map leaf for a finite root batch removes almost all
+        candidates before the ten-root authoritative classifier. Short common
+        scalar values retain the cheaper classifier-only path.
+        """
 
         key = str(item.get("column_id") or item.get("columnId") or "")
         if key in {"created_at", "start_time"}:
@@ -2653,22 +2709,27 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if filter_type in {"array", "map"}:
             return True
         col_type = str(config.get("col_type") or config.get("colType") or "").upper()
-        return bool(
+        if bool(
             col_type == "SPAN_ATTRIBUTE"
             and any(component.isdigit() for component in key.split("."))
+        ):
+            return True
+        return TraceListQueryBuilder._candidate_witness_filter_is_selective_exact_text(
+            item
         )
 
     def _interactive_candidate_witness_is_expensive(self) -> bool:
         """Return whether an interactive filter merits a speculative witness.
 
-        A scalar typed-Map equality such as ``final_status = Rejected`` is
+        A short scalar typed-Map equality such as ``final_status = Rejected`` is
         already cheaper through the exact finite identity classifier.  Its
         request-window witness cannot use the time primary key together with
         trace identity efficiently on large tenants and can exhaust the read
         byte cap before doing useful work.  Keep the optional witness for the
         shapes whose exact replay is materially heavier: structured JSON
-        arrays/objects and flattened nested array paths (the numeric component
-        in keys such as ``conversation.transcript.16.message.role``).
+        arrays/objects, flattened nested array paths (the numeric component in
+        keys such as ``conversation.transcript.16.message.role``), and long
+        exact text values that can discard nearly the whole finite root batch.
         """
 
         for item in self._bounded_match_filters():
