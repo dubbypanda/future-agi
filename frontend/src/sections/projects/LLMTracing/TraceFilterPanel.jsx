@@ -2550,6 +2550,7 @@ function PropertyPicker({
                 >
                   <Typography
                     noWrap
+                    title={prop.name}
                     sx={{
                       fontSize: 13,
                       flex: 1,

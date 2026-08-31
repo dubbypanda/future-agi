@@ -1269,6 +1269,30 @@ describe("voice-call property search aliases", () => {
     document.body.removeChild(anchorEl);
   });
 
+  it("exposes the complete property name when a picker row is truncated", () => {
+    const longPropertyName =
+      "cost_breakdown.analysisCostBreakdown.structuredOutputPromptTokens";
+    const { anchorEl } = renderPanel({
+      properties: [
+        {
+          id: longPropertyName,
+          name: longPropertyName,
+          category: "attribute",
+          type: "number",
+          apiColType: "SPAN_ATTRIBUTE",
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+
+    expect(screen.getByText(longPropertyName)).toHaveAttribute(
+      "title",
+      longPropertyName,
+    );
+    document.body.removeChild(anchorEl);
+  });
+
   it("keeps retained Call ID siblings pageable after the raw key is certified", () => {
     const fetchNextPage = vi.fn();
     let exactSearchMatched = false;

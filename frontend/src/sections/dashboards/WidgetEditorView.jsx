@@ -423,6 +423,24 @@ export function resolveWidgetCatalogResultMetrics({
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+export function isWidgetCatalogInventoryLoading({
+  requestSettled,
+  usesLegacyCatalog,
+  legacyCatalogLoading,
+  propertyCatalogLoading,
+  propertyCatalogSearchPending,
+  propertyCatalogNotReady,
+}) {
+  if (!requestSettled) return true;
+  if (usesLegacyCatalog) return Boolean(legacyCatalogLoading);
+  return Boolean(
+    propertyCatalogLoading ||
+      propertyCatalogSearchPending ||
+      propertyCatalogNotReady,
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
 export function buildWidgetCatalogPickerOptions({
   metrics: catalogMetrics,
   pickerMode,
@@ -2478,10 +2496,17 @@ export default function WidgetEditorView() {
     allSearchCategoryCountsExact: allSearchPropertyCatalog.categoryCountsExact,
   });
   const pickerSidebarCategoryCountsExact = Boolean(pickerSidebarCategoryCounts);
-  const activeCatalogLoading = activeUsesLegacyCatalog
-    ? activeLegacyMetricCatalog.isLoading
-    : activePropertyCatalog.isLoading ||
-      isPropertyCatalogNotReadyError(activePropertyCatalog.error);
+  const activeCatalogLoading = isWidgetCatalogInventoryLoading({
+    requestSettled: activeRequestSettled,
+    usesLegacyCatalog: activeUsesLegacyCatalog,
+    legacyCatalogLoading: activeLegacyMetricCatalog.isLoading,
+    propertyCatalogLoading: activePropertyCatalog.isLoading,
+    propertyCatalogSearchPending:
+      activePropertyCatalog.isRemoteCatalogSearchPending,
+    propertyCatalogNotReady: isPropertyCatalogNotReadyError(
+      activePropertyCatalog.error,
+    ),
+  });
   const paginatedTotal =
     !activeRequestSettled || activeCatalogLoading
       ? null
@@ -7799,6 +7824,7 @@ export default function WidgetEditorView() {
                       />
                       <Typography
                         variant="body2"
+                        title={opt.name}
                         sx={{
                           fontSize: "13px",
                           flex: 1,

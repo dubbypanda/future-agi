@@ -28,6 +28,7 @@ import {
   getWidgetMetricDataType,
   hasWidgetFilterValue,
   isWidgetCatalogOptionAllowed,
+  isWidgetCatalogInventoryLoading,
   mergeWidgetCursorAttributeOptions,
   resolveWidgetCatalogResultMetrics,
   resolveWidgetCatalogSidebarCounts,
@@ -65,6 +66,34 @@ const deferred = () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("WidgetEditor property-catalog loading state", () => {
+  it("keeps a settled partial search loading while the remote catalog request is in flight", () => {
+    expect(
+      isWidgetCatalogInventoryLoading({
+        requestSettled: true,
+        usesLegacyCatalog: false,
+        legacyCatalogLoading: false,
+        propertyCatalogLoading: false,
+        propertyCatalogSearchPending: true,
+        propertyCatalogNotReady: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows the empty state only after the remote catalog search settles", () => {
+    expect(
+      isWidgetCatalogInventoryLoading({
+        requestSettled: true,
+        usesLegacyCatalog: false,
+        legacyCatalogLoading: false,
+        propertyCatalogLoading: false,
+        propertyCatalogSearchPending: false,
+        propertyCatalogNotReady: false,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("WidgetEditor filter-value picker", () => {
