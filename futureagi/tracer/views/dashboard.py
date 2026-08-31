@@ -2539,64 +2539,18 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         """
         read_deadline = kwargs.pop("_dashboard_action_deadline", None)
         read_deadline = read_deadline or start_dashboard_action_deadline()
-        query_config = _normalize_dashboard_query_filters(request.validated_data)
-        # Kept in the request schema for older clients, but aggregation never
-        # takes a sampled execution path.
-        query_config["allow_sampled"] = False
-
-        query_config["metrics"] = self._normalize_metric_sources(
-            query_config["metrics"]
-        )
-
-        # Partition metrics by source
-        # "both" source metrics (e.g. annotations) go to trace_metrics
-        trace_metrics = [
-            m
-            for m in query_config["metrics"]
-            if m.get("source") in ("traces", "both", "all")
-        ]
-        dataset_metrics = [
-            m for m in query_config["metrics"] if m.get("source") == "datasets"
-        ]
-        # Authorization must be rechecked before serving a cached result; the
-        # concrete scope is also part of the key so moves/additions cannot reuse
-        # an all-resources snapshot produced for different membership.
-        try:
-            query_config = _materialize_dashboard_query_scope(
-                query_config,
-                request.workspace,
-                trace_metrics=trace_metrics,
-                dataset_metrics=dataset_metrics,
-            )
-        except DashboardQueryScopeError as exc:
-            return self._gm.bad_request(str(exc))
-
-        try:
-            query_config = _bind_dashboard_annotation_completeness(
-                query_config,
-                request.workspace,
-                deadline=read_deadline,
-                allow_metadata_read=True,
-            )
-        except (AnnotationScoreReadUnavailable, DatabaseError, ReadDeadlineExceeded):
-            return self._gm.custom_error_response(
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "Dashboard annotation metadata is temporarily unavailable. Please retry.",
-                code="service_unavailable",
-            )
-
-        refresh = request.validated_query_data["refresh"]
-        cache_identity = {
-            "workspace_id": str(request.workspace.id),
-            "query_config": query_config,
+        # Dashboard reads are interactive. Route the ad-hoc endpoint through
+        # the same synchronous executor as saved widgets so both surfaces use
+        # one optimized ClickHouse path and neither schedules Temporal work.
+        query_config = {
+            **request.validated_data,
+            "allow_sampled": False,
         }
-        return self._gm.success_response(
-            _read_public_dashboard_query(
-                query_config,
-                cache_identity=cache_identity,
-                refresh=refresh,
-                deadline=read_deadline,
-            )
+        return DashboardWidgetViewSet()._execute_ch_query_config(
+            query_config,
+            request.workspace,
+            refresh=request.validated_query_data["refresh"],
+            _read_deadline=read_deadline,
         )
 
     # ------------------------------------------------------------------
@@ -6907,33 +6861,23 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                 code="service_unavailable",
             )
 
-        cache_identity = (
-            deepcopy(cache_identity_override)
-            if cache_identity_override is not None
-            else {
-                "workspace_id": str(workspace.id),
-                # Exact-worker normalization adds internal canonical filter
-                # objects. Keep them out of the public cache key and never let
-                # recursive execution mutate the key selected by this request.
-                "query_config": deepcopy(query_config),
-            }
-        )
         if not _exact_worker:
-            return self._gm.success_response(
-                _read_public_dashboard_query(
-                    query_config,
-                    cache_identity=cache_identity,
-                    refresh=bool(refresh),
-                    deadline=read_deadline,
-                )
+            # Prefer the materialized hourly rollups for the simple shapes
+            # they can answer. Unsupported or incomplete shapes fall through
+            # to the synchronous exact executor below; no request is queued to
+            # Temporal and the caller receives one final HTTP response.
+            rollup_payload = _read_dashboard_rollup_fast_path(
+                query_config,
+                deadline=read_deadline,
             )
+            if _dashboard_snapshot_is_renderable(rollup_payload):
+                return self._gm.success_response(rollup_payload)
 
-        # One worker invocation owns one wall budget. Every metric statement,
-        # including later executor waves and later data sources, receives only
-        # the time still left on this same deadline. This prevents N metrics or
-        # trace/dataset/simulation sequencing from multiplying the 9.5-second
-        # production ceiling while preserving each metric's indivisible
-        # full-window SQL.
+        # One HTTP request (or explicit background refresh) owns one wall
+        # budget. Every metric statement, including later executor waves and
+        # later data sources, receives only the time still left on this same
+        # deadline. This prevents N metrics or trace/dataset/simulation
+        # sequencing from multiplying the configured interactive ceiling.
         # Freeze one concrete wall-clock window before any builder prepares its
         # metric SQL. Preset windows must not drift by microseconds across
         # concurrent source queries or later response formatting.
@@ -7143,20 +7087,21 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
         else:
             formatted = formatter.format_results(metric_results)
 
+        query_provenance = "exact_snapshot" if _exact_worker else "direct_exact"
         formatted.update(
             {
                 "query_complete": True,
                 "query_status": "complete",
                 "query_sampled": False,
                 "query_exact": True,
-                "query_provenance": "exact_snapshot",
+                "query_provenance": query_provenance,
             }
         )
         for formatted_metric in formatted.get("metrics", []):
             formatted_metric.update(
                 {
                     "query_exact": True,
-                    "query_provenance": "exact_snapshot",
+                    "query_provenance": query_provenance,
                 }
             )
         # Formatting and ORM-backed display-name hydration are part of this

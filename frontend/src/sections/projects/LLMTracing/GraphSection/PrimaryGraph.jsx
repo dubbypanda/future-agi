@@ -93,6 +93,12 @@ const CATEGORY_LABELS = {
   annotation_metric: "Annotations",
 };
 
+const GRAPH_METRIC_CATEGORIES = Object.freeze([
+  "system_metric",
+  "eval_metric",
+  "annotation_metric",
+]);
+
 // Unit hints for known system metrics
 const METRIC_UNITS = {
   latency: "ms",
@@ -241,34 +247,85 @@ function useGraphMetrics(projectId, transportSource, enabled = true) {
     "graph-property-catalog",
     projectId || "",
   ]);
-  const catalog = usePropertyCatalog({
+  const systemCatalog = usePropertyCatalog({
+    category: GRAPH_METRIC_CATEGORIES[0],
     projectIds: projectId ? [projectId] : [],
     source: transportSource,
     perEvalConfig: true,
+    role: "metric",
     pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: enabled && Boolean(projectId),
     allowLegacyNotReadyFallback: true,
-    fallbackScopeKey,
+    fallbackScopeKey: `${fallbackScopeKey}:system_metric`,
   });
+  const evalCatalog = usePropertyCatalog({
+    category: GRAPH_METRIC_CATEGORIES[1],
+    projectIds: projectId ? [projectId] : [],
+    source: transportSource,
+    perEvalConfig: true,
+    role: "metric",
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+    enabled: enabled && Boolean(projectId),
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `${fallbackScopeKey}:eval_metric`,
+  });
+  const annotationCatalog = usePropertyCatalog({
+    category: GRAPH_METRIC_CATEGORIES[2],
+    projectIds: projectId ? [projectId] : [],
+    source: transportSource,
+    perEvalConfig: true,
+    role: "metric",
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+    enabled: enabled && Boolean(projectId),
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `${fallbackScopeKey}:annotation_metric`,
+  });
+  const catalogs = [systemCatalog, evalCatalog, annotationCatalog];
+  const legacyFallbackRequired = catalogs.some(
+    (catalog) => catalog.legacyFallbackRequired,
+  );
   const legacy = useLegacyGraphMetrics(
     projectId,
     transportSource,
-    enabled && catalog.legacyFallbackRequired,
+    enabled && legacyFallbackRequired,
   );
 
-  if (catalog.legacyFallbackRequired) return legacy;
+  if (legacyFallbackRequired) return legacy;
 
-  const catalogNotReady = isPropertyCatalogNotReadyError(catalog.error);
-  const catalogError = Boolean(catalog.isError && !catalogNotReady);
+  const catalogNotReady = catalogs.some((catalog) =>
+    isPropertyCatalogNotReadyError(catalog.error),
+  );
+  const failedCatalog = catalogs.find(
+    (catalog) =>
+      catalog.isError && !isPropertyCatalogNotReadyError(catalog.error),
+  );
+  // Advance one category at a time. This keeps each user gesture bounded to
+  // one request and prevents an error in one category from advancing another
+  // category's cursor behind the user's back.
+  const nextCatalogIndex = catalogs.findIndex((catalog) => catalog.hasNextPage);
+  const nextCatalog = nextCatalogIndex >= 0 ? catalogs[nextCatalogIndex] : null;
+  const nextCategory =
+    nextCatalogIndex >= 0 ? GRAPH_METRIC_CATEGORIES[nextCatalogIndex] : null;
+  const cursorChainStopped = catalogs.some(
+    (catalog) => catalog.cursorChainStopped,
+  );
   return {
-    ...catalog,
-    data: buildGraphMetricGroups(catalog.metrics, transportSource),
-    isLoading: catalog.isLoading || catalogNotReady,
-    isError: catalogError,
-    error: catalogError ? catalog.error : null,
-    hasNextPage: Boolean(catalog.hasNextPage),
+    data: buildGraphMetricGroups(
+      catalogs.flatMap((catalog) => catalog.metrics || []),
+      transportSource,
+    ),
+    fetchNextPage: nextCatalog?.fetchNextPage || (() => Promise.resolve()),
+    continuationKey:
+      nextCatalog && nextCategory && nextCatalog.continuationKey
+        ? `${nextCategory}:${nextCatalog.continuationKey}`
+        : null,
+    isLoading: catalogs.some((catalog) => catalog.isLoading) || catalogNotReady,
+    isError: Boolean(failedCatalog),
+    error: failedCatalog?.error || null,
+    hasNextPage: Boolean(nextCatalog) && !cursorChainStopped,
+    isFetchingNextPage: Boolean(nextCatalog?.isFetchingNextPage),
     isFetchNextPageError: Boolean(
-      catalog.isFetchNextPageError || catalog.cursorChainStopped,
+      nextCatalog?.isFetchNextPageError || cursorChainStopped,
     ),
   };
 }

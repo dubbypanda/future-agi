@@ -12,6 +12,10 @@ import {
 } from "src/utils/queryReadState";
 import PrimaryGraph from "../PrimaryGraph";
 
+const { propertyCatalogOptionsSpy } = vi.hoisted(() => ({
+  propertyCatalogOptionsSpy: vi.fn(),
+}));
+
 vi.mock("react-apexcharts", () => ({
   default: ({ series, options }) => (
     <div
@@ -32,16 +36,19 @@ vi.mock("src/hooks/useDashboards", () => ({
   isPropertyCatalogNotReadyError: (error) =>
     error?.response?.status === 503 &&
     error?.response?.data?.code === "property_catalog_not_ready",
-  usePropertyCatalog: () => ({
-    error: {
-      response: {
-        status: 503,
-        data: { code: "property_catalog_not_ready" },
+  usePropertyCatalog: (options) => {
+    propertyCatalogOptionsSpy(options);
+    return {
+      error: {
+        response: {
+          status: 503,
+          data: { code: "property_catalog_not_ready" },
+        },
       },
-    },
-    legacyFallbackRequired: true,
-    metrics: [],
-  }),
+      legacyFallbackRequired: true,
+      metrics: [],
+    };
+  },
 }));
 
 vi.mock("../../common", () => ({
@@ -183,6 +190,48 @@ describe("PrimaryGraph", () => {
       }),
       expect.objectContaining({ params: { allow_sampled: false } }),
     );
+  });
+
+  it("scopes the primary metric picker to renderable metric categories", async () => {
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+
+    fireEvent.click(await screen.findByText("Latency"));
+    await waitFor(() => {
+      const enabledCategories = new Set(
+        propertyCatalogOptionsSpy.mock.calls
+          .map(([options]) => options)
+          .filter((options) => options.enabled)
+          .map((options) => options.category),
+      );
+      expect(enabledCategories).toEqual(
+        new Set(["annotation_metric", "eval_metric", "system_metric"]),
+      );
+    });
+
+    const enabledOptions = [
+      ...new Map(
+        propertyCatalogOptionsSpy.mock.calls
+          .map(([options]) => options)
+          .filter((options) => options.enabled)
+          .map((options) => [options.category, options]),
+      ).values(),
+    ];
+    expect(enabledOptions.map((options) => options.category).sort()).toEqual([
+      "annotation_metric",
+      "eval_metric",
+      "system_metric",
+    ]);
+    for (const options of enabledOptions) {
+      expect(options).toEqual(
+        expect.objectContaining({
+          projectIds: ["project-override"],
+          role: "metric",
+          source: "traces",
+        }),
+      );
+    }
   });
 
   it("binds session aggregate graphs to the session property source", async () => {

@@ -1944,10 +1944,9 @@ function PropertyPicker({
   const effectiveHasNextAttributePage = legacyAttributeFallbackOwnsInventory
     ? legacyAttributeFallback.hasNextPage
     : hasNextAttributePage;
-  const effectiveAttributeContinuationKey =
-    legacyAttributeFallbackOwnsInventory
-      ? legacyAttributeFallback.continuationKey
-      : exactAttributeContinuationKey;
+  const effectiveAttributeContinuationKey = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.continuationKey
+    : exactAttributeContinuationKey;
   const effectiveIsFetchingNextAttributePage =
     legacyAttributeFallbackOwnsInventory
       ? legacyAttributeFallback.isFetchingNextPage
@@ -1966,7 +1965,7 @@ function PropertyPicker({
     : refetchAttributePages;
   const hasSettledExactAttributeError = Boolean(
     !legacyAttributeFallbackOwnsInventory &&
-    search.trim() &&
+      search.trim() &&
       debouncedSearch === search.trim() &&
       exactAttributeSearchError,
   );
@@ -2107,14 +2106,13 @@ function PropertyPicker({
         search.trim() &&
         (hasNextExactAttributePage || hasSettledExactAttributeError)),
   );
-  const exactAttributeDiscoveryTerminal =
-    (legacyAttributeFallbackOwnsInventory
-      ? effectiveAttributeBrowseStatus === "exhausted" ||
-        effectiveAttributeReadState === "error"
-      : exactAttributeCursorRetryExhausted ||
-        exactAttributeBrowseStatus === "exhausted" ||
-        exactAttributeReadState === "error" ||
-        exactAttributeReadState === "degraded");
+  const exactAttributeDiscoveryTerminal = legacyAttributeFallbackOwnsInventory
+    ? effectiveAttributeBrowseStatus === "exhausted" ||
+      effectiveAttributeReadState === "error"
+    : exactAttributeCursorRetryExhausted ||
+      exactAttributeBrowseStatus === "exhausted" ||
+      exactAttributeReadState === "error" ||
+      exactAttributeReadState === "degraded";
   const manualAttributeProperty = useMemo(
     () =>
       debouncedSearch === search.trim() && !effectiveAttributeLoading
@@ -2153,8 +2151,7 @@ function PropertyPicker({
       source,
       debouncedSearch,
     ]),
-    enabled:
-      canLoadNextAttributePage && !effectiveIsFetchingNextAttributePage,
+    enabled: canLoadNextAttributePage && !effectiveIsFetchingNextAttributePage,
     request: effectiveFetchNextAttributePage,
   });
   const loadNextExactAttributePage = useSingleFlightPageRequest({
@@ -2180,8 +2177,7 @@ function PropertyPicker({
   const isFetchingVisibleAttributePage = Boolean(
     attributeCategoryCanContinue &&
       (effectiveIsFetchingNextAttributePage ||
-        (!legacyAttributeFallbackOwnsInventory &&
-          isFetchingNextExactPage)),
+        (!legacyAttributeFallbackOwnsInventory && isFetchingNextExactPage)),
   );
   useEffect(() => {
     const settledSearch = search.trim();
@@ -2500,6 +2496,27 @@ function PropertyPicker({
                     <CircularProgress size={16} />
                     <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
                       Loading properties…
+                    </Typography>
+                  </Box>
+                )}
+              {filtered.length > 0 &&
+                trimmedSearch &&
+                unifiedCatalogSearchLoading && (
+                  <Box
+                    role="status"
+                    aria-label="Loading matching attributes"
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      px: 1.5,
+                      py: 0.75,
+                      color: "text.secondary",
+                    }}
+                  >
+                    <CircularProgress size={14} />
+                    <Typography sx={{ fontSize: 11 }}>
+                      Loading matching attributes…
                     </Typography>
                   </Box>
                 )}
@@ -4295,10 +4312,7 @@ const TraceFilterPanel = ({
         filteredQueryExactAttributeProperties,
         queryLegacyAttributeFallback.data,
       ),
-    [
-      filteredQueryExactAttributeProperties,
-      queryLegacyAttributeFallback.data,
-    ],
+    [filteredQueryExactAttributeProperties, queryLegacyAttributeFallback.data],
   );
   const queryEffectiveAttributeReadState =
     queryLegacyAttributeFallbackOwnsInventory
@@ -4437,35 +4451,37 @@ const TraceFilterPanel = ({
   const queryHasNextFieldPage = queryLegacyAttributeFallbackControlsPagination
     ? Boolean(queryLegacyAttributeFallback.hasNextPage)
     : unifiedPropertyCatalogActive
-    ? Boolean(
-        !queryCatalogSearchPending &&
-          (queryCatalogSearchPageActive
-            ? queryPropertyCatalog.hasNextPage
-            : hasNextDynamicPropsPage),
-      )
-    : Boolean(hasNextQueryAttributePage);
+      ? Boolean(
+          !queryCatalogSearchPending &&
+            (queryCatalogSearchPageActive
+              ? queryPropertyCatalog.hasNextPage
+              : hasNextDynamicPropsPage),
+        )
+      : Boolean(hasNextQueryAttributePage);
   const queryIsFetchingNextFieldPage =
     queryLegacyAttributeFallbackControlsPagination
       ? Boolean(queryLegacyAttributeFallback.isFetchingNextPage)
       : unifiedPropertyCatalogActive
-    ? queryCatalogSearchPageActive
-      ? queryPropertyCatalog.isFetchingNextPage
-      : isFetchingNextDynamicPropsPage
-    : isFetchingNextQueryAttributePage;
+        ? queryCatalogSearchPageActive
+          ? queryPropertyCatalog.isFetchingNextPage
+          : isFetchingNextDynamicPropsPage
+        : isFetchingNextQueryAttributePage;
   const queryFieldPageError = queryLegacyAttributeFallbackControlsPagination
     ? Boolean(
         queryLegacyAttributeFallback.isError ||
           queryLegacyAttributeFallback.isFetchNextPageError,
       )
     : unifiedPropertyCatalogActive
-    ? queryCatalogSearchPageActive
-      ? Boolean(
-          queryPropertyCatalog.isError ||
-            queryPropertyCatalog.isFetchNextPageError ||
-            queryPropertyCatalog.cursorChainStopped,
-        )
-      : Boolean(dynamicPropsError || isNextDynamicPropsPageError)
-    : Boolean(isNextQueryAttributePageError || queryExactAttributeSearchError);
+      ? queryCatalogSearchPageActive
+        ? Boolean(
+            queryPropertyCatalog.isError ||
+              queryPropertyCatalog.isFetchNextPageError ||
+              queryPropertyCatalog.cursorChainStopped,
+          )
+        : Boolean(dynamicPropsError || isNextDynamicPropsPageError)
+      : Boolean(
+          isNextQueryAttributePageError || queryExactAttributeSearchError,
+        );
   const loadNextQueryFieldPage = useSingleFlightPageRequest({
     identity: JSON.stringify([
       observeId,
@@ -4473,10 +4489,10 @@ const TraceFilterPanel = ({
       queryLegacyAttributeFallbackControlsPagination
         ? "legacy-search"
         : unifiedPropertyCatalogActive
-        ? queryCatalogSearchPageActive
-          ? "catalog-search"
-          : "catalog-base"
-        : "retained",
+          ? queryCatalogSearchPageActive
+            ? "catalog-search"
+            : "catalog-base"
+          : "retained",
       queryCatalogSearchPageActive
         ? debouncedQueryCatalogSearch
         : debouncedQueryAttributeSearch,
@@ -4485,10 +4501,10 @@ const TraceFilterPanel = ({
     request: queryLegacyAttributeFallbackControlsPagination
       ? queryLegacyAttributeFallback.fetchNextPage
       : unifiedPropertyCatalogActive
-      ? queryCatalogSearchPageActive
-        ? queryPropertyCatalog.fetchNextPage
-        : fetchNextDynamicPropsPage
-      : fetchNextQueryAttributePage,
+        ? queryCatalogSearchPageActive
+          ? queryPropertyCatalog.fetchNextPage
+          : fetchNextDynamicPropsPage
+        : fetchNextQueryAttributePage,
   });
 
   // Query tab — fetch values for the selected field
@@ -5202,16 +5218,17 @@ const TraceFilterPanel = ({
                         !queryLegacyAttributeFallback.isFetchingNextPage,
                     )
                   : unifiedPropertyCatalogActive
-                  ? Boolean(
-                      trimmedQueryFieldSearch &&
-                        (!queryCatalogSearchSettled ||
-                          (queryPropertyCatalog.isLoading &&
-                            !queryPropertyCatalog.isFetchingNextPage)),
-                    )
-                  : queryAttributeLookupEnabled &&
-                    ((queryAttributeLoading &&
-                      !isFetchingNextQueryAttributePage) ||
-                      trimmedQueryFieldSearch !== debouncedQueryAttributeSearch)
+                    ? Boolean(
+                        trimmedQueryFieldSearch &&
+                          (!queryCatalogSearchSettled ||
+                            (queryPropertyCatalog.isLoading &&
+                              !queryPropertyCatalog.isFetchingNextPage)),
+                      )
+                    : queryAttributeLookupEnabled &&
+                      ((queryAttributeLoading &&
+                        !isFetchingNextQueryAttributePage) ||
+                        trimmedQueryFieldSearch !==
+                          debouncedQueryAttributeSearch)
               }
               fieldLoadingMore={queryIsFetchingNextFieldPage}
               fieldLoadError={queryFieldPageError}

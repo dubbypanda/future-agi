@@ -453,7 +453,11 @@ describe("TraceFilterPanel workspace property scope", () => {
   });
 
   it.each([
-    ["project", { projectId: "project-partial-search" }, "project-partial-search"],
+    [
+      "project",
+      { projectId: "project-partial-search" },
+      "project-partial-search",
+    ],
     ["workspace", { allowWorkspaceScope: true }, null],
   ])(
     "uses bounded partial attribute search at %s scope",
@@ -517,9 +521,7 @@ describe("TraceFilterPanel workspace property scope", () => {
               per_eval_config: true,
               page: 1,
               page_size: 20,
-              ...(expectedProjectId
-                ? { project_ids: expectedProjectId }
-                : {}),
+              ...(expectedProjectId ? { project_ids: expectedProjectId } : {}),
             }),
           }),
         ),
@@ -1909,6 +1911,48 @@ describe("voice-call property search aliases", () => {
         ([request]) => request.enabled === true,
       ),
     ).toBe(false);
+
+    document.body.removeChild(anchorEl);
+  });
+
+  it("keeps partial system results visibly loading until matching attributes arrive", async () => {
+    const costSystemMetric = {
+      property_id: "system_attribute:traces:cost",
+      name: "cost",
+      display_name: "Cost",
+      category: "system_metric",
+      source: "traces",
+      sources: ["traces"],
+      type: "number",
+    };
+    propertyCatalogMock.mockImplementation(({ search = "" }) =>
+      search
+        ? {
+            ...settledPropertyCatalog({ metrics: [] }),
+            isLoading: true,
+            isFetching: true,
+            isSuccess: false,
+          }
+        : settledPropertyCatalog({ metrics: [costSystemMetric] }),
+    );
+    const { anchorEl } = renderPanel({
+      projectId: "project-cost-search",
+      source: "traces",
+      tab: "trace",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+    fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+      target: { value: "cost" },
+    });
+
+    expect(screen.getByText("Cost")).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "Loading matching attributes" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Loading matching attributes…"),
+    ).toBeInTheDocument();
 
     document.body.removeChild(anchorEl);
   });
