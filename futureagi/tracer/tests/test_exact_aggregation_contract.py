@@ -4958,7 +4958,7 @@ def test_exact_trace_membership_exhausts_5k_identity_classifier_boundary(monkeyp
     assert exact_module.EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE == 5_000
     assert (
         exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS
-        == exact_module.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+        == exact_module.EXACT_GRAPH_WALL_DEADLINE_MS
     )
     assert exact_module.EXACT_GRAPH_READ_SETTINGS["max_threads"] == 1
     assert "max_rows_to_read" not in exact_module.EXACT_GRAPH_READ_SETTINGS

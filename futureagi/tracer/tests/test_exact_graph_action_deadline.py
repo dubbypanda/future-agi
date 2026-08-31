@@ -17,21 +17,21 @@ def test_exact_graph_action_deadline_uses_reviewed_background_wall():
         exact_reads.EXACT_GRAPH_QUERY_TIMEOUT_MS
         == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
     )
-    assert exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS == min(
-        exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS,
-        django_settings.FILTER_SELECTOR_MAX_BUILDER_QUERY_TIMEOUT_MS,
+    assert (
+        exact_reads.EXACT_GRAPH_TRACE_ANCHOR_QUERY_TIMEOUT_MS
+        == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
     )
-    assert exact_reads.EXACT_GRAPH_TRACE_ANCHOR_QUERY_TIMEOUT_MS == (
-        exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+    assert (
+        exact_reads.EXACT_GRAPH_TRACE_WITNESS_QUERY_TIMEOUT_MS
+        == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
     )
-    assert exact_reads.EXACT_GRAPH_TRACE_WITNESS_QUERY_TIMEOUT_MS == (
-        exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+    assert (
+        exact_reads.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS
+        == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
     )
-    assert exact_reads.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS == (
-        exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
-    )
-    assert exact_reads.EXACT_GRAPH_TRACE_CONTRIBUTION_QUERY_TIMEOUT_MS == (
-        exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+    assert (
+        exact_reads.EXACT_GRAPH_TRACE_CONTRIBUTION_QUERY_TIMEOUT_MS
+        == exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
     )
     assert (
         exact_reads.EXACT_GRAPH_SPAN_PARTITION_QUERY_TIMEOUT_MS
@@ -56,8 +56,8 @@ def test_remaining_exact_graph_budget_shrinks_and_rounds_down(monkeypatch):
 @pytest.mark.unit
 def test_trace_contribution_subqueries_share_one_shrinking_budget(monkeypatch):
     timeouts: list[int] = []
+    clock = iter((0.25, 2.5))
     wall_ms = exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS
-    clock = iter(((wall_ms - 20_000) / 1_000, (wall_ms - 10_000) / 1_000))
 
     class Builder:
         @staticmethod
@@ -97,10 +97,9 @@ def test_trace_contribution_subqueries_share_one_shrinking_budget(monkeypatch):
     )
 
     assert query_count == 2
-    assert timeouts == [20_000, 10_000]
+    assert timeouts == [wall_ms - 250, wall_ms - 2_500]
     assert all(
-        timeout <= exact_reads.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
-        for timeout in timeouts
+        timeout <= exact_reads.EXACT_GRAPH_WALL_DEADLINE_MS for timeout in timeouts
     )
 
 

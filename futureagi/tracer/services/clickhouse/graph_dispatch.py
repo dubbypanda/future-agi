@@ -22,8 +22,6 @@ from tracer.services.clickhouse.bounded_graph_reads import (
     GRAPH_MAX_POINTS,
     BoundedGraphReadError,
     GraphCandidateSample,
-    aggregate_system_candidate_graph,
-    read_graph_candidates,
 )
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.query_builders import (
@@ -32,7 +30,6 @@ from tracer.services.clickhouse.query_builders import (
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.read_budget import (
     ReadDeadline,
-    is_clickhouse_query_error,
     is_read_budget_error,
 )
 from tracer.services.exact_aggregation_cache import (
@@ -172,7 +169,7 @@ def degraded_graph_response(
 
 
 def _bounded_interactive_read_settings(
-    read_settings: dict[str, Any] | None,
+    settings: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Retain finite graph caps while removing source-row ceilings."""
 
@@ -185,7 +182,7 @@ def _bounded_interactive_read_settings(
         "max_result_bytes": GRAPH_RESULT_BYTES,
     }
     bounded = dict(caps)
-    for key, value in (read_settings or {}).items():
+    for key, value in (settings or {}).items():
         if key == "max_rows_to_read":
             continue
         if key in caps:
@@ -1070,7 +1067,7 @@ def fetch_system_metric_graph_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    """Read a rollup graph or a bounded synchronous filtered graph."""
+    """Read an unfiltered rollup or schedule an exact filtered graph."""
 
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
@@ -1093,76 +1090,26 @@ def fetch_system_metric_graph_ch(
             observe_type=normalized_observe_type,
             timeout_ms=timeout_ms,
         )
-    # System graphs are interactive. Candidate discovery and every trace
-    # child-span decoration query share one monotonic request deadline. A
-    # bounded failure is returned explicitly instead of turning the graph into
-    # a Temporal-backed polling UI.
-    del refresh, organization_id, workspace_id
-    interactive_deadline_ms = min(
-        int(timeout_ms),
-        GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS,
+    # Relational filters can require a full latest-state scan. Keep that work
+    # outside the HTTP request: a cold read returns the typed pending envelope
+    # and subsequent polls receive only the atomically published exact result.
+    # This deliberately never publishes the old bounded-candidate sample.
+    normalized_metric_id = str(metric_id or "")
+    identity = {
+        "project_id": project_id,
+        "filters": filters,
+        "interval": interval,
+        "metric_id": normalized_metric_id,
+        "observe_type": normalized_observe_type,
+    }
+    return _read_or_refresh_exact_graph(
+        namespace="observe-system-graph",
+        identity=identity,
+        refresh=bool(refresh),
+        pending_payload=_pending_graph_payload(normalized_metric_id),
+        organization_id=organization_id,
+        workspace_id=workspace_id,
     )
-    if interactive_deadline_ms <= 0:
-        raise ValueError("graph timeout must be positive")
-    started = monotonic()
-    bounded_analytics = _DeadlineBoundGraphAnalytics(
-        analytics,
-        ReadDeadline.start(interactive_deadline_ms),
-    )
-    sample: GraphCandidateSample | None = None
-    try:
-        sample = read_graph_candidates(
-            analytics=bounded_analytics,
-            project_id=project_id,
-            filters=filters,
-            observe_type=normalized_observe_type,
-            deadline_ms=interactive_deadline_ms,
-        )
-        _require_renderable_sample(sample)
-        if normalized_observe_type == "trace":
-            response = _fetch_trace_system_metric_graph(
-                analytics=bounded_analytics,
-                sample=sample,
-                project_id=project_id,
-                interval=interval,
-                metric_id=str(metric_id or ""),
-                started=started,
-                timeout_ms=interactive_deadline_ms,
-            )
-        else:
-            response = enforce_exact_graph_data_contract(
-                aggregate_system_candidate_graph(
-                    sample,
-                    metric_id=str(metric_id or ""),
-                    interval=interval,
-                )
-            )
-        response.update(
-            {
-                "query_provenance": "bounded_candidates",
-                "query_exact": bool(
-                    response.get("query_complete") is True
-                    and response.get("query_sampled") is not True
-                ),
-            }
-        )
-        return response
-    except BoundedGraphReadError as exc:
-        return degraded_graph_response(
-            str(metric_id or ""),
-            exc,
-            sample=sample,
-            provenance="bounded_candidates",
-        )
-    except Exception as exc:
-        if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
-            raise
-        return degraded_graph_response(
-            str(metric_id or ""),
-            exc,
-            sample=sample,
-            provenance="bounded_candidates",
-        )
 
 
 def fetch_agent_graph_ch(

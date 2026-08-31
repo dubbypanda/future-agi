@@ -9,7 +9,6 @@ from tracer.views import dashboard as dashboard_view
 from tracer.views.dashboard import (
     _DASHBOARD_INTERACTIVE_TIMEOUT_MS,
     _DASHBOARD_ROLLUP_READ_SETTINGS,
-    _DASHBOARD_TRACE_READ_SETTINGS,
     _read_dashboard_rollup_fast_path,
     _read_public_dashboard_query,
 )
@@ -34,18 +33,6 @@ class _RollupAnalytics:
         row = {"time_bucket": params["start_date"]}
         row.update({alias: index + 1 for index, alias in enumerate(aliases)})
         return SimpleNamespace(data=[row], columns=["time_bucket", *aliases])
-
-
-class _CompatibilityAnalytics:
-    def __init__(self):
-        self.calls = []
-
-    def execute_ch_query(self, query, params, *, timeout_ms, settings):
-        self.calls.append((query, dict(params), timeout_ms, dict(settings)))
-        return SimpleNamespace(
-            data=[{"time_bucket": params["start_date"], "value": 12.0}],
-            columns=["time_bucket", "value"],
-        )
 
 
 def _query_config(*, preset="30D", granularity="day", metrics=None, **overrides):
@@ -224,124 +211,6 @@ def test_filtered_cold_miss_keeps_exact_refresh_pending(monkeypatch):
     assert result["query_status"] == "pending"
     assert result["query_refreshing"] is True
     assert result["metrics"] == []
-
-
-@pytest.mark.unit
-def test_unfiltered_custom_metric_uses_merged_span_compatibility(monkeypatch):
-    analytics = _CompatibilityAnalytics()
-    monkeypatch.setattr(dashboard_view, "V2AnalyticsQueryService", lambda: analytics)
-    monkeypatch.setattr(
-        dashboard_view,
-        "read_or_schedule_exact_snapshot",
-        lambda *args, **kwargs: pytest.fail(
-            "the admitted compatibility path must not enqueue exact replay"
-        ),
-    )
-    metric = {
-        "id": "perceived_latency_ms",
-        "name": "perceived_latency_ms",
-        "type": "custom_attribute",
-        "attribute_key": "perceived_latency_ms",
-        "attribute_type": "number",
-        "source": "traces",
-        "aggregation": "avg",
-        "filters": [],
-    }
-
-    result = _read_public_dashboard_query(
-        _query_config(preset="12M", metrics=[metric]),
-        cache_identity={"workspace_id": "workspace", "query_config": {}},
-        refresh=False,
-    )
-
-    assert result["query_status"] == "complete"
-    assert result["query_exact"] is False
-    assert result["query_provenance"] == "merged_span_compatibility"
-    assert len(analytics.calls) == 1
-    query, _params, timeout_ms, read_settings = analytics.calls[0]
-    assert "custom_metric_candidate_identities" not in query
-    assert " FINAL" not in query
-    assert 0 < timeout_ms <= _DASHBOARD_INTERACTIVE_TIMEOUT_MS
-    assert read_settings == _DASHBOARD_TRACE_READ_SETTINGS
-
-
-@pytest.mark.unit
-def test_latency_string_breakdown_uses_merged_span_compatibility(monkeypatch):
-    analytics = _CompatibilityAnalytics()
-    monkeypatch.setattr(dashboard_view, "V2AnalyticsQueryService", lambda: analytics)
-    monkeypatch.setattr(
-        dashboard_view,
-        "read_or_schedule_exact_snapshot",
-        lambda *args, **kwargs: pytest.fail(
-            "the admitted compatibility path must not enqueue exact replay"
-        ),
-    )
-    metric = {
-        "id": "latency",
-        "name": "latency",
-        "type": "system_metric",
-        "source": "traces",
-        "aggregation": "avg",
-        "filters": [],
-    }
-    breakdown = {
-        "type": "custom_attribute",
-        "name": "final_status",
-        "source": "traces",
-        "attribute_type": "string",
-    }
-
-    result = _read_public_dashboard_query(
-        _query_config(
-            preset="30D",
-            metrics=[metric],
-            breakdowns=[breakdown],
-        ),
-        cache_identity={"workspace_id": "workspace", "query_config": {}},
-        refresh=False,
-    )
-
-    assert result["query_status"] == "complete"
-    assert result["query_provenance"] == "merged_span_compatibility"
-    assert len(analytics.calls) == 1
-    query, _params, _timeout_ms, _settings = analytics.calls[0]
-    assert " FINAL" not in query
-
-
-@pytest.mark.unit
-def test_filtered_custom_metric_stays_on_exact_snapshot_lane(monkeypatch):
-    scheduled = []
-
-    def schedule(*args, **kwargs):
-        scheduled.append((args, kwargs))
-        return kwargs["pending_payload"]
-
-    monkeypatch.setattr(dashboard_view, "read_or_schedule_exact_snapshot", schedule)
-    monkeypatch.setattr(
-        dashboard_view,
-        "V2AnalyticsQueryService",
-        lambda: pytest.fail("filtered metric must not use compatibility scan"),
-    )
-    metric = {
-        "id": "perceived_latency_ms",
-        "name": "perceived_latency_ms",
-        "type": "custom_attribute",
-        "attribute_key": "perceived_latency_ms",
-        "attribute_type": "number",
-        "source": "traces",
-        "aggregation": "avg",
-        "filters": [{"metric_name": "status"}],
-    }
-
-    result = _read_public_dashboard_query(
-        _query_config(metrics=[metric]),
-        cache_identity={"workspace_id": "workspace", "query_config": {}},
-        refresh=False,
-    )
-
-    assert len(scheduled) == 1
-    assert result["query_status"] == "pending"
-    assert result["query_refreshing"] is True
 
 
 @pytest.mark.unit

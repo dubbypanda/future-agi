@@ -234,7 +234,7 @@ def test_session_date_only_rollup_fails_closed_when_query_settings_are_locked():
 @pytest.mark.unit
 @pytest.mark.parametrize(("start", "end", "interval"), WINDOWS)
 @pytest.mark.parametrize("row_filter", FILTER_SHAPES)
-def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_sampled(
+def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_exact_async(
     monkeypatch,
     start,
     end,
@@ -274,8 +274,12 @@ def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_sampled(
         sampling_strata_completed=8,
     )
     bounded_read = mock.Mock(return_value=sample)
-    exact_read = mock.Mock()
-    monkeypatch.setattr(graph_dispatch, "read_graph_candidates", bounded_read)
+    exact_read = mock.Mock(
+        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+    )
+    monkeypatch.setattr(
+        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
+    )
     monkeypatch.setattr(
         graph_dispatch,
         "read_or_schedule_exact_snapshot",
@@ -291,31 +295,24 @@ def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_sampled(
         observe_type="span",
     )
 
-    assert response["query_complete"] is False
-    assert response["query_status"] == "sampled"
-    assert response["query_sampled"] is True
-    assert response["query_exact"] is False
-    assert response["query_provenance"] == "bounded_candidates"
-    assert response["query_sampling_strata_completed"] == 8
-    assert any(point["value"] == 42 for point in response["data"])
-    assert graph_dispatch.graph_payload_is_publishable(
-        response,
-        allow_sampled=True,
-    )
-    assert not graph_dispatch.graph_payload_is_publishable(
-        response,
-        allow_sampled=False,
-    )
-    assert (
-        bounded_read.call_args.kwargs["deadline_ms"]
-        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
-    )
-    assert bounded_read.call_args.kwargs["filters"][-1] == row_filter
-    exact_read.assert_not_called()
+    assert response == {
+        "metric_name": "latency",
+        "data": [],
+        "query_complete": False,
+        "query_status": "pending",
+        "query_sampled": False,
+        "query_refreshing": True,
+    }
+    bounded_read.assert_not_called()
+    exact_read.assert_called_once()
+    namespace, identity = exact_read.call_args.args
+    assert namespace == "observe-system-graph"
+    assert identity["filters"] == [_date_filter(start, end), row_filter]
+    assert identity["observe_type"] == "span"
 
 
 @pytest.mark.unit
-def test_trace_filtered_system_graph_uses_bounded_candidates_and_child_decoration(
+def test_trace_filtered_system_graph_uses_exact_snapshot_without_inline_reads(
     monkeypatch,
 ):
     analytics = mock.Mock()
@@ -353,8 +350,12 @@ def test_trace_filtered_system_graph_uses_bounded_candidates_and_child_decoratio
         "query_sampled": False,
     }
     child_decoration = mock.Mock(return_value=decorated)
-    exact_read = mock.Mock()
-    monkeypatch.setattr(graph_dispatch, "read_graph_candidates", bounded_read)
+    exact_read = mock.Mock(
+        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+    )
+    monkeypatch.setattr(
+        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
+    )
     monkeypatch.setattr(
         graph_dispatch,
         "_fetch_trace_system_metric_graph",
@@ -379,22 +380,26 @@ def test_trace_filtered_system_graph_uses_bounded_candidates_and_child_decoratio
         observe_type="trace",
     )
 
-    assert response["data"] == decorated["data"]
-    assert response["query_exact"] is True
-    assert response["query_provenance"] == "bounded_candidates"
-    exact_read.assert_not_called()
-    bounded_read.assert_called_once()
-    assert (
-        bounded_read.call_args.kwargs["deadline_ms"]
-        == django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
-    )
-    bounded_analytics = bounded_read.call_args.kwargs["analytics"]
-    assert child_decoration.call_args.kwargs["analytics"] is bounded_analytics
-    assert child_decoration.call_args.kwargs["sample"] is sample
+    assert response["query_status"] == "pending"
+    assert response["query_sampled"] is False
+    assert response["data"] == []
+    analytics.execute_ch_query.assert_not_called()
+    bounded_read.assert_not_called()
+    child_decoration.assert_not_called()
+    exact_read.assert_called_once()
+    namespace, identity = exact_read.call_args.args
+    assert namespace == "observe-system-graph"
+    assert identity == {
+        "project_id": PROJECT_ID,
+        "filters": filters,
+        "interval": "day",
+        "metric_id": "latency",
+        "observe_type": "trace",
+    }
 
 
 @pytest.mark.unit
-def test_filtered_trace_discovery_and_decoration_share_one_interactive_deadline(
+def test_filtered_trace_schedules_without_using_the_inline_deadline(
     monkeypatch,
 ):
     analytics = mock.Mock()
@@ -445,8 +450,18 @@ def test_filtered_trace_discovery_and_decoration_share_one_interactive_deadline(
 
     deadline_start = mock.Mock(return_value=deadline)
     monkeypatch.setattr(graph_dispatch.ReadDeadline, "start", deadline_start)
-    monkeypatch.setattr(graph_dispatch, "read_graph_candidates", bounded_read)
+    monkeypatch.setattr(
+        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
+    )
     monkeypatch.setattr(graph_dispatch, "_fetch_trace_system_metric_graph", decorate)
+    exact_read = mock.Mock(
+        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+    )
+    monkeypatch.setattr(
+        graph_dispatch,
+        "read_or_schedule_exact_snapshot",
+        exact_read,
+    )
 
     response = graph_dispatch.fetch_system_metric_graph_ch(
         analytics=analytics,
@@ -457,33 +472,15 @@ def test_filtered_trace_discovery_and_decoration_share_one_interactive_deadline(
         observe_type="trace",
     )
 
-    assert response["query_status"] == "complete"
-    deadline_start.assert_called_once_with(
-        django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
-    )
-    assert phase_analytics[0] is phase_analytics[1]
-    assert deadline.remaining_ms.call_count == 2
-    assert [
-        call.kwargs["timeout_ms"] for call in analytics.execute_ch_query.call_args_list
-    ] == [
-        9_300,
-        8_700,
-    ]
-    for call in analytics.execute_ch_query.call_args_list:
-        read_settings = call.kwargs["settings"]
-        assert "max_rows_to_read" not in read_settings
-        assert (
-            read_settings["max_threads"]
-            == django_settings.DASHBOARD_TRACE_READ_MAX_THREADS
-        )
-        assert (
-            read_settings["max_memory_usage"]
-            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
-        )
+    assert response["query_status"] == "pending"
+    deadline_start.assert_not_called()
+    assert phase_analytics == []
+    analytics.execute_ch_query.assert_not_called()
+    exact_read.assert_called_once()
 
 
 @pytest.mark.unit
-def test_filtered_graph_budget_failure_preserves_advancing_stratum_metadata(
+def test_filtered_graph_does_not_publish_bounded_budget_failure_metadata(
     monkeypatch,
 ):
     start = datetime(2025, 8, 12)
@@ -503,11 +500,15 @@ def test_filtered_graph_budget_failure_preserves_advancing_stratum_metadata(
         sampling_strata=8,
         sampling_strata_completed=3,
     )
-    exact_read = mock.Mock()
+    bounded_read = mock.Mock(return_value=incomplete)
+    exact_read = mock.Mock(
+        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+    )
     monkeypatch.setattr(
         graph_dispatch,
         "read_graph_candidates",
-        mock.Mock(return_value=incomplete),
+        bounded_read,
+        raising=False,
     )
     monkeypatch.setattr(
         graph_dispatch,
@@ -525,19 +526,16 @@ def test_filtered_graph_budget_failure_preserves_advancing_stratum_metadata(
     )
 
     assert response["data"] == []
-    assert response["query_status"] == "degraded"
-    assert response["query_error_code"] == "read_budget_exceeded"
-    assert response["query_sampling_strategy"] == "time_stratified_latest_state"
-    assert response["query_sampling_strata"] == 8
-    assert response["query_sampling_strata_completed"] == 3
-    assert response["query_sample_size"] == 1
-    assert response["query_exact"] is False
-    assert response["query_provenance"] == "bounded_candidates"
-    exact_read.assert_not_called()
+    assert response["query_status"] == "pending"
+    assert response["query_sampled"] is False
+    assert "query_error_code" not in response
+    assert "query_sampling_strategy" not in response
+    bounded_read.assert_not_called()
+    exact_read.assert_called_once()
 
 
 @pytest.mark.unit
-def test_filtered_graph_programming_defect_is_not_disguised_as_degraded(
+def test_filtered_graph_never_executes_the_retired_candidate_aggregator(
     monkeypatch,
 ):
     start = datetime(2026, 8, 1)
@@ -554,10 +552,12 @@ def test_filtered_graph_programming_defect_is_not_disguised_as_degraded(
         result_payload_bytes=0,
         total_rows_lower_bound=0,
     )
+    bounded_read = mock.Mock(return_value=sample)
     monkeypatch.setattr(
         graph_dispatch,
         "read_graph_candidates",
-        mock.Mock(return_value=sample),
+        bounded_read,
+        raising=False,
     )
     candidate_aggregate = mock.Mock(
         side_effect=AssertionError("malformed candidate row")
@@ -568,15 +568,28 @@ def test_filtered_graph_programming_defect_is_not_disguised_as_degraded(
         candidate_aggregate,
         raising=False,
     )
-    with pytest.raises(AssertionError, match="malformed candidate row"):
-        graph_dispatch.fetch_system_metric_graph_ch(
-            analytics=mock.Mock(),
-            project_id=PROJECT_ID,
-            filters=[_attribute_filter()],
-            interval="day",
-            metric_id="latency",
-            observe_type="span",
-        )
+    exact_read = mock.Mock(
+        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+    )
+    monkeypatch.setattr(
+        graph_dispatch,
+        "read_or_schedule_exact_snapshot",
+        exact_read,
+    )
+
+    response = graph_dispatch.fetch_system_metric_graph_ch(
+        analytics=mock.Mock(),
+        project_id=PROJECT_ID,
+        filters=[_attribute_filter()],
+        interval="day",
+        metric_id="latency",
+        observe_type="span",
+    )
+
+    assert response["query_status"] == "pending"
+    bounded_read.assert_not_called()
+    candidate_aggregate.assert_not_called()
+    exact_read.assert_called_once()
 
 
 @pytest.mark.unit
