@@ -8,6 +8,7 @@ import {
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
+  QUERY_FAILED_RETRY_MESSAGE,
 } from "src/utils/queryReadState";
 import PrimaryGraph from "../PrimaryGraph";
 
@@ -858,6 +859,34 @@ describe("PrimaryGraph", () => {
       "observe-aggregation-completed",
       exactCompletion,
     );
+  });
+
+  it("terminalizes a failed exact refresh instead of polling forever", async () => {
+    vi.useFakeTimers();
+    axios.post.mockResolvedValue({
+      data: {
+        result: {
+          metric_name: "latency",
+          data: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: false,
+          query_refresh_failed: true,
+        },
+      },
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(axios.post).toHaveBeenCalledOnce();
+    expect(screen.getByText(QUERY_FAILED_RETRY_MESSAGE)).toBeVisible();
+    expect(
+      screen.queryByRole("status", { name: GRAPH_LOADING_MESSAGE }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps observing a healthy 12M exact job beyond one request window", async () => {

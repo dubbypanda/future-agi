@@ -56,6 +56,23 @@ def _attribute_filter(
     }
 
 
+def _system_filter(
+    *,
+    column_id: str = "model",
+    operation: str = "equals",
+    value: Any = "gpt-4o-2024-11-20",
+) -> dict[str, Any]:
+    return {
+        "column_id": column_id,
+        "filter_config": {
+            "col_type": "SYSTEM_METRIC",
+            "filter_type": "text",
+            "filter_op": operation,
+            "filter_value": value,
+        },
+    }
+
+
 def _builder(
     *non_time_filters: dict[str, Any],
     sampling_rate: float | None = None,
@@ -135,6 +152,32 @@ def test_exact_graph_anchor_partition_accepts_one_positive_typed_map_leaf(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
+    ("column_id", "operation", "value"),
+    [
+        ("model", "equals", "gpt-4o-2024-11-20"),
+        ("model", "in", ["gpt-4o-2024-11-20", "gpt-5-mini"]),
+        ("status", "equals", "ERROR"),
+        ("provider", "equals", "openai"),
+    ],
+)
+def test_exact_graph_anchor_partition_accepts_one_positive_direct_scalar_leaf(
+    column_id: str,
+    operation: str,
+    value: Any,
+):
+    builder = _builder(
+        _system_filter(
+            column_id=column_id,
+            operation=operation,
+            value=value,
+        )
+    )
+
+    assert builder.exact_graph_supports_authoritative_anchor_partition() is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
     "filter_item",
     [
         _attribute_filter(operation="not_equals"),
@@ -151,15 +194,7 @@ def test_exact_graph_anchor_partition_accepts_one_positive_typed_map_leaf(
             operation="contains",
             value={"tier": "gold"},
         ),
-        {
-            "column_id": "status",
-            "filter_config": {
-                "col_type": "SYSTEM_METRIC",
-                "filter_type": "text",
-                "filter_op": "equals",
-                "filter_value": "ERROR",
-            },
-        },
+        _system_filter(column_id="trace_name", value="root-only"),
     ],
 )
 def test_exact_graph_anchor_partition_rejects_non_authoritative_leaf_shapes(
@@ -243,6 +278,39 @@ def test_exact_graph_anchor_partition_reduces_full_v2_identity_before_filtering(
     assert params["exact_graph_anchor_start_us"] == _unix_microseconds(partition_start)
     assert params["exact_graph_anchor_end_us"] == _unix_microseconds(partition_end)
     assert params["exact_graph_anchor_limit"] == 10_001
+
+
+@pytest.mark.unit
+def test_exact_graph_anchor_partition_reduces_direct_model_before_filtering():
+    builder = _builder(_system_filter())
+
+    sql, params = builder.build_exact_graph_latest_anchor_partition(
+        partition_start=datetime(2026, 7, 27, 6, 0, 0),
+        partition_end=datetime(2026, 7, 27, 12, 0, 0),
+        limit=10_001,
+    )
+    compact = _compact(sql)
+    replay_start = compact.index("SELECT grouped_trace_id AS trace_id FROM (")
+    identity_end = compact.index(
+        "GROUP BY project_id, observation_type, service_name, "
+        "toStartOfHour(start_time), trace_id, id",
+        replay_start,
+    )
+
+    assert "lowerUTF8(toString(model)) = %(latest_filter_param_0)s" in compact[
+        :replay_start
+    ]
+    assert "argMax(tuple(model), _version).1 AS latest_column_value_0" in compact
+    assert (
+        "lowerUTF8(toString(latest_column_value_0))" not in compact[
+            replay_start:identity_end
+        ]
+    )
+    assert (
+        "lowerUTF8(toString(latest_column_value_0)) = %(latest_filter_param_0)s"
+        in compact[identity_end:]
+    )
+    assert params["latest_filter_param_0"] == "gpt-4o-2024-11-20"
 
 
 @pytest.mark.unit

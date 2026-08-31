@@ -35,6 +35,8 @@ const DASHBOARD_KEYS = {
     category,
     search,
     source,
+    projectIds,
+    perEvalConfig,
     excludeCustomAttributes,
     pageSize,
   ) => [
@@ -44,6 +46,8 @@ const DASHBOARD_KEYS = {
     category,
     search,
     source,
+    [...(projectIds || [])].map(String).sort(),
+    Boolean(perEvalConfig),
     excludeCustomAttributes,
     pageSize,
   ],
@@ -407,16 +411,23 @@ export function useLegacyDashboardMetricsPaginated({
   category = "",
   source = "",
   search = "",
+  projectIds = [],
+  perEvalConfig = false,
   pageSize = PROPERTY_CATALOG_PAGE_SIZE,
   excludeCustomAttributes = false,
   enabled = true,
 } = {}) {
   const boundedSearch = boundPropertyCatalogSearch(search);
+  const canonicalProjectIds = [
+    ...new Set((projectIds || []).map(String)),
+  ].sort();
   const query = useInfiniteQuery({
     queryKey: DASHBOARD_KEYS.metricsPaginated(
       category,
       boundedSearch,
       source,
+      canonicalProjectIds,
+      perEvalConfig,
       excludeCustomAttributes,
       pageSize,
     ),
@@ -428,6 +439,10 @@ export function useLegacyDashboardMetricsPaginated({
           ...(category ? { category } : {}),
           ...(source ? { source } : {}),
           ...(boundedSearch ? { search: boundedSearch } : {}),
+          ...(canonicalProjectIds.length
+            ? { project_ids: canonicalProjectIds.join(",") }
+            : {}),
+          ...(perEvalConfig ? { per_eval_config: true } : {}),
           ...(excludeCustomAttributes
             ? { exclude_custom_attributes: true }
             : {}),
@@ -441,6 +456,9 @@ export function useLegacyDashboardMetricsPaginated({
     },
     initialPageParam: 1,
     enabled,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
+    meta: { errorHandled: true },
   });
 
   // Flatten all pages into a single metrics array

@@ -322,6 +322,67 @@ describe("useDashboardMetricsPaginated", () => {
       mocks.get.mock.calls.map(([, config]) => config.params.page_size),
     ).toEqual([25, 100]);
   });
+
+  it("scopes legacy compatibility reads by canonical projects and eval config", async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        result: {
+          metrics: [],
+          total: 0,
+          page: 1,
+          page_size: 20,
+          has_more: false,
+        },
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = createQueryWrapper(queryClient);
+
+    const first = renderHook(
+      () =>
+        useDashboardMetricsPaginated({
+          category: "custom_attribute",
+          source: "traces",
+          search: "prompt_sl",
+          projectIds: ["project-b", "project-a", "project-b"],
+          perEvalConfig: true,
+          pageSize: 20,
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+
+    const second = renderHook(
+      () =>
+        useDashboardMetricsPaginated({
+          category: "custom_attribute",
+          source: "traces",
+          search: "prompt_sl",
+          projectIds: ["project-a", "project-b"],
+          perEvalConfig: true,
+          pageSize: 20,
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.get).toHaveBeenCalledWith("/tracer/dashboard/metrics/", {
+      signal: expect.anything(),
+      timeout: PROPERTY_CATALOG_REQUEST_TIMEOUT_MS,
+      params: {
+        category: "custom_attribute",
+        source: "traces",
+        search: "prompt_sl",
+        project_ids: "project-a,project-b",
+        per_eval_config: true,
+        page: 1,
+        page_size: 20,
+      },
+    });
+  });
 });
 
 describe("usePropertyCatalog", () => {

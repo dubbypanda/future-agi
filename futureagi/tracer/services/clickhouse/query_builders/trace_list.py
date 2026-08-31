@@ -1106,6 +1106,31 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 return plan
         return None
 
+    @staticmethod
+    def _exact_graph_authoritative_raw_witness(
+        plan: LatestFilterPredicate,
+    ) -> str:
+        """Return an exhaustive raw witness for one authoritative scalar leaf.
+
+        Typed Maps need the graph-specific value witness when it is safe.  If
+        a missing key's physical default can satisfy the independently reduced
+        value (notably ``false`` for boolean Maps), key presence is the only
+        exhaustive raw superset.  Direct scalar columns such as ``model`` have
+        no Map key witness and use their compiler-proven positive raw
+        predicate.  The latest-state replay remains authoritative in every
+        case; this predicate only chooses the physical identities to reduce.
+        """
+
+        for candidate in (
+            plan.raw_graph_value_witness_predicate,
+            plan.raw_key_witness_predicate,
+            plan.raw_witness_predicate,
+        ):
+            predicate = str(candidate or "").strip()
+            if predicate and "JSONExtract" not in predicate:
+                return predicate
+        return ""
+
     def _filter_exact_zero_probe_plans(
         self,
     ) -> list[LatestFilterPredicate] | None:
@@ -2085,13 +2110,13 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     ) -> LatestFilterPredicate | None:
         """Return the sole any-span leaf supported by the partitioned graph lane.
 
-        This is deliberately narrower than ``_positive_typed_map_anchor_plan``.
         A raw anchor is only a necessary condition when a request contains
         additional leaves; treating it as the complete graph membership set
         would silently drop traces whose sibling spans satisfy those leaves.
-        The first authoritative lane therefore accepts exactly one non-time
-        positive scalar typed-Map equals/IN filter and no relational/root
-        residual. Other shapes keep the existing fail-closed classifier path.
+        The authoritative lane therefore accepts exactly one non-time positive
+        rank-zero scalar any-span equals/IN filter and no relational/root
+        residual. This includes typed Maps and direct scalar columns such as
+        ``model``. Other shapes keep the existing fail-closed classifier path.
         """
 
         if not (
@@ -2116,17 +2141,13 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if residual_filters or len(plans) != 1:
             return None
         plan = plans[0]
-        predicate = str(plan.raw_witness_predicate or plan.seed_predicate or "")
+        predicate = self._exact_graph_authoritative_raw_witness(plan)
         if not (
             plan.scope == "any"
             and plan.raw_witness_rank == 0
             and plan.aggregates
             and plan.predicate
-            and "JSONExtract" not in predicate
-            and re.search(
-                r"\bmapContains\(span_attr_(?:str|num|bool),",
-                predicate,
-            )
+            and predicate
         ):
             return None
         return plan
@@ -2219,7 +2240,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 "AND trace_id > %(exact_graph_anchor_after_trace_id)s"
             )
         aggregate_fragment = ",\n                    ".join(plan.aggregates)
-        raw_witness_predicate = str(plan.raw_witness_predicate or "")
+        raw_witness_predicate = self._exact_graph_authoritative_raw_witness(plan)
         if not raw_witness_predicate:
             return "", {}
         query = f"""

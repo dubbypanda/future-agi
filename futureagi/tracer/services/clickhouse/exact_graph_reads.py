@@ -131,7 +131,11 @@ EXACT_GRAPH_TRACE_ANCHOR_MIN_PARTITION_WIDTH = timedelta(
 EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS = settings.EXACT_GRAPH_TRACE_ANCHOR_MAX_WORKERS
 EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE = settings.EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE
 EXACT_GRAPH_TRACE_ANCHOR_RESULT_SENTINEL = EXACT_GRAPH_TRACE_ANCHOR_PAGE_SIZE + 1
-EXACT_GRAPH_TRACE_ANCHOR_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
+EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS = min(
+    EXACT_GRAPH_WALL_DEADLINE_MS,
+    settings.FILTER_SELECTOR_MAX_BUILDER_QUERY_TIMEOUT_MS,
+)
+EXACT_GRAPH_TRACE_ANCHOR_QUERY_TIMEOUT_MS = EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
 EXACT_GRAPH_TRACE_ANCHOR_MAX_BYTES_TO_READ = settings.OBSERVABILITY_LIST_MAX_BYTES
 # Scanning complete retained history is worthwhile only when the requested
 # root window is both substantial in absolute terms and covers a meaningful
@@ -167,14 +171,16 @@ EXACT_GRAPH_TRACE_CONTRIBUTION_BATCH_SIZE = (
 # Production A/B on a fixed 5k Coletia population measured the one-statement
 # contribution at 0.95 seconds and 1.79 GB. A hotter tenant-specific batch is
 # bisected, and every retry receives only the action's remaining wall time.
-EXACT_GRAPH_TRACE_CONTRIBUTION_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
+EXACT_GRAPH_TRACE_CONTRIBUTION_QUERY_TIMEOUT_MS = (
+    EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+)
 EXACT_GRAPH_TRACE_CONTRIBUTION_MAX_BYTES_TO_READ = settings.OBSERVABILITY_LIST_MAX_BYTES
 # Witness work runs only in the exact-snapshot background activity; public
 # graph polls never wait on an individual statement. Witnesses, classifiers,
 # and contributions consume the same action wall; adaptive bisection remains
 # fail-closed for any batch that cannot complete inside the remaining budget.
-EXACT_GRAPH_TRACE_WITNESS_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
-EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS = EXACT_GRAPH_WALL_DEADLINE_MS
+EXACT_GRAPH_TRACE_WITNESS_QUERY_TIMEOUT_MS = EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
+EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS = EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
 EXACT_GRAPH_TRACE_INITIAL_SLICE = timedelta(
     seconds=settings.EXACT_GRAPH_TRACE_INITIAL_SLICE_SECONDS
 )
@@ -1115,6 +1121,30 @@ def _enumerate_exact_trace_ids(
 
         classify_rows(candidate_rows)
 
+    # A sole compiler-proven positive any-span scalar can be resolved by one
+    # authoritative latest-state pass over disjoint physical partitions. Try
+    # that route before the optional candidate witness: the latter classifies
+    # each finite candidate page by rescanning retained child history and was
+    # observed in production to repeat the same 5k-ID classifier 149 times.
+    # Unsupported or deliberately narrow windows return ``None`` and preserve
+    # the existing candidate/root fallback semantics unchanged.
+    authoritative_anchor = _enumerate_authoritative_anchor_trace_ids(
+        analytics=analytics,
+        builder=builder,
+        request_start=request_start,
+        request_end=request_end,
+        started=started,
+    )
+    if authoritative_anchor is not None:
+        authoritative_ids, anchor_query_count, anchor_rows_returned = (
+            authoritative_anchor
+        )
+        return (
+            authoritative_ids,
+            query_count + anchor_query_count,
+            rows_returned + anchor_rows_returned,
+        )
+
     # property catalog cold DEV proof (2026-08-25) for a 12M trace graph with annotator
     # IS NULL, tokens > 1, and ai_interruption_count > 2 issued 258 sequential
     # CH statements. The first key-only candidate follow-up still hit its 1,001
@@ -1234,23 +1264,6 @@ def _enumerate_exact_trace_ids(
                 candidate_pages_completed += 1
                 if len(candidate_rows) < candidate_page_limit:
                     return trace_ids, query_count, rows_returned
-
-    authoritative_anchor = _enumerate_authoritative_anchor_trace_ids(
-        analytics=analytics,
-        builder=builder,
-        request_start=request_start,
-        request_end=request_end,
-        started=started,
-    )
-    if authoritative_anchor is not None:
-        authoritative_ids, anchor_query_count, anchor_rows_returned = (
-            authoritative_anchor
-        )
-        return (
-            authoritative_ids,
-            query_count + anchor_query_count,
-            rows_returned + anchor_rows_returned,
-        )
 
     slice_end = root_seed_end
     slice_width = min(EXACT_GRAPH_TRACE_INITIAL_SLICE, root_seed_end - root_seed_start)

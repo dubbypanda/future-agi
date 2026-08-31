@@ -429,6 +429,94 @@ describe("TraceFilterPanel workspace property scope", () => {
     get.mockRestore();
   });
 
+  it.each([
+    ["project", { projectId: "project-partial-search" }, "project-partial-search"],
+    ["workspace", { allowWorkspaceScope: true }, null],
+  ])(
+    "uses bounded partial attribute search at %s scope",
+    async (_scope, panelProps, expectedProjectId) => {
+      const get = vi.spyOn(axios, "get").mockImplementation((url, config) => {
+        if (url !== endpoints.dashboard.metrics) {
+          return Promise.resolve({ data: { result: {} } });
+        }
+        const isAttributeSearch =
+          config?.params?.category === "custom_attribute" &&
+          config?.params?.search === "prompt_sl";
+        return Promise.resolve({
+          data: {
+            result: {
+              metrics: isAttributeSearch
+                ? [
+                    {
+                      name: "prompt_slug",
+                      display_name: "prompt_slug",
+                      category: "custom_attribute",
+                      source: "traces",
+                      type: "string",
+                    },
+                  ]
+                : [],
+              total: isAttributeSearch ? 1 : 0,
+              page: 1,
+              page_size: config?.params?.page_size,
+              has_more: false,
+            },
+          },
+        });
+      });
+      propertyCatalogMock.mockReturnValue({
+        metrics: [],
+        legacyFallbackRequired: true,
+        usesUnifiedCatalog: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        isSuccess: false,
+      });
+
+      const { anchorEl } = renderPanel({
+        source: "traces",
+        ...panelProps,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Property" }));
+      fireEvent.change(screen.getByPlaceholderText("Search properties..."), {
+        target: { value: "prompt_sl" },
+      });
+
+      await waitFor(() =>
+        expect(get).toHaveBeenCalledWith(
+          endpoints.dashboard.metrics,
+          expect.objectContaining({
+            params: expect.objectContaining({
+              category: "custom_attribute",
+              source: "traces",
+              search: "prompt_sl",
+              per_eval_config: true,
+              page: 1,
+              page_size: 20,
+              ...(expectedProjectId
+                ? { project_ids: expectedProjectId }
+                : {}),
+            }),
+          }),
+        ),
+      );
+      if (!expectedProjectId) {
+        const matchingCall = get.mock.calls.find(
+          ([url, config]) =>
+            url === endpoints.dashboard.metrics &&
+            config?.params?.category === "custom_attribute" &&
+            config?.params?.search === "prompt_sl",
+        );
+        expect(matchingCall?.[1]?.params).not.toHaveProperty("project_ids");
+      }
+      expect(await screen.findByText("prompt_slug")).toBeInTheDocument();
+
+      document.body.removeChild(anchorEl);
+      get.mockRestore();
+    },
+  );
+
   it("does not read property inventories for a mounted but closed panel", () => {
     propertyCatalogMock.mockReturnValue({
       metrics: [],
@@ -3614,8 +3702,9 @@ describe("exact manual attribute fallback", () => {
           result: {
             metrics: [],
             page,
-            page_size: 200,
-            has_more: page === 1,
+            page_size: config?.params?.page_size,
+            has_more:
+              config?.params?.category === "custom_attribute" && page === 1,
           },
         },
       });
@@ -3626,16 +3715,23 @@ describe("exact manual attribute fallback", () => {
       source: "traces",
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Property" }));
+
     await waitFor(() =>
       expect(getSpy).toHaveBeenCalledWith(
         endpoints.dashboard.metrics,
         expect.objectContaining({
-          params: expect.objectContaining({ page: 1, page_size: 200 }),
+          params: expect.objectContaining({
+            category: "custom_attribute",
+            source: "traces",
+            project_ids: "project-whatfix",
+            per_eval_config: true,
+            page: 1,
+            page_size: 20,
+          }),
         }),
       ),
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Property" }));
     await waitFor(() =>
       expect(
         document.querySelector("[data-filter-property-page-sentinel]"),
@@ -3647,7 +3743,14 @@ describe("exact manual attribute fallback", () => {
       expect(getSpy).toHaveBeenCalledWith(
         endpoints.dashboard.metrics,
         expect.objectContaining({
-          params: expect.objectContaining({ page: 2, page_size: 200 }),
+          params: expect.objectContaining({
+            category: "custom_attribute",
+            source: "traces",
+            project_ids: "project-whatfix",
+            per_eval_config: true,
+            page: 2,
+            page_size: 20,
+          }),
         }),
       ),
     );
@@ -5618,6 +5721,7 @@ describe("filter-value picker bounded-read UX", () => {
   );
 
   it("keeps a cursor continuation distinct from the initial Query field load", async () => {
+    propertyCatalogMock.mockReturnValue(settledPropertyCatalog());
     exactAttributePropertiesMock.mockReturnValue({
       data: [],
       isFetching: true,

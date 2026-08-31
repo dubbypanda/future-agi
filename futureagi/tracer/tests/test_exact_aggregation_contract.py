@@ -3654,6 +3654,71 @@ def test_exact_system_graph_combines_scalar_array_map_and_legacy_json(observe_ty
 
 
 @pytest.mark.unit
+def test_exact_trace_membership_prefers_authoritative_anchor_before_candidate(
+    monkeypatch,
+):
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    request_start = datetime(2026, 7, 1)
+    request_end = datetime(2026, 8, 1)
+    calls: list[str] = []
+
+    class Builder:
+        def __init__(self, **_kwargs):
+            pass
+
+        @staticmethod
+        def supports_bounded_filter_scan():
+            return True
+
+        @staticmethod
+        def parse_time_range(_filters):
+            return request_start, request_end
+
+        @staticmethod
+        def exact_graph_filter_witness_range():
+            return request_start, request_end
+
+        @staticmethod
+        def build_exact_graph_candidate_witness_probe(**_kwargs):
+            raise AssertionError(
+                "the finite candidate classifier must not run after anchor proof"
+            )
+
+    def enumerate_anchor(**kwargs):
+        assert isinstance(kwargs["builder"], Builder)
+        assert kwargs["request_start"] == request_start
+        assert kwargs["request_end"] == request_end
+        calls.append("anchor")
+        return ["trace-from-anchor"], 4, 5
+
+    class Analytics:
+        @staticmethod
+        def execute_ch_query(*_args, **_kwargs):
+            raise AssertionError("the stubbed authoritative route owns all reads")
+
+    monkeypatch.setattr(exact_module, "TraceListQueryBuilderV2", Builder)
+    monkeypatch.setattr(
+        exact_module,
+        "_enumerate_authoritative_anchor_trace_ids",
+        enumerate_anchor,
+    )
+
+    trace_ids, query_count, rows_returned = _enumerate_exact_trace_ids(
+        analytics=Analytics(),
+        project_id="11111111-1111-4111-8111-111111111111",
+        filters=_exact_multi_filters(request_start, request_end),
+        annotation_label_ids=None,
+        started=exact_module.monotonic(),
+    )
+
+    assert calls == ["anchor"]
+    assert trace_ids == ["trace-from-anchor"]
+    assert query_count == 4
+    assert rows_returned == 5
+
+
+@pytest.mark.unit
 def test_exact_trace_membership_sparse_candidate_probe_avoids_root_fanout(
     monkeypatch,
 ):
@@ -4893,7 +4958,7 @@ def test_exact_trace_membership_exhausts_5k_identity_classifier_boundary(monkeyp
     assert exact_module.EXACT_GRAPH_TRACE_CLASSIFY_BATCH_SIZE == 5_000
     assert (
         exact_module.EXACT_GRAPH_TRACE_CLASSIFIER_QUERY_TIMEOUT_MS
-        == exact_module.EXACT_GRAPH_WALL_DEADLINE_MS
+        == exact_module.EXACT_GRAPH_TRACE_STATEMENT_TIMEOUT_MS
     )
     assert exact_module.EXACT_GRAPH_READ_SETTINGS["max_threads"] == 1
     assert "max_rows_to_read" not in exact_module.EXACT_GRAPH_READ_SETTINGS
