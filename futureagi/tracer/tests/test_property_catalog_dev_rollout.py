@@ -899,7 +899,7 @@ def test_native_schema_client_requires_explicit_deployment() -> None:
         (
             "prod",
             "property_catalog_dev_unit",
-            "production catalog database must be exactly",
+            "production catalog database must match the configured",
         ),
     ),
 )

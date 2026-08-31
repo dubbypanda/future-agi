@@ -4159,11 +4159,16 @@ def require_checked_in_property_catalog_production_runtime(
         or not runtime._scope_locked
         or not isinstance(runtime.bound_request, ProductionRolloutRequest)
         or runtime.config.deployment != "prod"
-        or runtime.config.catalog.database != "property_catalog"
     ):
         raise PropertyCatalogDevRuntimeError(
             "configured runtime did not return the reviewed production runtime"
         )
+    try:
+        require_prod_catalog_database(runtime.config.catalog.database)
+    except PropertyCatalogPublishError as exc:
+        raise PropertyCatalogDevRuntimeError(
+            "configured runtime did not return the reviewed production runtime"
+        ) from exc
     return runtime
 
 

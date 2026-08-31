@@ -19,6 +19,14 @@ from tracer.services.clickhouse.v2.property_catalog.connection import (
     validate_property_catalog_database,
     validate_property_catalog_read_admission,
 )
+from tracer.services.clickhouse.v2.property_catalog.database import (
+    configured_production_property_catalog_database,
+)
+from tracer.services.clickhouse.v2.property_catalog.publisher import (
+    PropertyCatalogPublishError,
+    require_dev_catalog_database,
+    require_prod_catalog_database,
+)
 from tracer.services.clickhouse.v2.property_catalog.reader import PropertyCatalogReader
 
 CONFIG = PropertyCatalogConnectionConfig(
@@ -312,6 +320,41 @@ def test_property_catalog_database_validator_accepts_exact_namespaces(
     assert (
         validate_property_catalog_database(database, deployment=deployment) == database
     )
+
+
+def test_property_catalog_database_validator_accepts_configured_production_database(
+    monkeypatch,
+):
+    database = "th7247_catalog_prod_20260823a"
+    monkeypatch.setenv("PROPERTY_CATALOG_PRODUCTION_DATABASE", database)
+
+    assert validate_property_catalog_database(database, deployment="prod") == database
+    with pytest.raises(ValueError, match="namespace does not match"):
+        validate_property_catalog_database("property_catalog", deployment="prod")
+    with pytest.raises(ValueError, match="namespace does not match"):
+        validate_property_catalog_database(database, deployment="dev")
+
+
+def test_configured_production_database_binds_reader_and_writer_validation(
+    monkeypatch,
+):
+    database = "th7247_catalog_prod_20260823a"
+    monkeypatch.setenv("PROPERTY_CATALOG_PRODUCTION_DATABASE", database)
+
+    assert configured_production_property_catalog_database() == database
+    assert require_prod_catalog_database(database) == database
+    with pytest.raises(PropertyCatalogPublishError, match="configured production"):
+        require_prod_catalog_database("property_catalog")
+    with pytest.raises(PropertyCatalogPublishError, match="isolated from production"):
+        require_dev_catalog_database(database)
+
+
+@pytest.mark.parametrize("database", ["", "default", "Bad-Name", "property.catalog"])
+def test_configured_production_database_rejects_unsafe_identifiers(database):
+    with pytest.raises(ValueError, match="safe, isolated"):
+        configured_production_property_catalog_database(
+            {"PROPERTY_CATALOG_PRODUCTION_DATABASE": database}
+        )
 
 
 @pytest.mark.parametrize(

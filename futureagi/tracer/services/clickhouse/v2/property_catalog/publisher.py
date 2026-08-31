@@ -26,7 +26,10 @@ from typing import Any, Protocol
 
 from .activation import ManifestStreamRole, RevisionBuildPlan
 from .codec import canonical_uuid, require_sha256
-from .database import PRODUCTION_PROPERTY_CATALOG_DATABASE
+from .database import (
+    PRODUCTION_PROPERTY_CATALOG_DATABASE,
+    configured_production_property_catalog_database,
+)
 from .models import PropertyCatalogEnvelope, SourceAdapter
 from .runtime_limits import RUNTIME_LIMITS
 from .wire import encode_envelope
@@ -723,7 +726,7 @@ def require_dev_catalog_database(database: str) -> str:
         not isinstance(database, str)
         or len(database.encode("utf-8")) > 128
         or CATALOG_DATABASE_RE.fullmatch(database) is None
-        or database == PROD_CATALOG_DATABASE
+        or database == configured_production_property_catalog_database()
         or database in RESERVED_CATALOG_DATABASES
     ):
         raise PropertyCatalogPublishError(
@@ -734,11 +737,13 @@ def require_dev_catalog_database(database: str) -> str:
 
 
 def require_prod_catalog_database(database: str) -> str:
-    """Return the one production catalog identifier or fail closed."""
+    """Return the configured production catalog identifier or fail closed."""
 
-    if database != PROD_CATALOG_DATABASE:
+    configured_database = configured_production_property_catalog_database()
+    if database != configured_database:
         raise PropertyCatalogPublishError(
-            f"production catalog database must be exactly {PROD_CATALOG_DATABASE!r}"
+            "production catalog database must match the configured production "
+            f"database {configured_database!r}"
         )
     return database
 
@@ -746,7 +751,7 @@ def require_prod_catalog_database(database: str) -> str:
 def require_catalog_database(database: str) -> str:
     """Return an explicitly isolated DEV or production catalog identifier."""
 
-    if database == PROD_CATALOG_DATABASE:
+    if database == configured_production_property_catalog_database():
         return database
     return require_dev_catalog_database(database)
 
