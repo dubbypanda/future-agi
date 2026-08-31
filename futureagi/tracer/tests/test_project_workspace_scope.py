@@ -8,10 +8,12 @@ from rest_framework import status
 
 from accounts.models.workspace import Workspace
 from model_hub.models.ai_model import AIModel
+from tfc.middleware.workspace_context import workspace_context
 from tracer.models.observation_span import ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
+from tracer.views.project import ProjectView
 
 pytestmark = [pytest.mark.integration, pytest.mark.api]
 
@@ -65,6 +67,35 @@ def _assert_not_mutated(project_id, *, name, config, session_config, tags):
 
 
 class TestProjectWorkspaceScope:
+    def test_explicit_request_scope_wins_over_stale_manager_workspace_context(
+        self,
+        organization,
+        workspace,
+        user,
+        project,
+    ):
+        stale_workspace = Workspace.no_workspace_objects.create(
+            name=f"stale-workspace-{uuid.uuid4().hex[:8]}",
+            organization=organization,
+            created_by=user,
+        )
+        request = SimpleNamespace(
+            workspace=workspace,
+            organization=organization,
+            user=user,
+            query_params={},
+        )
+        view = ProjectView()
+        view.request = request
+        view.kwargs = {"pk": str(project.id)}
+
+        with workspace_context(
+            stale_workspace,
+            organization=organization,
+            user=user,
+        ):
+            assert view.get_queryset().filter(id=project.id).exists()
+
     @patch("tracer.views.project.UserDetailTimeSeriesQueryBuilderV2")
     @patch("tracer.views.project.V2AnalyticsQueryService")
     def test_user_detail_graph_uses_30_second_read_without_row_cap(

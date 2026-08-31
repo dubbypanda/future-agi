@@ -209,8 +209,13 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
         soft_delete_projects(projects, project_type)
 
     def get_queryset(self):
-        # Get base queryset with automatic filtering from mixin
-        queryset = super().get_queryset()
+        # Request scope is authoritative here.  ``Project.objects`` also applies
+        # the ambient ContextVar workspace, so starting through the generic
+        # mixin can intersect two different workspace scopes and hide a valid
+        # project.  The explicit no-workspace manager keeps authorization bound
+        # to the authenticated request while avoiding inherited worker/request
+        # context from changing the result.
+        queryset = self._project_scope_queryset()
 
         project_id = self.kwargs.get("pk")
 
