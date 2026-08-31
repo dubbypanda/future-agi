@@ -26573,7 +26573,32 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minimum 1
+ */
+page_size?: number;
+eval_task_id: string;
+period?: TracerEvalTaskGetUsagePeriod;
+eval_id?: string;
+start_date?: string;
+end_date?: string;
+eval_aggregation?: boolean;
+span_aggregation?: boolean;
 };
+
+export type TracerEvalTaskGetUsagePeriod = typeof TracerEvalTaskGetUsagePeriod[keyof typeof TracerEvalTaskGetUsagePeriod];
+
+
+export const TracerEvalTaskGetUsagePeriod = {
+  '30m': '30m',
+  '6h': '6h',
+  '1d': '1d',
+  '7d': '7d',
+  '30d': '30d',
+  '90d': '90d',
+  '180d': '180d',
+  '365d': '365d',
+} as const;
 
 export type TracerEvalTaskGetUsage200 = {
   count: number;
