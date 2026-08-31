@@ -2747,7 +2747,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
 
         try:
             body = request.validated_data
-            allow_sampled = request.validated_query_data["allow_sampled"]
             refresh = request.validated_query_data.get("refresh", False)
             project_id = str(body["project_id"])
             with graph_action_postgres_budget(deadline):
@@ -2881,7 +2880,7 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 graph = enforce_exact_graph_data_contract(graph)
                 if not graph_payload_is_publishable(
                     graph,
-                    allow_sampled=allow_sampled,
+                    allow_sampled=False,
                 ):
                     return finish(
                         self._gm.custom_error_response(
@@ -6464,8 +6463,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             )
         if cursor_enabled:
             response_data["next_cursor"] = next_cursor
-            response_data["next_cursor_fingerprint"] = (
-                list_cursor_boundary_fingerprint(next_cursor)
+            response_data["next_cursor_fingerprint"] = list_cursor_boundary_fingerprint(
+                next_cursor
             )
         if bounded_page.error_code and not public_chunk_complete:
             response_data["query_error_code"] = bounded_page.error_code
@@ -7187,8 +7186,8 @@ class UsersView(APIView):
                     )
                 payload = dict(cursor_read.payload)
                 payload["next_cursor"] = next_cursor
-                payload["next_cursor_fingerprint"] = (
-                    list_cursor_boundary_fingerprint(next_cursor)
+                payload["next_cursor_fingerprint"] = list_cursor_boundary_fingerprint(
+                    next_cursor
                 )
                 return self._gm.success_response(payload)
 

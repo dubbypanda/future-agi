@@ -1882,7 +1882,6 @@ describe("useDashboardQuery error boundary", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(mocks.post).toHaveBeenCalledWith("/tracer/dashboard/query/", {
       metrics: [{ name: "Latency" }],
-      allow_sampled: false,
     });
     expect(failedMutation?.options.meta).toEqual({ errorHandled: true });
   });
@@ -1906,7 +1905,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/query/",
       {
         metrics: [{ name: "Latency" }],
-        allow_sampled: false,
       },
       { params: { refresh: true } },
     );
@@ -1929,7 +1927,6 @@ describe("useDashboardQuery error boundary", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mocks.post).toHaveBeenCalledWith("/tracer/dashboard/query/", {
       metrics: [{ name: "Latency" }],
-      allow_sampled: false,
     });
   });
 
@@ -1954,7 +1951,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/query/",
       {
         metrics: [{ name: "Latency" }],
-        allow_sampled: false,
       },
       { signal: controller.signal },
     );
@@ -1966,7 +1962,7 @@ describe("useDashboardQuery error boundary", () => {
       useWidgetQuery,
       { dashboardId: "dash-1", widgetId: "widget-1" },
       "/tracer/dashboard/dash-1/widgets/widget-1/query/",
-      { allow_sampled: false },
+      {},
     ],
     [
       "widget preview",
@@ -1978,7 +1974,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/dash-1/widgets/preview/",
       {
         query_config: { metrics: [{ name: "Latency" }] },
-        allow_sampled: false,
       },
     ],
   ])(

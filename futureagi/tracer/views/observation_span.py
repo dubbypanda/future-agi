@@ -2990,7 +2990,6 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
 
         try:
             body = request.validated_data
-            allow_sampled = request.validated_query_data["allow_sampled"]
             refresh = request.validated_query_data.get("refresh", False)
             project_id = str(body["project_id"])
 
@@ -3121,7 +3120,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 graph = enforce_exact_graph_data_contract(graph)
                 if not graph_payload_is_publishable(
                     graph,
-                    allow_sampled=allow_sampled,
+                    allow_sampled=False,
                 ):
                     return finish(
                         self._gm.custom_error_response(

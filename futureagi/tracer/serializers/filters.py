@@ -560,9 +560,7 @@ class FilterItemField(serializers.JSONField):
 
         column_id = value.get("column_id")
         if not isinstance(column_id, str) or not column_id.strip():
-            raise serializers.ValidationError(
-                "column_id must be a non-empty string."
-            )
+            raise serializers.ValidationError("column_id must be a non-empty string.")
 
         config = value.get("filter_config")
         if not isinstance(config, dict):
@@ -1125,9 +1123,8 @@ class ObserveGraphDataQuerySerializer(StrictInputSerializer):
         required=False,
         default=False,
         help_text=(
-            "Allow a bounded graph sample when every declared temporal "
-            "sampling stratum completed. Sampled responses remain explicitly "
-            "non-exact and include their sampling provenance."
+            "Deprecated compatibility parameter. Observe graphs always return "
+            "complete exact data or a retryable error."
         ),
     )
     refresh = serializers.BooleanField(

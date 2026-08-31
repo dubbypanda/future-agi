@@ -138,7 +138,6 @@ class ChartsView(GenericViewSet):
             )
             property = validated_data.get("property")
             project_id = validated_data.get("project_id")
-            allow_sampled = validated_data["allow_sampled"]
             refresh = validated_data.get("refresh", False)
 
             if not project_id:
@@ -219,7 +218,7 @@ class ChartsView(GenericViewSet):
                 return finish(self._gm.bad_request("Metric data is not valid"))
             if not graph_payload_is_publishable(
                 metric_data,
-                allow_sampled=allow_sampled,
+                allow_sampled=False,
             ):
                 return finish(
                     self._gm.custom_error_response(

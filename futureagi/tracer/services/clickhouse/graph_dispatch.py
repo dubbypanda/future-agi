@@ -22,10 +22,14 @@ from tracer.services.clickhouse.bounded_graph_reads import (
     GRAPH_MAX_POINTS,
     BoundedGraphReadError,
     GraphCandidateSample,
-    aggregate_system_candidate_graph,
-    read_graph_candidates,
 )
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
+from tracer.services.clickhouse.exact_graph_reads import (
+    ExactGraphReadError,
+    read_exact_annotation_graph,
+    read_exact_eval_graph,
+    read_exact_system_graph,
+)
 from tracer.services.clickhouse.query_builders import (
     TimeSeriesQueryBuilder,
 )
@@ -471,7 +475,14 @@ def graph_payload_is_publishable(
     *,
     allow_sampled: bool,
 ) -> bool:
-    """Accept exact/pending series or an explicitly requested safe sample."""
+    """Accept only complete or explicitly pending graph series.
+
+    ``allow_sampled`` remains in the callable contract while old application
+    processes and browser tabs drain, but it is intentionally ignored. Public
+    graph endpoints no longer publish sampled points.
+    """
+
+    del allow_sampled
 
     series = payload if isinstance(payload, list) else [payload]
     for item in series:
@@ -480,22 +491,7 @@ def graph_payload_is_publishable(
         status = item.get("query_status")
         complete = item.get("query_complete")
         if status == "sampled":
-            planned = item.get("query_sampling_strata")
-            completed = item.get("query_sampling_strata_completed")
-            if (
-                not allow_sampled
-                or complete is not False
-                or item.get("query_sampled") is False
-                or item.get("query_exact") is not False
-                or item.get("query_provenance") != "bounded_candidates"
-                or not item.get("query_sampling_strategy")
-                or not isinstance(planned, int)
-                or isinstance(planned, bool)
-                or planned < 1
-                or completed != planned
-            ):
-                return False
-            continue
+            return False
         if status == "pending":
             if (
                 complete is not False
@@ -1070,7 +1066,7 @@ def fetch_system_metric_graph_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    """Read an unfiltered rollup or a bounded synchronous filtered graph."""
+    """Read an unfiltered rollup or an exact synchronous filtered graph."""
 
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
@@ -1093,9 +1089,11 @@ def fetch_system_metric_graph_ch(
             observe_type=normalized_observe_type,
             timeout_ms=timeout_ms,
         )
-    # Observe charts are interactive. Candidate discovery and trace
-    # decoration share one request-owned deadline and return in this HTTP
-    # response; they must not enqueue Temporal work and leave the UI polling.
+    # Observe charts are interactive. Filtered aggregation runs synchronously
+    # against ClickHouse under one request-owned deadline; it must not enqueue
+    # Temporal work or publish a sampled prefix that the default exact client
+    # will reject. The exact reader keeps the reviewed memory/byte/result
+    # guards and withholds partial results if any required statement fails.
     del refresh, organization_id, workspace_id
     interactive_deadline_ms = min(
         int(timeout_ms),
@@ -1103,55 +1101,29 @@ def fetch_system_metric_graph_ch(
     )
     if interactive_deadline_ms <= 0:
         raise ValueError("graph timeout must be positive")
-    started = monotonic()
     bounded_analytics = _DeadlineBoundGraphAnalytics(
         analytics,
         ReadDeadline.start(interactive_deadline_ms),
     )
-    sample: GraphCandidateSample | None = None
     try:
-        sample = read_graph_candidates(
+        response = read_exact_system_graph(
             analytics=bounded_analytics,
             project_id=project_id,
             filters=filters,
+            interval=interval,
+            metric_id=str(metric_id or ""),
             observe_type=normalized_observe_type,
-            deadline_ms=interactive_deadline_ms,
         )
-        _require_renderable_sample(sample)
-        if normalized_observe_type == "trace":
-            response = _fetch_trace_system_metric_graph(
-                analytics=bounded_analytics,
-                sample=sample,
-                project_id=project_id,
-                interval=interval,
-                metric_id=str(metric_id or ""),
-                started=started,
-                timeout_ms=interactive_deadline_ms,
-            )
-        else:
-            response = enforce_exact_graph_data_contract(
-                aggregate_system_candidate_graph(
-                    sample,
-                    metric_id=str(metric_id or ""),
-                    interval=interval,
-                )
-            )
         response.update(
             {
-                "query_provenance": "bounded_candidates",
-                "query_exact": bool(
-                    response.get("query_complete") is True
-                    and response.get("query_sampled") is not True
-                ),
+                "query_provenance": "direct_exact",
+                "query_exact": True,
             }
         )
-        return response
-    except BoundedGraphReadError as exc:
+        return enforce_exact_graph_data_contract(response)
+    except ExactGraphReadError as exc:
         return degraded_graph_response(
-            str(metric_id or ""),
-            exc,
-            sample=sample,
-            provenance="bounded_candidates",
+            str(metric_id or ""), exc, provenance="direct_exact"
         )
     except Exception as exc:
         if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
@@ -1159,8 +1131,7 @@ def fetch_system_metric_graph_ch(
         return degraded_graph_response(
             str(metric_id or ""),
             exc,
-            sample=sample,
-            provenance="bounded_candidates",
+            provenance="direct_exact",
         )
 
 
@@ -1568,29 +1539,51 @@ def fetch_eval_graph_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    del timeout_ms
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
     normalized_observe_type = str(observe_type or "trace").strip().lower()
     normalized_aggregation_context = str(aggregation_context or "trace").strip().lower()
     if normalized_aggregation_context not in {"trace", "session", "user"}:
         raise ValueError("unsupported eval graph aggregation context")
-    identity = {
-        "project_id": project_id,
-        "filters": filters,
-        "interval": interval,
-        "req_data_config": req_data_config,
-        "observe_type": normalized_observe_type,
-        "aggregation_context": normalized_aggregation_context,
-    }
-    return _read_or_refresh_exact_graph(
-        namespace="observe-eval-graph",
-        identity=identity,
-        refresh=bool(refresh),
-        pending_payload=_pending_graph_payload(str(req_data_config.get("id") or "")),
-        organization_id=organization_id,
-        workspace_id=workspace_id,
+    del refresh, organization_id, workspace_id
+    interactive_deadline_ms = min(
+        int(timeout_ms),
+        GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS,
     )
+    if interactive_deadline_ms <= 0:
+        raise ValueError("graph timeout must be positive")
+    bounded_analytics = _DeadlineBoundGraphAnalytics(
+        analytics,
+        ReadDeadline.start(interactive_deadline_ms),
+    )
+    try:
+        response = read_exact_eval_graph(
+            analytics=bounded_analytics,
+            project_id=project_id,
+            filters=filters,
+            interval=interval,
+            req_data_config=req_data_config,
+            observe_type=normalized_observe_type,
+            aggregation_context=normalized_aggregation_context,
+        )
+    except ExactGraphReadError as exc:
+        return degraded_graph_response(
+            str(req_data_config.get("id") or ""),
+            exc,
+            provenance="direct_exact",
+        )
+    except Exception as exc:
+        if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
+            raise
+        return degraded_graph_response(
+            str(req_data_config.get("id") or ""),
+            exc,
+            provenance="direct_exact",
+        )
+    if not isinstance(response, dict):
+        raise ExactGraphReadError("eval graph returned an invalid payload")
+    response.update({"query_provenance": "direct_exact", "query_exact": True})
+    return enforce_exact_graph_data_contract(response)
 
 
 def fetch_eval_chart_series_ch(
@@ -1852,7 +1845,6 @@ def fetch_annotation_graph_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    del timeout_ms
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
     label_id = str(req_data_config.get("id") or "")
@@ -1862,22 +1854,35 @@ def fetch_annotation_graph_ch(
     normalized_aggregation_context = str(aggregation_context or "trace").strip().lower()
     if normalized_aggregation_context not in {"trace", "session", "user"}:
         raise ValueError("unsupported annotation graph aggregation context")
-    identity = {
-        "project_id": project_id,
-        "filters": filters,
-        "interval": interval,
-        "req_data_config": req_data_config,
-        "observe_type": normalized_observe_type,
-        "aggregation_context": normalized_aggregation_context,
-    }
-    return _read_or_refresh_exact_graph(
-        namespace="observe-annotation-graph",
-        identity=identity,
-        refresh=bool(refresh),
-        pending_payload=_pending_graph_payload(label_id),
-        organization_id=organization_id,
-        workspace_id=workspace_id,
+    del refresh, organization_id, workspace_id
+    interactive_deadline_ms = min(
+        int(timeout_ms),
+        GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS,
     )
+    if interactive_deadline_ms <= 0:
+        raise ValueError("graph timeout must be positive")
+    bounded_analytics = _DeadlineBoundGraphAnalytics(
+        analytics,
+        ReadDeadline.start(interactive_deadline_ms),
+    )
+    try:
+        response = read_exact_annotation_graph(
+            analytics=bounded_analytics,
+            project_id=project_id,
+            filters=filters,
+            interval=interval,
+            req_data_config=req_data_config,
+            observe_type=normalized_observe_type,
+            aggregation_context=normalized_aggregation_context,
+        )
+    except ExactGraphReadError as exc:
+        return degraded_graph_response(label_id, exc, provenance="direct_exact")
+    except Exception as exc:
+        if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
+            raise
+        return degraded_graph_response(label_id, exc, provenance="direct_exact")
+    response.update({"query_provenance": "direct_exact", "query_exact": True})
+    return enforce_exact_graph_data_contract(response)
 
 
 __all__ = [

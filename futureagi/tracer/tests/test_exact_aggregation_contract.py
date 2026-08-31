@@ -6189,47 +6189,46 @@ def test_exact_graph_budget_failure_does_not_publish_or_split_contribution_batch
 
 
 @pytest.mark.unit
-def test_public_filtered_graph_returns_pending_without_inline_clickhouse():
+def test_public_filtered_graph_runs_exact_reader_inline_without_scheduling():
     from tracer.services.clickhouse import graph_dispatch
 
     cache.clear()
 
-    class InlineQueryForbidden:
-        @staticmethod
-        def execute_ch_query(*_args, **_kwargs):
-            pytest.fail("the HTTP graph poll must not execute ClickHouse inline")
-
     start = datetime(2026, 8, 1, 0, 0)
     end = datetime(2026, 8, 8, 0, 0)
-    exact_read = []
+    exact_calls = []
 
-    def read_or_schedule(namespace, identity, **options):
-        exact_read.append((namespace, identity, options))
-        return options["pending_payload"]
+    def exact_read(**kwargs):
+        exact_calls.append(kwargs)
+        return {
+            "metric_name": "traffic",
+            "data": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
 
     with patch.object(
         graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        side_effect=read_or_schedule,
+        "read_exact_system_graph",
+        side_effect=exact_read,
     ):
         result = graph_dispatch.fetch_system_metric_graph_ch(
-            analytics=InlineQueryForbidden(),
+            analytics=object(),
             project_id="11111111-1111-4111-8111-111111111111",
             filters=_exact_multi_filters(start, end),
             interval="day",
             metric_id="traffic",
             observe_type="trace",
-            # The HTTP path must remain independent of the exact worker's
-            # ClickHouse budget and return its pending envelope immediately.
-            timeout_ms=1,
+            timeout_ms=30_000,
         )
 
-    assert result["query_status"] == "pending"
-    assert result["query_complete"] is False
+    assert result["query_status"] == "complete"
+    assert result["query_complete"] is True
     assert result["query_sampled"] is False
-    assert result["query_refreshing"] is True
-    assert exact_read[0][0] == "observe-system-graph"
-    assert exact_read[0][1]["filters"] == _exact_multi_filters(start, end)
+    assert result["query_exact"] is True
+    assert result["query_provenance"] == "direct_exact"
+    assert exact_calls[0]["filters"] == _exact_multi_filters(start, end)
 
 
 @pytest.mark.unit
@@ -7672,29 +7671,35 @@ def test_exact_annotation_graph_supports_combined_structured_filters(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("metric_type", "namespace"),
+    ("metric_type", "reader_name"),
     [
-        ("eval", "observe-eval-graph"),
-        ("annotation", "observe-annotation-graph"),
+        ("eval", "read_exact_eval_graph"),
+        ("annotation", "read_exact_annotation_graph"),
     ],
 )
-def test_session_eval_annotation_cache_identity_keeps_session_context(
+def test_session_eval_annotation_direct_reader_keeps_session_context(
     monkeypatch,
     metric_type,
-    namespace,
+    reader_name,
 ):
     from tracer.services.clickhouse import graph_dispatch
 
     captured = {}
 
-    def read_or_schedule(actual_namespace, identity, **_kwargs):
-        captured.update(namespace=actual_namespace, identity=identity)
-        return {"query_status": "pending"}
+    def direct_reader(**kwargs):
+        captured.update(kwargs)
+        return {
+            "metric_name": "metric",
+            "data": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
 
     monkeypatch.setattr(
         graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        read_or_schedule,
+        reader_name,
+        direct_reader,
     )
     common = {
         "analytics": object(),
@@ -7712,35 +7717,40 @@ def test_session_eval_annotation_cache_identity_keeps_session_context(
     else:
         graph_dispatch.fetch_annotation_graph_ch(**common)
 
-    assert captured["namespace"] == namespace
-    assert captured["identity"]["aggregation_context"] == "session"
+    assert captured["aggregation_context"] == "session"
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("metric_type", "namespace"),
+    ("metric_type", "reader_name"),
     [
-        ("eval", "observe-eval-graph"),
-        ("annotation", "observe-annotation-graph"),
+        ("eval", "read_exact_eval_graph"),
+        ("annotation", "read_exact_annotation_graph"),
     ],
 )
-def test_user_eval_annotation_cache_identity_keeps_user_context(
+def test_user_eval_annotation_direct_reader_keeps_user_context(
     monkeypatch,
     metric_type,
-    namespace,
+    reader_name,
 ):
     from tracer.services.clickhouse import graph_dispatch
 
     captured = {}
 
-    def read_or_schedule(actual_namespace, identity, **_kwargs):
-        captured.update(namespace=actual_namespace, identity=identity)
-        return {"query_status": "pending"}
+    def direct_reader(**kwargs):
+        captured.update(kwargs)
+        return {
+            "metric_name": "metric",
+            "data": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
 
     monkeypatch.setattr(
         graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        read_or_schedule,
+        reader_name,
+        direct_reader,
     )
     common = {
         "analytics": object(),
@@ -7756,8 +7766,7 @@ def test_user_eval_annotation_cache_identity_keeps_user_context(
     else:
         graph_dispatch.fetch_annotation_graph_ch(**common)
 
-    assert captured["namespace"] == namespace
-    assert captured["identity"]["aggregation_context"] == "user"
+    assert captured["aggregation_context"] == "user"
 
 
 @pytest.mark.unit

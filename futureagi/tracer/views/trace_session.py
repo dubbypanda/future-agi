@@ -1521,7 +1521,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
         try:
             body = request.validated_data
-            allow_sampled = request.validated_query_data["allow_sampled"]
             refresh = request.validated_query_data.get("refresh", False)
             project_id = str(body["project_id"])
             with graph_action_postgres_budget(deadline):
@@ -1627,7 +1626,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             # with no ClickHouse diagnostics exposed to the frontend.
             if not graph_payload_is_publishable(
                 graph,
-                allow_sampled=allow_sampled,
+                allow_sampled=False,
             ):
                 graph = {
                     **graph,

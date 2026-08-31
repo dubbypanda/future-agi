@@ -663,10 +663,7 @@ const PrimaryGraph = ({
                 project_id: effectiveObserveId,
               },
               {
-                params: {
-                  allow_sampled: false,
-                  ...(refresh ? { refresh: true } : {}),
-                },
+                params: refresh ? { refresh: true } : undefined,
                 signal: requestSignal,
               },
             ),

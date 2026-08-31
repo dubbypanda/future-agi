@@ -215,7 +215,7 @@ describe("GraphSection exact graph boundary", () => {
     expect(axios.post).toHaveBeenCalledWith(
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
     expect(screen.queryByTestId("apex-chart")).not.toBeInTheDocument();
     expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
@@ -373,7 +373,7 @@ describe("GraphSection exact graph boundary", () => {
           source: "traces",
         },
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select tokens" }));
@@ -388,7 +388,7 @@ describe("GraphSection exact graph boundary", () => {
           source: "traces",
         },
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
   });
 

@@ -754,9 +754,7 @@ export function useDuplicateWidget() {
 export function useWidgetQuery() {
   return useMutation({
     mutationFn: ({ dashboardId, widgetId }) =>
-      axios.post(endpoints.dashboard.widgetQuery(dashboardId, widgetId), {
-        allow_sampled: false,
-      }),
+      axios.post(endpoints.dashboard.widgetQuery(dashboardId, widgetId), {}),
     meta: { errorHandled: true },
   });
 }
@@ -766,7 +764,6 @@ export function usePreviewQuery() {
     mutationFn: ({ dashboardId, queryConfig }) =>
       axios.post(endpoints.dashboard.widgetPreview(dashboardId), {
         query_config: queryConfig,
-        allow_sampled: false,
       }),
     meta: { errorHandled: true },
   });
@@ -782,10 +779,7 @@ export function useDashboardQuery() {
       const queryConfig = wrappedRequest ? request.queryConfig : request;
       const refresh = wrappedRequest && request.refresh === true;
       const signal = wrappedRequest ? request.signal : undefined;
-      const body = {
-        ...queryConfig,
-        allow_sampled: false,
-      };
+      const body = { ...queryConfig };
 
       if (refresh) {
         return axios.post(endpoints.dashboard.query, body, {

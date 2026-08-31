@@ -839,7 +839,6 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
     def get_graph_data(self, request, *args, **kwargs):
         query_params = request.validated_query_data
         project_id = str(query_params["project_id"])
-        allow_sampled = query_params["allow_sampled"]
         refresh = query_params.get("refresh", False)
 
         try:
@@ -861,7 +860,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             )
             if not graph_payload_is_publishable(
                 response_data,
-                allow_sampled=allow_sampled,
+                allow_sampled=False,
             ):
                 return self._gm.custom_error_response(
                     status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1048,7 +1047,6 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
 
         try:
             body = request.validated_data
-            allow_sampled = request.validated_query_data["allow_sampled"]
             refresh = request.validated_query_data.get("refresh", False)
             project_id = str(body["project_id"])
             filters = bind_request_my_annotations_principal(
@@ -1109,7 +1107,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                     graph_data = enforce_exact_graph_data_contract(graph_data)
                     if not graph_payload_is_publishable(
                         graph_data,
-                        allow_sampled=allow_sampled,
+                        allow_sampled=False,
                     ):
                         return finish(
                             self._gm.custom_error_response(
@@ -1182,7 +1180,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 graph_data = enforce_exact_graph_data_contract(graph_data)
                 if not graph_payload_is_publishable(
                     graph_data,
-                    allow_sampled=allow_sampled,
+                    allow_sampled=False,
                 ):
                     return finish(
                         self._gm.custom_error_response(

@@ -188,7 +188,7 @@ describe("PrimaryGraph", () => {
           source: "traces",
         }),
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
   });
 
@@ -292,7 +292,7 @@ describe("PrimaryGraph", () => {
           source: "traces",
         }),
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
   });
 
@@ -835,7 +835,7 @@ describe("PrimaryGraph", () => {
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
       expect.objectContaining({
-        params: { allow_sampled: false, refresh: true },
+        params: { refresh: true },
       }),
     );
     expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
@@ -900,7 +900,7 @@ describe("PrimaryGraph", () => {
       2,
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
     expect(screen.getByTestId("apex-chart")).toBeInTheDocument();
     expect(exactCompletion).toHaveBeenCalledOnce();

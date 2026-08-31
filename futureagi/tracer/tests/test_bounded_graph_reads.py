@@ -3601,11 +3601,8 @@ def test_locked_trace_temporal_candidates_use_resource_safe_union_batches() -> N
 @pytest.mark.parametrize(
     ("fetch_name", "namespace"),
     [
-        ("fetch_system_metric_graph_ch", "observe-system-graph"),
         ("fetch_all_system_metrics_ch", "observe-all-system-graphs"),
-        ("fetch_eval_graph_ch", "observe-eval-graph"),
         ("fetch_eval_chart_series_ch", "observe-eval-chart-series"),
-        ("fetch_annotation_graph_ch", "observe-annotation-graph"),
     ],
 )
 def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
@@ -3631,13 +3628,7 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
         "filters": filters,
         "interval": "hour",
     }
-    if fetch_name == "fetch_system_metric_graph_ch":
-        response = graph_dispatch.fetch_system_metric_graph_ch(
-            **common,
-            metric_id="latency",
-            observe_type="trace",
-        )
-    elif fetch_name == "fetch_all_system_metrics_ch":
+    if fetch_name == "fetch_all_system_metrics_ch":
         response = graph_dispatch.fetch_all_system_metrics_ch(**common)
     elif fetch_name == "fetch_eval_chart_series_ch":
         response = graph_dispatch.fetch_eval_chart_series_ch(
@@ -3649,6 +3640,63 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
                 "choices": ["good", "bad"],
             },
             eval_name="quality",
+        )
+    assert len(calls) == 1
+    actual_namespace, identity, options = calls[0]
+    assert actual_namespace == namespace
+    assert identity["project_id"] == PROJECT_ID
+    assert identity["filters"] == filters
+    assert identity["interval"] == "hour"
+    assert options["refresh"] is False
+    assert response == options["pending_payload"]
+    pending_items = response if isinstance(response, list) else [response]
+    assert all(item["query_status"] == "pending" for item in pending_items)
+    assert all(item["query_complete"] is False for item in pending_items)
+    assert all(item["query_sampled"] is False for item in pending_items)
+    assert all(item["query_refreshing"] is True for item in pending_items)
+    if fetch_name != "fetch_all_system_metrics_ch":
+        assert all(item["data"] == [] for item in pending_items)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("fetch_name", "reader_name"),
+    [
+        ("fetch_system_metric_graph_ch", "read_exact_system_graph"),
+        ("fetch_eval_graph_ch", "read_exact_eval_graph"),
+        ("fetch_annotation_graph_ch", "read_exact_annotation_graph"),
+    ],
+)
+def test_public_primary_graph_wrappers_use_direct_exact_reads(
+    monkeypatch,
+    fetch_name,
+    reader_name,
+):
+    calls = []
+
+    def direct_reader(**kwargs):
+        calls.append(kwargs)
+        return {
+            "metric_name": "metric",
+            "data": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
+
+    monkeypatch.setattr(graph_dispatch, reader_name, direct_reader)
+    filters = [_date_filter(), _attribute_filter("final_status", "Rejected")]
+    common = {
+        "analytics": object(),
+        "project_id": PROJECT_ID,
+        "filters": filters,
+        "interval": "hour",
+    }
+    if fetch_name == "fetch_system_metric_graph_ch":
+        response = graph_dispatch.fetch_system_metric_graph_ch(
+            **common,
+            metric_id="latency",
+            observe_type="trace",
         )
     elif fetch_name == "fetch_eval_graph_ch":
         response = graph_dispatch.fetch_eval_graph_ch(
@@ -3668,20 +3716,14 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
         )
 
     assert len(calls) == 1
-    actual_namespace, identity, options = calls[0]
-    assert actual_namespace == namespace
-    assert identity["project_id"] == PROJECT_ID
-    assert identity["filters"] == filters
-    assert identity["interval"] == "hour"
-    assert options["refresh"] is False
-    assert response == options["pending_payload"]
-    pending_items = response if isinstance(response, list) else [response]
-    assert all(item["query_status"] == "pending" for item in pending_items)
-    assert all(item["query_complete"] is False for item in pending_items)
-    assert all(item["query_sampled"] is False for item in pending_items)
-    assert all(item["query_refreshing"] is True for item in pending_items)
-    if fetch_name != "fetch_all_system_metrics_ch":
-        assert all(item["data"] == [] for item in pending_items)
+    assert calls[0]["project_id"] == PROJECT_ID
+    assert calls[0]["filters"] == filters
+    assert calls[0]["interval"] == "hour"
+    assert response["query_status"] == "complete"
+    assert response["query_complete"] is True
+    assert response["query_sampled"] is False
+    assert response["query_exact"] is True
+    assert response["query_provenance"] == "direct_exact"
 
 
 @pytest.mark.unit
