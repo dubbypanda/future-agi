@@ -1949,7 +1949,10 @@ def test_span_mixed_structured_anchor_uses_only_the_indexed_typed_map_leaf():
     )
     assert "has(attrs_string.keys, %(latest_filter_key_0)s)" in anchor_query
     assert anchor_params["latest_filter_key_0"] == "final_status"
-    assert "mapValues(attrs_string)" not in anchor_query
+    assert (
+        "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in anchor_query
+    )
+    assert "arrayMap(x -> lower(x), mapValues(attrs_string))" not in anchor_query
     assert (
         "lowerUTF8(toString(attrs_string[%(latest_filter_key_0)s])) = "
         "%(latest_filter_param_0)s" in anchor_query
@@ -2044,13 +2047,20 @@ def test_text_map_key_subcolumn_is_only_an_optional_list_anchor(
     )
     assert "has(attrs_string.keys, %(latest_filter_key_0)s)" in anchor_query
     assert anchor_params["latest_filter_key_0"] == "final_status"
-    assert "mapValues(attrs_string)" not in anchor_query
+    assert (
+        "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in anchor_query
+    )
+    assert "arrayMap(x -> lower(x), mapValues(attrs_string))" not in anchor_query
     assert anchor_params["latest_filter_param_0"] == (
         "rejected" if filter_op == "equals" else ("rejected", "approved")
     )
     assert "lowerUTF8(toString(attrs_string[%(latest_filter_key_0)s]))" in anchor_query
-    assert "latest_filter_index_0_0" not in anchor_params
-    assert "latest_filter_index_0_1" not in anchor_params
+    if filter_op == "in":
+        assert anchor_params["latest_filter_index_0_0"] == "rejected"
+        assert anchor_params["latest_filter_index_0_1"] == "approved"
+    else:
+        assert "latest_filter_index_0_0" not in anchor_params
+        assert "latest_filter_index_0_1" not in anchor_params
     assert "Rejected" not in anchor_params.values()
     assert "Approved" not in anchor_params.values()
 
@@ -3667,7 +3677,7 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
         ("fetch_annotation_graph_ch", "read_exact_annotation_graph"),
     ],
 )
-def test_public_primary_graph_wrappers_use_direct_exact_reads(
+def test_public_primary_graph_wrappers_use_inline_exact_snapshot_reads(
     monkeypatch,
     fetch_name,
     reader_name,
@@ -3723,7 +3733,9 @@ def test_public_primary_graph_wrappers_use_direct_exact_reads(
     assert response["query_complete"] is True
     assert response["query_sampled"] is False
     assert response["query_exact"] is True
-    assert response["query_provenance"] == "direct_exact"
+    # exact_snapshot is the generated public enum; the single patched call
+    # above proves the implementation remains synchronous and request-owned.
+    assert response["query_provenance"] == "exact_snapshot"
 
 
 @pytest.mark.unit

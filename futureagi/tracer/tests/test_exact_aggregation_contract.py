@@ -6189,7 +6189,7 @@ def test_exact_graph_budget_failure_does_not_publish_or_split_contribution_batch
 
 
 @pytest.mark.unit
-def test_public_filtered_graph_runs_exact_reader_inline_without_scheduling():
+def test_public_filtered_graph_runs_exact_snapshot_reader_inline_without_scheduling():
     from tracer.services.clickhouse import graph_dispatch
 
     cache.clear()
@@ -6227,7 +6227,9 @@ def test_public_filtered_graph_runs_exact_reader_inline_without_scheduling():
     assert result["query_complete"] is True
     assert result["query_sampled"] is False
     assert result["query_exact"] is True
-    assert result["query_provenance"] == "direct_exact"
+    # exact_snapshot is the established public enum; the patched reader above
+    # proves execution is still request-time and never scheduled.
+    assert result["query_provenance"] == "exact_snapshot"
     assert exact_calls[0]["filters"] == _exact_multi_filters(start, end)
 
 

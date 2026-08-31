@@ -1248,10 +1248,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 )
             ) or re.search(r"\bIS\s+(?:NOT\s+)?NULL\b", predicate):
                 return False
-            if "lowerUTF8(" in predicate and not (
-                "has(arrayMap(x -> lower(x), mapValues(span_attr_str))" in predicate
-                or "hasAny(arrayMap(x -> lower(x), mapValues(span_attr_str))"
-                in predicate
+            if "lowerUTF8(" in predicate and not any(
+                companion in predicate
+                for companion in (
+                    "has(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))",
+                    "hasAny(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))",
+                )
             ):
                 return False
             return True
@@ -1292,6 +1294,9 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         )
         typed_map_kinds = set(re.findall(r"\bspan_attr_(str|num|bool)\b", predicate))
         if typed_map_kinds:
+            # Keep the legacy bounded-sample scheduler conservative. Exact
+            # graph/list readers use the UTF-8 value companion directly; this
+            # older lane still has numeric-specific retry/stratum assumptions.
             return typed_map_kinds == {"num"} and any(
                 fragment in predicate
                 for fragment in (

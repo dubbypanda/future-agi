@@ -107,7 +107,7 @@ def test_positive_typed_map_equality_raw_witness_binds_key_and_value(
             "span_attr_str",
             "equals",
             "Rejected",
-            "has(arrayMap(x -> lower(x), mapValues(span_attr_str)), "
+            "has(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str)), "
             "%(latest_filter_param_0)s)",
         ),
         (
@@ -115,7 +115,7 @@ def test_positive_typed_map_equality_raw_witness_binds_key_and_value(
             "span_attr_str",
             "in",
             ["Rejected", "Approved"],
-            "hasAny(arrayMap(x -> lower(x), mapValues(span_attr_str)), [",
+            "hasAny(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str)), [",
         ),
         (
             "number",
@@ -148,21 +148,11 @@ def test_text_and_numeric_positive_witnesses_keep_only_safe_index_companions(
     )
 
     assert plan.raw_witness_predicate is not None
-    if filter_type == "text":
-        # The physical text-value bloom uses ASCII-only lower(), while public
-        # equality uses lowerUTF8(). It may accelerate a non-exhaustive seed,
-        # but cannot constrain an exhaustive raw witness: a stored Kelvin sign
-        # must remain a candidate for the ASCII filter value "k".
-        assert index_expression not in plan.seed_predicate
-        assert index_expression not in plan.raw_witness_predicate
-        assert "mapValues(span_attr_str)" not in plan.raw_witness_predicate
-        assert "lowerUTF8(toString(span_attr_str[" in plan.raw_witness_predicate
-    else:
-        assert index_expression in plan.seed_predicate
-        assert index_expression in plan.raw_witness_predicate
-        if operation == "in":
-            assert "%(latest_filter_index_0_0)s" in plan.raw_witness_predicate
-            assert "%(latest_filter_index_0_1)s" in plan.raw_witness_predicate
+    assert index_expression in plan.seed_predicate
+    assert index_expression in plan.raw_witness_predicate
+    if operation == "in":
+        assert "%(latest_filter_index_0_0)s" in plan.raw_witness_predicate
+        assert "%(latest_filter_index_0_1)s" in plan.raw_witness_predicate
     assert map_column in plan.raw_witness_predicate
 
 
@@ -181,10 +171,14 @@ def test_ascii_filter_does_not_make_unicode_stored_values_ascii_safe() -> None:
     assert plan.params["latest_filter_param_0"] == "k"
     assert "lowerUTF8(toString(span_attr_str[" in plan.seed_predicate
     assert "lowerUTF8(toString(span_attr_str[" in plan.raw_witness_predicate
+    assert "arrayMap(x -> lower(x), mapValues(span_attr_str))" not in plan.seed_predicate
     assert "arrayMap(x -> lower(x), mapValues(span_attr_str))" not in (
+        plan.raw_witness_predicate or ""
+    )
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))" in (
         plan.seed_predicate or ""
     )
-    assert "arrayMap(x -> lower(x), mapValues(span_attr_str))" not in (
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))" in (
         plan.raw_witness_predicate or ""
     )
 
