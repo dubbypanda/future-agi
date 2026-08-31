@@ -398,6 +398,29 @@ describe("TraceFilterPanel workspace property scope", () => {
     );
   });
 
+  it("loads workspace Users attributes from the trace catalog", () => {
+    propertyCatalogMock.mockReturnValue({
+      metrics: [],
+      legacyFallbackRequired: false,
+      usesUnifiedCatalog: true,
+    });
+
+    renderPanel({
+      source: "sessions",
+      propertyNamespace: "users",
+      attributeSource: "traces",
+      allowWorkspaceScope: true,
+    });
+
+    expect(propertyCatalogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectIds: [],
+        source: "traces",
+        enabled: true,
+      }),
+    );
+  });
+
   it("falls back to the bounded organization property page when the catalog is not ready", async () => {
     const get = vi.spyOn(axios, "get").mockResolvedValue({
       data: {
@@ -2940,7 +2963,7 @@ describe("exact manual attribute fallback", () => {
     document.body.removeChild(anchorEl);
   });
 
-  it("routes session custom-attribute values through their trace fact store", () => {
+  it("routes session custom attributes through the trace catalog and fact store", () => {
     dashboardFilterValuesMock.mockClear();
     exactAttributePropertiesMock.mockClear();
     const finalStatus = {
@@ -2958,7 +2981,7 @@ describe("exact manual attribute fallback", () => {
       properties: [finalStatus],
       projectId: "project-session-task",
       source: "sessions",
-      attributeSource: "spans",
+      attributeSource: "traces",
       currentFilters: [
         {
           field: "final_status",
@@ -2975,7 +2998,7 @@ describe("exact manual attribute fallback", () => {
     expect(exactAttributePropertiesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-session-task",
-        source: "spans",
+        source: "traces",
       }),
     );
     expect(dashboardFilterValuesMock).toHaveBeenCalledWith(
