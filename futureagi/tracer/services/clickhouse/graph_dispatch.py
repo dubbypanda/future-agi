@@ -1116,14 +1116,18 @@ def fetch_system_metric_graph_ch(
         )
         response.update(
             {
-                "query_provenance": "direct_exact",
+                # Keep the public response on the established OpenAPI enum.
+                # This is still a request-time exact snapshot; exposing the
+                # internal execution route as a new provenance value makes
+                # generated clients reject an otherwise successful response.
+                "query_provenance": "exact_snapshot",
                 "query_exact": True,
             }
         )
         return enforce_exact_graph_data_contract(response)
     except ExactGraphReadError as exc:
         return degraded_graph_response(
-            str(metric_id or ""), exc, provenance="direct_exact"
+            str(metric_id or ""), exc, provenance="exact_snapshot"
         )
     except Exception as exc:
         if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
@@ -1131,7 +1135,7 @@ def fetch_system_metric_graph_ch(
         return degraded_graph_response(
             str(metric_id or ""),
             exc,
-            provenance="direct_exact",
+            provenance="exact_snapshot",
         )
 
 
@@ -1570,7 +1574,7 @@ def fetch_eval_graph_ch(
         return degraded_graph_response(
             str(req_data_config.get("id") or ""),
             exc,
-            provenance="direct_exact",
+            provenance="exact_snapshot",
         )
     except Exception as exc:
         if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
@@ -1578,11 +1582,11 @@ def fetch_eval_graph_ch(
         return degraded_graph_response(
             str(req_data_config.get("id") or ""),
             exc,
-            provenance="direct_exact",
+            provenance="exact_snapshot",
         )
     if not isinstance(response, dict):
         raise ExactGraphReadError("eval graph returned an invalid payload")
-    response.update({"query_provenance": "direct_exact", "query_exact": True})
+    response.update({"query_provenance": "exact_snapshot", "query_exact": True})
     return enforce_exact_graph_data_contract(response)
 
 
@@ -1876,12 +1880,12 @@ def fetch_annotation_graph_ch(
             aggregation_context=normalized_aggregation_context,
         )
     except ExactGraphReadError as exc:
-        return degraded_graph_response(label_id, exc, provenance="direct_exact")
+        return degraded_graph_response(label_id, exc, provenance="exact_snapshot")
     except Exception as exc:
         if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
             raise
-        return degraded_graph_response(label_id, exc, provenance="direct_exact")
-    response.update({"query_provenance": "direct_exact", "query_exact": True})
+        return degraded_graph_response(label_id, exc, provenance="exact_snapshot")
+    response.update({"query_provenance": "exact_snapshot", "query_exact": True})
     return enforce_exact_graph_data_contract(response)
 
 

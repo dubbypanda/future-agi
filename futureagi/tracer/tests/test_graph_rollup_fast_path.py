@@ -264,7 +264,7 @@ def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_exact(
     assert response["query_status"] == "complete"
     assert response["query_sampled"] is False
     assert response["query_exact"] is True
-    assert response["query_provenance"] == "direct_exact"
+    assert response["query_provenance"] == "exact_snapshot"
     assert response["data"][0]["value"] == 42
     assert graph_dispatch.graph_payload_is_publishable(response, allow_sampled=False)
     exact_read.assert_called_once()
@@ -308,7 +308,7 @@ def test_trace_filtered_system_graph_uses_direct_exact_reader(
 
     assert response["data"] == exact_payload["data"]
     assert response["query_exact"] is True
-    assert response["query_provenance"] == "direct_exact"
+    assert response["query_provenance"] == "exact_snapshot"
     exact_read.assert_called_once()
     assert exact_read.call_args.kwargs["project_id"] == PROJECT_ID
     assert exact_read.call_args.kwargs["filters"] == filters
@@ -408,7 +408,7 @@ def test_filtered_graph_exact_budget_failure_fails_closed_without_sample(
     assert response["query_status"] == "degraded"
     assert response["query_sampled"] is False
     assert response["query_exact"] is False
-    assert response["query_provenance"] == "direct_exact"
+    assert response["query_provenance"] == "exact_snapshot"
     exact_read.assert_called_once()
 
 

@@ -7087,7 +7087,11 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
         else:
             formatted = formatter.format_results(metric_results)
 
-        query_provenance = "exact_snapshot" if _exact_worker else "direct_exact"
+        # Both worker and request-time executions publish an exact point-in-time
+        # snapshot. Keep the public provenance within the generated API enum;
+        # execution routing is an internal detail and must not invalidate the
+        # successful response in closed clients.
+        query_provenance = "exact_snapshot"
         formatted.update(
             {
                 "query_complete": True,

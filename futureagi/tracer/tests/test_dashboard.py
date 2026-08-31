@@ -641,7 +641,7 @@ def test_dashboard_public_fallback_executes_directly_without_scheduling_worker()
     assert len(analytics.calls) == 1
     assert builder_configs
     assert response.data["result"]["query_complete"] is True
-    assert response.data["result"]["query_provenance"] == "direct_exact"
+    assert response.data["result"]["query_provenance"] == "exact_snapshot"
     rollup.assert_called_once()
     scheduler.assert_not_called()
 
