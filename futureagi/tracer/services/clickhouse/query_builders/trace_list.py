@@ -1048,6 +1048,57 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             and self._selective_error_status_anchor_plan() is not None
         )
 
+    def _selective_exact_text_anchor_plan(
+        self,
+    ) -> LatestFilterPredicate | None:
+        """Return one long exact typed-Map leaf for global candidate discovery.
+
+        Compile the leaf independently so a preceding broad predicate cannot
+        replace the selective value witness.  The returned predicate is only a
+        necessary physical-row witness; the ordinary latest-state classifier
+        still applies the complete filter conjunction to every candidate.
+        """
+
+        for item in self._active_non_time_filters():
+            if not isinstance(
+                item, dict
+            ) or not self._candidate_witness_filter_is_selective_exact_text(item):
+                continue
+            item_plans, residual = self._partition_trace_filter_plans([item])
+            if residual or len(item_plans) != 1 or item_plans[0].scope != "any":
+                continue
+            plan = item_plans[0]
+            raw_witness = self._exact_graph_authoritative_raw_witness(plan)
+            if raw_witness and "JSONExtract" not in raw_witness:
+                return plan
+        return None
+
+    def _uses_global_selective_exact_text_anchor(self) -> bool:
+        """Whether a fresh interactive list may discover exact-text candidates.
+
+        The all-history witness is deliberately narrow: one project, no search,
+        sort, sampling, graph/bulk/population mode, and a long selective exact
+        text leaf.  Voice lists use an internal trace delegate, so internal mode
+        alone is not excluded; identity/bulk modes remain excluded.
+        """
+
+        request_start, request_end = self._bounded_request_window
+        return bool(
+            self.project_id is not None
+            and self.project_ids is None
+            and not self.search
+            and not self.sort_params
+            and self._bounded_membership_filters is None
+            and not self._bounded_identity_only
+            and not self._bounded_bulk_scan
+            and not self._bounded_population_proof
+            and not self._bounded_global_span_witnesses
+            and self._bounded_sampling_rate is None
+            and not getattr(self, "_bounded_anchor_probe", False)
+            and request_end - request_start > timedelta(hours=1)
+            and self._selective_exact_text_anchor_plan() is not None
+        )
+
     def _graph_key_witness_plans(self) -> list[LatestFilterPredicate]:
         """Return positive any-span Map keys for graph-only discovery.
 
@@ -1710,9 +1761,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return trace_id
 
     def allow_filter_anchor_probe_for_initial_continuation(self) -> bool:
-        """Run the global sparse-error proof only on a fresh cursor page."""
+        """Run complete sparse witnesses only on a fresh cursor page."""
 
-        return self._uses_global_error_status_anchor()
+        return bool(
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        )
 
     def supports_filter_anchor_probe(self) -> bool:
         """Whether a direct any-span leaf can classify sparse vs common."""
@@ -1726,16 +1780,20 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return bool(self._filter_anchor_plans())
 
     def filter_anchor_probe_proves_complete_population(self) -> bool:
-        """Return true only for the complete-history sparse error witness.
+        """Return true only for complete-history necessary witnesses.
 
         Ordinary temporal child anchors remain positive accelerators: the
         canonical root may be in the requested window while its matching child
-        lies outside it.  The specialized error anchor deliberately scans the
-        indexed positive witness across complete retained project history, so
-        exhausting its sentinel does prove the full candidate population.
+        lies outside it.  The specialized error and selective exact-text
+        anchors deliberately scan an indexed necessary witness across complete
+        retained project history, so exhausting their sentinel proves the full
+        candidate population before authoritative latest-state classification.
         """
 
-        return self._uses_global_error_status_anchor()
+        return bool(
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        )
 
     def supports_graph_key_witness_probe(self) -> bool:
         """Whether graph discovery can use one cheap typed-Map key leaf."""
@@ -1757,6 +1815,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return bool(
             request_end - request_start > timedelta(hours=1)
             and not self._uses_global_error_status_anchor()
+            and not self._uses_global_selective_exact_text_anchor()
             and self.recommended_filter_anchor_probe_limit() is None
         )
 
@@ -1777,7 +1836,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         its fixed request budget before ordered candidate acquisition.
         """
 
-        if self._uses_global_error_status_anchor():
+        if (
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        ):
             return _LONG_WINDOW_ANCHOR_SENTINEL
 
         # The production product-path gate showed that even partitioned long-
@@ -1799,6 +1861,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         of the request deadline whenever the speculative probe is incomplete.
         """
 
+        if self._uses_global_selective_exact_text_anchor():
+            # This is the authoritative candidate-acquisition path, not an
+            # optional speculative probe. Use the enclosing list request's
+            # normal statement/read ceilings instead of the 900 ms / 192 MiB
+            # accelerator caps that caused the proven fallback loop.
+            return None
         if self.recommended_filter_anchor_probe_limit() is not None:
             return _LONG_WINDOW_ANCHOR_TIMEOUT_MS
         return None
@@ -1806,7 +1874,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_anchor_probe_strata(self) -> int | None:
         """Partition only the optional long-window list probe."""
 
-        if self._uses_global_error_status_anchor():
+        if (
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        ):
             # This query intentionally covers complete retained history; date
             # strata would turn the finite superset back into a temporal sample.
             return 1
@@ -1817,9 +1888,60 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_anchor_probe_max_bytes_to_read(self) -> int | None:
         """Return the per-stratum byte ceiling for optional list probes."""
 
+        if self._uses_global_selective_exact_text_anchor():
+            return None
         if self.recommended_filter_anchor_probe_limit() is not None:
             return _LONG_WINDOW_ANCHOR_MAX_BYTES_TO_READ
         return None
+
+    def _build_global_typed_map_witness_probe(
+        self,
+        *,
+        anchor: LatestFilterPredicate,
+        limit: int,
+        limit_param: str,
+        after_trace_id: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Build one stable all-history typed-Map candidate sentinel."""
+
+        raw_witness_predicate = self._exact_graph_authoritative_raw_witness(anchor)
+        if not raw_witness_predicate:
+            return "", {}
+        params: dict[str, Any] = {
+            **self.params,
+            **{
+                key: value
+                for key, value in anchor.params.items()
+                if f"%({key})s" in raw_witness_predicate
+            },
+            limit_param: int(limit),
+        }
+        project_version_fragment = ""
+        if self.project_version_id:
+            params["project_version_id"] = self.project_version_id
+            project_version_fragment = (
+                "AND project_version_id = %(project_version_id)s"
+            )
+        keyset_fragment = ""
+        if after_trace_id is not None:
+            if not str(after_trace_id):
+                raise ValueError("exact candidate cursor must be non-empty")
+            params["exact_graph_candidate_after_trace_id"] = str(after_trace_id)
+            keyset_fragment = (
+                "AND trace_id > %(exact_graph_candidate_after_trace_id)s"
+            )
+        query = f"""
+        SELECT trace_id
+        FROM {self.TABLE}
+        PREWHERE {self.project_filter_sql()}
+          {project_version_fragment}
+          {keyset_fragment}
+        WHERE {raw_witness_predicate}
+        ORDER BY trace_id ASC
+        LIMIT 1 BY trace_id
+        LIMIT %({limit_param})s
+        """
+        return query, params
 
     def build_filter_anchor_probe(
         self,
@@ -1896,6 +2018,20 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             LIMIT %(filter_anchor_limit)s
             """
             return query, params
+        if (
+            not _graph_key_witness
+            and slice_start is None
+            and slice_end is None
+            and self._uses_global_selective_exact_text_anchor()
+        ):
+            anchor = self._selective_exact_text_anchor_plan()
+            if anchor is None:  # pragma: no cover - guarded by capability hook
+                raise ValueError("selective exact-text anchor is unavailable")
+            return self._build_global_typed_map_witness_probe(
+                anchor=anchor,
+                limit=limit,
+                limit_param="filter_anchor_limit",
+            )
 
         request_start, request_end = self.parse_time_range(self.filters)
         if (slice_start is None) != (slice_end is None):
@@ -2081,45 +2217,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             raise ValueError("candidate root keyset values must be provided together")
         if before_start_time is not None:
             raise ValueError("raw candidate cursor must use trace identity ordering")
-        raw_witness_predicate = str(
-            anchor.raw_graph_value_witness_predicate
-            or anchor.raw_key_witness_predicate
-            or ""
+        return self._build_global_typed_map_witness_probe(
+            anchor=anchor,
+            limit=limit,
+            limit_param="exact_graph_candidate_limit",
+            after_trace_id=after_trace_id,
         )
-        if not raw_witness_predicate:
-            return "", {}
-
-        params: dict[str, Any] = {
-            **self.params,
-            **{
-                key: value
-                for key, value in anchor.params.items()
-                if f"%({key})s" in raw_witness_predicate
-            },
-            "exact_graph_candidate_limit": int(limit),
-        }
-        project_version_fragment = ""
-        if self.project_version_id:
-            params["project_version_id"] = self.project_version_id
-            project_version_fragment = "AND project_version_id = %(project_version_id)s"
-        keyset_fragment = ""
-        if after_trace_id is not None:
-            if not str(after_trace_id):
-                raise ValueError("exact graph candidate cursor must be non-empty")
-            params["exact_graph_candidate_after_trace_id"] = str(after_trace_id)
-            keyset_fragment = "AND trace_id > %(exact_graph_candidate_after_trace_id)s"
-        query = f"""
-        SELECT trace_id
-        FROM {self.TABLE}
-        PREWHERE {self.project_filter_sql()}
-          {project_version_fragment}
-          {keyset_fragment}
-        WHERE {raw_witness_predicate}
-        ORDER BY trace_id ASC
-        LIMIT 1 BY trace_id
-        LIMIT %(exact_graph_candidate_limit)s
-        """
-        return query, params
 
     def _exact_graph_authoritative_anchor_plan(
         self,

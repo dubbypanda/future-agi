@@ -2818,6 +2818,156 @@ def test_long_window_voice_error_status_forwards_global_indexed_anchor() -> None
     assert params["filter_anchor_limit"] == 64
 
 
+def test_long_window_trace_exact_text_uses_complete_indexed_anchor() -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-"
+        "1776781471202"
+    )
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is True
+    assert builder.supports_filter_anchor_probe() is True
+    assert builder.filter_anchor_probe_proves_complete_population() is True
+    assert builder.recommended_filter_anchor_probe_limit() == 64
+    assert builder.recommended_filter_anchor_probe_timeout_ms() is None
+    assert builder.recommended_filter_anchor_probe_strata() == 1
+    assert builder.recommended_filter_anchor_probe_max_bytes_to_read() is None
+    assert builder.skip_full_window_filter_anchor_probe() is False
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+    normalized_sql = " ".join(sql.split())
+    assert "attrs_string" in normalized_sql
+    assert "span_attr_str" not in normalized_sql
+    assert "start_time >=" not in normalized_sql
+    assert "filter_anchor_start" not in params
+    assert "LIMIT 1 BY trace_id" in normalized_sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert params["filter_anchor_limit"] == 64
+
+
+def test_long_window_voice_exact_text_forwards_complete_indexed_anchor() -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-"
+        "1776781471202"
+    )
+    builder = VoiceCallListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is True
+    assert builder.supports_filter_anchor_probe() is True
+    assert builder.filter_anchor_probe_proves_complete_population() is True
+    assert builder.recommended_filter_anchor_probe_limit() == 64
+    assert builder.recommended_filter_anchor_probe_timeout_ms() is None
+    assert builder.recommended_filter_anchor_probe_strata() == 1
+    assert builder.recommended_filter_anchor_probe_max_bytes_to_read() is None
+    assert builder.skip_full_window_filter_anchor_probe() is False
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+    normalized_sql = " ".join(sql.split())
+    assert "attrs_string" in normalized_sql
+    assert "span_attr_str" not in normalized_sql
+    assert "start_time >=" not in normalized_sql
+    assert "filter_anchor_start" not in params
+    assert "LIMIT 1 BY trace_id" in normalized_sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert params["filter_anchor_limit"] == 64
+
+
+@pytest.mark.parametrize(
+    "builder_kwargs,window_start",
+    [
+        ({}, END - timedelta(hours=1)),
+        (
+            {
+                "bounded_identity_only": True,
+                "bounded_bulk_scan": True,
+            },
+            START,
+        ),
+        (
+            {
+                "bounded_sampling_rate": 10.0,
+                "bounded_sampling_salt": "sample",
+            },
+            START,
+        ),
+    ],
+)
+def test_complete_exact_text_anchor_stays_out_of_excluded_read_modes(
+    builder_kwargs: dict[str, object],
+    window_start: datetime,
+) -> None:
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(window_start, END),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                ["https://storage.vapi.ai/" + "a" * 64],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+        **builder_kwargs,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is False
+    assert builder.filter_anchor_probe_proves_complete_population() is False
+
+
+def test_complete_exact_text_anchor_selects_long_leaf_among_siblings() -> None:
+    recording_url = "https://storage.vapi.ai/" + "b" * 64
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter("final_status", "Rejected"),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+
+    assert "attrs_string" in sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert "latest_filter_key_1" not in params
+
+
 def test_voice_custom_attribute_filter_skips_temporal_trace_anchor() -> None:
     builder = VoiceCallListQueryBuilderV2(
         project_id=PROJECT_ID,
