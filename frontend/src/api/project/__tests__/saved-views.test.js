@@ -7,6 +7,7 @@ import axios from "src/utils/axios";
 import {
   buildCreateSavedViewPayload,
   buildUpdateSavedViewPayload,
+  getOwnViewNames,
   SAVED_VIEWS_KEY,
   serializeSavedViewConfig,
   useCreateSavedView,
@@ -151,6 +152,22 @@ describe("saved view payload contract", () => {
     });
   });
 
+  it("getOwnViewNames scopes to the current user's own views", () => {
+    const views = [
+      { name: "Mine", created_by: { id: "u1" } },
+      { name: "Theirs", created_by: { id: "u2" } },
+      { name: "Orphan" },
+    ];
+    expect(getOwnViewNames(views, "u1")).toEqual(["Mine"]);
+    // Unknown user id → conservative fallback to all names.
+    expect(getOwnViewNames(views, undefined)).toEqual([
+      "Mine",
+      "Theirs",
+      "Orphan",
+    ]);
+    expect(getOwnViewNames(undefined, "u1")).toEqual([]);
+  });
+
   it("strips create-only fields from update payloads", () => {
     expect(
       buildUpdateSavedViewPayload({
@@ -216,6 +233,38 @@ describe("saved view API actions", () => {
         queryClient.getQueryData([SAVED_VIEWS_KEY, "project-1"]).custom_views,
       ).toEqual([{ id: "view-1", name: "Errors" }]);
     });
+  });
+
+  it("propagates a duplicate-name 400 and does not append to the cache", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData([SAVED_VIEWS_KEY, "project-1"], {
+      default_tabs: [],
+      custom_views: [{ id: "view-1", name: "Errors" }],
+    });
+    axios.post.mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { message: "A view named 'Errors' already exists." },
+      },
+    });
+
+    const { result } = renderHook(() => useCreateSavedView("project-1"), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await expect(
+      result.current.mutateAsync({
+        project_id: "project-1",
+        name: "Errors",
+        tab_type: "traces",
+        config: {},
+      }),
+    ).rejects.toMatchObject({ response: { status: 400 } });
+
+    // Cache is untouched — no duplicate row was optimistically added.
+    expect(
+      queryClient.getQueryData([SAVED_VIEWS_KEY, "project-1"]).custom_views,
+    ).toEqual([{ id: "view-1", name: "Errors" }]);
   });
 
   it("updates a project saved view without sending tab_type", async () => {

@@ -211,7 +211,9 @@ import {
   useUpdateSavedView,
   useCreateSavedView,
   useUpdateWorkspaceSavedView,
+  useGetSavedViews,
 } from "src/api/project/saved-views";
+import { getRequestErrorMessage } from "src/utils/errorUtils";
 
 const USER_DETAIL_TAB_TYPE = "user_detail";
 
@@ -2402,6 +2404,8 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
 
   const { mutate: updateSavedView } = useUpdateSavedView(observeId);
   const { mutate: createSavedView } = useCreateSavedView(observeId);
+  // Shares the tab bar's query cache (same key) — no extra fetch.
+  const { data: savedViewsData } = useGetSavedViews(observeId);
   // Workspace-scoped update for user_detail mode — only invoked when isUserMode.
   const { mutate: updateWorkspaceSavedView } =
     useUpdateWorkspaceSavedView(USER_DETAIL_TAB_TYPE);
@@ -2615,38 +2619,73 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
 
   const handleSetDefaultView = useCallback(() => {
     const configPayload = buildViewConfig();
+    const onDone = {
+      onSuccess: () =>
+        enqueueSnackbar("View set as default for everyone", {
+          variant: "success",
+        }),
+      onError: (err) =>
+        enqueueSnackbar(
+          getRequestErrorMessage(err, "Failed to set view as default"),
+          { variant: "error" },
+        ),
+    };
 
     if (activeViewTabId) {
       updateSavedView(
         { id: activeViewTabId, visibility: "project", config: configPayload },
-        {
-          onSuccess: () =>
-            enqueueSnackbar("View set as default for everyone", {
-              variant: "success",
-            }),
-        },
+        onDone,
       );
-    } else {
-      createSavedView(
+      return;
+    }
+
+    // Adopt an existing "Default View" (a blind create would 400 on the name).
+    const existingDefault = (savedViewsData?.custom_views ?? []).find(
+      (v) => v.name === "Default View",
+    );
+    if (existingDefault) {
+      updateSavedView(
         {
-          project_id: observeId,
-          name: "Default View",
-          tab_type: selectedTab === "trace" ? "traces" : "spans",
+          id: existingDefault.id,
           visibility: "project",
           config: configPayload,
         },
-        {
-          onSuccess: () =>
-            enqueueSnackbar("View set as default for everyone", {
-              variant: "success",
-            }),
-        },
+        onDone,
       );
+      return;
     }
+
+    createSavedView(
+      {
+        project_id: observeId,
+        name: "Default View",
+        tab_type: selectedTab === "trace" ? "traces" : "spans",
+        visibility: "project",
+        config: configPayload,
+      },
+      {
+        ...onDone,
+        onSuccess: (res) => {
+          // Adopt the created view as the active tab so subsequent clicks
+          // take the update-by-id branch.
+          const newId = res?.data?.result?.id;
+          if (newId && !isUserMode) {
+            navigate(
+              `/dashboard/observe/${observeId}/llm-tracing?tab=view-${newId}&selectedTab=${selectedTab}`,
+              { replace: true },
+            );
+          }
+          onDone.onSuccess();
+        },
+      },
+    );
   }, [
     activeViewTabId,
     selectedTab,
     observeId,
+    isUserMode,
+    navigate,
+    savedViewsData,
     buildViewConfig,
     updateSavedView,
     createSavedView,

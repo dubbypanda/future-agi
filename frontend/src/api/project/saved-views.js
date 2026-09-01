@@ -87,6 +87,16 @@ export const buildUpdateSavedViewPayload = (data) => {
   return payload;
 };
 
+// Names the backend would reject for this user (uniqueness is per created_by,
+// case-sensitive). Unknown user id → conservative fallback to all names.
+export const getOwnViewNames = (views, currentUserId) =>
+  (views ?? [])
+    .filter(
+      (v) =>
+        !currentUserId || String(v.created_by?.id) === String(currentUserId),
+    )
+    .map((v) => v.name);
+
 const appendCustomViewToCache = (currentResult, newView) => {
   if (!currentResult) return currentResult;
   const currentList = currentResult.custom_views ?? [];
