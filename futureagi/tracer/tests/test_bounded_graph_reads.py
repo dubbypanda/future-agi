@@ -3611,7 +3611,6 @@ def test_locked_trace_temporal_candidates_use_resource_safe_union_batches() -> N
 @pytest.mark.parametrize(
     ("fetch_name", "namespace"),
     [
-        ("fetch_all_system_metrics_ch", "observe-all-system-graphs"),
         ("fetch_eval_chart_series_ch", "observe-eval-chart-series"),
     ],
 )
@@ -3638,9 +3637,7 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
         "filters": filters,
         "interval": "hour",
     }
-    if fetch_name == "fetch_all_system_metrics_ch":
-        response = graph_dispatch.fetch_all_system_metrics_ch(**common)
-    elif fetch_name == "fetch_eval_chart_series_ch":
+    if fetch_name == "fetch_eval_chart_series_ch":
         response = graph_dispatch.fetch_eval_chart_series_ch(
             **common,
             req_data_config={
@@ -3664,8 +3661,7 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
     assert all(item["query_complete"] is False for item in pending_items)
     assert all(item["query_sampled"] is False for item in pending_items)
     assert all(item["query_refreshing"] is True for item in pending_items)
-    if fetch_name != "fetch_all_system_metrics_ch":
-        assert all(item["data"] == [] for item in pending_items)
+    assert all(item["data"] == [] for item in pending_items)
 
 
 @pytest.mark.unit
@@ -3673,6 +3669,7 @@ def test_public_graph_wrappers_use_exact_snapshot_without_inline_reads(
     ("fetch_name", "reader_name"),
     [
         ("fetch_system_metric_graph_ch", "read_exact_system_graph"),
+        ("fetch_user_system_metric_graph_ch", "read_exact_user_system_graph"),
         ("fetch_eval_graph_ch", "read_exact_eval_graph"),
         ("fetch_annotation_graph_ch", "read_exact_annotation_graph"),
     ],
@@ -3708,6 +3705,11 @@ def test_public_primary_graph_wrappers_use_inline_exact_snapshot_reads(
             metric_id="latency",
             observe_type="trace",
         )
+    elif fetch_name == "fetch_user_system_metric_graph_ch":
+        response = graph_dispatch.fetch_user_system_metric_graph_ch(
+            **common,
+            metric_id="active_users",
+        )
     elif fetch_name == "fetch_eval_graph_ch":
         response = graph_dispatch.fetch_eval_graph_ch(
             **common,
@@ -3735,6 +3737,47 @@ def test_public_primary_graph_wrappers_use_inline_exact_snapshot_reads(
     assert response["query_exact"] is True
     # exact_snapshot is the generated public enum; the single patched call
     # above proves the implementation remains synchronous and request-owned.
+    assert response["query_provenance"] == "exact_snapshot"
+
+
+@pytest.mark.unit
+def test_all_system_metrics_wrapper_uses_one_inline_exact_snapshot_read(monkeypatch):
+    calls = []
+
+    def direct_reader(**kwargs):
+        calls.append(kwargs)
+        return {
+            "latency": [],
+            "tokens": [],
+            "cost": [],
+            "traffic": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
+
+    monkeypatch.setattr(
+        graph_dispatch,
+        "read_exact_all_system_metrics",
+        direct_reader,
+    )
+    filters = [_date_filter(), _attribute_filter("final_status", "Rejected")]
+
+    response = graph_dispatch.fetch_all_system_metrics_ch(
+        analytics=object(),
+        project_id=PROJECT_ID,
+        filters=filters,
+        interval="hour",
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["project_id"] == PROJECT_ID
+    assert calls[0]["filters"] == filters
+    assert calls[0]["interval"] == "hour"
+    assert response["query_status"] == "complete"
+    assert response["query_complete"] is True
+    assert response["query_sampled"] is False
+    assert response["query_exact"] is True
     assert response["query_provenance"] == "exact_snapshot"
 
 

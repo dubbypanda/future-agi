@@ -14,7 +14,6 @@ from tracer.services.clickhouse.v2.query_builders.dashboard import (
     DashboardQueryBuilderV2,
 )
 from tracer.views.dashboard import (
-    DashboardExactReadError,
     DashboardReadQuerySerializer,
     DashboardViewSet,
     DashboardWidgetViewSet,
@@ -337,16 +336,7 @@ def test_widget_query_accepts_old_and_current_persisted_filter_shapes_without_wr
 ):
     stored_query = query_factory(uuid.uuid4())
     original_query = query_factory(stored_query["project_ids"][0])
-    captured = {}
     workspace = SimpleNamespace(id=uuid.uuid4(), organization_id=uuid.uuid4())
-
-    def _degraded(_query_config, *, cache_identity, **_kwargs):
-        captured["identity"] = cache_identity
-        return {
-            "metrics": [],
-            "query_status": "degraded",
-            "query_error_code": "read_budget_exceeded",
-        }
 
     with (
         patch(
@@ -354,14 +344,16 @@ def test_widget_query_accepts_old_and_current_persisted_filter_shapes_without_wr
             side_effect=lambda config, *_args, **_kwargs: config,
         ),
         patch(
-            "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-            side_effect=AssertionError(
-                "the post-synchronous fallback must not dispatch new work"
-            ),
+            "tracer.views.dashboard._read_dashboard_rollup_fast_path",
+            return_value=None,
         ),
         patch(
-            "tracer.views.dashboard._read_public_dashboard_query",
-            side_effect=_degraded,
+            "tracer.views.dashboard.DashboardQueryBuilderV2",
+            wraps=DashboardQueryBuilderV2,
+        ) as builder_cls,
+        patch(
+            "tracer.views.dashboard._fetch_exact_dashboard_rows",
+            return_value=[],
         ),
         patch(
             "tracer.views.dashboard._project_queryset_for_dashboard_scope",
@@ -370,8 +362,8 @@ def test_widget_query_accepts_old_and_current_persisted_filter_shapes_without_wr
             ),
         ),
         patch(
-            "tracer.views.dashboard._fetch_exact_dashboard_rows",
-            side_effect=DashboardExactReadError("bounded test read"),
+            "tracer.views.dashboard.Project.objects.filter",
+            return_value=MagicMock(values_list=MagicMock(return_value=[])),
         ),
     ):
         response = DashboardWidgetViewSet()._execute_ch_query_config(
@@ -380,9 +372,12 @@ def test_widget_query_accepts_old_and_current_persisted_filter_shapes_without_wr
         )
 
     assert response.status_code == 200
-    assert response.data["result"]["query_status"] == "degraded"
-    assert response.data["result"]["query_error_code"] == "read_budget_exceeded"
-    normalized = captured["identity"]["query_config"]
+    assert response.data["result"]["query_status"] == "complete"
+    normalized = next(
+        call.args[0]
+        for call in builder_cls.call_args_list
+        if call.args[0].get("require_versioned_snapshot") is True
+    )
     assert [
         {key: value for key, value in item.items() if key != "canonical_filter"}
         for item in normalized["filters"]
@@ -410,37 +405,29 @@ def test_widget_query_accepts_old_and_current_persisted_filter_shapes_without_wr
     assert stored_query == original_query
 
 
-def test_legacy_numeric_operators_match_current_widget_cache_identity_without_write():
+def test_legacy_numeric_operators_match_current_direct_query_without_write():
     project_id = uuid.uuid4()
     workspace = SimpleNamespace(id=uuid.uuid4(), organization_id=uuid.uuid4())
     stored_queries = [
         _legacy_numeric_operator_query(project_id),
         _canonical_numeric_operator_query(project_id),
     ]
-    captured_identities = []
-
-    def _degraded(_query_config, *, cache_identity, **_kwargs):
-        captured_identities.append(cache_identity)
-        return {
-            "metrics": [],
-            "query_status": "degraded",
-            "query_error_code": "read_budget_exceeded",
-        }
-
     with (
         patch(
             "tracer.views.dashboard._materialize_dashboard_query_scope",
             side_effect=lambda config, *_args, **_kwargs: config,
         ),
         patch(
-            "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-            side_effect=AssertionError(
-                "the post-synchronous fallback must not dispatch new work"
-            ),
+            "tracer.views.dashboard._read_dashboard_rollup_fast_path",
+            return_value=None,
         ),
         patch(
-            "tracer.views.dashboard._read_public_dashboard_query",
-            side_effect=_degraded,
+            "tracer.views.dashboard.DashboardQueryBuilderV2",
+            wraps=DashboardQueryBuilderV2,
+        ) as builder_cls,
+        patch(
+            "tracer.views.dashboard._fetch_exact_dashboard_rows",
+            return_value=[],
         ),
         patch(
             "tracer.views.dashboard._project_queryset_for_dashboard_scope",
@@ -449,8 +436,8 @@ def test_legacy_numeric_operators_match_current_widget_cache_identity_without_wr
             ),
         ),
         patch(
-            "tracer.views.dashboard._fetch_exact_dashboard_rows",
-            side_effect=DashboardExactReadError("bounded test read"),
+            "tracer.views.dashboard.Project.objects.filter",
+            return_value=MagicMock(values_list=MagicMock(return_value=[])),
         ),
     ):
         responses = [
@@ -459,8 +446,18 @@ def test_legacy_numeric_operators_match_current_widget_cache_identity_without_wr
         ]
 
     assert [response.status_code for response in responses] == [200, 200]
-    assert captured_identities[0] == captured_identities[1]
-    normalized = captured_identities[0]["query_config"]
+    normalized_configs = [
+        call.args[0]
+        for call in builder_cls.call_args_list
+        if call.args[0].get("require_versioned_snapshot") is True
+    ]
+    assert len(normalized_configs) == 2
+    assert normalized_configs[0]["filters"] == normalized_configs[1]["filters"]
+    assert (
+        normalized_configs[0]["metrics"][0]["filters"]
+        == normalized_configs[1]["metrics"][0]["filters"]
+    )
+    normalized = normalized_configs[0]
     assert {
         key: value
         for key, value in normalized["filters"][0].items()
@@ -575,7 +572,7 @@ def test_dashboard_query_uses_direct_write_backend_independent_of_routing(
     assert response.json()["result"]["query_provenance"] == "materialized_rollup"
     assert v2_client.execute_read.call_count == 1
     v2_builder.assert_called_once()
-    exact_snapshot.assert_called_once()
+    exact_snapshot.assert_not_called()
     dispatch.assert_not_called()
     legacy_analytics.assert_not_called()
 
@@ -651,7 +648,7 @@ def test_widget_trace_queries_use_direct_write_backend_independent_of_routing(
     assert response.json()["result"]["query_provenance"] == "materialized_rollup"
     assert v2_client.execute_read.call_count == 1
     v2_builder.assert_called_once()
-    exact_snapshot.assert_called_once()
+    exact_snapshot.assert_not_called()
     dispatch.assert_not_called()
     legacy_analytics.assert_not_called()
     legacy_client.assert_not_called()
@@ -717,36 +714,42 @@ def test_system_filter_values_read_budget_is_sanitized_503(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "failure",
+    ("failure", "expected_status", "expected_code"),
     [
-        ServerException("private missing-column query", code=47),
-        RuntimeError("private dashboard compiler invariant"),
-        ServerException("private timeout query", code=159),
+        (
+            ServerException("private missing-column query", code=47),
+            400,
+            None,
+        ),
+        (RuntimeError("private dashboard compiler invariant"), 400, None),
+        (
+            ServerException("private timeout query", code=159),
+            503,
+            "service_unavailable",
+        ),
     ],
 )
 @patch("tracer.views.dashboard.V2AnalyticsQueryService")
-def test_dashboard_poll_degrades_fast_path_clickhouse_failures(
+def test_dashboard_query_sanitizes_direct_clickhouse_failures(
     mock_analytics_cls,
     failure,
+    expected_status,
+    expected_code,
     auth_client,
     observe_project,
 ):
     mock_analytics_cls.return_value.execute_ch_query.side_effect = failure
 
-    with patch(
-        "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-        side_effect=lambda _namespace, _identity, **kwargs: kwargs["pending_payload"],
-    ):
-        response = auth_client.post(
-            "/tracer/dashboard/query/",
-            _trace_query(observe_project.id),
-            format="json",
-        )
+    response = auth_client.post(
+        "/tracer/dashboard/query/",
+        _trace_query(observe_project.id),
+        format="json",
+    )
 
-    assert response.status_code == 200
-    assert response.json()["result"]["query_status"] == "pending"
-    assert response.json()["result"]["query_refreshing"] is True
-    mock_analytics_cls.assert_called_once()
+    assert response.status_code == expected_status
+    if expected_code is not None:
+        assert response.json()["code"] == expected_code
+    assert mock_analytics_cls.return_value.execute_ch_query.call_count >= 1
     payload = json.dumps(response.json())
     assert "private" not in payload
     assert "missing-column" not in payload

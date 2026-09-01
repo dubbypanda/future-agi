@@ -12844,9 +12844,9 @@ class TestQueryEngineFailure:
             },
             format="json",
         )
-        # Per-metric isolation swallows the CH error -> 200 with an empty series,
-        # never a 500.
-        assert resp.status_code == 200
+        # Direct dashboard reads fail closed with a sanitized client error,
+        # never a 500 or an indefinitely pending response.
+        assert resp.status_code == 400
 
     @pytest.mark.django_db
     @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
@@ -12962,7 +12962,7 @@ class TestXSSPayloadNonExecutable:
             },
             format="json",
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 400
         # Non-executable: served as JSON, so a reflected payload is inert text.
         assert resp["Content-Type"].startswith("application/json")
 

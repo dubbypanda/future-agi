@@ -335,6 +335,18 @@ def _run_catalog_value_shadow_fail_open(**kwargs) -> None:
 class DashboardExactReadError(RuntimeError):
     """A dashboard refresh did not produce every requested exact metric."""
 
+    def __init__(self, message: str, *, error_code: str = "query_failed") -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
+
+def _dashboard_api_read_unavailable(exc: Exception) -> bool:
+    return (
+        getattr(exc, "error_code", None) == "read_budget_exceeded"
+        or is_read_budget_error(exc)
+        or is_clickhouse_query_error(exc)
+    )
+
 
 class DashboardQueryScopeError(ValueError):
     """A requested dashboard scope is outside the current workspace."""
@@ -2542,16 +2554,35 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         # Dashboard reads are interactive. Route the ad-hoc endpoint through
         # the same synchronous executor as saved widgets so both surfaces use
         # one optimized ClickHouse path and neither schedules Temporal work.
-        query_config = {
-            **request.validated_data,
-            "allow_sampled": False,
-        }
-        return DashboardWidgetViewSet()._execute_ch_query_config(
-            query_config,
-            request.workspace,
-            refresh=request.validated_query_data["refresh"],
-            _read_deadline=read_deadline,
-        )
+        try:
+            query_config = {
+                **request.validated_data,
+                "allow_sampled": False,
+            }
+            return DashboardWidgetViewSet()._execute_ch_query_config(
+                query_config,
+                request.workspace,
+                refresh=request.validated_query_data["refresh"],
+                _read_deadline=read_deadline,
+            )
+        except DashboardActionUnavailable:
+            raise
+        except Exception as exc:
+            if _dashboard_api_read_unavailable(exc):
+                logger.warning(
+                    "dashboard_query_read_unavailable",
+                    error_type=type(exc).__name__,
+                )
+                return self._gm.custom_error_response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    "Dashboard data is temporarily unavailable. Please retry.",
+                    code="service_unavailable",
+                )
+            logger.exception(
+                "dashboard_query_execution_failed",
+                error_type=type(exc).__name__,
+            )
+            return self._gm.bad_request("Dashboard query could not be completed")
 
     # ------------------------------------------------------------------
     # Unified metrics endpoint — all sources, no workflow selector
@@ -7048,15 +7079,28 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                 )
             )
 
-        if any(
-            metric_info.get("query_complete") is not True
-            or metric_info.get("query_status") != "complete"
-            or metric_info.get("query_sampled") is True
-            or bool(metric_info.get("error"))
+        incomplete_metric_infos = [
+            metric_info
             for metric_info, _rows in metric_results
-        ):
+            if (
+                metric_info.get("query_complete") is not True
+                or metric_info.get("query_status") != "complete"
+                or metric_info.get("query_sampled") is True
+                or bool(metric_info.get("error"))
+            )
+        ]
+        if incomplete_metric_infos:
+            error_code = (
+                "read_budget_exceeded"
+                if any(
+                    item.get("query_error_code") == "read_budget_exceeded"
+                    for item in incomplete_metric_infos
+                )
+                else "query_failed"
+            )
             raise DashboardExactReadError(
-                "one or more dashboard metrics did not complete exactly"
+                "one or more dashboard metrics did not complete exactly",
+                error_code=error_code,
             )
 
         # A statement can finish just inside its server timeout while result
@@ -7066,7 +7110,8 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
             read_deadline.remaining_ms(floor_ms=1)
         except ReadDeadlineExceeded as exc:
             raise DashboardExactReadError(
-                "dashboard exact read deadline exceeded"
+                "dashboard exact read deadline exceeded",
+                error_code="read_budget_exceeded",
             ) from exc
 
         # Format using DatasetQueryBuilder (compatible format_results)
@@ -7155,7 +7200,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                 refresh=refresh,
             )
         except Exception as exc:
-            if is_read_budget_error(exc) or is_clickhouse_query_error(exc):
+            if _dashboard_api_read_unavailable(exc):
                 logger.warning(
                     "widget_query_read_unavailable",
                     error_type=type(exc).__name__,
@@ -7207,7 +7252,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
         except DashboardActionUnavailable:
             raise
         except Exception as exc:
-            if is_read_budget_error(exc) or is_clickhouse_query_error(exc):
+            if _dashboard_api_read_unavailable(exc):
                 logger.warning(
                     "query_preview_read_unavailable",
                     error_type=type(exc).__name__,

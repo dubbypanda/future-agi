@@ -26,9 +26,11 @@ from tracer.services.clickhouse.bounded_graph_reads import (
 from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.exact_graph_reads import (
     ExactGraphReadError,
+    read_exact_all_system_metrics,
     read_exact_annotation_graph,
     read_exact_eval_graph,
     read_exact_system_graph,
+    read_exact_user_system_graph,
 )
 from tracer.services.clickhouse.query_builders import (
     TimeSeriesQueryBuilder,
@@ -1189,33 +1191,58 @@ def fetch_all_system_metrics_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    """Read the complete exact project-chart metric bundle."""
+    """Read the complete exact project-chart metric bundle synchronously."""
 
-    del timeout_ms
+    del refresh, organization_id, workspace_id
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
-    identity = {
-        "project_id": project_id,
-        "filters": filters,
-        "interval": interval,
-    }
-    return _read_or_refresh_exact_graph(
-        namespace="observe-all-system-graphs",
-        identity=identity,
-        refresh=bool(refresh),
-        pending_payload={
+    interactive_deadline_ms = min(
+        int(timeout_ms),
+        GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS,
+    )
+    if interactive_deadline_ms <= 0:
+        raise ValueError("graph timeout must be positive")
+    bounded_analytics = _DeadlineBoundGraphAnalytics(
+        analytics,
+        ReadDeadline.start(interactive_deadline_ms),
+    )
+    try:
+        response = read_exact_all_system_metrics(
+            analytics=bounded_analytics,
+            project_id=project_id,
+            filters=filters,
+            interval=interval,
+        )
+        response.update(
+            {
+                "query_provenance": "exact_snapshot",
+                "query_exact": True,
+            }
+        )
+        return response
+    except ExactGraphReadError as exc:
+        degraded = degraded_graph_response(
+            "",
+            exc,
+            provenance="exact_snapshot",
+        )
+    except Exception as exc:
+        if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
+            raise
+        degraded = degraded_graph_response(
+            "",
+            exc,
+            provenance="exact_snapshot",
+        )
+    return {
+        **{
             "latency": [],
             "tokens": [],
             "cost": [],
             "traffic": [],
-            "query_complete": False,
-            "query_status": "pending",
-            "query_sampled": False,
-            "query_refreshing": True,
         },
-        organization_id=organization_id,
-        workspace_id=workspace_id,
-    )
+        **{key: value for key, value in degraded.items() if key.startswith("query_")},
+    }
 
 
 def fetch_user_system_metric_graph_ch(
@@ -1230,29 +1257,51 @@ def fetch_user_system_metric_graph_ch(
     organization_id: str | None = None,
     workspace_id: str | None = None,
 ) -> dict[str, Any]:
-    """Read one complete exact user-grain graph snapshot."""
+    """Read one complete exact user-grain graph snapshot synchronously."""
 
-    # Exact graph computation is out of band; the synchronous cache/dispatch
-    # boundary already has finite Redis and workflow-transport timeouts. Accept
-    # the caller's remaining wall for a uniform graph-action interface, while
-    # the view's final deadline check prevents late cache results from publishing.
-    del timeout_ms
+    del refresh, organization_id, workspace_id
     project_id = _validated_project_id(project_id)
     filters = list(filters or [])
-    identity = {
-        "project_id": project_id,
-        "filters": filters,
-        "interval": interval,
-        "metric_id": str(metric_id or ""),
-    }
-    return _read_or_refresh_exact_graph(
-        namespace="observe-user-system-graph",
-        identity=identity,
-        refresh=bool(refresh),
-        pending_payload=_pending_graph_payload(str(metric_id or "")),
-        organization_id=organization_id,
-        workspace_id=workspace_id,
+    interactive_deadline_ms = min(
+        int(timeout_ms),
+        GRAPH_INTERACTIVE_QUERY_TIMEOUT_MS,
     )
+    if interactive_deadline_ms <= 0:
+        raise ValueError("graph timeout must be positive")
+    bounded_analytics = _DeadlineBoundGraphAnalytics(
+        analytics,
+        ReadDeadline.start(interactive_deadline_ms),
+    )
+    normalized_metric_id = str(metric_id or "")
+    try:
+        response = read_exact_user_system_graph(
+            analytics=bounded_analytics,
+            project_id=project_id,
+            filters=filters,
+            interval=interval,
+            metric_id=normalized_metric_id,
+        )
+        response.update(
+            {
+                "query_provenance": "exact_snapshot",
+                "query_exact": True,
+            }
+        )
+        return enforce_exact_graph_data_contract(response)
+    except ExactGraphReadError as exc:
+        return degraded_graph_response(
+            normalized_metric_id,
+            exc,
+            provenance="exact_snapshot",
+        )
+    except Exception as exc:
+        if not (is_read_budget_error(exc) or is_clickhouse_query_error(exc)):
+            raise
+        return degraded_graph_response(
+            normalized_metric_id,
+            exc,
+            provenance="exact_snapshot",
+        )
 
 
 def normalize_eval_graph_output_type(req_data_config: dict[str, Any]) -> str:

@@ -51,9 +51,10 @@ def test_public_chart_routes_have_no_full_window_latest_spans_collapse():
     source = inspect.getsource(graph_dispatch.fetch_all_system_metrics_ch)
     assert "WITH latest_spans AS" not in source
     assert "ORDER BY _version DESC" not in source
-    assert "_read_or_refresh_exact_graph" in source
+    assert "read_exact_all_system_metrics" in source
+    assert "_DeadlineBoundGraphAnalytics" in source
+    assert "_read_or_refresh_exact_graph" not in source
     assert "read_graph_candidates" not in source
-    assert 'namespace="observe-all-system-graphs"' in source
 
 
 @pytest.mark.unit
