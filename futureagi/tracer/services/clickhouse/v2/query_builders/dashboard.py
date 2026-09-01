@@ -28,6 +28,11 @@ from tracer.services.clickhouse.query_builders.dashboard import (
     DashboardQueryBuilder,
     _sanitize_attr_key,
 )
+from tracer.services.clickhouse.query_builders.latest_filter_predicates import (
+    LatestFilterPredicate,
+    UnsupportedFilterShapeError,
+    compile_span_filter_plans,
+)
 from tracer.services.clickhouse.v2.query_builders._rewrite import V2RewriteMixin
 from tracer.services.clickhouse.v2.query_builders.filters import (
     rewrite_and_apply_v2_settings,
@@ -108,6 +113,183 @@ class DashboardQueryBuilderV2(V2RewriteMixin, DashboardQueryBuilder):
 
     def parse_time_range(self) -> tuple[datetime, datetime]:
         return self._resolved_time_range
+
+    @staticmethod
+    def _candidate_parameter_namespace(
+        predicate: str,
+        plan_params: dict[str, object],
+    ) -> tuple[str, dict[str, object]]:
+        """Keep candidate bindings separate from the outer exact predicate."""
+
+        renamed_params: dict[str, object] = {}
+        for parameter_name, parameter_value in plan_params.items():
+            candidate_name = f"dashboard_candidate_{parameter_name}"
+            predicate = predicate.replace(
+                f"%({parameter_name})s",
+                f"%({candidate_name})s",
+            )
+            renamed_params[candidate_name] = parameter_value
+        return predicate, renamed_params
+
+    def _exact_filter_candidate_plan(
+        self,
+        per_metric_filters: list[dict],
+    ) -> LatestFilterPredicate | None:
+        """Choose one exhaustive, index-usable positive attribute witness.
+
+        The witness narrows immutable identities only. The replay source still
+        resolves the latest physical row for every candidate, and the ordinary
+        dashboard WHERE clause reapplies every filter exactly. Filter shapes
+        without an exhaustive raw value witness keep the existing ``FINAL``
+        source.
+        """
+
+        candidates: list[LatestFilterPredicate] = []
+        for item in self.global_filters + (per_metric_filters or []):
+            if item.get("source", "traces") not in ("traces", ""):
+                continue
+            canonical_filter = item.get("canonical_filter")
+            if (
+                (item.get("metric_type") or item.get("type"))
+                != "custom_attribute"
+                or not isinstance(canonical_filter, dict)
+            ):
+                continue
+            try:
+                plans = compile_span_filter_plans([canonical_filter])
+            except (UnsupportedFilterShapeError, ValueError):
+                continue
+            if plans and plans[0].raw_graph_value_witness_predicate:
+                candidates.append(plans[0])
+
+        if not candidates:
+            return None
+        return min(
+            candidates,
+            key=lambda plan: (
+                plan.raw_witness_rank
+                if plan.raw_witness_rank is not None
+                else 10_000
+            ),
+        )
+
+    def _exact_filter_replay_source(
+        self,
+        per_metric_filters: list[dict],
+        alias: str,
+        params: dict[str, object] | None,
+    ) -> str | None:
+        """Return an exact latest-row source seeded by one safe value witness."""
+
+        if params is None:
+            return None
+        plan = self._exact_filter_candidate_plan(per_metric_filters)
+        if plan is None or plan.raw_graph_value_witness_predicate is None:
+            return None
+
+        witness, candidate_params = self._candidate_parameter_namespace(
+            plan.raw_graph_value_witness_predicate,
+            plan.params,
+        )
+        params.update(candidate_params)
+        witness = self._qualify_span_expression(
+            witness,
+            alias="dashboard_candidate_source",
+        )
+        source_alias = "spans" if alias == "spans" else alias
+        return f"""(
+            WITH dashboard_filter_candidate_identities AS (
+                SELECT
+                    dashboard_candidate_source.project_id AS project_id,
+                    dashboard_candidate_source.observation_type
+                        AS observation_type,
+                    dashboard_candidate_source.service_name AS service_name,
+                    toStartOfHour(
+                        dashboard_candidate_source.start_time
+                    ) AS identity_hour,
+                    dashboard_candidate_source.trace_id AS trace_id,
+                    dashboard_candidate_source.id AS id
+                FROM spans AS dashboard_candidate_source
+                PREWHERE dashboard_candidate_source.project_id
+                            IN %(project_ids)s
+                  AND dashboard_candidate_source.start_time
+                            >= %(start_date)s
+                  AND dashboard_candidate_source.start_time
+                            < %(end_date)s
+                WHERE {witness}
+                GROUP BY
+                    dashboard_candidate_source.project_id,
+                    dashboard_candidate_source.observation_type,
+                    dashboard_candidate_source.service_name,
+                    identity_hour,
+                    dashboard_candidate_source.trace_id,
+                    dashboard_candidate_source.id
+            )
+            SELECT dashboard_replay_source.*
+            FROM spans AS dashboard_replay_source
+            PREWHERE tuple(
+                dashboard_replay_source.project_id,
+                dashboard_replay_source.observation_type,
+                dashboard_replay_source.service_name,
+                toStartOfHour(dashboard_replay_source.start_time),
+                dashboard_replay_source.trace_id,
+                dashboard_replay_source.id
+            ) IN (
+                SELECT
+                    project_id,
+                    observation_type,
+                    service_name,
+                    identity_hour,
+                    trace_id,
+                    id
+                FROM dashboard_filter_candidate_identities
+            )
+            ORDER BY dashboard_replay_source._peerdb_version DESC
+            LIMIT 1 BY
+                dashboard_replay_source.project_id,
+                dashboard_replay_source.observation_type,
+                dashboard_replay_source.service_name,
+                toStartOfHour(dashboard_replay_source.start_time),
+                dashboard_replay_source.trace_id,
+                dashboard_replay_source.id
+        ) AS {source_alias}"""
+
+    def _spans_source(
+        self,
+        metric_name: str | None,
+        per_metric_filters: list[dict],
+        alias: str,
+        params: dict[str, object] | None = None,
+    ) -> str:
+        # ID-remapped user/session dimensions need the dedicated resolved
+        # source. Keep that exact path unchanged until it has an equivalent
+        # immutable-identity proof.
+        if not self._query_references_id(metric_name, per_metric_filters):
+            candidate_source = self._exact_filter_replay_source(
+                per_metric_filters,
+                alias,
+                params,
+            )
+            if candidate_source is not None:
+                return candidate_source
+        return super()._spans_source(
+            metric_name,
+            per_metric_filters,
+            alias,
+            params=params,
+        )
+
+    def _annotation_filter_spans_source(
+        self,
+        span_filters: list[dict],
+        params: dict[str, object],
+    ) -> str:
+        return self._spans_source(
+            None,
+            span_filters,
+            "s",
+            params=params,
+        )
 
     def _build_custom_attr_query(
         self,

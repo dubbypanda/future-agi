@@ -1914,6 +1914,51 @@ class TestMetricsEndpoint:
             filters.get("project_id__in") == ["project-1"] for filters in query.filters
         )
 
+    def test_dashboard_eval_template_identity_accepts_only_same_org_or_global_system(self):
+        template_id = "22222222-2222-4222-8222-222222222222"
+
+        class _TemplateQuery:
+            def __init__(self):
+                self.filters = []
+
+            def filter(self, *args, **kwargs):
+                self.filters.append((args, kwargs))
+                return self
+
+            def values_list(self, *_args, **_kwargs):
+                return self
+
+            def first(self):
+                return template_id
+
+        query = _TemplateQuery()
+        builder = DashboardQueryBuilder(
+            {
+                "organization_id": "org-1",
+                "workspace_id": "workspace-1",
+                "project_ids": [],
+            }
+        )
+        with patch(
+            "model_hub.models.evals_metric.EvalTemplate.no_workspace_objects",
+            query,
+        ):
+            resolved = builder._resolve_eval_template_identity(
+                {"property_id": f"eval_template:{template_id}"}, template_id
+            )
+
+        assert resolved == template_id
+        assert query.filters[0] == (
+            (),
+            {"id": template_id, "deleted": False},
+        )
+        tenant_scope = repr(query.filters[1][0][0])
+        assert "organization_id" in tenant_scope
+        assert "org-1" in tenant_scope
+        assert "organization_id__isnull" in tenant_scope
+        assert "owner" in tenant_scope
+        assert "system" in tenant_scope
+
     def test_metrics_catalog_contract_keeps_runtime_registry_adapter_fields(self):
         from tracer.serializers.dashboard import DashboardMetricCatalogItemSerializer
 
@@ -4893,12 +4938,21 @@ class TestDashboardQueryBuilder:
         assert "argMax(" in unknown_sql
         assert "tupleElement(latest_metric_state, 1) = 0" in unknown_sql
         assert "tupleElement(latest_metric_state, 3) = 1" in unknown_sql
-        assert "FROM spans FINAL" in filtered_sql
+        assert "dashboard_filter_candidate_identities AS" in filtered_sql
+        assert "FROM spans FINAL" not in filtered_sql
+        assert "LIMIT 1 BY" in filtered_sql
+        assert "dashboard_replay_source._version DESC" in filtered_sql
+        assert "tuple(" in filtered_sql
+        assert "IN (" in filtered_sql
         assert "attrs_number" in unknown_sql
         assert "legacy_numeric_attribute" in unknown_params.values()
         assert "attrs_string" in filtered_sql
         assert "Rechazado" not in filtered_sql
         assert "rechazado" in filtered_params.values()
+        assert any(
+            key.startswith("dashboard_candidate_latest_filter_")
+            for key in filtered_params
+        )
 
     def test_numeric_custom_metric_seeds_with_the_typed_key_bloom_index(
         self, sample_query_config, settings
@@ -5077,7 +5131,12 @@ class TestDashboardQueryBuilder:
         assert "JSONExtractArrayRaw(attributes_extra" in sql
         assert "JSONExtractRaw(attributes_extra" in sql
         assert "JSONLength(JSONExtractRaw(attributes_extra" in sql
-        assert "FROM spans FINAL" in sql
+        # The positive boolean equality is an exhaustive candidate witness.
+        # Array/map predicates remain outside the replay source and are still
+        # applied exactly after every candidate identity resolves to latest.
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert "LIMIT 1 BY" in sql
         assert not any(key.startswith("_raw_attr_") for key in params)
         assert "query_status" not in metric_info
         assert "True" not in sql
@@ -5102,6 +5161,90 @@ class TestDashboardQueryBuilder:
         assert "attrs_string['optional_status'] = ''" in sql
         assert "_raw_attr_presence_key_0" not in params
         assert "FROM spans FINAL" in sql
+        assert "query_status" not in metric_info
+
+    def test_negative_canonical_attribute_filter_keeps_full_exact_source(
+        self, sample_query_config, settings
+    ):
+        settings.DASHBOARD_ATTR_ROLLUP_ENABLED = False
+        config = _normalize_dashboard_query_filters(
+            {
+                **sample_query_config,
+                "filters": [
+                    {
+                        "column_id": "conversation.transcript.0.message.content",
+                        "filter_config": {
+                            "col_type": "SPAN_ATTRIBUTE",
+                            "filter_type": "text",
+                            "filter_op": "not_equals",
+                            "filter_value": "a long exact transcript value",
+                        },
+                    }
+                ],
+            }
+        )
+
+        sql, params, metric_info = DashboardQueryBuilderV2(
+            config
+        ).build_all_queries()[0]
+
+        assert "dashboard_filter_candidate_identities AS" not in sql
+        assert "FROM spans FINAL" in sql
+        assert "a long exact transcript value" in params.values()
+        assert "query_status" not in metric_info
+
+    def test_positive_text_candidate_replays_latest_then_reapplies_exact_filter(
+        self, sample_query_config, settings
+    ):
+        settings.DASHBOARD_ATTR_ROLLUP_ENABLED = False
+        key = "conversation.recording.mono.combined"
+        value = "https://storage.example.test/a/very/long/recording.wav"
+        config = _normalize_dashboard_query_filters(
+            {
+                **sample_query_config,
+                "filters": [
+                    {
+                        "column_id": key,
+                        "filter_config": {
+                            "col_type": "SPAN_ATTRIBUTE",
+                            "filter_type": "text",
+                            "filter_op": "equals",
+                            "filter_value": value,
+                        },
+                    }
+                ],
+            }
+        )
+
+        sql, params, metric_info = DashboardQueryBuilderV2(
+            config
+        ).build_all_queries()[0]
+        compact_sql = " ".join(sql.split())
+
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert "dashboard_replay_source._version DESC" in sql
+        assert "LIMIT 1 BY" in sql
+        assert (
+            "tuple( dashboard_replay_source.project_id, "
+            "dashboard_replay_source.observation_type, "
+            "dashboard_replay_source.service_name, "
+            "toStartOfHour(dashboard_replay_source.start_time), "
+            "dashboard_replay_source.trace_id, dashboard_replay_source.id ) IN ("
+            in compact_sql
+        )
+        # The candidate witness and outer exact predicate have separate
+        # bindings, so candidate discovery cannot replace exact semantics.
+        assert value in params.values()
+        assert any(
+            name.startswith("dashboard_candidate_latest_filter_")
+            and bound_value == value
+            for name, bound_value in params.items()
+        )
+        assert any(
+            name.startswith("latest_filter_") and bound_value == value
+            for name, bound_value in params.items()
+        )
         assert "query_status" not in metric_info
 
     def test_legacy_boolean_filter_uses_boolean_map_in_exact_read(
@@ -5573,7 +5716,11 @@ class TestDashboardQueryBuilder:
             0
         ]
 
-        assert "FROM spans AS s" in sql
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert ") AS s" in sql
+        assert "dashboard_replay_source._version DESC" in sql
+        assert "LIMIT 1 BY" in sql
         assert "usage_span_trace_candidates" in sql
         assert "s.project_id IN %(project_ids)s" in sql
         assert "s.trace_id IN (SELECT toString(trace_id) AS trace_id" in sql
@@ -9477,9 +9624,12 @@ class TestDashboardV2RewriteRouting:
 
         assert "AS annotation_subject_span" in compact_sql
         assert "AS annotation_subject_candidate" in compact_sql
-        assert "SELECT DISTINCT s.trace_id FROM spans AS s FINAL" in compact_sql
+        assert "dashboard_filter_candidate_identities AS" in compact_sql
+        assert "SELECT DISTINCT s.trace_id FROM spans AS s FINAL" not in compact_sql
         assert "LEFT JOIN ( SELECT * FROM spans AS s FINAL" not in compact_sql
-        assert "FROM spans AS s FINAL" in compact_sql
+        assert ") AS s PREWHERE s.project_id IN %(project_ids)s" in compact_sql
+        assert "dashboard_replay_source._version DESC" in compact_sql
+        assert "LIMIT 1 BY" in compact_sql
         assert "PREWHERE s.project_id IN %(project_ids)s" in compact_sql
         assert "s.trace_id IN (" in compact_sql
         assert "(s.parent_span_id IS NULL OR s.parent_span_id = '')" in compact_sql

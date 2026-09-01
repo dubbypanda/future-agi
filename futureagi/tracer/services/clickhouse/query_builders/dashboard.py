@@ -725,6 +725,8 @@ class DashboardQueryBuilder:
                 configs = configs.filter(project_id__in=self.project_ids)
             template_id = configs.values_list("eval_template_id", flat=True).first()
         elif decoded["property_kind"] == "eval_template":
+            from django.db.models import Q
+            from model_hub.models.choices import OwnerChoices
             from model_hub.models.evals_metric import EvalTemplate
 
             templates = EvalTemplate.no_workspace_objects.filter(
@@ -732,7 +734,17 @@ class DashboardQueryBuilder:
                 deleted=False,
             )
             if self.organization_id:
-                templates = templates.filter(organization_id=self.organization_id)
+                # Dashboard discovery, the eval list, and configured project
+                # evals all expose global system templates. Preserve tenant
+                # isolation for customer-owned templates while accepting that
+                # shared system identity at query time as well.
+                templates = templates.filter(
+                    Q(organization_id=self.organization_id)
+                    | Q(
+                        organization_id__isnull=True,
+                        owner=OwnerChoices.SYSTEM.value,
+                    )
+                )
             template_id = templates.values_list("id", flat=True).first()
         elif decoded["property_kind"] == "eval":
             # Read-only compatibility identities predate the config/template
@@ -1464,6 +1476,20 @@ class DashboardQueryBuilder:
             return "spans FINAL" if alias == "spans" else f"spans AS {alias} FINAL"
         return "spans" if alias == "spans" else f"spans AS {alias}"
 
+    def _annotation_filter_spans_source(
+        self,
+        span_filters: list[dict],
+        params: dict[str, Any],
+    ) -> str:
+        """Keep the V1 annotation-filter source byte-for-byte exact.
+
+        V2 overrides this hook with its indexed immutable-identity replay.  The
+        base builder must retain ``FINAL`` because it has no equivalent replay
+        proof of latest physical span state.
+        """
+
+        return "spans AS s FINAL"
+
     @staticmethod
     def _qualify_span_expression(expression: str, alias: str) -> str:
         """Qualify known spans columns without touching SQL string literals."""
@@ -2169,7 +2195,12 @@ class DashboardQueryBuilder:
                 )
 
         if need_spans_join:
-            spans_joined = self._spans_source(None, per_metric_filters, "s")
+            spans_joined = self._spans_source(
+                None,
+                per_metric_filters,
+                "s",
+                params=params,
+            )
             # Scope the right-hand table before ClickHouse builds the JOIN.
             # The previous ``s.trace_id = e.eval_trace_id`` ON clause was
             # correlated only after the right side had been read, allowing an
@@ -2636,9 +2667,13 @@ class DashboardQueryBuilder:
                     else _coerce_filter_value(value, operation)
                 )
 
+            filtered_spans_source = self._annotation_filter_spans_source(
+                span_filters,
+                params,
+            )
             filtered_trace_ids = f"""
                 SELECT DISTINCT s.trace_id
-                FROM spans AS s FINAL
+                FROM {filtered_spans_source}
                 PREWHERE s.project_id IN %(project_ids)s
                   AND s.trace_id IN ({annotation_subject_trace_candidates})
                 WHERE {" AND ".join(span_predicates)}
@@ -2772,7 +2807,12 @@ class DashboardQueryBuilder:
             )
         )
 
-        spans_flat = self._spans_source(None, per_metric_filters, "spans")
+        spans_flat = self._spans_source(
+            None,
+            per_metric_filters,
+            "spans",
+            params=params,
+        )
 
         query = (
             f"SELECT {', '.join(select_parts)}\n"

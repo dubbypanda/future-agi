@@ -7628,8 +7628,14 @@ export default function WidgetEditorView() {
                       />
                     </InputAdornment>
                   ),
-                  endAdornment:
-                    !cursorAttributePickerActive &&
+                  endAdornment: isPickerInventoryLoading ? (
+                    <InputAdornment position="end">
+                      <CircularProgress
+                        size={14}
+                        aria-label="Searching dashboard properties"
+                      />
+                    </InputAdornment>
+                  ) : !cursorAttributePickerActive &&
                     Number.isSafeInteger(paginatedTotal) ? (
                       <InputAdornment position="end">
                         <Typography
@@ -7730,6 +7736,26 @@ export default function WidgetEditorView() {
               </Box>
               {/* Right: items — the end sentinel advances one cursor page. */}
               <Box sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}>
+                {isPickerInventoryLoading &&
+                  pickerMetricOptions.length === 0 && (
+                    <Box
+                      role="status"
+                      aria-live="polite"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        px: 1.5,
+                        pt: 1.25,
+                        color: "text.secondary",
+                      }}
+                    >
+                      <CircularProgress size={14} />
+                      <Typography variant="caption">
+                        Searching properties…
+                      </Typography>
+                    </Box>
+                  )}
                 {isPickerInventoryLoading &&
                   pickerMetricOptions.length === 0 &&
                   Array.from({ length: 8 }).map((_, i) => (
