@@ -54,7 +54,8 @@ class ProductionRolloutRequest(DevRolloutRequest):
             require_prod_catalog_database(self.target_database)
         except PropertyCatalogPublishError as exc:
             raise DevRolloutError(
-                "production lifecycle target must be exactly 'property_catalog'"
+                "production lifecycle target must match the configured "
+                "production catalog database"
             ) from exc
         if self.acknowledgement != PRODUCTION_LIFECYCLE_ACK:
             raise DevRolloutError(

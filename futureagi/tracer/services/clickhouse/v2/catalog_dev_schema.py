@@ -27,10 +27,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from tracer.services.clickhouse.v2.property_catalog.database import (
+    configured_production_property_catalog_database,
+)
+
 DEVELOPMENT_SENTINEL = "PROPERTY_CATALOG_DEV_ONLY"
 _TARGET_DATABASE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 _RESERVED_TARGET_DATABASES = frozenset(
-    {"default", "futureagi", "information_schema", "property_catalog", "system"}
+    {
+        "default",
+        "futureagi",
+        "information_schema",
+        "system",
+    }
 )
 
 
@@ -511,6 +520,7 @@ def _validate_target_database(target_database: str) -> None:
         or len(target_database) > 128
         or _TARGET_DATABASE_RE.fullmatch(target_database) is None
         or target_database in _RESERVED_TARGET_DATABASES
+        or target_database == configured_production_property_catalog_database()
     ):
         raise CatalogDevSchemaError(
             "target database must be a safe lowercase ClickHouse identifier "
@@ -898,9 +908,10 @@ def verify_catalog_schema(
     if deployment == "dev":
         _validate_target_database(target_database)
     elif deployment == "prod":
-        if target_database != "property_catalog":
+        if target_database != configured_production_property_catalog_database():
             raise CatalogDevSchemaError(
-                "production catalog database must be exactly 'property_catalog'"
+                "production catalog database does not match the configured "
+                "production database"
             )
     else:
         raise CatalogDevSchemaError("catalog schema deployment must be dev or prod")

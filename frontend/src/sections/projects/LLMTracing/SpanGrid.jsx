@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAgTheme } from "src/hooks/use-ag-theme";
+import { useAgThemeWith } from "src/hooks/use-ag-theme";
 import { getRandomId, safeParse } from "src/utils/utils";
 import axios, { endpoints } from "src/utils/axios";
 import { useParams } from "src/routes/hooks";
@@ -71,11 +71,15 @@ import {
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
 } from "src/config/runtime_limits";
-import { boundObserveListRow } from "./observeListPayload";
+import {
+  boundObserveListRow,
+  compactObserveListResponse,
+} from "./observeListPayload";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
+import useImmediateGridQueryTransition from "./useImmediateGridQueryTransition";
 import {
   dispatchObservePageChanged,
   OBSERVE_LIST_REFRESH_EVENT,
@@ -243,8 +247,23 @@ const SpanGrid = React.forwardRef(
         reset: state.reset,
       }));
 
-    const agTheme = useAgTheme();
     const theme = useTheme();
+    const gridThemeParams = useMemo(
+      () => ({
+        columnBorder: false,
+        headerColumnBorder: false,
+        wrapperBorder: { width: 0 },
+        wrapperBorderRadius: 0,
+        rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
+        headerFontSize: "13px",
+        headerFontWeight: theme.typography.fontWeightMedium,
+        headerBackgroundColor: "transparent",
+        headerTextColor: theme.palette.text.primary,
+        rowHoverColor: "rgba(120,87,252,0.04)",
+      }),
+      [theme],
+    );
+    const agTheme = useAgThemeWith(gridThemeParams);
     const { observeId } = useParams();
     const { setSpanDetailDrawerOpen } = useLLMTracingStoreShallow((state) => ({
       setSpanDetailDrawerOpen: state.setSpanDetailDrawerOpen,
@@ -326,13 +345,13 @@ const SpanGrid = React.forwardRef(
       () => JSON.stringify({ selectionQueryKey, pageSize }),
       [pageSize, selectionQueryKey],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-    useEffect(() => {
-      if (previousFilterRequestKeyRef.current !== filterRequestKey) {
-        resetPagination();
-      }
-      previousFilterRequestKeyRef.current = filterRequestKey;
-    }, [filterRequestKey, resetPagination]);
+    const { handoffToFirstPageRequest, transitionLoading } =
+      useImmediateGridQueryTransition({
+        enabled,
+        filterRequestKey,
+        gridRef,
+        resetPagination,
+      });
     const clearSelection = useCallback(() => {
       const api = gridRef?.current?.api;
       withLiveGridApi(api, (liveApi) => {
@@ -539,6 +558,7 @@ const SpanGrid = React.forwardRef(
               pageNumber = Math.floor(request.startRow / requestPageSize);
               pageLoadRequestId = beginPageLoad(pageNumber);
               if (pageNumber === 0) {
+                handoffToFirstPageRequest(filterRequestKey);
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
                   preserveRowsDuringNextRefreshRef.current;
@@ -578,6 +598,7 @@ const SpanGrid = React.forwardRef(
                     rowsFromResponse: (response) =>
                       response.data.table.map(boundObserveListRow),
                     metadataFromResponse: (response) => response.data.metadata,
+                    compactResponse: compactObserveListResponse,
                     rowIdentity: getSpanPhysicalRowId,
                     isCurrent: () =>
                       cursorPagination.current.isCurrent(requestGeneration),
@@ -759,6 +780,7 @@ const SpanGrid = React.forwardRef(
         filterRequestKey,
         beginPageLoad,
         finishPageLoad,
+        handoffToFirstPageRequest,
         publishPage,
         setLoading,
       ],
@@ -902,18 +924,7 @@ const SpanGrid = React.forwardRef(
           className={`${cellHeight && cellHeight !== "Short" ? "cell-wrap " : ""}clean-data-table${continuationNotice ? " ag-grid-cursor-paused" : ""}`}
           // rowSelection={{ mode: "multiRow" }}
           rowHeight={userTraceRowHeightMapping[cellHeight]?.height ?? 40}
-          theme={agTheme.withParams({
-            columnBorder: false,
-            headerColumnBorder: false,
-            wrapperBorder: { width: 0 },
-            wrapperBorderRadius: 0,
-            rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
-            headerFontSize: "13px",
-            headerFontWeight: theme.typography.fontWeightMedium,
-            headerBackgroundColor: "transparent",
-            headerTextColor: theme.palette.text.primary,
-            rowHoverColor: "rgba(120,87,252,0.04)",
-          })}
+          theme={agTheme}
           ref={gridRef}
           columnDefs={columnDefs}
           onColumnMoved={onColumnMoved}
@@ -935,7 +946,7 @@ const SpanGrid = React.forwardRef(
           serverSideDatasource={dataSource}
           // The footer owns explicit page-transition feedback. AG Grid must be
           // free to paint the target rows before that transition can settle.
-          loading={gridLoading}
+          loading={gridLoading || transitionLoading}
           suppressServerSideFullWidthLoadingRow={true}
           noRowsOverlayComponent={() =>
             continuationNotice
@@ -986,6 +997,7 @@ const SpanGrid = React.forwardRef(
           disabled={
             !enabled ||
             gridLoading ||
+            transitionLoading ||
             isPageLoading ||
             Boolean(continuationNotice)
           }

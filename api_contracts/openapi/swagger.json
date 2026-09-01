@@ -17338,13 +17338,13 @@
                             "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     },
-                    "500": {
+                    "409": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationErrorResponse"
                         }
                     },
-                    "409": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/IntegrationErrorResponse"
@@ -18280,13 +18280,13 @@
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -19087,12 +19087,6 @@
                             "$ref": "#/definitions/QueueExportAnnotationsResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ApiTextErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -19112,6 +19106,12 @@
                         }
                     },
                     "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiTextErrorResponse"
+                        }
+                    },
+                    "413": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -20064,7 +20064,7 @@
                     "400": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiSelectionTooLargeError"
+                            "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
                     "403": {
@@ -29968,13 +29968,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "413": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "413": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -30029,18 +30029,6 @@
                             "$ref": "#/definitions/DatasetRowDataResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -30065,7 +30053,19 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -30932,24 +30932,6 @@
                             "$ref": "#/definitions/DatasetTableResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -30974,7 +30956,25 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -35242,24 +35242,6 @@
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -35284,7 +35266,25 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -35364,24 +35364,6 @@
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -35406,7 +35388,25 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -35628,24 +35628,6 @@
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -35670,7 +35652,25 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -36224,24 +36224,6 @@
                             "$ref": "#/definitions/ExperimentTableRowsResponse"
                         }
                     },
-                    "413": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ModelHubErrorResponse"
-                        }
-                    },
                     "400": {
                         "description": "",
                         "schema": {
@@ -36266,7 +36248,25 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
+                    "413": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
                     "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -37082,13 +37082,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -37168,13 +37168,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -37243,13 +37243,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -44519,13 +44519,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -44683,13 +44683,13 @@
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -50964,13 +50964,13 @@
                             "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
@@ -51655,13 +51655,13 @@
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -51759,13 +51759,13 @@
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -52011,13 +52011,13 @@
                             "$ref": "#/definitions/RunTestListPaginatedResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
@@ -52191,13 +52191,13 @@
                             "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/RunTestErrorResponse"
@@ -56086,13 +56086,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -56315,13 +56315,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -56590,13 +56590,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57226,13 +57226,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57320,13 +57320,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57465,13 +57465,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57563,13 +57563,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -57661,13 +57661,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "503": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "503": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -58928,13 +58928,13 @@
                             "$ref": "#/definitions/GetAnnotationLabelsResponse"
                         }
                     },
-                    "404": {
+                    "400": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "400": {
+                    "404": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -64990,16 +64990,16 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
-                        }
-                    },
                     "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/PageDepthExceededError"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
                     "503": {
@@ -66441,13 +66441,13 @@
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "500": {
+                    "422": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
                         }
                     },
-                    "422": {
+                    "500": {
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ApiErrorResponse"
@@ -91596,6 +91596,13 @@
                     },
                     "default": []
                 },
+                "cursor": {
+                    "title": "Cursor",
+                    "description": "Opaque continuation returned by a previous filter-mode add. Reuse the same selection fields and queue when continuing.",
+                    "type": "string",
+                    "maxLength": 4096,
+                    "minLength": 1
+                },
                 "remove_simulation_calls": {
                     "title": "Remove simulation calls",
                     "type": "boolean",
@@ -91659,6 +91666,27 @@
                 "total_matching": {
                     "title": "Total matching",
                     "type": "integer"
+                },
+                "total_matching_is_lower_bound": {
+                    "title": "Total matching is lower bound",
+                    "type": "boolean"
+                },
+                "has_more": {
+                    "title": "Has more",
+                    "type": "boolean"
+                },
+                "next_cursor": {
+                    "title": "Next cursor",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1,
+                    "x-nullable": true
                 }
             }
         },
@@ -97483,24 +97511,24 @@
                     "title": "Temperature",
                     "description": "Controls the randomness. Value between 0 and 2.",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": 0.0,
+                    "maximum": 2,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "frequency_penalty": {
                     "title": "Frequency penalty",
                     "description": "Penalty for word repetition. Value between -2 and 2.",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": -2.0,
+                    "maximum": 2,
+                    "minimum": -2,
                     "x-nullable": true
                 },
                 "presence_penalty": {
                     "title": "Presence penalty",
                     "description": "Penalty for new word usage. Value between -2 and 2.",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": -2.0,
+                    "maximum": 2,
+                    "minimum": -2,
                     "x-nullable": true
                 },
                 "max_tokens": {
@@ -97515,8 +97543,8 @@
                     "title": "Top p",
                     "description": "Controls diversity via nucleus sampling. Value between 0 and 1.",
                     "type": "number",
-                    "maximum": 1.0,
-                    "minimum": 0.0,
+                    "maximum": 1,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "response_format": {
@@ -107270,8 +107298,8 @@
                 "similarity_threshold": {
                     "title": "Similarity threshold",
                     "type": "number",
-                    "maximum": 1.0,
-                    "minimum": 0.0
+                    "maximum": 1,
+                    "minimum": 0
                 }
             }
         },
@@ -110854,24 +110882,24 @@
                     "title": "Temperature",
                     "description": "Controls the randomness. Value between 0 and 1.",
                     "type": "number",
-                    "maximum": 1.0,
-                    "minimum": 0.0,
+                    "maximum": 1,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "frequency_penalty": {
                     "title": "Frequency penalty",
                     "description": "Penalty for word repetition. Value between -2 and 2.",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": -2.0,
+                    "maximum": 2,
+                    "minimum": -2,
                     "x-nullable": true
                 },
                 "presence_penalty": {
                     "title": "Presence penalty",
                     "description": "Penalty for new word usage. Value between -2 and 2.",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": -2.0,
+                    "maximum": 2,
+                    "minimum": -2,
                     "x-nullable": true
                 },
                 "max_tokens": {
@@ -110886,8 +110914,8 @@
                     "title": "Top p",
                     "description": "Controls diversity via nucleus sampling. Value between 0 and 1.",
                     "type": "number",
-                    "maximum": 1.0,
-                    "minimum": 0.0,
+                    "maximum": 1,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "response_format": {
@@ -116268,8 +116296,8 @@
                 "confidence_score": {
                     "title": "Confidence score",
                     "type": "number",
-                    "maximum": 1.0,
-                    "minimum": 0.0,
+                    "maximum": 1,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "latency_ms": {
@@ -119729,8 +119757,8 @@
                     "title": "Start time ms",
                     "description": "Start time of this transcript segment in milliseconds",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
-                    "minimum": -9223372036854775808
+                    "maximum": 9223372036854776000,
+                    "minimum": -9223372036854776000
                 },
                 "start_time_seconds": {
                     "title": "Start time seconds",
@@ -119741,8 +119769,8 @@
                     "title": "End time ms",
                     "description": "End time of this transcript segment in milliseconds",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
-                    "minimum": -9223372036854775808
+                    "maximum": 9223372036854776000,
+                    "minimum": -9223372036854776000
                 },
                 "end_time_seconds": {
                     "title": "End time seconds",
@@ -122397,7 +122425,7 @@
                 "conversation_speed": {
                     "title": "Conversation speed",
                     "type": "number",
-                    "default": 1.0
+                    "default": 1
                 },
                 "finished_speaking_sensitivity": {
                     "title": "Finished speaking sensitivity",
@@ -122833,22 +122861,22 @@
                     "title": "Interrupt sensitivity",
                     "description": "Sensitivity for interruption detection (0-1)",
                     "type": "number",
-                    "maximum": 11.0,
-                    "minimum": 0.0
+                    "maximum": 11,
+                    "minimum": 0
                 },
                 "conversation_speed": {
                     "title": "Conversation speed",
                     "description": "Speed of conversation (0.1-3.0)",
                     "type": "number",
-                    "maximum": 2.0,
+                    "maximum": 2,
                     "minimum": 0.1
                 },
                 "finished_speaking_sensitivity": {
                     "title": "Finished speaking sensitivity",
                     "description": "Sensitivity for detecting when speaker has finished (0-1)",
                     "type": "number",
-                    "maximum": 11.0,
-                    "minimum": 0.0
+                    "maximum": 11,
+                    "minimum": 0
                 },
                 "model": {
                     "title": "Model",
@@ -122861,8 +122889,8 @@
                     "title": "Llm temperature",
                     "description": "Temperature setting for LLM (0-2)",
                     "type": "number",
-                    "maximum": 2.0,
-                    "minimum": 0.0
+                    "maximum": 2,
+                    "minimum": 0
                 },
                 "max_call_duration_in_minutes": {
                     "title": "Max call duration in minutes",
@@ -123855,91 +123883,91 @@
                 "active_users_count": {
                     "title": "Active users count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "traces_count": {
                     "title": "Traces count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "spans_count": {
                     "title": "Spans count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "projects_count": {
                     "title": "Projects count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "eval_logger_count": {
                     "title": "Eval logger count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "model_hub_evaluations_count": {
                     "title": "Model hub evaluations count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "dataset_eval_runs_count": {
                     "title": "Dataset eval runs count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "total_evaluations_count": {
                     "title": "Total evaluations count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "simulation_runs_count": {
                     "title": "Simulation runs count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "simulation_calls_count": {
                     "title": "Simulation calls count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "experiments_count": {
                     "title": "Experiments count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "gateway_requests_count": {
                     "title": "Gateway requests count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 },
                 "datasets_count": {
                     "title": "Datasets count",
                     "type": "integer",
-                    "maximum": 9223372036854775807,
+                    "maximum": 9223372036854776000,
                     "minimum": 0,
                     "x-nullable": true
                 }
@@ -125730,8 +125758,7 @@
             "properties": {
                 "name": {
                     "title": "Name",
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -126475,8 +126502,8 @@
                 "sampling_rate": {
                     "title": "Sampling rate",
                     "type": "number",
-                    "maximum": 100.0,
-                    "minimum": 1.0
+                    "maximum": 100,
+                    "minimum": 1
                 },
                 "last_run": {
                     "title": "Last run",
@@ -127550,8 +127577,8 @@
                 "sampling_rate": {
                     "title": "Sampling rate",
                     "type": "number",
-                    "maximum": 100.0,
-                    "minimum": 1.0,
+                    "maximum": 100,
+                    "minimum": 1,
                     "x-nullable": true
                 },
                 "spans_limit": {
@@ -130508,6 +130535,13 @@
                 "next_cursor": {
                     "title": "Next cursor",
                     "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
                     "minLength": 1,
                     "x-nullable": true
                 },
@@ -133793,6 +133827,13 @@
                     "minLength": 1,
                     "x-nullable": true
                 },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
                 "query_complete": {
                     "title": "Query complete",
                     "type": "boolean"
@@ -133992,13 +134033,7 @@
                 "table": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "object",
-                            "x-nullable": true,
-                            "x-json-value": true,
-                            "description": "Any valid JSON value."
-                        }
+                        "$ref": "#/definitions/TraceSessionTableRow"
                     }
                 },
                 "config": {
@@ -134391,6 +134426,13 @@
                     "minLength": 1,
                     "x-nullable": true
                 },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
                 "query_complete": {
                     "title": "Query complete",
                     "type": "boolean"
@@ -134614,6 +134656,13 @@
                 "next_cursor": {
                     "title": "Next cursor",
                     "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
                     "minLength": 1,
                     "x-nullable": true
                 },
@@ -135405,13 +135454,13 @@
                 "critical_threshold_value": {
                     "title": "Critical threshold value",
                     "type": "number",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "warning_threshold_value": {
                     "title": "Warning threshold value",
                     "type": "number",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "alert_frequency": {
@@ -135730,13 +135779,13 @@
                 "critical_threshold_value": {
                     "title": "Critical threshold value",
                     "type": "number",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "warning_threshold_value": {
                     "title": "Warning threshold value",
                     "type": "number",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "x-nullable": true
                 },
                 "alert_frequency": {
@@ -136128,6 +136177,13 @@
                 "next_cursor": {
                     "title": "Next cursor",
                     "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "next_cursor_fingerprint": {
+                    "title": "Next cursor fingerprint",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
                     "minLength": 1,
                     "x-nullable": true
                 },
@@ -140686,6 +140742,99 @@
                         "enterprise"
                     ]
                 }
+            }
+        },
+        "TraceSessionTableRow": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "title": "Session id",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "session_name": {
+                    "title": "Session name",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "project_id": {
+                    "title": "Project id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "start_time": {
+                    "title": "Start time",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "end_time": {
+                    "title": "End time",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "duration": {
+                    "title": "Duration",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "total_cost": {
+                    "title": "Total cost",
+                    "type": "number",
+                    "x-nullable": true
+                },
+                "total_tokens": {
+                    "title": "Total tokens",
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "total_traces_count": {
+                    "title": "Total traces count",
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "first_message": {
+                    "title": "First message",
+                    "type": "object",
+                    "x-nullable": true,
+                    "x-json-value": true,
+                    "description": "Any valid JSON value."
+                },
+                "last_message": {
+                    "title": "Last message",
+                    "type": "object",
+                    "x-nullable": true,
+                    "x-json-value": true,
+                    "description": "Any valid JSON value."
+                },
+                "user_id": {
+                    "title": "User id",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "user_id_type": {
+                    "title": "User id type",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "user_id_hash": {
+                    "title": "User id hash",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            },
+            "additionalProperties": {
+                "x-json-value": true,
+                "description": "Any valid JSON value.",
+                "x-nullable": true
             }
         }
     }

@@ -44,6 +44,10 @@ import {
   resumePendingListPage,
   shareInFlightListPage,
 } from "src/sections/projects/LLMTracing/listCursorPagination";
+import {
+  boundObserveListRow,
+  compactObserveListResponse,
+} from "src/sections/projects/LLMTracing/observeListPayload";
 import ListCursorContinuationNotice from "src/sections/projects/LLMTracing/ListCursorContinuationNotice";
 import CursorGridPagination from "src/sections/projects/LLMTracing/CursorGridPagination";
 import useCursorGridPagination from "src/sections/projects/LLMTracing/useCursorGridPagination";
@@ -140,7 +144,11 @@ const SessionGrid = React.forwardRef(
         window.removeEventListener(OBSERVE_LIST_REFRESH_EVENT, refreshRows);
     }, [gridApiRef, page]);
     const theme = useTheme();
-    const agTheme = useAgThemeWith(getSessionGridThemeParams(theme));
+    const gridThemeParams = useMemo(
+      () => getSessionGridThemeParams(theme),
+      [theme],
+    );
+    const agTheme = useAgThemeWith(gridThemeParams);
     const handleDrawerClose = () => {
       setOpen(false);
     };
@@ -363,9 +371,12 @@ const SessionGrid = React.forwardRef(
                         signal,
                       }),
                     rowsFromResponse: (response) =>
-                      response?.data?.result?.table || [],
+                      (response?.data?.result?.table || []).map(
+                        boundObserveListRow,
+                      ),
                     metadataFromResponse: (response) =>
                       response?.data?.result?.metadata || {},
+                    compactResponse: compactObserveListResponse,
                     rowIdentity: sessionRowIdentity,
                     isCurrent: () =>
                       cursorPagination.current.isCurrent(requestGeneration),

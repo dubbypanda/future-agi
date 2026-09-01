@@ -176,46 +176,26 @@ def test_no_filter_poll_at_a_later_time_reuses_the_original_frozen_job(monkeypat
 
 
 @pytest.mark.unit
-def test_filtered_system_graph_uses_exact_snapshot_identity_without_inline_read(
+def test_filtered_system_graph_uses_inline_exact_reader_without_snapshot(
     monkeypatch,
 ):
     from tracer.services.clickhouse import graph_dispatch
-    from tracer.services.clickhouse.bounded_graph_reads import GraphCandidateSample
 
-    sample = GraphCandidateSample(
-        rows=(),
-        query_complete=True,
-        query_status="complete",
-        query_error_code=None,
-        window_start=datetime(2026, 8, 1),
-        window_end=datetime(2026, 9, 1),
-        elapsed_ms=1,
-        query_count=1,
-        rows_returned=0,
-        result_payload_bytes=0,
-        total_rows_lower_bound=0,
-    )
-    candidate_calls = []
+    exact_calls = []
 
-    def candidate_read(**kwargs):
-        candidate_calls.append(kwargs)
-        return sample
+    def exact_read(**kwargs):
+        exact_calls.append(kwargs)
+        return {
+            "metric_name": "latency",
+            "data": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
 
     monkeypatch.setattr(
         graph_dispatch,
-        "read_graph_candidates",
-        candidate_read,
-        raising=False,
-    )
-    calls = []
-
-    def exact_read(namespace, identity, **options):
-        calls.append((namespace, identity, options))
-        return options["pending_payload"]
-
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
+        "read_exact_system_graph",
         exact_read,
     )
     result = graph_dispatch.fetch_system_metric_graph_ch(
@@ -227,18 +207,15 @@ def test_filtered_system_graph_uses_exact_snapshot_identity_without_inline_read(
         observe_type="span",
     )
 
-    assert result["query_status"] == "pending"
+    assert result["query_status"] == "complete"
+    assert result["query_complete"] is True
     assert result["query_sampled"] is False
-    assert result["query_refreshing"] is True
-    assert candidate_calls == []
-    assert calls[0][0] == "observe-system-graph"
-    assert calls[0][1] == {
-        "project_id": PROJECT_ID,
-        "filters": [_attribute_filter()],
-        "interval": "day",
-        "metric_id": "latency",
-        "observe_type": "span",
-    }
+    assert result["query_exact"] is True
+    assert result["query_provenance"] == "direct_exact"
+    assert len(exact_calls) == 1
+    assert exact_calls[0]["project_id"] == PROJECT_ID
+    assert exact_calls[0]["filters"] == [_attribute_filter()]
+    assert exact_calls[0]["observe_type"] == "span"
 
 
 @pytest.mark.unit

@@ -49,10 +49,11 @@ function PreviewHarness({
   rowType = "spans",
   projectId = PROJECT_ID,
   waitForProjectKind = false,
+  filters = [],
 }) {
   const { control } = useForm({
     defaultValues: {
-      filters: [],
+      filters,
       startDate: null,
       endDate: null,
       evalsDetails: [],
@@ -72,6 +73,7 @@ PreviewHarness.propTypes = {
   rowType: PropTypes.string,
   projectId: PropTypes.string,
   waitForProjectKind: PropTypes.bool,
+  filters: PropTypes.array,
 };
 
 const voiceListPage = ({
@@ -122,6 +124,90 @@ describe("TaskLivePreview sparse cursor continuation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  it.each([
+    ["spans", "/spans/", "page_number"],
+    ["traces", "/traces/", "page_number"],
+    ["sessions", "/sessions/", "page_number"],
+    ["voiceCalls", "/calls/", "page"],
+  ])(
+    "submits typed filters to the %s list binding",
+    async (rowType, listUrl, pageParam) => {
+      const filters = [
+        {
+          property: "attributes",
+          propertyId: "latency_ms",
+          registryId: "custom_attribute:latency_ms",
+          fieldCategory: "attribute",
+          apiColType: "SPAN_ATTRIBUTE",
+          filterConfig: {
+            filterType: "number",
+            filterOp: "greater_than",
+            filterValue: 12.5,
+          },
+        },
+        {
+          property: "attributes",
+          propertyId: "customer_tier",
+          registryId: "custom_attribute:customer_tier",
+          fieldCategory: "attribute",
+          apiColType: "SPAN_ATTRIBUTE",
+          filterConfig: {
+            filterType: "text",
+            filterOp: "in",
+            filterValue: ["enterprise", "growth"],
+          },
+        },
+      ];
+      mocks.get.mockImplementation(() => new Promise(() => {}));
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <PreviewHarness rowType={rowType} filters={filters} />
+        </QueryClientProvider>,
+      );
+
+      await waitFor(() =>
+        expect(mocks.get.mock.calls.some(([url]) => url === listUrl)).toBe(
+          true,
+        ),
+      );
+      const [, { params }] = mocks.get.mock.calls.find(
+        ([url]) => url === listUrl,
+      );
+      expect(params).toMatchObject({
+        project_id: PROJECT_ID,
+        page_size: 1,
+        cursor_mode: true,
+        [pageParam]: rowType === "voiceCalls" ? 1 : 0,
+      });
+      expect(JSON.parse(params.filters)).toEqual([
+        {
+          column_id: "latency_ms",
+          property_id: "custom_attribute:latency_ms",
+          filter_config: {
+            filter_type: "number",
+            filter_op: "greater_than",
+            filter_value: 12.5,
+            col_type: "SPAN_ATTRIBUTE",
+          },
+        },
+        {
+          column_id: "customer_tier",
+          property_id: "custom_attribute:customer_tier",
+          filter_config: {
+            filter_type: "text",
+            filter_op: "in",
+            filter_value: ["enterprise", "growth"],
+            col_type: "SPAN_ATTRIBUTE",
+          },
+        },
+      ]);
+    },
+  );
 
   it("waits for simulator project kind instead of starting disposable lists", async () => {
     let resolveProjectDetails;
@@ -428,6 +514,13 @@ describe("TaskLivePreview sparse cursor continuation", () => {
     await screen.findByText(/trace-second detail/);
     expect(listCalls).toBe(2);
     expect(screen.getByText(/≥37 matching total/)).toBeVisible();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryCache().findAll({
+          predicate: (query) => query.queryKey[0] === "task-preview-list",
+        }),
+      ).toHaveLength(1),
+    );
 
     await act(async () => {
       screen.getByRole("button", { name: "Next row" }).click();
@@ -446,6 +539,13 @@ describe("TaskLivePreview sparse cursor continuation", () => {
       }),
     );
     expect(screen.getByRole("button", { name: "Next row" })).toBeDisabled();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryCache().findAll({
+          predicate: (query) => query.queryKey[0] === "task-preview-list",
+        }),
+      ).toHaveLength(1),
+    );
   });
 
   it.each([

@@ -27,6 +27,7 @@ def _compose_config() -> dict[str, object]:
     environment.update(
         {
             "FI_COLLECTOR_VERSION": "local",
+            "PROPERTY_CATALOG_KAFKA_PORT": "29092",
             "PROPERTY_CATALOG_KAFKA_CPUS": "1.0",
             "PROPERTY_CATALOG_KAFKA_MEMORY": "1G",
             "PROPERTY_CATALOG_KAFKA_HEAP_OPTS": "-Xms256m -Xmx512m",
@@ -104,6 +105,22 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
 
     kafka = services["property-catalog-kafka"]
     assert kafka["environment"]["KAFKA_HEAP_OPTS"] == "-Xms256m -Xmx512m"
+    assert kafka["environment"]["KAFKA_LISTENERS"] == (
+        "INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093"
+    )
+    assert kafka["environment"]["KAFKA_ADVERTISED_LISTENERS"] == (
+        "INTERNAL://property-catalog-kafka:9092,EXTERNAL://127.0.0.1:29092"
+    )
+    assert kafka["environment"]["KAFKA_INTER_BROKER_LISTENER_NAME"] == "INTERNAL"
+    assert kafka["ports"] == [
+        {
+            "mode": "ingress",
+            "host_ip": "127.0.0.1",
+            "target": 29092,
+            "published": "29092",
+            "protocol": "tcp",
+        }
+    ]
     supervisor = services["property-catalog-supervisor"]
     supervisor_command = " ".join(supervisor["command"])
     assert "--once" in supervisor_command
@@ -112,6 +129,17 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
         "CMD-SHELL",
         "test -f /tmp/property-catalog-supervisor.ready",
     ]
+    for service_name in (
+        "property-catalog-kafka",
+        "property-catalog-topic-init",
+        "fi-collector",
+        "fi-property-catalog-sequencer",
+        "fi-property-catalog-consumer",
+        "property-catalog-supervisor",
+    ):
+        service = services[service_name]
+        assert service.get("profiles") in (None, [])
+        assert "default" in service["networks"]
     for service_name in (
         "property-catalog-kafka",
         "fi-collector",
@@ -124,6 +152,21 @@ def test_compose_builds_the_shared_collector_image_with_bounded_resources() -> N
         limits = services[service_name]["deploy"]["resources"]["limits"]
         assert limits["cpus"] > 0
         assert int(limits["memory"]) > 0
+
+    internal_broker = "property-catalog-kafka:9092"
+    assert collector_env["FI_PROPERTY_CATALOG_KAFKA_BROKERS"] == internal_broker
+    assert sequencer_env["FI_PROPERTY_CATALOG_KAFKA_BROKERS"] == internal_broker
+    assert (
+        sequencer_env["FI_PROPERTY_CATALOG_CANDIDATE_KAFKA_BROKERS"] == internal_broker
+    )
+    assert consumer_env["FI_PROPERTY_CATALOG_KAFKA_BROKERS"] == internal_broker
+    supervisor_fence = supervisor["environment"][
+        "PROPERTY_CATALOG_DEV_REVISION_FENCE_FILE"
+    ]
+    sequencer_fence = sequencer_env["FI_PROPERTY_CATALOG_REVISION_FENCE_FILE"]
+    assert supervisor_fence.removeprefix("/var/lib/fi-collector") == (
+        sequencer_fence.removeprefix("/var/lib/property-catalog-control")
+    )
 
 
 def test_installers_gate_success_on_the_full_catalog_path() -> None:

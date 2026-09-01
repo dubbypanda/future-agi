@@ -56,6 +56,9 @@ from tracer.services.clickhouse.v2.property_catalog.publisher import (
     require_dev_catalog_database,
 )
 from tracer.services.clickhouse.v2.property_catalog.reconciler import ReconcileMode
+from tracer.services.clickhouse.v2.property_catalog.revision_fence_registry import (
+    AtomicMultiTenantFenceFile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +99,7 @@ class OssSupervisorConfig:
     catalog_epoch: int
     projection_version: int
     producer_stream_id: str
+    revision_fence_file: str
     poll_seconds: int
     workspace_batch_size: int
     project_batch_size: int
@@ -319,6 +323,13 @@ def _supervisor_config(
         )
     except ValueError as exc:
         raise OssPropertyCatalogSupervisorError(str(exc)) from exc
+    revision_fence_file = str(
+        getattr(settings_object, "PROPERTY_CATALOG_DEV_REVISION_FENCE_FILE", "")
+    ).strip()
+    if not revision_fence_file:
+        raise OssPropertyCatalogSupervisorError(
+            "PROPERTY_CATALOG_DEV_REVISION_FENCE_FILE must be set explicitly"
+        )
     poll_seconds = _bounded_environment_int(
         environ,
         OSS_SUPERVISOR_POLL_SECONDS_ENV,
@@ -355,6 +366,7 @@ def _supervisor_config(
         catalog_epoch=epoch,
         projection_version=projection,
         producer_stream_id=producer_stream_id,
+        revision_fence_file=revision_fence_file,
         poll_seconds=poll_seconds,
         workspace_batch_size=workspace_batch_size,
         project_batch_size=project_batch_size,
@@ -431,6 +443,13 @@ def _run_cycle(
     allow_initial_backfill: bool = False,
     initial_backfill_wall_ms: int | None = None,
 ) -> _CycleResult:
+    authorized_workspaces = tuple(
+        sorted((*skipped, *(scope.workspace_id for scope in scopes)))
+    )
+    AtomicMultiTenantFenceFile(
+        config.revision_fence_file,
+        now=lambda: now,
+    ).reconcile_authorized_workspaces(authorized_workspaces)
     processed: list[str] = []
     skipped_workspaces = list(skipped)
     failures: dict[str, str] = {}
@@ -546,6 +565,7 @@ def _runtime(
 ) -> Any:
     runtime = PropertyCatalogDevRuntimeFactory(
         settings_object=proxy,
+        fence_sink_factory=AtomicMultiTenantFenceFile,
         project_tenant_binding_probe=_legacy_aware_project_probe(scope),
     )(request)
     return require_checked_in_property_catalog_dev_runtime(runtime)
@@ -693,6 +713,7 @@ def _workspace_settings_proxy(
         "PROPERTY_CATALOG_DEV_SPAN_SINCE": _iso_z(span_since),
         "PROPERTY_CATALOG_DEV_SPAN_UNTIL": _iso_z(span_until),
         "PROPERTY_CATALOG_DEV_HOT_PRODUCER_STREAM_ID": config.producer_stream_id,
+        "PROPERTY_CATALOG_DEV_REVISION_FENCE_FILE": config.revision_fence_file,
         "PROPERTY_CATALOG_DEV_EXPECTED_WRITE_CH_HOSTNAME": (
             effective_expectation.writer_clickhouse_hostname
         ),

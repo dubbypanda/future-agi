@@ -79,27 +79,44 @@ describe("ObserveToolbar status filter registry", () => {
     );
   });
 
-  it("uses session-backed values and the Users property namespace", () => {
-    renderToolbar({ mode: "users", projectId: "users-project" });
+  it("keeps workspace Users values session-scoped and attributes trace-scoped", () => {
+    renderToolbar({ mode: "users", allowWorkspaceScope: true });
 
     expect(traceFilterPanelPropsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         source: "sessions",
         propertyNamespace: "users",
-        attributeSource: "spans",
-        projectId: "users-project",
+        attributeSource: "traces",
+        projectId: undefined,
+        allowWorkspaceScope: true,
       }),
     );
   });
 
-  it("keeps the session value catalog for session filters", () => {
-    renderToolbar({ mode: "sessions", projectId: "sessions-project" });
+  it("keeps user-detail Sessions values session-scoped and attributes trace-scoped", () => {
+    renderToolbar({ mode: "sessions", allowWorkspaceScope: true });
 
     expect(traceFilterPanelPropsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         source: "sessions",
-        attributeSource: "spans",
-        projectId: "sessions-project",
+        propertyNamespace: "sessions",
+        attributeSource: "traces",
+        projectId: undefined,
+        allowWorkspaceScope: true,
+      }),
+    );
+  });
+
+  it("keeps user-detail Trace values, namespace, and attributes trace-scoped", () => {
+    renderToolbar({ mode: "traces", allowWorkspaceScope: true });
+
+    expect(traceFilterPanelPropsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        source: "traces",
+        propertyNamespace: "traces",
+        attributeSource: undefined,
+        projectId: undefined,
+        allowWorkspaceScope: true,
       }),
     );
   });

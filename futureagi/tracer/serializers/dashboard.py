@@ -577,7 +577,7 @@ class DashboardQuerySeriesPointSerializer(serializers.Serializer):
 
 
 class DashboardQuerySeriesSerializer(serializers.Serializer):
-    name = serializers.CharField()
+    name = serializers.CharField(allow_blank=True)
     data = DashboardQuerySeriesPointSerializer(many=True)
 
 

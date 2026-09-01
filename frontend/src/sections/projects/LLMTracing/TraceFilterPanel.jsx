@@ -45,6 +45,7 @@ import {
   isPropertyCatalogNotReadyError,
   PROPERTY_CATALOG_REQUEST_TIMEOUT_MS,
   useDashboardFilterValues,
+  useLegacyDashboardMetricsPaginated,
   usePropertyCatalog,
 } from "src/hooks/useDashboards";
 import { useDebounce } from "src/hooks/use-debounce";
@@ -1505,6 +1506,48 @@ export function useTraceFilterProperties(
   };
 }
 
+export function useLegacyTraceAttributeProperties(
+  projectId,
+  {
+    enabled = true,
+    source = "traces",
+    search = "",
+    allowWorkspaceScope = false,
+    isSimulator = false,
+    propertyFilter,
+  } = {},
+) {
+  const hasScope = Boolean(projectId || allowWorkspaceScope);
+  const query = useLegacyDashboardMetricsPaginated({
+    category: "custom_attribute",
+    source,
+    search,
+    projectIds: projectId ? [projectId] : [],
+    perEvalConfig: true,
+    pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
+    enabled: enabled && hasScope,
+  });
+  const data = useMemo(() => {
+    const properties = buildTraceFilterProperties(query.metrics || [], {
+      isSimulator,
+      sourceScope: source,
+    });
+    return propertyFilter ? properties.filter(propertyFilter) : properties;
+  }, [isSimulator, propertyFilter, query.metrics, source]);
+
+  return {
+    ...query,
+    data,
+    queryReadState: query.isError
+      ? "error"
+      : query.isSuccess
+        ? "complete"
+        : "loading",
+    browseStatus: query.hasNextPage ? "continuation" : "exhausted",
+    totalCount: query.total,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // PropertyPicker — dashboard-style two-column picker
 // ---------------------------------------------------------------------------
@@ -1600,7 +1643,7 @@ export function PropertyPickerPaginationControl({
           loadNextPage: onLoadMoreCatalog,
         },
       ]}
-      loadingLabel="Loading more properties…"
+      loadingLabel="Loading next property catalog page…"
       retryLabel={
         catalogPageError && !attributePageError
           ? "Retry loading properties"
@@ -1657,6 +1700,11 @@ function PropertyPicker({
       annotation: "annotation_metric",
       attribute: "custom_attribute",
     }[category] || "";
+  const pickerCatalogFallbackScope = JSON.stringify([
+    "trace-filter-property-picker",
+    projectId || (allowWorkspaceScope ? "workspace" : ""),
+    source,
+  ]);
   const unifiedCatalogScopeActive = Boolean(
     unifiedCatalogActive &&
       open &&
@@ -1671,6 +1719,8 @@ function PropertyPicker({
     perEvalConfig: true,
     pageSize: PROPERTY_CATALOG_SEARCH_PAGE_SIZE,
     enabled: unifiedCatalogScopeActive,
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `${pickerCatalogFallbackScope}:scoped`,
   });
   // Keep the All-search definition/count request mounted independently from
   // category navigation. React Query deduplicates this request while All is
@@ -1688,6 +1738,8 @@ function PropertyPicker({
         (projectId || allowWorkspaceScope) &&
         debouncedCatalogSearch,
     ),
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `${pickerCatalogFallbackScope}:all-search`,
   });
   const searchedCatalogProperties = useMemo(() => {
     const catalogProperties = buildTraceFilterProperties(
@@ -1717,7 +1769,9 @@ function PropertyPicker({
     allSearchCatalog.categoryCountsExact && allSearchCatalog.categoryCounts,
   );
   const searchedCatalogOwnsResults = Boolean(
-    unifiedCatalogScopeActive && catalogSearchSettled,
+    unifiedCatalogScopeActive &&
+      catalogSearchSettled &&
+      !searchedCatalog.legacyFallbackRequired,
   );
   const unifiedCatalogSearchPending = Boolean(
     unifiedCatalogActive &&
@@ -1797,7 +1851,8 @@ function PropertyPicker({
     ? searchedCatalog.continuationKey
     : catalogContinuationKey;
   const effectiveIsFetchingNextCatalogPage = searchedCatalogOwnsResults
-    ? searchedCatalog.isFetchingNextPage
+    ? searchedCatalog.isRemoteCatalogNextPagePending ??
+      searchedCatalog.isFetchingNextPage
     : isFetchingNextCatalogPage;
   const effectiveCatalogNextPageError = searchedCatalogOwnsResults
     ? Boolean(
@@ -1810,8 +1865,29 @@ function PropertyPicker({
     : loadNextCatalogPage;
   const unifiedCatalogSearchLoading = Boolean(
     unifiedCatalogSearchPending ||
-      (unifiedCatalogScopeActive && searchedCatalog.isLoading),
+      (unifiedCatalogScopeActive &&
+        !searchedCatalog.legacyFallbackRequired &&
+        (searchedCatalog.isRemoteCatalogSearchPending ||
+          searchedCatalog.isLoading)),
   );
+  const legacyAttributeFallbackActive = Boolean(
+    open &&
+      (projectId || allowWorkspaceScope) &&
+      (source === "traces" || source === "spans") &&
+      ((searchedCatalog.legacyFallbackRequired && catalogSearchSettled) ||
+        (!unifiedCatalogActive &&
+          (allowWorkspaceScope ||
+            !enableExactAttributeLookup ||
+            Boolean(debouncedCatalogSearch)))),
+  );
+  const legacyAttributeFallback = useLegacyTraceAttributeProperties(projectId, {
+    enabled: legacyAttributeFallbackActive,
+    source,
+    search: debouncedCatalogSearch,
+    allowWorkspaceScope,
+    isSimulator,
+    propertyFilter,
+  });
   const {
     data: exactAttributeProperties,
     isFetching: exactAttributeLoading,
@@ -1843,13 +1919,60 @@ function PropertyPicker({
     // Keep this hook exclusively as the rolling-deploy fallback.
     enabled: enableExactAttributeLookup && open && !unifiedCatalogActive,
   });
+  const legacyAttributeFallbackOwnsInventory = Boolean(
+    legacyAttributeFallbackActive &&
+      (legacyAttributeFallback.isSuccess || legacyAttributeFallback.isError),
+  );
+  const effectiveAttributeProperties = useMemo(
+    () =>
+      mergeRetainedAttributeProperties(
+        exactAttributeProperties,
+        legacyAttributeFallback.data,
+      ),
+    [exactAttributeProperties, legacyAttributeFallback.data],
+  );
+  const effectiveAttributeLoading = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.isLoading
+    : exactAttributeLoading;
+  const effectiveAttributeReadState = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.queryReadState
+    : exactAttributeReadState;
+  const effectiveAttributeBrowseStatus = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.browseStatus
+    : exactAttributeBrowseStatus;
+  const effectiveAttributeTotalCount = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.totalCount
+    : exactAttributeTotalCount;
+  const effectiveHasNextAttributePage = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.hasNextPage
+    : hasNextAttributePage;
+  const effectiveAttributeContinuationKey = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.continuationKey
+    : exactAttributeContinuationKey;
+  const effectiveIsFetchingNextAttributePage =
+    legacyAttributeFallbackOwnsInventory
+      ? legacyAttributeFallback.isFetchingNextPage
+      : isFetchingNextAttributePage;
+  const effectiveNextAttributePageError = legacyAttributeFallbackOwnsInventory
+    ? Boolean(
+        legacyAttributeFallback.isError ||
+          legacyAttributeFallback.isFetchNextPageError,
+      )
+    : isNextAttributePageError;
+  const effectiveFetchNextAttributePage = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.fetchNextPage
+    : fetchNextAttributePage;
+  const effectiveRefetchAttributePages = legacyAttributeFallbackOwnsInventory
+    ? legacyAttributeFallback.refetch
+    : refetchAttributePages;
   const hasSettledExactAttributeError = Boolean(
-    search.trim() &&
+    !legacyAttributeFallbackOwnsInventory &&
+      search.trim() &&
       debouncedSearch === search.trim() &&
       exactAttributeSearchError,
   );
   const hasAttributePageError =
-    isNextAttributePageError || hasSettledExactAttributeError;
+    effectiveNextAttributePageError || hasSettledExactAttributeError;
 
   useEffect(() => {
     if (!open) {
@@ -1872,11 +1995,13 @@ function PropertyPicker({
   }, [open, search, category, projectId, source]);
 
   const usesRetainedAttributePages = shouldUseRetainedAttributePages({
-    enabled: enableExactAttributeLookup && !unifiedCatalogActive,
+    enabled:
+      legacyAttributeFallbackOwnsInventory ||
+      (enableExactAttributeLookup && !unifiedCatalogActive),
     source,
-    readState: exactAttributeReadState,
-    attributes: exactAttributeProperties,
-    browseStatus: exactAttributeBrowseStatus,
+    readState: effectiveAttributeReadState,
+    attributes: effectiveAttributeProperties,
+    browseStatus: effectiveAttributeBrowseStatus,
   });
 
   const propertiesWithExactAttribute = useMemo(() => {
@@ -1887,14 +2012,14 @@ function PropertyPicker({
     // already rendered.  Keep the sample only as a degraded-read fallback.
     return mergeRetainedAttributeProperties(
       effectiveCatalogProperties,
-      exactAttributeProperties,
+      effectiveAttributeProperties,
       {
         canonical: usesRetainedAttributePages,
       },
     );
   }, [
     effectiveCatalogProperties,
-    exactAttributeProperties,
+    effectiveAttributeProperties,
     usesRetainedAttributePages,
   ]);
 
@@ -1922,16 +2047,17 @@ function PropertyPicker({
       return c;
     }
     const exactLookupOwnsAttributeInventory =
-      enableExactAttributeLookup && (source === "traces" || source === "spans");
+      (legacyAttributeFallbackOwnsInventory || enableExactAttributeLookup) &&
+      (source === "traces" || source === "spans");
     if (exactLookupOwnsAttributeInventory) {
       const loadedAttributeCount = c.attribute || 0;
       const nonAttributeCount = c.all - loadedAttributeCount;
       if (
-        Number.isSafeInteger(exactAttributeTotalCount) &&
-        exactAttributeTotalCount >= 0
+        Number.isSafeInteger(effectiveAttributeTotalCount) &&
+        effectiveAttributeTotalCount >= 0
       ) {
-        c.attribute = exactAttributeTotalCount;
-        c.all = nonAttributeCount + exactAttributeTotalCount;
+        c.attribute = effectiveAttributeTotalCount;
+        c.all = nonAttributeCount + effectiveAttributeTotalCount;
       } else {
         // A growing loaded-page count looks exact but changes on every scroll.
         // Keep both affected categories explicitly unknown until the backend
@@ -1945,7 +2071,8 @@ function PropertyPicker({
     effectiveCatalogCategoryCounts,
     effectiveCatalogCategoryCountsExact,
     enableExactAttributeLookup,
-    exactAttributeTotalCount,
+    effectiveAttributeTotalCount,
+    legacyAttributeFallbackOwnsInventory,
     propertiesWithExactAttribute,
     source,
   ]);
@@ -1970,23 +2097,27 @@ function PropertyPicker({
   // unrelated legacy catalog pages stay hidden after a local match.
   const shouldShowCatalogContinuation =
     catalogCategoryCanContinue &&
+    (!unifiedCatalogActive || !searchedCatalog.legacyFallbackRequired) &&
     (unifiedCatalogActive || !catalogSearchAlreadyMatched);
   // A successful exact probe stops only that supplemental chain. The retained
   // catalog remains explicitly pageable so sibling substring matches can be
   // discovered without automatically draining it.
   const canLoadNextAttributePage = Boolean(
-    hasNextAttributePage ||
-      (search.trim() &&
+    effectiveHasNextAttributePage ||
+      (!legacyAttributeFallbackOwnsInventory &&
+        search.trim() &&
         (hasNextExactAttributePage || hasSettledExactAttributeError)),
   );
-  const exactAttributeDiscoveryTerminal =
-    exactAttributeCursorRetryExhausted ||
-    exactAttributeBrowseStatus === "exhausted" ||
-    exactAttributeReadState === "error" ||
-    exactAttributeReadState === "degraded";
+  const exactAttributeDiscoveryTerminal = legacyAttributeFallbackOwnsInventory
+    ? effectiveAttributeBrowseStatus === "exhausted" ||
+      effectiveAttributeReadState === "error"
+    : exactAttributeCursorRetryExhausted ||
+      exactAttributeBrowseStatus === "exhausted" ||
+      exactAttributeReadState === "error" ||
+      exactAttributeReadState === "degraded";
   const manualAttributeProperty = useMemo(
     () =>
-      debouncedSearch === search.trim() && !exactAttributeLoading
+      debouncedSearch === search.trim() && !effectiveAttributeLoading
         ? buildManualAttributeProperty({
             search,
             category,
@@ -1997,7 +2128,7 @@ function PropertyPicker({
             enabled:
               enableExactAttributeLookup &&
               exactAttributeDiscoveryTerminal &&
-              !hasNextAttributePage,
+              !effectiveHasNextAttributePage,
             hasCategorySidebar,
           })
         : null,
@@ -2006,9 +2137,9 @@ function PropertyPicker({
       debouncedSearch,
       enableExactAttributeLookup,
       exactAttributeDiscoveryTerminal,
-      exactAttributeLoading,
+      effectiveAttributeLoading,
+      effectiveHasNextAttributePage,
       hasCategorySidebar,
-      hasNextAttributePage,
       propertiesWithExactAttribute,
       search,
     ],
@@ -2016,9 +2147,14 @@ function PropertyPicker({
 
   const paperWidth = hasCategorySidebar ? 480 : 320;
   const loadNextAttributePage = useSingleFlightPageRequest({
-    identity: JSON.stringify([projectId, source, debouncedSearch]),
-    enabled: canLoadNextAttributePage && !isFetchingNextAttributePage,
-    request: fetchNextAttributePage,
+    identity: JSON.stringify([
+      legacyAttributeFallbackOwnsInventory ? "legacy" : "retained",
+      projectId || (allowWorkspaceScope ? "workspace" : ""),
+      source,
+      debouncedSearch,
+    ]),
+    enabled: canLoadNextAttributePage && !effectiveIsFetchingNextAttributePage,
+    request: effectiveFetchNextAttributePage,
   });
   const loadNextExactAttributePage = useSingleFlightPageRequest({
     identity: JSON.stringify(["exact", projectId, source, debouncedSearch]),
@@ -2029,6 +2165,7 @@ function PropertyPicker({
     request: fetchNextExactAttributePage,
   });
   const loadNextVisibleAttributePage =
+    !legacyAttributeFallbackOwnsInventory &&
     search.trim() &&
     (hasNextExactAttributePage || hasSettledExactAttributeError)
       ? loadNextExactAttributePage
@@ -2041,12 +2178,14 @@ function PropertyPicker({
     effectiveHasNextCatalogPage;
   const isFetchingVisibleAttributePage = Boolean(
     attributeCategoryCanContinue &&
-      (isFetchingNextAttributePage || isFetchingNextExactPage),
+      (effectiveIsFetchingNextAttributePage ||
+        (!legacyAttributeFallbackOwnsInventory && isFetchingNextExactPage)),
   );
   useEffect(() => {
     const settledSearch = search.trim();
     if (
       !open ||
+      legacyAttributeFallbackOwnsInventory ||
       !settledSearch ||
       debouncedSearch !== settledSearch ||
       exactAttributeSearchMatched ||
@@ -2077,6 +2216,7 @@ function PropertyPicker({
     isFetchingNextExactPage,
     hasAttributePageError,
     loadNextExactAttributePage,
+    legacyAttributeFallbackOwnsInventory,
     open,
     projectId,
     search,
@@ -2154,15 +2294,15 @@ function PropertyPicker({
                 sx: { fontSize: 13 },
               }}
             />
-            {enableExactAttributeLookup &&
+            {(enableExactAttributeLookup || legacyAttributeFallbackActive) &&
               search.trim() &&
               debouncedSearch === search.trim() &&
-              exactAttributeReadState !== "complete" && (
+              effectiveAttributeReadState !== "complete" && (
                 <Typography
                   role="status"
                   sx={{ mt: 0.75, fontSize: 11, color: "warning.main" }}
                 >
-                  {getAttributeLookupMessage(exactAttributeReadState)}
+                  {getAttributeLookupMessage(effectiveAttributeReadState)}
                 </Typography>
               )}
             {hasSettledExactAttributeError && (
@@ -2185,15 +2325,15 @@ function PropertyPicker({
               </Box>
             )}
             {!search.trim() &&
-              enableExactAttributeLookup &&
+              (enableExactAttributeLookup || legacyAttributeFallbackActive) &&
               (source === "traces" || source === "spans") &&
-              exactAttributeReadState !== "complete" &&
-              !exactAttributeLoading && (
+              effectiveAttributeReadState !== "complete" &&
+              !effectiveAttributeLoading && (
                 <Typography
                   role="status"
                   sx={{ mt: 0.75, fontSize: 11, color: "warning.main" }}
                 >
-                  {getAttributeLookupMessage(exactAttributeReadState)}
+                  {getAttributeLookupMessage(effectiveAttributeReadState)}
                 </Typography>
               )}
             {effectiveCatalogError && (
@@ -2204,15 +2344,15 @@ function PropertyPicker({
                 {getQueryReadMessage("error")}
               </Typography>
             )}
-            {enableExactAttributeLookup &&
+            {(enableExactAttributeLookup || legacyAttributeFallbackActive) &&
               (source === "traces" || source === "spans") &&
-              exactAttributeReadState !== "complete" &&
+              effectiveAttributeReadState !== "complete" &&
               !hasAttributePageError &&
               !exactAttributeCursorRetryExhausted &&
-              !exactAttributeLoading && (
+              !effectiveAttributeLoading && (
                 <Button
                   size="small"
-                  onClick={() => refetchAttributePages?.()}
+                  onClick={() => effectiveRefetchAttributePages?.()}
                   sx={{ mt: 0.5, px: 0, minWidth: 0, fontSize: 11 }}
                 >
                   Retry attribute suggestions
@@ -2310,7 +2450,7 @@ function PropertyPicker({
               {filtered.length === 0 &&
                 !manualAttributeProperty &&
                 !canLoadNextAttributePage &&
-                !exactAttributeLoading &&
+                !effectiveAttributeLoading &&
                 !unifiedCatalogSearchLoading && (
                   <Typography
                     sx={{
@@ -2326,9 +2466,9 @@ function PropertyPicker({
               {filtered.length === 0 &&
                 !manualAttributeProperty &&
                 canLoadNextAttributePage &&
-                !exactAttributeLoading &&
+                !effectiveAttributeLoading &&
                 !unifiedCatalogSearchLoading &&
-                !isFetchingNextAttributePage && (
+                !effectiveIsFetchingNextAttributePage && (
                   <Typography
                     role="status"
                     sx={{
@@ -2343,8 +2483,8 @@ function PropertyPicker({
                   </Typography>
                 )}
               {filtered.length === 0 &&
-                (exactAttributeLoading || unifiedCatalogSearchLoading) &&
-                !isFetchingNextAttributePage && (
+                (effectiveAttributeLoading || unifiedCatalogSearchLoading) &&
+                !effectiveIsFetchingNextAttributePage && (
                   <Box
                     role="status"
                     sx={{
@@ -2357,7 +2497,30 @@ function PropertyPicker({
                   >
                     <CircularProgress size={16} />
                     <Typography sx={{ fontSize: 11, color: "text.secondary" }}>
-                      Loading properties…
+                      {trimmedSearch
+                        ? "Searching property catalog…"
+                        : "Loading properties…"}
+                    </Typography>
+                  </Box>
+                )}
+              {filtered.length > 0 &&
+                trimmedSearch &&
+                unifiedCatalogSearchLoading && (
+                  <Box
+                    role="status"
+                    aria-label="Searching property catalog"
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      px: 1.5,
+                      py: 0.75,
+                      color: "text.secondary",
+                    }}
+                  >
+                    <CircularProgress size={14} />
+                    <Typography sx={{ fontSize: 11 }}>
+                      Searching property catalog…
                     </Typography>
                   </Box>
                 )}
@@ -2387,6 +2550,7 @@ function PropertyPicker({
                 >
                   <Typography
                     noWrap
+                    title={prop.name}
                     sx={{
                       fontSize: 13,
                       flex: 1,
@@ -2493,7 +2657,7 @@ function PropertyPicker({
                   autoAdvanceWhileVisible={!search.trim()}
                   scrollRootRef={propertyOptionsListRef}
                   attributePageAvailable={attributePageAvailable}
-                  attributeContinuationKey={exactAttributeContinuationKey}
+                  attributeContinuationKey={effectiveAttributeContinuationKey}
                   isFetchingAttributePage={isFetchingVisibleAttributePage}
                   attributePageError={hasAttributePageError}
                   onLoadMoreAttributes={loadNextVisibleAttributePage}
@@ -3089,6 +3253,8 @@ function ValuePicker({
               <Box
                 key={pickerValueKey(optionValue, optionType)}
                 data-filter-value-option={String(optionValue)}
+                role={singleSelect ? "radio" : "checkbox"}
+                aria-checked={isSelected}
                 onClick={() => toggleValue(opt)}
                 sx={{
                   display: "flex",
@@ -3305,12 +3471,16 @@ function FilterRow({
   const safeOperator = normalizeFilterRowOperator(filter).operator;
   const currentOpDef = allOps.find((o) => o.value === safeOperator);
   const updateRow = useCallback(
-    (changes) =>
-      onChange(index, {
-        ...filter,
-        operator: safeOperator,
-        ...changes,
-      }),
+    (changes, options) =>
+      onChange(
+        index,
+        {
+          ...filter,
+          operator: safeOperator,
+          ...changes,
+        },
+        options,
+      ),
     [filter, index, onChange, safeOperator],
   );
   const rowFreeSoloValues =
@@ -3723,7 +3893,14 @@ function FilterRow({
         freeSoloValues={rowFreeSoloValues}
         singleSelect={SINGLE_VALUE_OPS.has(safeOperator) && !isArray}
         onChange={(newVal, newValueTypes = []) =>
-          updateRow({ value: newVal, valueTypes: newValueTypes })
+          updateRow(
+            { value: newVal, valueTypes: newValueTypes },
+            // A picker click is a complete user choice, unlike a partially
+            // typed number/map/text editor. Publish it immediately so the
+            // request/loading transition does not sit behind the panel's
+            // general-purpose typing debounce.
+            { commit: true },
+          )
         }
       />
     );
@@ -4036,6 +4213,11 @@ const TraceFilterPanel = ({
   );
   const queryCatalogSearchSettled =
     debouncedQueryCatalogSearch === trimmedQueryFieldSearch;
+  const queryCatalogFallbackScope = JSON.stringify([
+    "trace-filter-query-property-picker",
+    observeId || (allowWorkspaceScope ? "workspace" : ""),
+    unifiedCatalogSource,
+  ]);
   const queryPropertyCatalog = usePropertyCatalog({
     projectIds: observeId ? [observeId] : [],
     source: unifiedCatalogSource,
@@ -4050,6 +4232,8 @@ const TraceFilterPanel = ({
         (observeId || allowWorkspaceScope) &&
         debouncedQueryCatalogSearch,
     ),
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: queryCatalogFallbackScope,
   });
   const queryCatalogProperties = useMemo(() => {
     const catalogProperties = buildTraceFilterProperties(
@@ -4071,7 +4255,8 @@ const TraceFilterPanel = ({
   const queryCatalogSearchOwnsResults = Boolean(
     unifiedPropertyCatalogActive &&
       trimmedQueryFieldSearch &&
-      queryCatalogSearchSettled,
+      queryCatalogSearchSettled &&
+      !queryPropertyCatalog.legacyFallbackRequired,
   );
   // Serialized snapshot of the filter set last sent to onApply. Auto-apply
   // compares against this so we only hit the API when the applyable filter set
@@ -4086,6 +4271,33 @@ const TraceFilterPanel = ({
       activeTab === "query" &&
       observeId &&
       (exactAttributeSource === "traces" || exactAttributeSource === "spans"),
+  );
+  const queryLegacyAttributeFallbackActive = Boolean(
+    open &&
+      showQueryTab &&
+      activeTab === "query" &&
+      (observeId || allowWorkspaceScope) &&
+      (exactAttributeSource === "traces" || exactAttributeSource === "spans") &&
+      ((queryPropertyCatalog.legacyFallbackRequired &&
+        queryCatalogSearchSettled) ||
+        (!unifiedPropertyCatalogActive &&
+          (allowWorkspaceScope || Boolean(debouncedQueryCatalogSearch)))),
+  );
+  const queryLegacyAttributeFallback = useLegacyTraceAttributeProperties(
+    observeId,
+    {
+      enabled: queryLegacyAttributeFallbackActive,
+      source: exactAttributeSource,
+      search: debouncedQueryCatalogSearch,
+      allowWorkspaceScope,
+      isSimulator,
+      propertyFilter,
+    },
+  );
+  const queryLegacyAttributeFallbackOwnsInventory = Boolean(
+    queryLegacyAttributeFallbackActive &&
+      (queryLegacyAttributeFallback.isSuccess ||
+        queryLegacyAttributeFallback.isError),
   );
   const {
     data: queryExactAttributeProperties = [],
@@ -4112,12 +4324,29 @@ const TraceFilterPanel = ({
         : queryExactAttributeProperties,
     [propertyFilter, queryExactAttributeProperties],
   );
+  const queryAttributeProperties = useMemo(
+    () =>
+      mergeRetainedAttributeProperties(
+        filteredQueryExactAttributeProperties,
+        queryLegacyAttributeFallback.data,
+      ),
+    [filteredQueryExactAttributeProperties, queryLegacyAttributeFallback.data],
+  );
+  const queryEffectiveAttributeReadState =
+    queryLegacyAttributeFallbackOwnsInventory
+      ? queryLegacyAttributeFallback.queryReadState
+      : queryAttributeReadState;
+  const queryEffectiveAttributeBrowseStatus =
+    queryLegacyAttributeFallbackOwnsInventory
+      ? queryLegacyAttributeFallback.browseStatus
+      : queryAttributeBrowseStatus;
   const queryUsesRetainedAttributePages = shouldUseRetainedAttributePages({
-    enabled: queryAttributeLookupEnabled,
+    enabled:
+      queryLegacyAttributeFallbackOwnsInventory || queryAttributeLookupEnabled,
     source: exactAttributeSource,
-    readState: queryAttributeReadState,
-    attributes: filteredQueryExactAttributeProperties,
-    browseStatus: queryAttributeBrowseStatus,
+    readState: queryEffectiveAttributeReadState,
+    attributes: queryAttributeProperties,
+    browseStatus: queryEffectiveAttributeBrowseStatus,
   });
   const selectedQueryAttributeProperties = useMemo(
     () =>
@@ -4159,7 +4388,7 @@ const TraceFilterPanel = ({
       : properties;
     const discovered = mergeRetainedAttributeProperties(
       catalogProperties,
-      filteredQueryExactAttributeProperties,
+      queryAttributeProperties,
       { canonical: queryUsesRetainedAttributePages },
     );
     const selectedAttributesById = new Map();
@@ -4173,11 +4402,11 @@ const TraceFilterPanel = ({
       ...selectedAttributesById.values(),
     ]);
   }, [
-    filteredQueryExactAttributeProperties,
     pinnedQueryAttributeProperties,
     properties,
     queryCatalogProperties,
     queryCatalogSearchOwnsResults,
+    queryAttributeProperties,
     queryUsesRetainedAttributePages,
     selectedQueryAttributeProperties,
     trimmedQueryFieldSearch,
@@ -4232,47 +4461,68 @@ const TraceFilterPanel = ({
       trimmedQueryFieldSearch &&
       !queryCatalogSearchSettled,
   );
-  const queryHasNextFieldPage = unifiedPropertyCatalogActive
-    ? Boolean(
-        !queryCatalogSearchPending &&
-          (queryCatalogSearchPageActive
-            ? queryPropertyCatalog.hasNextPage
-            : hasNextDynamicPropsPage),
-      )
-    : Boolean(hasNextQueryAttributePage);
-  const queryIsFetchingNextFieldPage = unifiedPropertyCatalogActive
-    ? queryCatalogSearchPageActive
-      ? queryPropertyCatalog.isFetchingNextPage
-      : isFetchingNextDynamicPropsPage
-    : isFetchingNextQueryAttributePage;
-  const queryFieldPageError = unifiedPropertyCatalogActive
-    ? queryCatalogSearchPageActive
+  const queryLegacyAttributeFallbackControlsPagination = Boolean(
+    queryLegacyAttributeFallbackActive &&
+      (queryPropertyCatalog.legacyFallbackRequired ||
+        queryLegacyAttributeFallbackOwnsInventory),
+  );
+  const queryHasNextFieldPage = queryLegacyAttributeFallbackControlsPagination
+    ? Boolean(queryLegacyAttributeFallback.hasNextPage)
+    : unifiedPropertyCatalogActive
       ? Boolean(
-          queryPropertyCatalog.isError ||
-            queryPropertyCatalog.isFetchNextPageError ||
-            queryPropertyCatalog.cursorChainStopped,
+          !queryCatalogSearchPending &&
+            (queryCatalogSearchPageActive
+              ? queryPropertyCatalog.hasNextPage
+              : hasNextDynamicPropsPage),
         )
-      : Boolean(dynamicPropsError || isNextDynamicPropsPageError)
-    : Boolean(isNextQueryAttributePageError || queryExactAttributeSearchError);
+      : Boolean(hasNextQueryAttributePage);
+  const queryIsFetchingNextFieldPage =
+    queryLegacyAttributeFallbackControlsPagination
+      ? Boolean(queryLegacyAttributeFallback.isFetchingNextPage)
+      : unifiedPropertyCatalogActive
+        ? queryCatalogSearchPageActive
+          ? queryPropertyCatalog.isFetchingNextPage
+          : isFetchingNextDynamicPropsPage
+        : isFetchingNextQueryAttributePage;
+  const queryFieldPageError = queryLegacyAttributeFallbackControlsPagination
+    ? Boolean(
+        queryLegacyAttributeFallback.isError ||
+          queryLegacyAttributeFallback.isFetchNextPageError,
+      )
+    : unifiedPropertyCatalogActive
+      ? queryCatalogSearchPageActive
+        ? Boolean(
+            queryPropertyCatalog.isError ||
+              queryPropertyCatalog.isFetchNextPageError ||
+              queryPropertyCatalog.cursorChainStopped,
+          )
+        : Boolean(dynamicPropsError || isNextDynamicPropsPageError)
+      : Boolean(
+          isNextQueryAttributePageError || queryExactAttributeSearchError,
+        );
   const loadNextQueryFieldPage = useSingleFlightPageRequest({
     identity: JSON.stringify([
       observeId,
       exactAttributeSource,
-      unifiedPropertyCatalogActive
-        ? queryCatalogSearchPageActive
-          ? "catalog-search"
-          : "catalog-base"
-        : "retained",
+      queryLegacyAttributeFallbackControlsPagination
+        ? "legacy-search"
+        : unifiedPropertyCatalogActive
+          ? queryCatalogSearchPageActive
+            ? "catalog-search"
+            : "catalog-base"
+          : "retained",
       queryCatalogSearchPageActive
         ? debouncedQueryCatalogSearch
         : debouncedQueryAttributeSearch,
     ]),
     enabled: queryHasNextFieldPage && !queryIsFetchingNextFieldPage,
-    request: unifiedPropertyCatalogActive
-      ? queryCatalogSearchPageActive
-        ? queryPropertyCatalog.fetchNextPage
-        : fetchNextDynamicPropsPage
-      : fetchNextQueryAttributePage,
+    request: queryLegacyAttributeFallbackControlsPagination
+      ? queryLegacyAttributeFallback.fetchNextPage
+      : unifiedPropertyCatalogActive
+        ? queryCatalogSearchPageActive
+          ? queryPropertyCatalog.fetchNextPage
+          : fetchNextDynamicPropsPage
+        : fetchNextQueryAttributePage,
   });
 
   // Query tab — fetch values for the selected field
@@ -4553,20 +4803,6 @@ const TraceFilterPanel = ({
     [operatorFilter, queryPropertyById],
   );
 
-  const handleChange = useCallback((idx, updated) => {
-    setRows((prev) => prev.map((r, i) => (i === idx ? updated : r)));
-  }, []);
-
-  const handleRemove = useCallback(
-    (idx) => {
-      setRows((prev) => {
-        const next = prev.filter((_, i) => i !== idx);
-        return next.length ? next : [{ ...effectiveDefaultRow }];
-      });
-    },
-    [effectiveDefaultRow],
-  );
-
   // Auto-apply: filters take effect as soon as a value is chosen (debounced),
   // so there's no Apply button — only Clear all. We apply WITHOUT closing the
   // popover so the user can keep adjusting filters and see them apply live.
@@ -4588,6 +4824,30 @@ const TraceFilterPanel = ({
     lastAppliedRef.current = serialized;
     onApplyRef.current(next);
   }, []);
+
+  const handleChange = useCallback(
+    (idx, updated, { commit = false } = {}) => {
+      const nextRows = rows.map((r, i) => (i === idx ? updated : r));
+      setRows(nextRows);
+      if (!commit) return;
+      if (autoApplyTimerRef.current) {
+        clearTimeout(autoApplyTimerRef.current);
+        autoApplyTimerRef.current = null;
+      }
+      applyIfChanged(nextRows);
+    },
+    [applyIfChanged, rows],
+  );
+
+  const handleRemove = useCallback(
+    (idx) => {
+      setRows((prev) => {
+        const next = prev.filter((_, i) => i !== idx);
+        return next.length ? next : [{ ...effectiveDefaultRow }];
+      });
+    },
+    [effectiveDefaultRow],
+  );
 
   useEffect(() => {
     if (!open) return undefined;
@@ -4980,17 +5240,23 @@ const TraceFilterPanel = ({
                 })}
               valueOptions={queryValueOptions}
               fieldLoading={
-                unifiedPropertyCatalogActive
+                queryLegacyAttributeFallbackControlsPagination
                   ? Boolean(
-                      trimmedQueryFieldSearch &&
-                        (!queryCatalogSearchSettled ||
-                          (queryPropertyCatalog.isLoading &&
-                            !queryPropertyCatalog.isFetchingNextPage)),
+                      queryLegacyAttributeFallback.isLoading &&
+                        !queryLegacyAttributeFallback.isFetchingNextPage,
                     )
-                  : queryAttributeLookupEnabled &&
-                    ((queryAttributeLoading &&
-                      !isFetchingNextQueryAttributePage) ||
-                      trimmedQueryFieldSearch !== debouncedQueryAttributeSearch)
+                  : unifiedPropertyCatalogActive
+                    ? Boolean(
+                        trimmedQueryFieldSearch &&
+                          (!queryCatalogSearchSettled ||
+                            (queryPropertyCatalog.isLoading &&
+                              !queryPropertyCatalog.isFetchingNextPage)),
+                      )
+                    : queryAttributeLookupEnabled &&
+                      ((queryAttributeLoading &&
+                        !isFetchingNextQueryAttributePage) ||
+                        trimmedQueryFieldSearch !==
+                          debouncedQueryAttributeSearch)
               }
               fieldLoadingMore={queryIsFetchingNextFieldPage}
               fieldLoadError={queryFieldPageError}

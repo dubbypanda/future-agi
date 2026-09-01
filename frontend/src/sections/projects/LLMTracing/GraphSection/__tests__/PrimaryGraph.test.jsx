@@ -8,8 +8,13 @@ import {
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
+  QUERY_FAILED_RETRY_MESSAGE,
 } from "src/utils/queryReadState";
 import PrimaryGraph from "../PrimaryGraph";
+
+const { propertyCatalogOptionsSpy } = vi.hoisted(() => ({
+  propertyCatalogOptionsSpy: vi.fn(),
+}));
 
 vi.mock("react-apexcharts", () => ({
   default: ({ series, options }) => (
@@ -31,16 +36,19 @@ vi.mock("src/hooks/useDashboards", () => ({
   isPropertyCatalogNotReadyError: (error) =>
     error?.response?.status === 503 &&
     error?.response?.data?.code === "property_catalog_not_ready",
-  usePropertyCatalog: () => ({
-    error: {
-      response: {
-        status: 503,
-        data: { code: "property_catalog_not_ready" },
+  usePropertyCatalog: (options) => {
+    propertyCatalogOptionsSpy(options);
+    return {
+      error: {
+        response: {
+          status: 503,
+          data: { code: "property_catalog_not_ready" },
+        },
       },
-    },
-    legacyFallbackRequired: true,
-    metrics: [],
-  }),
+      legacyFallbackRequired: true,
+      metrics: [],
+    };
+  },
 }));
 
 vi.mock("../../common", () => ({
@@ -180,8 +188,50 @@ describe("PrimaryGraph", () => {
           source: "traces",
         }),
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
+  });
+
+  it("scopes the primary metric picker to renderable metric categories", async () => {
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+
+    fireEvent.click(await screen.findByText("Latency"));
+    await waitFor(() => {
+      const enabledCategories = new Set(
+        propertyCatalogOptionsSpy.mock.calls
+          .map(([options]) => options)
+          .filter((options) => options.enabled)
+          .map((options) => options.category),
+      );
+      expect(enabledCategories).toEqual(
+        new Set(["annotation_metric", "eval_metric", "system_metric"]),
+      );
+    });
+
+    const enabledOptions = [
+      ...new Map(
+        propertyCatalogOptionsSpy.mock.calls
+          .map(([options]) => options)
+          .filter((options) => options.enabled)
+          .map((options) => [options.category, options]),
+      ).values(),
+    ];
+    expect(enabledOptions.map((options) => options.category).sort()).toEqual([
+      "annotation_metric",
+      "eval_metric",
+      "system_metric",
+    ]);
+    for (const options of enabledOptions) {
+      expect(options).toEqual(
+        expect.objectContaining({
+          projectIds: ["project-override"],
+          role: "metric",
+          source: "traces",
+        }),
+      );
+    }
   });
 
   it("binds session aggregate graphs to the session property source", async () => {
@@ -242,7 +292,7 @@ describe("PrimaryGraph", () => {
           source: "traces",
         }),
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
   });
 
@@ -782,7 +832,7 @@ describe("PrimaryGraph", () => {
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
       expect.objectContaining({
-        params: { allow_sampled: false, refresh: true },
+        params: { refresh: true },
       }),
     );
     expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
@@ -847,7 +897,7 @@ describe("PrimaryGraph", () => {
       2,
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
     expect(screen.getByTestId("apex-chart")).toBeInTheDocument();
     expect(exactCompletion).toHaveBeenCalledOnce();
@@ -855,6 +905,34 @@ describe("PrimaryGraph", () => {
       "observe-aggregation-completed",
       exactCompletion,
     );
+  });
+
+  it("terminalizes a failed exact refresh instead of polling forever", async () => {
+    vi.useFakeTimers();
+    axios.post.mockResolvedValue({
+      data: {
+        result: {
+          metric_name: "latency",
+          data: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: false,
+          query_refresh_failed: true,
+        },
+      },
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph observeIdOverride="project-override" />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(axios.post).toHaveBeenCalledOnce();
+    expect(screen.getByText(QUERY_FAILED_RETRY_MESSAGE)).toBeVisible();
+    expect(
+      screen.queryByRole("status", { name: GRAPH_LOADING_MESSAGE }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps observing a healthy 12M exact job beyond one request window", async () => {

@@ -6,14 +6,20 @@ export function usesFreeTextValue(fieldType, source) {
 }
 
 export function getPickerOptionValue(option) {
+  let value;
   if (
     typeof option === "string" ||
     typeof option === "number" ||
     typeof option === "boolean"
   ) {
-    return option;
+    value = option;
+  } else {
+    value = option?.value ?? option?.label ?? "";
   }
-  return option?.value ?? option?.label ?? "";
+  // Applied picker values are normalized by `normalizePickerValues`. Do the
+  // same at the option boundary so retained/catalog values such as `"True "`
+  // compare equal to the applied `"True"` value and render as selected.
+  return typeof value === "string" ? value.trim() : value;
 }
 
 export function getPickerOptionType(option) {

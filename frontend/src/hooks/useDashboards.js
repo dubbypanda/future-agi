@@ -35,6 +35,8 @@ const DASHBOARD_KEYS = {
     category,
     search,
     source,
+    projectIds,
+    perEvalConfig,
     excludeCustomAttributes,
     pageSize,
   ) => [
@@ -44,6 +46,8 @@ const DASHBOARD_KEYS = {
     category,
     search,
     source,
+    [...(projectIds || [])].map(String).sort(),
+    Boolean(perEvalConfig),
     excludeCustomAttributes,
     pageSize,
   ],
@@ -407,16 +411,23 @@ export function useLegacyDashboardMetricsPaginated({
   category = "",
   source = "",
   search = "",
+  projectIds = [],
+  perEvalConfig = false,
   pageSize = PROPERTY_CATALOG_PAGE_SIZE,
   excludeCustomAttributes = false,
   enabled = true,
 } = {}) {
   const boundedSearch = boundPropertyCatalogSearch(search);
+  const canonicalProjectIds = [
+    ...new Set((projectIds || []).map(String)),
+  ].sort();
   const query = useInfiniteQuery({
     queryKey: DASHBOARD_KEYS.metricsPaginated(
       category,
       boundedSearch,
       source,
+      canonicalProjectIds,
+      perEvalConfig,
       excludeCustomAttributes,
       pageSize,
     ),
@@ -428,6 +439,10 @@ export function useLegacyDashboardMetricsPaginated({
           ...(category ? { category } : {}),
           ...(source ? { source } : {}),
           ...(boundedSearch ? { search: boundedSearch } : {}),
+          ...(canonicalProjectIds.length
+            ? { project_ids: canonicalProjectIds.join(",") }
+            : {}),
+          ...(perEvalConfig ? { per_eval_config: true } : {}),
           ...(excludeCustomAttributes
             ? { exclude_custom_attributes: true }
             : {}),
@@ -441,6 +456,9 @@ export function useLegacyDashboardMetricsPaginated({
     },
     initialPageParam: 1,
     enabled,
+    staleTime: PROPERTY_CATALOG_STALE_TIME_MS,
+    gcTime: PROPERTY_CATALOG_CACHE_TIME_MS,
+    meta: { errorHandled: true },
   });
 
   // Flatten all pages into a single metrics array
@@ -635,6 +653,16 @@ export function usePropertyCatalog({
   }
   const cursorChainStopped = chainFailureReason !== null;
   const metrics = cursorChainStopped ? [] : candidateMetrics;
+  const isRemoteCatalogSearchPending = Boolean(
+    enabled &&
+      !legacyFallbackRequired &&
+      boundedSearch &&
+      query.isFetching &&
+      !query.isFetchingNextPage,
+  );
+  const isRemoteCatalogNextPagePending = Boolean(
+    enabled && !legacyFallbackRequired && query.isFetchingNextPage,
+  );
 
   return {
     ...query,
@@ -655,6 +683,8 @@ export function usePropertyCatalog({
     cursorChainStopped,
     cursorStopReason: chainFailureReason,
     legacyFallbackRequired,
+    isRemoteCatalogSearchPending,
+    isRemoteCatalogNextPagePending,
     queryReadState:
       query.isError || cursorChainStopped ? "degraded" : "complete",
   };
@@ -736,9 +766,7 @@ export function useDuplicateWidget() {
 export function useWidgetQuery() {
   return useMutation({
     mutationFn: ({ dashboardId, widgetId }) =>
-      axios.post(endpoints.dashboard.widgetQuery(dashboardId, widgetId), {
-        allow_sampled: false,
-      }),
+      axios.post(endpoints.dashboard.widgetQuery(dashboardId, widgetId), {}),
     meta: { errorHandled: true },
   });
 }
@@ -748,7 +776,6 @@ export function usePreviewQuery() {
     mutationFn: ({ dashboardId, queryConfig }) =>
       axios.post(endpoints.dashboard.widgetPreview(dashboardId), {
         query_config: queryConfig,
-        allow_sampled: false,
       }),
     meta: { errorHandled: true },
   });
@@ -764,10 +791,7 @@ export function useDashboardQuery() {
       const queryConfig = wrappedRequest ? request.queryConfig : request;
       const refresh = wrappedRequest && request.refresh === true;
       const signal = wrappedRequest ? request.signal : undefined;
-      const body = {
-        ...queryConfig,
-        allow_sampled: false,
-      };
+      const body = { ...queryConfig };
 
       if (refresh) {
         return axios.post(endpoints.dashboard.query, body, {

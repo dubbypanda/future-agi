@@ -301,10 +301,7 @@ const GraphSection = ({
                 project_id: observeId,
               },
               {
-                params: {
-                  allow_sampled: false,
-                  ...(refresh ? { refresh: true } : {}),
-                },
+                params: refresh ? { refresh: true } : undefined,
                 signal: requestSignal,
               },
             ),
@@ -402,10 +399,7 @@ const GraphSection = ({
                 project_id: observeId,
               },
               {
-                params: {
-                  allow_sampled: false,
-                  ...(refresh ? { refresh: true } : {}),
-                },
+                params: refresh ? { refresh: true } : undefined,
                 signal: requestSignal,
               },
             ),

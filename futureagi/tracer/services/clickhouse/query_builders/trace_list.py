@@ -129,6 +129,12 @@ _LONG_WINDOW_ANCHOR_MAX_BYTES_TO_READ = 192 * 1024 * 1024
 # every root batch while preserving chronological fallback for heavy Map/JSON.
 _LONG_WINDOW_CANDIDATE_WITNESS_STRATA = 1
 _LONG_WINDOW_ORDERED_ROOT_INITIAL_SLICE = timedelta(hours=1)
+# Long exact text values (recording URLs, UUID-like IDs, and full transcript
+# messages) are normally highly selective but expensive to rediscover by
+# replaying every span in tiny root batches. This is only a physical-plan
+# heuristic: the finite candidate witness remains a necessary prefilter and
+# the ordinary latest-state classifier still decides exact membership.
+_SELECTIVE_EXACT_TEXT_MIN_LENGTH = 32
 _USER_DETAIL_FILTER_TIMEOUT_MS = 9_500
 _UNINDEXED_POSITIVE_MICRO_SEED_WIDTH = timedelta(minutes=5)
 _UNINDEXED_POSITIVE_MICRO_SEED_STRATA = 4
@@ -445,6 +451,45 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             and (item.get("column_id") or item.get("columnId"))
             not in {"created_at", "start_time"}
         ]
+
+    def _uses_full_window_time_only_bulk_identity_scan(self) -> bool:
+        """Use one finite ordered seed for a time-only bulk continuation.
+
+        Filter-mode queue adds freeze an all-history window when the request
+        omits an explicit date. Walking that empty 1971-to-now tail in two-day
+        slices can outlive the client's bounded continuation budget after the
+        last real row has already been committed. This narrow mode still reads
+        only one project's root identities with an ordered keyset and a finite
+        LIMIT. If the wide seed exceeds its read budget, the shared selector
+        halves it before publishing anything, preserving the bounded fallback.
+        """
+
+        request_start, request_end = self._bounded_request_window
+        return bool(
+            self._bounded_internal_scan
+            and self._bounded_identity_only
+            and self._bounded_bulk_scan
+            and not self._bounded_population_proof
+            and not self._bounded_global_span_witnesses
+            and self.project_id is not None
+            and self.project_ids is None
+            and not self.sort_params
+            and not self.search
+            and not self._active_non_time_filters()
+            and self._bounded_sampling_rate is None
+            and request_end - request_start >= timedelta(minutes=5)
+        )
+
+    def should_retry_filter_wide_read_budget(self) -> bool:
+        """Allow safe halving only for the opt-in full-window bulk seed.
+
+        The ordinary selector fails closed after any required ClickHouse read
+        exceeds its budget.  This one mode deliberately starts with the whole
+        frozen request window, so it can retry that unpublished identity-only
+        seed on narrower adjacent slices without changing membership or order.
+        """
+
+        return self._uses_full_window_time_only_bulk_identity_scan()
 
     def requires_cursor_for_long_filtered_read(self) -> bool:
         """Whether a long filtered list must retain a signed scan checkpoint."""
@@ -1003,6 +1048,57 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             and self._selective_error_status_anchor_plan() is not None
         )
 
+    def _selective_exact_text_anchor_plan(
+        self,
+    ) -> LatestFilterPredicate | None:
+        """Return one long exact typed-Map leaf for global candidate discovery.
+
+        Compile the leaf independently so a preceding broad predicate cannot
+        replace the selective value witness.  The returned predicate is only a
+        necessary physical-row witness; the ordinary latest-state classifier
+        still applies the complete filter conjunction to every candidate.
+        """
+
+        for item in self._active_non_time_filters():
+            if not isinstance(
+                item, dict
+            ) or not self._candidate_witness_filter_is_selective_exact_text(item):
+                continue
+            item_plans, residual = self._partition_trace_filter_plans([item])
+            if residual or len(item_plans) != 1 or item_plans[0].scope != "any":
+                continue
+            plan = item_plans[0]
+            raw_witness = self._exact_graph_authoritative_raw_witness(plan)
+            if raw_witness and "JSONExtract" not in raw_witness:
+                return plan
+        return None
+
+    def _uses_global_selective_exact_text_anchor(self) -> bool:
+        """Whether a fresh interactive list may discover exact-text candidates.
+
+        The all-history witness is deliberately narrow: one project, no search,
+        sort, sampling, graph/bulk/population mode, and a long selective exact
+        text leaf.  Voice lists use an internal trace delegate, so internal mode
+        alone is not excluded; identity/bulk modes remain excluded.
+        """
+
+        request_start, request_end = self._bounded_request_window
+        return bool(
+            self.project_id is not None
+            and self.project_ids is None
+            and not self.search
+            and not self.sort_params
+            and self._bounded_membership_filters is None
+            and not self._bounded_identity_only
+            and not self._bounded_bulk_scan
+            and not self._bounded_population_proof
+            and not self._bounded_global_span_witnesses
+            and self._bounded_sampling_rate is None
+            and not getattr(self, "_bounded_anchor_probe", False)
+            and request_end - request_start > timedelta(hours=1)
+            and self._selective_exact_text_anchor_plan() is not None
+        )
+
     def _graph_key_witness_plans(self) -> list[LatestFilterPredicate]:
         """Return positive any-span Map keys for graph-only discovery.
 
@@ -1066,6 +1162,31 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             ):
                 return plan
         return None
+
+    @staticmethod
+    def _exact_graph_authoritative_raw_witness(
+        plan: LatestFilterPredicate,
+    ) -> str:
+        """Return an exhaustive raw witness for one authoritative scalar leaf.
+
+        Typed Maps need the graph-specific value witness when it is safe.  If
+        a missing key's physical default can satisfy the independently reduced
+        value (notably ``false`` for boolean Maps), key presence is the only
+        exhaustive raw superset.  Direct scalar columns such as ``model`` have
+        no Map key witness and use their compiler-proven positive raw
+        predicate.  The latest-state replay remains authoritative in every
+        case; this predicate only chooses the physical identities to reduce.
+        """
+
+        for candidate in (
+            plan.raw_graph_value_witness_predicate,
+            plan.raw_key_witness_predicate,
+            plan.raw_witness_predicate,
+        ):
+            predicate = str(candidate or "").strip()
+            if predicate and "JSONExtract" not in predicate:
+                return predicate
+        return ""
 
     def _filter_exact_zero_probe_plans(
         self,
@@ -1184,10 +1305,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 )
             ) or re.search(r"\bIS\s+(?:NOT\s+)?NULL\b", predicate):
                 return False
-            if "lowerUTF8(" in predicate and not (
-                "has(arrayMap(x -> lower(x), mapValues(span_attr_str))" in predicate
-                or "hasAny(arrayMap(x -> lower(x), mapValues(span_attr_str))"
-                in predicate
+            if "lowerUTF8(" in predicate and not any(
+                companion in predicate
+                for companion in (
+                    "has(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))",
+                    "hasAny(arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))",
+                )
             ):
                 return False
             return True
@@ -1228,6 +1351,9 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         )
         typed_map_kinds = set(re.findall(r"\bspan_attr_(str|num|bool)\b", predicate))
         if typed_map_kinds:
+            # Keep the legacy bounded-sample scheduler conservative. Exact
+            # graph/list readers use the UTF-8 value companion directly; this
+            # older lane still has numeric-specific retry/stratum assumptions.
             return typed_map_kinds == {"num"} and any(
                 fragment in predicate
                 for fragment in (
@@ -1348,6 +1474,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if self._bounded_bulk_scan:
             return 200
         plans, _ = self._partition_trace_filter_plans(self._bounded_filters())
+        public_non_time_filters = [
+            item
+            for item in self._active_non_time_filters()
+            if not item.get("_eval_task_trace_root")
+        ]
         request_start, request_end = self._bounded_request_window
         if (
             request_end - request_start <= timedelta(hours=1)
@@ -1366,7 +1497,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 not self._bounded_identity_only
                 and not self._bounded_internal_scan
                 and not self.search
-                and len(self._active_non_time_filters()) == 1
+                and len(public_non_time_filters) == 1
                 and self._positive_typed_map_anchor_plan() is not None
             ):
                 return 512
@@ -1389,6 +1520,8 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         request_start, request_end = self._bounded_request_window
         request_width = request_end - request_start
+        if self._uses_full_window_time_only_bulk_identity_scan():
+            return request_width
         if (
             not self._bounded_identity_only
             and not self._bounded_internal_scan
@@ -1448,6 +1581,8 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         request_start, request_end = self._bounded_request_window
         request_width = request_end - request_start
+        if self._uses_full_window_time_only_bulk_identity_scan():
+            return request_width
         if self._uses_default_newest_first_partition_walk():
             return request_width
         if (
@@ -1626,9 +1761,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return trace_id
 
     def allow_filter_anchor_probe_for_initial_continuation(self) -> bool:
-        """Run the global sparse-error proof only on a fresh cursor page."""
+        """Run complete sparse witnesses only on a fresh cursor page."""
 
-        return self._uses_global_error_status_anchor()
+        return bool(
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        )
 
     def supports_filter_anchor_probe(self) -> bool:
         """Whether a direct any-span leaf can classify sparse vs common."""
@@ -1642,16 +1780,20 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return bool(self._filter_anchor_plans())
 
     def filter_anchor_probe_proves_complete_population(self) -> bool:
-        """Return true only for the complete-history sparse error witness.
+        """Return true only for complete-history necessary witnesses.
 
         Ordinary temporal child anchors remain positive accelerators: the
         canonical root may be in the requested window while its matching child
-        lies outside it.  The specialized error anchor deliberately scans the
-        indexed positive witness across complete retained project history, so
-        exhausting its sentinel does prove the full candidate population.
+        lies outside it.  The specialized error and selective exact-text
+        anchors deliberately scan an indexed necessary witness across complete
+        retained project history, so exhausting their sentinel proves the full
+        candidate population before authoritative latest-state classification.
         """
 
-        return self._uses_global_error_status_anchor()
+        return bool(
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        )
 
     def supports_graph_key_witness_probe(self) -> bool:
         """Whether graph discovery can use one cheap typed-Map key leaf."""
@@ -1673,6 +1815,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return bool(
             request_end - request_start > timedelta(hours=1)
             and not self._uses_global_error_status_anchor()
+            and not self._uses_global_selective_exact_text_anchor()
             and self.recommended_filter_anchor_probe_limit() is None
         )
 
@@ -1693,7 +1836,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         its fixed request budget before ordered candidate acquisition.
         """
 
-        if self._uses_global_error_status_anchor():
+        if (
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        ):
             return _LONG_WINDOW_ANCHOR_SENTINEL
 
         # The production product-path gate showed that even partitioned long-
@@ -1715,6 +1861,12 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         of the request deadline whenever the speculative probe is incomplete.
         """
 
+        if self._uses_global_selective_exact_text_anchor():
+            # This is the authoritative candidate-acquisition path, not an
+            # optional speculative probe. Use the enclosing list request's
+            # normal statement/read ceilings instead of the 900 ms / 192 MiB
+            # accelerator caps that caused the proven fallback loop.
+            return None
         if self.recommended_filter_anchor_probe_limit() is not None:
             return _LONG_WINDOW_ANCHOR_TIMEOUT_MS
         return None
@@ -1722,7 +1874,10 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_anchor_probe_strata(self) -> int | None:
         """Partition only the optional long-window list probe."""
 
-        if self._uses_global_error_status_anchor():
+        if (
+            self._uses_global_error_status_anchor()
+            or self._uses_global_selective_exact_text_anchor()
+        ):
             # This query intentionally covers complete retained history; date
             # strata would turn the finite superset back into a temporal sample.
             return 1
@@ -1733,9 +1888,60 @@ class TraceListQueryBuilder(BaseQueryBuilder):
     def recommended_filter_anchor_probe_max_bytes_to_read(self) -> int | None:
         """Return the per-stratum byte ceiling for optional list probes."""
 
+        if self._uses_global_selective_exact_text_anchor():
+            return None
         if self.recommended_filter_anchor_probe_limit() is not None:
             return _LONG_WINDOW_ANCHOR_MAX_BYTES_TO_READ
         return None
+
+    def _build_global_typed_map_witness_probe(
+        self,
+        *,
+        anchor: LatestFilterPredicate,
+        limit: int,
+        limit_param: str,
+        after_trace_id: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Build one stable all-history typed-Map candidate sentinel."""
+
+        raw_witness_predicate = self._exact_graph_authoritative_raw_witness(anchor)
+        if not raw_witness_predicate:
+            return "", {}
+        params: dict[str, Any] = {
+            **self.params,
+            **{
+                key: value
+                for key, value in anchor.params.items()
+                if f"%({key})s" in raw_witness_predicate
+            },
+            limit_param: int(limit),
+        }
+        project_version_fragment = ""
+        if self.project_version_id:
+            params["project_version_id"] = self.project_version_id
+            project_version_fragment = (
+                "AND project_version_id = %(project_version_id)s"
+            )
+        keyset_fragment = ""
+        if after_trace_id is not None:
+            if not str(after_trace_id):
+                raise ValueError("exact candidate cursor must be non-empty")
+            params["exact_graph_candidate_after_trace_id"] = str(after_trace_id)
+            keyset_fragment = (
+                "AND trace_id > %(exact_graph_candidate_after_trace_id)s"
+            )
+        query = f"""
+        SELECT trace_id
+        FROM {self.TABLE}
+        PREWHERE {self.project_filter_sql()}
+          {project_version_fragment}
+          {keyset_fragment}
+        WHERE {raw_witness_predicate}
+        ORDER BY trace_id ASC
+        LIMIT 1 BY trace_id
+        LIMIT %({limit_param})s
+        """
+        return query, params
 
     def build_filter_anchor_probe(
         self,
@@ -1812,6 +2018,20 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             LIMIT %(filter_anchor_limit)s
             """
             return query, params
+        if (
+            not _graph_key_witness
+            and slice_start is None
+            and slice_end is None
+            and self._uses_global_selective_exact_text_anchor()
+        ):
+            anchor = self._selective_exact_text_anchor_plan()
+            if anchor is None:  # pragma: no cover - guarded by capability hook
+                raise ValueError("selective exact-text anchor is unavailable")
+            return self._build_global_typed_map_witness_probe(
+                anchor=anchor,
+                limit=limit,
+                limit_param="filter_anchor_limit",
+            )
 
         request_start, request_end = self.parse_time_range(self.filters)
         if (slice_start is None) != (slice_end is None):
@@ -1997,58 +2217,25 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             raise ValueError("candidate root keyset values must be provided together")
         if before_start_time is not None:
             raise ValueError("raw candidate cursor must use trace identity ordering")
-        raw_witness_predicate = str(
-            anchor.raw_graph_value_witness_predicate
-            or anchor.raw_key_witness_predicate
-            or ""
+        return self._build_global_typed_map_witness_probe(
+            anchor=anchor,
+            limit=limit,
+            limit_param="exact_graph_candidate_limit",
+            after_trace_id=after_trace_id,
         )
-        if not raw_witness_predicate:
-            return "", {}
-
-        params: dict[str, Any] = {
-            **self.params,
-            **{
-                key: value
-                for key, value in anchor.params.items()
-                if f"%({key})s" in raw_witness_predicate
-            },
-            "exact_graph_candidate_limit": int(limit),
-        }
-        project_version_fragment = ""
-        if self.project_version_id:
-            params["project_version_id"] = self.project_version_id
-            project_version_fragment = "AND project_version_id = %(project_version_id)s"
-        keyset_fragment = ""
-        if after_trace_id is not None:
-            if not str(after_trace_id):
-                raise ValueError("exact graph candidate cursor must be non-empty")
-            params["exact_graph_candidate_after_trace_id"] = str(after_trace_id)
-            keyset_fragment = "AND trace_id > %(exact_graph_candidate_after_trace_id)s"
-        query = f"""
-        SELECT trace_id
-        FROM {self.TABLE}
-        PREWHERE {self.project_filter_sql()}
-          {project_version_fragment}
-          {keyset_fragment}
-        WHERE {raw_witness_predicate}
-        ORDER BY trace_id ASC
-        LIMIT 1 BY trace_id
-        LIMIT %(exact_graph_candidate_limit)s
-        """
-        return query, params
 
     def _exact_graph_authoritative_anchor_plan(
         self,
     ) -> LatestFilterPredicate | None:
         """Return the sole any-span leaf supported by the partitioned graph lane.
 
-        This is deliberately narrower than ``_positive_typed_map_anchor_plan``.
         A raw anchor is only a necessary condition when a request contains
         additional leaves; treating it as the complete graph membership set
         would silently drop traces whose sibling spans satisfy those leaves.
-        The first authoritative lane therefore accepts exactly one non-time
-        positive scalar typed-Map equals/IN filter and no relational/root
-        residual. Other shapes keep the existing fail-closed classifier path.
+        The authoritative lane therefore accepts exactly one non-time positive
+        rank-zero scalar any-span equals/IN filter and no relational/root
+        residual. This includes typed Maps and direct scalar columns such as
+        ``model``. Other shapes keep the existing fail-closed classifier path.
         """
 
         if not (
@@ -2073,17 +2260,13 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if residual_filters or len(plans) != 1:
             return None
         plan = plans[0]
-        predicate = str(plan.raw_witness_predicate or plan.seed_predicate or "")
+        predicate = self._exact_graph_authoritative_raw_witness(plan)
         if not (
             plan.scope == "any"
             and plan.raw_witness_rank == 0
             and plan.aggregates
             and plan.predicate
-            and "JSONExtract" not in predicate
-            and re.search(
-                r"\bmapContains\(span_attr_(?:str|num|bool),",
-                predicate,
-            )
+            and predicate
         ):
             return None
         return plan
@@ -2176,7 +2359,7 @@ class TraceListQueryBuilder(BaseQueryBuilder):
                 "AND trace_id > %(exact_graph_anchor_after_trace_id)s"
             )
         aggregate_fragment = ",\n                    ".join(plan.aggregates)
-        raw_witness_predicate = str(plan.raw_witness_predicate or "")
+        raw_witness_predicate = self._exact_graph_authoritative_raw_witness(plan)
         if not raw_witness_predicate:
             return "", {}
         query = f"""
@@ -2568,8 +2751,53 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         )
 
     @staticmethod
+    def _candidate_witness_filter_is_selective_exact_text(
+        item: dict[str, Any],
+    ) -> bool:
+        """Return whether one exact text leaf is selective enough to prefilter."""
+
+        key = str(item.get("column_id") or item.get("columnId") or "")
+        if key in {"created_at", "start_time"}:
+            return False
+        config = item.get("filter_config") or item.get("filterConfig") or {}
+        if not isinstance(config, dict):
+            return False
+        filter_type = normalize_span_attribute_filter_type(
+            str(config.get("filter_type") or config.get("filterType") or ""),
+            config.get("filter_value", config.get("filterValue")),
+        )
+        col_type = str(config.get("col_type") or config.get("colType") or "").upper()
+        operation = normalize_filter_op(
+            str(config.get("filter_op") or config.get("filterOp") or "")
+        )
+        if (
+            col_type != "SPAN_ATTRIBUTE"
+            or filter_type != "text"
+            or operation not in {"equals", "in"}
+        ):
+            return False
+        raw_value = config.get("filter_value", config.get("filterValue"))
+        values = raw_value if isinstance(raw_value, (list, tuple)) else [raw_value]
+        return bool(
+            values
+            and all(
+                isinstance(value, str)
+                and len(value.strip()) >= _SELECTIVE_EXACT_TEXT_MIN_LENGTH
+                for value in values
+            )
+        )
+
+    @staticmethod
     def _candidate_witness_filter_is_expensive(item: dict[str, Any]) -> bool:
-        """Return whether one filter has structured/nested replay cost."""
+        """Return whether one filter merits finite candidate prefiltering.
+
+        Structured values and flattened array paths are expensive to replay.
+        Long exact text values are a second important shape: they are usually
+        selective (recording URLs, external IDs, full messages), so resolving
+        one necessary typed-Map leaf for a finite root batch removes almost all
+        candidates before the ten-root authoritative classifier. Short common
+        scalar values retain the cheaper classifier-only path.
+        """
 
         key = str(item.get("column_id") or item.get("columnId") or "")
         if key in {"created_at", "start_time"}:
@@ -2584,22 +2812,27 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         if filter_type in {"array", "map"}:
             return True
         col_type = str(config.get("col_type") or config.get("colType") or "").upper()
-        return bool(
+        if bool(
             col_type == "SPAN_ATTRIBUTE"
             and any(component.isdigit() for component in key.split("."))
+        ):
+            return True
+        return TraceListQueryBuilder._candidate_witness_filter_is_selective_exact_text(
+            item
         )
 
     def _interactive_candidate_witness_is_expensive(self) -> bool:
         """Return whether an interactive filter merits a speculative witness.
 
-        A scalar typed-Map equality such as ``final_status = Rejected`` is
+        A short scalar typed-Map equality such as ``final_status = Rejected`` is
         already cheaper through the exact finite identity classifier.  Its
         request-window witness cannot use the time primary key together with
         trace identity efficiently on large tenants and can exhaust the read
         byte cap before doing useful work.  Keep the optional witness for the
         shapes whose exact replay is materially heavier: structured JSON
-        arrays/objects and flattened nested array paths (the numeric component
-        in keys such as ``conversation.transcript.16.message.role``).
+        arrays/objects, flattened nested array paths (the numeric component in
+        keys such as ``conversation.transcript.16.message.role``), and long
+        exact text values that can discard nearly the whole finite root batch.
         """
 
         for item in self._bounded_match_filters():

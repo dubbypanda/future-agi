@@ -14802,6 +14802,8 @@ export const modelHubAnnotationQueuesItemsAddItemsBodySelectionFilterDefault =
   [];
 export const modelHubAnnotationQueuesItemsAddItemsBodySelectionExcludeIdsDefault =
   [];
+export const modelHubAnnotationQueuesItemsAddItemsBodySelectionCursorMax = 4096;
+
 export const modelHubAnnotationQueuesItemsAddItemsBodySelectionRemoveSimulationCallsDefault =
   false;
 export const modelHubAnnotationQueuesItemsAddItemsBodySelectionIsVoiceCallDefault =
@@ -14901,6 +14903,14 @@ export const ModelHubAnnotationQueuesItemsAddItemsBody = zod.object({
         .default(
           modelHubAnnotationQueuesItemsAddItemsBodySelectionExcludeIdsDefault,
         ),
+      cursor: zod
+        .string()
+        .min(1)
+        .max(modelHubAnnotationQueuesItemsAddItemsBodySelectionCursorMax)
+        .optional()
+        .describe(
+          "Opaque continuation returned by a previous filter-mode add. Reuse the same selection fields and queue when continuing.",
+        ),
       remove_simulation_calls: zod
         .boolean()
         .default(
@@ -14918,6 +14928,9 @@ export const ModelHubAnnotationQueuesItemsAddItemsBody = zod.object({
 
 export const modelHubAnnotationQueuesItemsAddItemsResponseStatusDefault = true;
 
+export const modelHubAnnotationQueuesItemsAddItemsResponseResultNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const ModelHubAnnotationQueuesItemsAddItemsResponse = zod.object({
   status: zod
     .boolean()
@@ -14928,6 +14941,16 @@ export const ModelHubAnnotationQueuesItemsAddItemsResponse = zod.object({
     errors: zod.array(zod.string().min(1)),
     queue_status: zod.string().min(1),
     total_matching: zod.number().optional(),
+    total_matching_is_lower_bound: zod.boolean().optional(),
+    has_more: zod.boolean().optional(),
+    next_cursor: zod.string().min(1).nullish(),
+    next_cursor_fingerprint: zod
+      .string()
+      .min(1)
+      .regex(
+        modelHubAnnotationQueuesItemsAddItemsResponseResultNextCursorFingerprintRegExp,
+      )
+      .nullish(),
   }),
 });
 
@@ -44285,7 +44308,7 @@ export const TracerDashboardQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),
@@ -45118,7 +45141,7 @@ export const TracerDashboardWidgetsPreviewQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),
@@ -45595,7 +45618,7 @@ export const TracerDashboardWidgetsExecuteQueryResponse = zod.object({
         unit: zod.string(),
         series: zod.array(
           zod.object({
-            name: zod.string().min(1),
+            name: zod.string(),
             data: zod.array(
               zod.object({
                 timestamp: zod.string().min(1),
@@ -51760,6 +51783,9 @@ export const tracerObservationSpanListSpansResponseResultMetadataTotalRowsMin = 
 
 export const tracerObservationSpanListSpansResponseResultMetadataTotalRowsExactMin = 0;
 
+export const tracerObservationSpanListSpansResponseResultMetadataNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerObservationSpanListSpansResponseResultMetadataQueryElapsedMsMin = 0;
 
 export const tracerObservationSpanListSpansResponseResultMetadataQueryCountMin = 0;
@@ -51813,6 +51839,13 @@ export const TracerObservationSpanListSpansResponse = zod.object({
       total_rows_is_lower_bound: zod.boolean().optional(),
       has_more: zod.boolean().optional(),
       next_cursor: zod.string().min(1).nullish(),
+      next_cursor_fingerprint: zod
+        .string()
+        .min(1)
+        .regex(
+          tracerObservationSpanListSpansResponseResultMetadataNextCursorFingerprintRegExp,
+        )
+        .nullish(),
       query_complete: zod.boolean().optional(),
       query_status: zod.enum(["complete", "degraded"]).optional(),
       query_error_code: zod.string().min(1).nullish(),
@@ -51927,6 +51960,9 @@ export const tracerObservationSpanListSpansObserveResponseResultMetadataTotalRow
 
 export const tracerObservationSpanListSpansObserveResponseResultMetadataTotalRowsExactMin = 0;
 
+export const tracerObservationSpanListSpansObserveResponseResultMetadataNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerObservationSpanListSpansObserveResponseResultMetadataQueryElapsedMsMin = 0;
 
 export const tracerObservationSpanListSpansObserveResponseResultMetadataQueryCountMin = 0;
@@ -51957,6 +51993,13 @@ export const TracerObservationSpanListSpansObserveResponse = zod.object({
       total_rows_is_lower_bound: zod.boolean().optional(),
       has_more: zod.boolean().optional(),
       next_cursor: zod.string().min(1).nullish(),
+      next_cursor_fingerprint: zod
+        .string()
+        .min(1)
+        .regex(
+          tracerObservationSpanListSpansObserveResponseResultMetadataNextCursorFingerprintRegExp,
+        )
+        .nullish(),
       query_complete: zod.boolean().optional(),
       query_status: zod.enum(["complete", "degraded"]).optional(),
       query_error_code: zod.string().min(1).nullish(),
@@ -56601,6 +56644,9 @@ export const TracerTraceSessionListSessionsQueryParams = zod.object({
     ),
 });
 
+export const tracerTraceSessionListSessionsResponseResultMetadataNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerTraceSessionListSessionsResponseResultMetadataQueryCountMin = 0;
 
 export const tracerTraceSessionListSessionsResponseResultMetadataQueryRowsReturnedMin = 0;
@@ -56620,6 +56666,13 @@ export const TracerTraceSessionListSessionsResponse = zod.object({
       total_rows_is_lower_bound: zod.boolean().optional(),
       has_more: zod.boolean().optional(),
       next_cursor: zod.string().min(1).nullish(),
+      next_cursor_fingerprint: zod
+        .string()
+        .min(1)
+        .regex(
+          tracerTraceSessionListSessionsResponseResultMetadataNextCursorFingerprintRegExp,
+        )
+        .nullish(),
       query_complete: zod.boolean().optional(),
       query_status: zod.enum(["complete", "degraded"]).optional(),
       query_error_code: zod.string().min(1).nullish(),
@@ -56661,10 +56714,29 @@ export const TracerTraceSessionListSessionsResponse = zod.object({
       ordering_exact: zod.boolean().optional(),
     }),
     table: zod.array(
-      zod.record(
-        zod.string(),
-        jsonValueSchema.describe("Any valid JSON value."),
-      ),
+      zod
+        .object({
+          session_id: zod.string().nullish(),
+          session_name: zod.string().nullish(),
+          project_id: zod.string().uuid().nullish(),
+          start_time: zod.string().datetime({ offset: true }).nullish(),
+          end_time: zod.string().datetime({ offset: true }).nullish(),
+          created_at: zod.string().datetime({ offset: true }).nullish(),
+          duration: zod.number().nullish(),
+          total_cost: zod.number().nullish(),
+          total_tokens: zod.number().nullish(),
+          total_traces_count: zod.number().nullish(),
+          first_message: jsonValueSchema
+            .nullish()
+            .describe("Any valid JSON value."),
+          last_message: jsonValueSchema
+            .nullish()
+            .describe("Any valid JSON value."),
+          user_id: zod.string().nullish(),
+          user_id_type: zod.string().nullish(),
+          user_id_hash: zod.string().nullish(),
+        })
+        .catchall(jsonValueSchema),
     ),
     config: zod.array(
       zod.object({
@@ -57559,6 +57631,9 @@ export const TracerTraceListTracesQueryParams = zod.object({
     ),
 });
 
+export const tracerTraceListTracesResponseResultMetadataNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerTraceListTracesResponseResultMetadataQueryCountMin = 0;
 
 export const tracerTraceListTracesResponseResultMetadataQueryRowsReturnedMin = 0;
@@ -57603,6 +57678,13 @@ export const TracerTraceListTracesResponse = zod.object({
       total_rows_is_lower_bound: zod.boolean().optional(),
       has_more: zod.boolean().optional(),
       next_cursor: zod.string().min(1).nullish(),
+      next_cursor_fingerprint: zod
+        .string()
+        .min(1)
+        .regex(
+          tracerTraceListTracesResponseResultMetadataNextCursorFingerprintRegExp,
+        )
+        .nullish(),
       query_complete: zod.boolean().optional(),
       query_status: zod.enum(["complete", "degraded"]).optional(),
       query_error_code: zod.string().min(1).nullish(),
@@ -57716,6 +57798,9 @@ export const TracerTraceListTracesOfSessionQueryParams = zod.object({
   interval: zod.string().optional(),
 });
 
+export const tracerTraceListTracesOfSessionResponseResultMetadataNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerTraceListTracesOfSessionResponseResultMetadataQueryCountMin = 0;
 
 export const tracerTraceListTracesOfSessionResponseResultMetadataQueryRowsReturnedMin = 0;
@@ -57735,6 +57820,13 @@ export const TracerTraceListTracesOfSessionResponse = zod.object({
       total_rows_is_lower_bound: zod.boolean().optional(),
       has_more: zod.boolean().optional(),
       next_cursor: zod.string().min(1).nullish(),
+      next_cursor_fingerprint: zod
+        .string()
+        .min(1)
+        .regex(
+          tracerTraceListTracesOfSessionResponseResultMetadataNextCursorFingerprintRegExp,
+        )
+        .nullish(),
       query_complete: zod.boolean().optional(),
       query_status: zod.enum(["complete", "degraded"]).optional(),
       query_error_code: zod.string().min(1).nullish(),
@@ -57877,6 +57969,9 @@ export const tracerTraceListVoiceCallsResponseCountMin = 0;
 
 export const tracerTraceListVoiceCallsResponseTotalPagesMin = 0;
 
+export const tracerTraceListVoiceCallsResponseNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const tracerTraceListVoiceCallsResponseQueryAppliedFilterSha256RegExp =
   new RegExp("^[0-9a-f]{64}$");
 export const tracerTraceListVoiceCallsResponseQueryAppliedFilterCountMin = 0;
@@ -57914,6 +58009,11 @@ export const TracerTraceListVoiceCallsResponse = zod.object({
   ),
   has_more: zod.boolean(),
   next_cursor: zod.string().min(1).nullish(),
+  next_cursor_fingerprint: zod
+    .string()
+    .min(1)
+    .regex(tracerTraceListVoiceCallsResponseNextCursorFingerprintRegExp)
+    .nullish(),
   query_complete: zod.boolean(),
   query_status: zod.enum(["complete", "degraded"]),
   query_error_code: zod.string().min(1).optional(),
@@ -60264,6 +60364,9 @@ export const TracerUsersListQueryParams = zod.object({
 
 export const tracerUsersListResponseStatusDefault = true;
 
+export const tracerUsersListResponseResultNextCursorFingerprintRegExp =
+  new RegExp("^[0-9a-f]{64}$");
+
 export const TracerUsersListResponse = zod.object({
   status: zod.boolean().default(tracerUsersListResponseStatusDefault),
   result: zod.object({
@@ -60298,6 +60401,11 @@ export const TracerUsersListResponse = zod.object({
     count_is_lower_bound: zod.boolean().optional(),
     has_more: zod.boolean().optional(),
     next_cursor: zod.string().min(1).optional(),
+    next_cursor_fingerprint: zod
+      .string()
+      .min(1)
+      .regex(tracerUsersListResponseResultNextCursorFingerprintRegExp)
+      .optional(),
     query_complete: zod.boolean().optional(),
     query_status: zod.enum(["complete", "degraded"]).optional(),
     query_exact: zod.boolean().optional(),

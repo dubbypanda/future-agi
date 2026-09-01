@@ -1174,6 +1174,10 @@ PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
     "I_ACKNOWLEDGE_PROD_READ_ONLY_UNIFIED_PROPERTY_CATALOG"
 )
 PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
+PROPERTY_CATALOG_PRODUCTION_DATABASE_ENV = (
+    "PROPERTY_CATALOG_PRODUCTION_DATABASE"
+)
+PROPERTY_CATALOG_DEFAULT_PRODUCTION_DATABASE = "property_catalog"
 _PROPERTY_CATALOG_DATABASE_IDENTIFIER = re.compile(r"\A[a-z][a-z0-9_]*\Z")
 _PROPERTY_CATALOG_RESERVED_DATABASES = {
     "default",
@@ -1215,7 +1219,7 @@ def validate_property_catalog_database(
     *,
     deployment: str | None = None,
 ) -> str:
-    """Validate a safe catalog identifier and optional production binding."""
+    """Validate a safe catalog identifier and configurable deployment binding."""
 
     if (
         not isinstance(database, str)
@@ -1232,8 +1236,23 @@ def validate_property_catalog_database(
         )
     if deployment not in {None, "dev", "prod"}:
         raise ValueError("unsupported property catalog deployment")
-    if (deployment == "prod" and database != "property_catalog") or (
-        deployment == "dev" and database == "property_catalog"
+    production_database = os.getenv(
+        PROPERTY_CATALOG_PRODUCTION_DATABASE_ENV,
+        PROPERTY_CATALOG_DEFAULT_PRODUCTION_DATABASE,
+    ).strip()
+    if (
+        not production_database
+        or len(production_database.encode("utf-8")) > 128
+        or _PROPERTY_CATALOG_DATABASE_IDENTIFIER.fullmatch(production_database)
+        is None
+        or production_database in _PROPERTY_CATALOG_RESERVED_DATABASES
+    ):
+        raise ValueError(
+            "configured production property catalog database must be a safe "
+            "isolated ClickHouse identifier"
+        )
+    if (deployment == "prod" and database != production_database) or (
+        deployment == "dev" and database == production_database
     ):
         raise ValueError(
             "property catalog database namespace does not match the deployment"
@@ -1386,6 +1405,10 @@ def property_catalog_read_workspace_allowlist(source: object) -> tuple[object, .
 PROPERTY_CATALOG_READ_MODE = (
     os.getenv("PROPERTY_CATALOG_READ_MODE", "off").strip().lower()
 )
+PROPERTY_CATALOG_PRODUCTION_DATABASE = os.getenv(
+    PROPERTY_CATALOG_PRODUCTION_DATABASE_ENV,
+    PROPERTY_CATALOG_DEFAULT_PRODUCTION_DATABASE,
+).strip()
 PROPERTY_CATALOG_DATABASE = os.getenv("PROPERTY_CATALOG_DATABASE", "").strip()
 PROPERTY_CATALOG_DEV_READ_ACK = os.getenv("PROPERTY_CATALOG_DEV_READ_ACK", "").strip()
 PROPERTY_CATALOG_PROD_READ_ACK = os.getenv("PROPERTY_CATALOG_PROD_READ_ACK", "").strip()

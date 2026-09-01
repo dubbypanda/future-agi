@@ -138,11 +138,11 @@ const ObserveToolbar = ({
   const filterValueSource =
     mode === "sessions" || mode === "users" ? "sessions" : "traces";
   // Session and user rows retain their native list/value transport, while
-  // their eval, annotation, and custom-attribute definitions are derived
-  // from the underlying spans. Keep those identities separate so requesting
-  // a session value never disables the span-backed property catalog.
+  // custom-attribute definitions and values live in the tracing catalog.
+  // Keep those identities separate: using the session source for definitions
+  // is unsupported, while the spans source misses trace catalog attributes.
   const attributeSource =
-    mode === "sessions" || mode === "users" ? "spans" : undefined;
+    mode === "sessions" || mode === "users" ? "traces" : undefined;
   const setFilterButtonNode = useCallback((node) => {
     filterButtonRef.current = node;
     setFilterButtonEl(node);

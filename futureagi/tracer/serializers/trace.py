@@ -3,7 +3,7 @@ import json
 from django.db.models import Q
 from rest_framework import serializers
 
-from tfc.utils.serializer_fields import JsonValueField
+from tfc.utils.serializer_fields import JSON_VALUE_SCHEMA, JsonValueField
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
@@ -272,6 +272,9 @@ class TraceObserveListMetadataSerializer(serializers.Serializer):
     total_rows_is_lower_bound = serializers.BooleanField(required=False)
     has_more = serializers.BooleanField(required=False)
     next_cursor = serializers.CharField(required=False, allow_null=True)
+    next_cursor_fingerprint = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False, allow_null=True
+    )
     query_complete = serializers.BooleanField(required=False)
     query_status = serializers.ChoiceField(
         choices=("complete", "degraded"), required=False
@@ -345,8 +348,74 @@ class TracePropertiesResponseSerializer(serializers.Serializer):
     result = serializers.ListField(child=serializers.CharField())
 
 
+class _ExtraSessionCellsMixin:
+    """Validate and preserve tenant-defined session table cells."""
+
+    def to_internal_value(self, data):
+        validated = super().to_internal_value(data)
+        dynamic_cell = JsonValueField(allow_null=True)
+        for key, value in data.items():
+            if key not in self.fields:
+                validated[key] = dynamic_cell.run_validation(value)
+        return validated
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if isinstance(instance, dict):
+            dynamic_cell = JsonValueField(allow_null=True)
+            for key, value in instance.items():
+                if key not in self.fields:
+                    representation[key] = dynamic_cell.to_representation(value)
+        return representation
+
+
+class TraceSessionTableRowSerializer(_ExtraSessionCellsMixin, serializers.Serializer):
+    """Typed core cells for one Observe session row.
+
+    Session rows may also carry dynamic attribute and annotation-label columns.
+    Stable API-owned cells remain typed, while dynamic attribute/annotation
+    cells are validated as JSON and passed through unchanged.
+    """
+
+    # Older/synthetic session projections may expose only dynamic cells. Keep
+    # the canonical identity typed when present without narrowing that existing
+    # response contract.
+    session_id = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    session_name = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    project_id = serializers.UUIDField(required=False, allow_null=True)
+    start_time = serializers.DateTimeField(required=False, allow_null=True)
+    end_time = serializers.DateTimeField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(required=False, allow_null=True)
+    duration = serializers.FloatField(required=False, allow_null=True)
+    total_cost = serializers.FloatField(required=False, allow_null=True)
+    total_tokens = serializers.IntegerField(required=False, allow_null=True)
+    total_traces_count = serializers.IntegerField(required=False, allow_null=True)
+    first_message = JsonValueField(required=False, allow_null=True)
+    last_message = JsonValueField(required=False, allow_null=True)
+    user_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    user_id_type = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    user_id_hash = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+
+    class Meta:
+        swagger_schema_fields = {
+            "additionalProperties": {
+                **JSON_VALUE_SCHEMA,
+                "x-nullable": True,
+            }
+        }
+
+
 class TraceSessionListResultSerializer(TraceObserveListResultSerializer):
     metadata = TraceSessionListMetadataSerializer()
+    table = TraceSessionTableRowSerializer(many=True)
 
 
 class TraceSessionListResponseSerializer(serializers.Serializer):
@@ -457,6 +526,9 @@ class TraceVoiceCallListResponseSerializer(serializers.Serializer):
     config = TraceObserveColumnConfigSerializer(many=True)
     has_more = serializers.BooleanField()
     next_cursor = serializers.CharField(required=False, allow_null=True)
+    next_cursor_fingerprint = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False, allow_null=True
+    )
     query_complete = serializers.BooleanField()
     query_status = serializers.ChoiceField(choices=("complete", "degraded"))
     query_error_code = serializers.CharField(required=False)
@@ -795,6 +867,9 @@ class UsersResultSerializer(serializers.Serializer):
     count_is_lower_bound = serializers.BooleanField(required=False)
     has_more = serializers.BooleanField(required=False)
     next_cursor = serializers.CharField(required=False, allow_null=True)
+    next_cursor_fingerprint = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False, allow_null=True
+    )
     query_complete = serializers.BooleanField(required=False)
     query_status = serializers.ChoiceField(
         choices=("complete", "degraded"), required=False

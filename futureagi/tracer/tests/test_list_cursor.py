@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
@@ -17,6 +18,7 @@ from tracer.services.clickhouse.list_cursor import (
     decode_list_cursor,
     encode_list_cursor,
     exact_total_explicitly_required,
+    list_cursor_boundary_fingerprint,
     normalize_cursor_query,
     normalize_filter_conjunction,
     snapshot_cursor_supported,
@@ -131,6 +133,18 @@ def test_cursor_round_trip_preserves_datetime_and_complete_order_tuple():
     assert cursor.seen_rows == 25
 
 
+def test_cursor_boundary_fingerprint_is_stable_across_timestamp_resigning():
+    with patch("django.core.signing.time.time", return_value=1_700_000_000):
+        first_token, _ = _token()
+    with patch("django.core.signing.time.time", return_value=1_700_000_100):
+        rotated_token, _ = _token()
+
+    assert first_token != rotated_token
+    assert list_cursor_boundary_fingerprint(first_token) == (
+        list_cursor_boundary_fingerprint(rotated_token)
+    )
+
+
 def test_cursor_round_trip_preserves_scan_checkpoint_without_version_state():
     token, values = _token(
         scan_slice_start=datetime(2026, 6, 30, 10, tzinfo=UTC),
@@ -151,6 +165,34 @@ def test_cursor_round_trip_preserves_scan_checkpoint_without_version_state():
     assert cursor.scan_slice_end == datetime(2026, 6, 30, 12, tzinfo=UTC)
     assert cursor.scan_before_start_time == datetime(2026, 6, 30, 11, 59, tzinfo=UTC)
     assert cursor.scan_before_id == "candidate-9"
+
+
+def test_cursor_normalizes_naive_driver_scan_checkpoint_to_utc():
+    token, values = _token(
+        scan_slice_start=datetime(2026, 6, 30, 10),
+        scan_slice_end=datetime(2026, 6, 30, 12),
+        scan_before_start_time=datetime(2026, 6, 30, 11, 59),
+        scan_before_id="candidate-9",
+    )
+
+    cursor = decode_list_cursor(
+        token,
+        resource=values["resource"],
+        scope=values["scope"],
+        query=values["query"],
+        page_size=values["page_size"],
+    )
+
+    assert cursor.scan_slice_start == datetime(2026, 6, 30, 10, tzinfo=UTC)
+    assert cursor.scan_slice_end == datetime(2026, 6, 30, 12, tzinfo=UTC)
+    assert cursor.scan_before_start_time == datetime(
+        2026,
+        6,
+        30,
+        11,
+        59,
+        tzinfo=UTC,
+    )
 
 
 def test_cursor_normalizes_filter_order_and_in_value_order():
@@ -518,24 +560,27 @@ def test_cursor_metadata_never_claims_terminal_without_a_required_continuation()
             next_cursor=None,
         )
 
+    token, _ = _token()
+    fingerprint = list_cursor_boundary_fingerprint(token)
     assert cursor_page_metadata(
         enabled=True,
         has_more=True,
         seen_rows=25,
-        next_cursor="opaque",
+        next_cursor=token,
     ) == {
         "total_rows": 25,
         "total_rows_exact": None,
         "total_rows_is_lower_bound": True,
         "has_more": True,
-        "next_cursor": "opaque",
+        "next_cursor": token,
+        "next_cursor_fingerprint": fingerprint,
     }
     assert (
         cursor_page_metadata(
             enabled=True,
             has_more=True,
             seen_rows=25,
-            next_cursor="opaque",
+            next_cursor=token,
             unseen_row_proven=True,
         )["total_rows"]
         == 26
@@ -554,6 +599,7 @@ def test_terminal_cursor_metadata_reports_the_exact_seen_total():
         "total_rows_is_lower_bound": False,
         "has_more": False,
         "next_cursor": None,
+        "next_cursor_fingerprint": None,
     }
 
 

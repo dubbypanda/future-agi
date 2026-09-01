@@ -135,7 +135,11 @@ def _scope() -> subject.WorkspaceScope:
         ("environment", "development", "environment='production'"),
         ("cloud_deployment", "DEV", "supported cloud"),
         ("dev_identity", "dev:controller", "production control-plane identity"),
-        ("target_database", "property_catalog_dev_unit", "exactly 'property_catalog'"),
+        (
+            "target_database",
+            "property_catalog_dev_unit",
+            "configured production catalog database",
+        ),
         ("acknowledgement", DEV_ROLLOUT_ACK, "exact production lifecycle"),
     ),
 )
@@ -395,7 +399,10 @@ def test_status_only_cycle_does_not_reconcile_fence_file(
         ({"ENV_TYPE": "development"}, "ENV_TYPE=production"),
         ({"PROPERTY_CATALOG_LIFECYCLE_ENABLED": False}, "must be true"),
         ({"PROPERTY_CATALOG_LIFECYCLE_ACK": "wrong"}, "acknowledgement"),
-        ({"PROPERTY_CATALOG_LIFECYCLE_TARGET_DATABASE": "default"}, "exactly"),
+        (
+            {"PROPERTY_CATALOG_LIFECYCLE_TARGET_DATABASE": "default"},
+            "configured production database",
+        ),
         ({"PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST": ()}, "1..256"),
     ),
 )

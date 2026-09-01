@@ -61,7 +61,7 @@ def test_sampled_graph_is_rejected_even_with_legacy_opt_in():
 
 
 @pytest.mark.unit
-def test_bounded_candidate_sample_is_publishable_only_with_explicit_opt_in():
+def test_bounded_candidate_sample_is_rejected_even_with_legacy_opt_in():
     sample = _sampled_series(
         query_sampled=True,
         query_exact=False,
@@ -69,7 +69,7 @@ def test_bounded_candidate_sample_is_publishable_only_with_explicit_opt_in():
     )
 
     assert not graph_payload_is_publishable(sample, allow_sampled=False)
-    assert graph_payload_is_publishable(sample, allow_sampled=True)
+    assert not graph_payload_is_publishable(sample, allow_sampled=True)
 
 
 @pytest.mark.unit

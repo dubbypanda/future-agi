@@ -334,6 +334,7 @@ def read_bounded_filter_page(
     continuation_before_start_time: datetime | None = None,
     continuation_before_id: Any = None,
     bounded_continuation: bool = False,
+    carry_continuation_slice_width: bool = False,
     read_settings: dict[str, Any] | None = None,
     classify_read_settings: dict[str, Any] | None = None,
     anchor_probe_only: bool = False,
@@ -368,6 +369,10 @@ def read_bounded_filter_page(
     ``graph_key_witness_probe`` swaps the optional value predicate for a
     graph-only typed-Map key-presence superset. It is valid only with the
     finite page-zero anchor sentinel; exact list/eval callers never enable it.
+    ``carry_continuation_slice_width`` preserves successful adaptive widening
+    across empty cursor responses. Without it, each HTTP continuation starts
+    again at the builder's initial slice width, so a sparse year-long filter
+    can require thousands of otherwise successful transport pages.
     """
 
     if page_number < 0 or page_size <= 0 or deadline_ms <= 0:
@@ -437,6 +442,8 @@ def read_bounded_filter_page(
         raise ValueError(
             "bounded continuation requires page-zero classified partial rows"
         )
+    if carry_continuation_slice_width and not bounded_continuation:
+        raise ValueError("continuation slice width carry requires bounded continuation")
     if include_incomplete_rows and page_number != 0:
         raise ValueError("incomplete rows are available only for page zero")
     if defer_classification and (page_number != 0 or not include_incomplete_rows):
@@ -1187,12 +1194,23 @@ def read_bounded_filter_page(
     # produced it. Preserve that lower boundary across requests. Legacy v3
     # cursors did not carry it, so resume from the frozen window start: slower,
     # but exact and gap-free.
-    active_slice_start: datetime | None = (
-        (continuation_slice_start or request_start)
-        if continuation_slice_end is not None
+    active_slice_start: datetime | None
+    if (
+        continuation_slice_end is not None
         and continuation_before_start_time is not None
-        else None
-    )
+    ):
+        # Legacy v3 cursors did not carry the lower boundary for an in-slice
+        # keyset. Falling back to the frozen request start may rescan, but it
+        # cannot skip rows.
+        active_slice_start = continuation_slice_start or request_start
+    elif continuation_slice_end is not None and carry_continuation_slice_width:
+        # An exhausted slice has no keyset. New cursor callers may nevertheless
+        # carry the exact lower boundary of the *next* adjacent slice so the
+        # successful 1h -> 2h -> 4h widening schedule survives the HTTP round
+        # trip. Older cursors omit it and retain the conservative initial width.
+        active_slice_start = continuation_slice_start
+    else:
+        active_slice_start = None
     # Five minutes remains the conservative default for every selector.  A
     # builder whose seed is both partition-pruned and newest-first may opt into
     # a wider first slice to avoid several empty/under-filled round trips on a
@@ -1245,6 +1263,13 @@ def read_bounded_filter_page(
     # successful half-width read makes the next slice double back to the same
     # known-bad width and repeatedly burns the per-statement timeout.
     forced_width_cap: timedelta | None = None
+    # A builder may deliberately seed the complete request window for a
+    # one-project, time-only identity scan.  If that optimistic read exceeds
+    # its statement budget, logarithmically halving a multi-year window can
+    # consume the entire request deadline before reaching a known-conservative
+    # slice.  Keep the failed-width ceiling for later widening, but make the
+    # immediate recovery attempt use the normal five-minute slice.
+    retry_slice_width: timedelta | None = None
     page_complete = False
     degraded_error_code: str | None = None
     safe_slice_end = slice_end
@@ -2401,7 +2426,8 @@ def read_bounded_filter_page(
             for _ in range(remaining_attempts):
                 scheduled_coverage += scheduled_width
                 scheduled_width = min(scheduled_width * 2, max_slice_width)
-            active_width = slice_width
+            active_width = retry_slice_width or slice_width
+            retry_slice_width = None
             # Cursor-mode scans are intentionally resumable across requests.
             # Do not inflate their first finite slice merely to schedule the
             # entire request window inside this request's attempt count; that
@@ -2454,6 +2480,7 @@ def read_bounded_filter_page(
                         if forced_width_cap is None
                         else min(forced_width_cap, reduced_width_cap)
                     )
+                    retry_slice_width = _INITIAL_SLICE
                     active_slice_start = None
                     before_start_time = None
                     before_id = None
@@ -2593,7 +2620,11 @@ def read_bounded_filter_page(
                 )
             slice_end = slice_start
             slice_width = min(active_width * 2, max_slice_width)
-            active_slice_start = None
+            active_slice_start = (
+                max(request_start, slice_end - slice_width)
+                if carry_continuation_slice_width and slice_end > request_start
+                else None
+            )
             before_start_time = None
             before_id = None
             if bounded_continuation:

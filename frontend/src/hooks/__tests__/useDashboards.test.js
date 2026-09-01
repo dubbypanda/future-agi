@@ -322,6 +322,67 @@ describe("useDashboardMetricsPaginated", () => {
       mocks.get.mock.calls.map(([, config]) => config.params.page_size),
     ).toEqual([25, 100]);
   });
+
+  it("scopes legacy compatibility reads by canonical projects and eval config", async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        result: {
+          metrics: [],
+          total: 0,
+          page: 1,
+          page_size: 20,
+          has_more: false,
+        },
+      },
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = createQueryWrapper(queryClient);
+
+    const first = renderHook(
+      () =>
+        useDashboardMetricsPaginated({
+          category: "custom_attribute",
+          source: "traces",
+          search: "prompt_sl",
+          projectIds: ["project-b", "project-a", "project-b"],
+          perEvalConfig: true,
+          pageSize: 20,
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+
+    const second = renderHook(
+      () =>
+        useDashboardMetricsPaginated({
+          category: "custom_attribute",
+          source: "traces",
+          search: "prompt_sl",
+          projectIds: ["project-a", "project-b"],
+          perEvalConfig: true,
+          pageSize: 20,
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.get).toHaveBeenCalledWith("/tracer/dashboard/metrics/", {
+      signal: expect.anything(),
+      timeout: PROPERTY_CATALOG_REQUEST_TIMEOUT_MS,
+      params: {
+        category: "custom_attribute",
+        source: "traces",
+        search: "prompt_sl",
+        project_ids: "project-a,project-b",
+        per_eval_config: true,
+        page: 1,
+        page_size: 20,
+      },
+    });
+  });
 });
 
 describe("usePropertyCatalog", () => {
@@ -361,6 +422,76 @@ describe("usePropertyCatalog", () => {
     query_status: "complete",
     query_provenance: "activated_property_catalog",
     ...overrides,
+  });
+
+  it("reports a cached remote search refetch as pending", async () => {
+    let resolveRefetch;
+    const refetchResponse = new Promise((resolve) => {
+      resolveRefetch = resolve;
+    });
+    mocks.get
+      .mockResolvedValueOnce({ data: { result: page() } })
+      .mockImplementationOnce(() => refetchResponse);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(
+      () => usePropertyCatalog({ search: "customer" }),
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.isRemoteCatalogSearchPending).toBe(false);
+
+    let pendingRefetch;
+    act(() => {
+      pendingRefetch = result.current.refetch();
+    });
+    await waitFor(() => expect(result.current.isFetching).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRemoteCatalogSearchPending).toBe(true);
+    expect(result.current.isRemoteCatalogNextPagePending).toBe(false);
+
+    resolveRefetch({ data: { result: page() } });
+    await act(async () => pendingRefetch);
+    await waitFor(() =>
+      expect(result.current.isRemoteCatalogSearchPending).toBe(false),
+    );
+  });
+
+  it("reports a remote cursor page independently from search loading", async () => {
+    let resolveNextPage;
+    const nextPageResponse = new Promise((resolve) => {
+      resolveNextPage = resolve;
+    });
+    mocks.get
+      .mockResolvedValueOnce({
+        data: { result: page({ has_more: true, next_cursor: "cursor-2" }) },
+      })
+      .mockImplementationOnce(() => nextPageResponse);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(
+      () => usePropertyCatalog({ search: "customer" }),
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+
+    let pendingNextPage;
+    act(() => {
+      pendingNextPage = result.current.fetchNextPage();
+    });
+    await waitFor(() => expect(result.current.isFetchingNextPage).toBe(true));
+    expect(result.current.isRemoteCatalogSearchPending).toBe(false);
+    expect(result.current.isRemoteCatalogNextPagePending).toBe(true);
+
+    resolveNextPage({ data: { result: page() } });
+    await act(async () => pendingNextPage);
+    await waitFor(() =>
+      expect(result.current.isRemoteCatalogNextPagePending).toBe(false),
+    );
   });
 
   it("walks one signed immutable catalog without page numbers", async () => {
@@ -1821,7 +1952,6 @@ describe("useDashboardQuery error boundary", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(mocks.post).toHaveBeenCalledWith("/tracer/dashboard/query/", {
       metrics: [{ name: "Latency" }],
-      allow_sampled: false,
     });
     expect(failedMutation?.options.meta).toEqual({ errorHandled: true });
   });
@@ -1845,7 +1975,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/query/",
       {
         metrics: [{ name: "Latency" }],
-        allow_sampled: false,
       },
       { params: { refresh: true } },
     );
@@ -1868,7 +1997,6 @@ describe("useDashboardQuery error boundary", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mocks.post).toHaveBeenCalledWith("/tracer/dashboard/query/", {
       metrics: [{ name: "Latency" }],
-      allow_sampled: false,
     });
   });
 
@@ -1893,7 +2021,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/query/",
       {
         metrics: [{ name: "Latency" }],
-        allow_sampled: false,
       },
       { signal: controller.signal },
     );
@@ -1905,7 +2032,7 @@ describe("useDashboardQuery error boundary", () => {
       useWidgetQuery,
       { dashboardId: "dash-1", widgetId: "widget-1" },
       "/tracer/dashboard/dash-1/widgets/widget-1/query/",
-      { allow_sampled: false },
+      {},
     ],
     [
       "widget preview",
@@ -1917,7 +2044,6 @@ describe("useDashboardQuery error boundary", () => {
       "/tracer/dashboard/dash-1/widgets/preview/",
       {
         query_config: { metrics: [{ name: "Latency" }] },
-        allow_sampled: false,
       },
     ],
   ])(

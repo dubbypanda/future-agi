@@ -274,14 +274,13 @@ def _accept_dashboard_contract(serializer_class, *_args, **_kwargs):
 
 
 @pytest.mark.unit
-def test_dashboard_query_reuses_one_deadline_through_scope_cache_and_response(
+def test_dashboard_query_passes_outer_deadline_to_shared_executor(
     monkeypatch,
 ):
     from tfc.utils import api_contracts
     from tracer.views import dashboard as dashboard_view
 
-    events = []
-    deadline = _SequencedDeadline([9_000, 8_900], events)
+    deadline = _SequencedDeadline([9_000, 8_900])
 
     @contextmanager
     def bounded_scope(received_deadline):
@@ -298,39 +297,26 @@ def test_dashboard_query_reuses_one_deadline_through_scope_cache_and_response(
         api_contracts, "_validate_serializer", _accept_dashboard_contract
     )
     monkeypatch.setattr(api_contracts, "_validate_response", lambda *_args: None)
-    monkeypatch.setattr(
-        dashboard_view,
-        "_normalize_dashboard_query_filters",
-        lambda value: dict(value),
+    execute = mock.MagicMock(
+        return_value=SimpleNamespace(status_code=200, data={"result": {}})
     )
     monkeypatch.setattr(
-        dashboard_view,
-        "_materialize_dashboard_query_scope",
-        lambda value, *_args, **_kwargs: events.append("scope") or value,
+        dashboard_view.DashboardWidgetViewSet,
+        "_execute_ch_query_config",
+        execute,
     )
-
-    def bind(value, _workspace, *, deadline: object, **_kwargs):
-        assert deadline is globals_deadline
-        events.append("annotation")
-        return value
-
-    globals_deadline = deadline
-    monkeypatch.setattr(dashboard_view, "_bind_dashboard_annotation_completeness", bind)
-
-    def public_read(value, *, deadline: object, **_kwargs):
-        assert deadline is globals_deadline
-        events.append("cache")
-        return {"query_complete": True, "metrics": value["metrics"]}
-
-    monkeypatch.setattr(dashboard_view, "_read_public_dashboard_query", public_read)
     view = dashboard_view.DashboardViewSet.__new__(dashboard_view.DashboardViewSet)
     view._gm = _response_gm()
-    monkeypatch.setattr(view, "_normalize_metric_sources", lambda value: value)
 
     response = dashboard_view.DashboardViewSet.query(view, _request())
 
     assert response.status_code == 200
-    assert events[:3] == ["scope", "annotation", "cache"]
+    execute.assert_called_once_with(
+        {"metrics": [], "filters": [], "allow_sampled": False},
+        mock.ANY,
+        refresh=False,
+        _read_deadline=deadline,
+    )
 
 
 @pytest.mark.unit

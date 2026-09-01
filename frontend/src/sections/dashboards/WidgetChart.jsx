@@ -244,6 +244,9 @@ export default function WidgetChart({
     retryUnavailable: false,
     pollingPaused: false,
   }));
+  const [acknowledgedRequest, setAcknowledgedRequest] = useState(() =>
+    queryMutation.data ? { signature: querySignature, refreshRequestId } : null,
+  );
   const previousSignatureRef = useRef(null);
   const previousRefreshRequestRef = useRef(refreshRequestId);
   const onQuerySettledRef = useRef(onQuerySettled);
@@ -367,6 +370,10 @@ export default function WidgetChart({
         {
           onSuccess: (response) => {
             if (!acceptResponse()) return;
+            setAcknowledgedRequest({
+              signature: querySignature,
+              refreshRequestId,
+            });
             const snapshot = getDashboardSnapshot(response, querySignature);
             const { isRefreshing, refreshFailed } =
               getAggregationRefreshState(response);
@@ -480,6 +487,9 @@ export default function WidgetChart({
   const pollingPaused =
     latestOutcome.signature === querySignature &&
     latestOutcome.pollingPaused === true;
+  const hasAcknowledgedCurrentRequest =
+    acknowledgedRequest?.signature === querySignature &&
+    acknowledgedRequest?.refreshRequestId === refreshRequestId;
 
   // Auto-select top 10 series by total value when there are many breakdown series
   const MAX_CHART_SERIES = 10;
@@ -609,6 +619,7 @@ export default function WidgetChart({
   if (
     queryMutation.isPending &&
     !renderableSnapshot &&
+    !hasAcknowledgedCurrentRequest &&
     !retryUnavailable &&
     !pollingPaused
   ) {

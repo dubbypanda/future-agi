@@ -51,6 +51,8 @@ vi.mock("../../TracesDrawer/TracesDrawer", () => ({ default: () => null }));
 vi.mock("src/hooks/use-ag-theme", () => ({ useAgThemeWith: () => ({}) }));
 vi.mock("../common", () => ({
   getSessionListColumnDef: (column) => ({ field: column.id }),
+  initialVisibility: { session_id: true },
+  mergeNonCustomColumns: (_current, incoming) => incoming,
 }));
 vi.mock("src/utils/Mixpanel", () => ({
   Events: { observeSessionidClicked: "session" },
@@ -407,23 +409,36 @@ describe("SessionGrid cursor continuation", () => {
     const secondPage = makeParams({ startRow: 25 });
     await getRows(secondPage);
 
-    expect(getMock).toHaveBeenCalledTimes(3);
+    // A mixed-version cursor error invalidates the current generation before
+    // asking AG Grid for a clean numbered-page replay.  Do not retry inside
+    // the stale cursor request: the real grid invokes getRows again after the
+    // purge, so mirror that lifecycle explicitly here.
+    expect(getMock).toHaveBeenCalledTimes(2);
     expect(getMock.mock.calls[1][1].params).toEqual(
       expect.objectContaining({
         cursor_mode: true,
         cursor: "signed-after-25",
       }),
     );
+    expect(secondPage.fail).toHaveBeenCalledTimes(1);
+    expect(secondPage.api.refreshServerSide).toHaveBeenCalledWith({
+      purge: true,
+    });
+
+    const numberedSecondPage = makeParams({ startRow: 25 });
+    await getRows(numberedSecondPage);
+
+    expect(getMock).toHaveBeenCalledTimes(3);
     expect(getMock.mock.calls[2][1].params).toEqual(
       expect.objectContaining({ page_number: 1 }),
     );
     expect(getMock.mock.calls[2][1].params).not.toHaveProperty("cursor_mode");
     expect(getMock.mock.calls[2][1].params).not.toHaveProperty("cursor");
-    expect(secondPage.success).toHaveBeenCalledWith({
+    expect(numberedSecondPage.success).toHaveBeenCalledWith({
       rowData: [row(25)],
       rowCount: 26,
     });
-    expect(secondPage.fail).not.toHaveBeenCalled();
+    expect(numberedSecondPage.fail).not.toHaveBeenCalled();
   });
 
   it("follows an empty checkpoint and publishes only the first genuine match", async () => {

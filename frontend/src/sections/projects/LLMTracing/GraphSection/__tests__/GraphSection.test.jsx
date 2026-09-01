@@ -8,6 +8,7 @@ import {
   AGGREGATION_POLLING_PAUSED_MESSAGE,
   AGGREGATION_REQUEST_TIMEOUT_MS,
   GRAPH_LOADING_MESSAGE,
+  QUERY_FAILED_RETRY_MESSAGE,
 } from "src/utils/queryReadState";
 import GraphSection from "../GraphSection";
 
@@ -214,7 +215,7 @@ describe("GraphSection exact graph boundary", () => {
     expect(axios.post).toHaveBeenCalledWith(
       "/tracer/trace/get_graph_methods/",
       expect.any(Object),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
     expect(screen.queryByTestId("apex-chart")).not.toBeInTheDocument();
     expect(screen.queryByText(/sampled estimates/i)).not.toBeInTheDocument();
@@ -372,7 +373,7 @@ describe("GraphSection exact graph boundary", () => {
           source: "traces",
         },
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select tokens" }));
@@ -387,7 +388,7 @@ describe("GraphSection exact graph boundary", () => {
           source: "traces",
         },
       }),
-      expect.objectContaining({ params: { allow_sampled: false } }),
+      expect.objectContaining({ params: undefined }),
     );
   });
 
@@ -489,6 +490,33 @@ describe("GraphSection exact graph boundary", () => {
       "data-primary-first-y",
       "18",
     );
+    expect(
+      screen.queryByRole("status", { name: GRAPH_LOADING_MESSAGE }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("terminalizes a failed exact refresh instead of keeping the graph skeleton", async () => {
+    vi.useFakeTimers();
+    axios.post.mockResolvedValue({
+      data: {
+        result: {
+          metric_name: "latency",
+          data: [],
+          query_complete: false,
+          query_status: "pending",
+          query_sampled: false,
+          query_refreshing: false,
+          query_refresh_failed: true,
+        },
+      },
+    });
+
+    renderGraph();
+    fireEvent.click(screen.getByRole("button", { name: "Select latency" }));
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(axios.post).toHaveBeenCalledOnce();
+    expect(screen.getByText(QUERY_FAILED_RETRY_MESSAGE)).toBeVisible();
     expect(
       screen.queryByRole("status", { name: GRAPH_LOADING_MESSAGE }),
     ).not.toBeInTheDocument();

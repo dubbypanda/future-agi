@@ -1,6 +1,8 @@
 import {
   ANALYTICS_REQUEST_TIMEOUT_MS,
   CURSOR_MAX_EMPTY_CONTINUATIONS,
+  OBSERVE_CURSOR_MAX_CHECKPOINTS,
+  OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
 } from "src/config/runtime_limits";
 import { isGridApiLive } from "src/utils/gridApi";
 
@@ -15,6 +17,7 @@ export const LIST_CURSOR_CONTINUATION_NOTICE =
   "Preparing exact results. Refresh or retry to continue.";
 const DEFAULT_MAX_EMPTY_CONTINUATIONS = CURSOR_MAX_EMPTY_CONTINUATIONS;
 const DEFAULT_EMPTY_CONTINUATION_DEADLINE_MS = ANALYTICS_REQUEST_TIMEOUT_MS;
+const CURSOR_BOUNDARY_FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 
 const requestWithinDeadline = async ({
   request,
@@ -64,6 +67,23 @@ const createListCursorContinuationLimitError = () => {
 
 const hasOwn = (value, key) =>
   Object.prototype.hasOwnProperty.call(value || {}, key);
+
+const compactTransportResponse = (response) => {
+  if (
+    !response ||
+    typeof response !== "object" ||
+    !hasOwn(response, "data") ||
+    !hasOwn(response, "request")
+  ) {
+    return response;
+  }
+
+  // Axios exposes its XMLHttpRequest as `request`; Chromium may keep the
+  // request's full responseText alive as long as this object is reachable.
+  // Cursor caches need parsed data and metadata, never the transport handle.
+  const { request: _request, ...compact } = response;
+  return compact;
+};
 
 const LEGACY_CURSOR_FIELDS = new Set(["cursor", "cursor_mode"]);
 
@@ -182,6 +202,65 @@ export const createListCursorProtocolError = (message) => {
   return error;
 };
 
+export const rememberBoundedListCursorIdentity = (
+  identities,
+  identity,
+  maximumSize = OBSERVE_CURSOR_MAX_CHECKPOINTS,
+) => {
+  if (!(identities instanceof Set)) {
+    throw new Error("List cursor identity set is required");
+  }
+  if (typeof identity !== "string" || identity.length === 0) {
+    throw createListCursorProtocolError(
+      "List API returned an invalid continuation cursor identity",
+    );
+  }
+  if (identities.has(identity)) {
+    throw createListCursorProtocolError(
+      "List API returned a repeated continuation cursor",
+    );
+  }
+  if (!Number.isInteger(maximumSize) || maximumSize < 1) {
+    throw new Error("Invalid list cursor identity history size");
+  }
+  if (identities.size >= maximumSize) {
+    throw createListCursorProtocolError(
+      "List continuation history safety limit reached",
+    );
+  }
+  identities.add(identity);
+};
+
+/**
+ * Return the stable identity of an opaque continuation boundary.
+ *
+ * New backends publish a digest separately from the signed cursor so token
+ * re-signing cannot disguise a cycle. The token fallback keeps mixed-version
+ * rollouts fail-closed without coupling the client to the signer's wire
+ * format.
+ */
+export const listCursorBoundaryIdentity = (metadata) => {
+  const cursor = metadata?.next_cursor;
+  if (hasOwn(metadata, "next_cursor_fingerprint")) {
+    const fingerprint = metadata?.next_cursor_fingerprint;
+    if (
+      typeof fingerprint !== "string" ||
+      !CURSOR_BOUNDARY_FINGERPRINT_PATTERN.test(fingerprint)
+    ) {
+      throw createListCursorProtocolError(
+        "List response returned an invalid cursor boundary fingerprint",
+      );
+    }
+    return `fingerprint:${fingerprint}`;
+  }
+  if (typeof cursor !== "string" || cursor.length === 0) {
+    throw createListCursorProtocolError(
+      "List response omitted its continuation cursor",
+    );
+  }
+  return `opaque-token:${cursor}`;
+};
+
 export const isListCursorProtocolError = (error) =>
   error?.code === LIST_CURSOR_PROTOCOL_ERROR_CODE ||
   error?.code === MIXED_VERSION_ERROR_CODE;
@@ -229,6 +308,8 @@ export const shareInFlightListPage = ({ inFlight, key, load }) => {
 export const createListCursorPagination = ({
   pageParam = "page_number",
   pageOffset = 0,
+  maxCompletedPages = OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
+  maxCursorCheckpoints = OBSERVE_CURSOR_MAX_CHECKPOINTS,
 } = {}) => {
   if (typeof pageParam !== "string" || pageParam.length === 0) {
     throw new Error("Invalid list page parameter");
@@ -236,60 +317,157 @@ export const createListCursorPagination = ({
   if (!Number.isInteger(pageOffset) || pageOffset < 0) {
     throw new Error("Invalid list page offset");
   }
+  if (!Number.isInteger(maxCompletedPages) || maxCompletedPages < 1) {
+    throw new Error("Invalid completed list page cache size");
+  }
+  if (
+    !Number.isInteger(maxCursorCheckpoints) ||
+    maxCursorCheckpoints <= maxCompletedPages
+  ) {
+    throw new Error("Invalid list cursor checkpoint cache size");
+  }
 
   let mode = UNKNOWN_MODE;
   let generation = 0;
   let generationController = new AbortController();
-  const cursorByPage = new Map([[0, null]]);
+  // Cursor tokens are an opaque transport contract. Stable replay identity is
+  // supplied separately by the backend; the symbols model the two boundaries
+  // that have no transport token.
+  const initialCursor = Symbol("initial-list-cursor");
+  const terminalCursor = Symbol("terminal-list-cursor");
+  const cursorByPage = new Map([
+    [
+      0,
+      {
+        token: null,
+        boundaryIdentity: initialCursor,
+        expectedSuccessorIdentity: undefined,
+      },
+    ],
+  ]);
   const transportCursorByPage = new Map();
   const bufferedVisiblePageByPage = new Map();
-  // Completed pages must outlive React Query's inactive-query GC. Exact
-  // cursors are forward-only: replaying an older transport request after its
-  // query-cache entry expires can legitimately produce a different signed
-  // successor and invalidate the proven chain. This cache is scoped to one
-  // cursor generation and is released on reset/component teardown.
+  // Keep only the same number of completed pages AG Grid can retain. Cursor
+  // tokens have a separate generous bound so normal backward navigation works
+  // without retaining an unbounded token graph on very long sessions.
   const completedVisiblePageByPage = new Map();
   // A bounded AG Grid cache may legitimately re-read an evicted block. Record
   // the proven cursor transition graph so an identical replay is idempotent,
   // while a non-advancing cursor, cycle, or changed successor still fails
-  // closed. The symbol represents the cursor-less first transport page.
-  const initialCursor = Symbol("initial-list-cursor");
+  // closed.
   const cursorSuccessorByInput = new Map();
+  // Never evict a stable boundary identity within one datasource generation.
+  // The configured checkpoint limit is the hard admission cap, so a long
+  // continuation chain fails closed before pruning could hide a later cycle.
+  const admittedCursorBoundaries = new Set();
 
-  const inputCursorForPage = (pageNumber) => {
-    const cursor =
-      transportCursorByPage.get(pageNumber) || cursorByPage.get(pageNumber);
-    if (cursor) return cursor;
-    return pageNumber === 0 ? initialCursor : null;
+  const pruneLruMap = (map, maximumSize, preservedKey) => {
+    while (map.size > maximumSize) {
+      const oldestKey = map.keys().next().value;
+      if (oldestKey === preservedKey) {
+        const preservedValue = map.get(oldestKey);
+        map.delete(oldestKey);
+        map.set(oldestKey, preservedValue);
+        continue;
+      }
+      map.delete(oldestKey);
+    }
   };
 
-  const recordCursorTransition = (pageNumber, nextCursor) => {
-    const inputCursor = inputCursorForPage(pageNumber);
-    if (inputCursor === null) {
+  const responseCursorIdentity = (metadata) =>
+    listCursorBoundaryIdentity(metadata);
+
+  const rememberCursorForPage = (pageNumber, cursor, boundaryIdentity) => {
+    const existing = cursorByPage.get(pageNumber);
+    const preservesProof =
+      existing && existing.boundaryIdentity === boundaryIdentity;
+    cursorByPage.delete(pageNumber);
+    cursorByPage.set(pageNumber, {
+      token: cursor,
+      boundaryIdentity,
+      expectedSuccessorIdentity: preservesProof
+        ? existing.expectedSuccessorIdentity
+        : undefined,
+    });
+    // Page zero is the cursor-less restart point and is never evicted.
+    pruneLruMap(cursorByPage, maxCursorCheckpoints + 1, 0);
+  };
+
+  const cursorCheckpointForPage = (pageNumber) => {
+    if (transportCursorByPage.has(pageNumber)) {
+      const checkpoint = transportCursorByPage.get(pageNumber);
+      transportCursorByPage.delete(pageNumber);
+      transportCursorByPage.set(pageNumber, checkpoint);
+      return checkpoint;
+    }
+    if (!cursorByPage.has(pageNumber)) return null;
+    const checkpoint = cursorByPage.get(pageNumber);
+    if (pageNumber !== 0) {
+      cursorByPage.delete(pageNumber);
+      cursorByPage.set(pageNumber, checkpoint);
+    }
+    return checkpoint;
+  };
+
+  const cursorForPage = (pageNumber) =>
+    cursorCheckpointForPage(pageNumber)?.token ?? null;
+
+  const rememberCursorTransition = (inputCursor, successorIdentity) => {
+    cursorSuccessorByInput.delete(inputCursor);
+    cursorSuccessorByInput.set(inputCursor, successorIdentity);
+    // The boundary admission cap bounds this map to at most one edge per
+    // admitted boundary plus the initial/terminal proof. Keeping every edge is
+    // what makes backward replay safe after visible-page checkpoints age out.
+  };
+
+  const inputCursorForPage = (pageNumber) => {
+    const checkpoint = cursorCheckpointForPage(pageNumber);
+    if (checkpoint?.token) {
+      return { identity: checkpoint.boundaryIdentity, checkpoint };
+    }
+    return pageNumber === 0 ? { identity: initialCursor, checkpoint } : null;
+  };
+
+  const recordCursorTransition = (pageNumber, nextIdentity) => {
+    const input = inputCursorForPage(pageNumber);
+    if (input === null) {
       throw createListCursorProtocolError(
         "Continuation cursor is unavailable for this page",
       );
     }
-    if (inputCursor === nextCursor) {
+    const { identity: inputIdentity, checkpoint } = input;
+    if (inputIdentity === nextIdentity) {
       throw createListCursorProtocolError(
         "List API returned a repeated continuation cursor",
       );
     }
 
-    const provenSuccessor = cursorSuccessorByInput.get(inputCursor);
+    const checkpointSuccessor = checkpoint?.expectedSuccessorIdentity;
+    const graphSuccessor = cursorSuccessorByInput.get(inputIdentity);
+    if (
+      checkpointSuccessor !== undefined &&
+      graphSuccessor !== undefined &&
+      checkpointSuccessor !== graphSuccessor
+    ) {
+      throw createListCursorProtocolError(
+        "List cursor replay proof is inconsistent",
+      );
+    }
+    const provenSuccessor = checkpointSuccessor ?? graphSuccessor;
     if (provenSuccessor !== undefined) {
-      if (provenSuccessor !== nextCursor) {
+      if (provenSuccessor !== nextIdentity) {
         throw createListCursorProtocolError(
-          "List API changed a proven continuation cursor",
+          "List API changed a proven continuation boundary",
         );
       }
+      rememberCursorTransition(inputIdentity, provenSuccessor);
       return;
     }
 
     const traversed = new Set();
-    let cursor = nextCursor;
+    let cursor = nextIdentity;
     while (cursor !== undefined && !traversed.has(cursor)) {
-      if (cursor === inputCursor) {
+      if (cursor === inputIdentity) {
         throw createListCursorProtocolError(
           "List API returned a repeated continuation cursor",
         );
@@ -297,20 +475,42 @@ export const createListCursorPagination = ({
       traversed.add(cursor);
       cursor = cursorSuccessorByInput.get(cursor);
     }
-    cursorSuccessorByInput.set(inputCursor, nextCursor);
+    if (nextIdentity !== terminalCursor) {
+      rememberBoundedListCursorIdentity(
+        admittedCursorBoundaries,
+        nextIdentity,
+        maxCursorCheckpoints,
+      );
+    }
+    if (checkpoint) checkpoint.expectedSuccessorIdentity = nextIdentity;
+    rememberCursorTransition(inputIdentity, nextIdentity);
+  };
+
+  const deleteDownstreamPageState = (pageNumber) => {
+    for (const map of [
+      cursorByPage,
+      transportCursorByPage,
+      bufferedVisiblePageByPage,
+      completedVisiblePageByPage,
+    ]) {
+      for (const retainedPage of map.keys()) {
+        if (retainedPage > pageNumber) map.delete(retainedPage);
+      }
+    }
   };
 
   const advanceGeneration = () => {
     generation += 1;
     generationController.abort();
     generationController = new AbortController();
+    admittedCursorBoundaries.clear();
   };
 
   const reset = () => {
     advanceGeneration();
     mode = UNKNOWN_MODE;
     cursorByPage.clear();
-    cursorByPage.set(0, null);
+    rememberCursorForPage(0, null, initialCursor);
     transportCursorByPage.clear();
     bufferedVisiblePageByPage.clear();
     completedVisiblePageByPage.clear();
@@ -323,7 +523,7 @@ export const createListCursorPagination = ({
   const fallbackToNumbered = () => {
     mode = NUMBERED_MODE;
     cursorByPage.clear();
-    cursorByPage.set(0, null);
+    rememberCursorForPage(0, null, initialCursor);
     transportCursorByPage.clear();
     bufferedVisiblePageByPage.clear();
     completedVisiblePageByPage.clear();
@@ -341,7 +541,7 @@ export const createListCursorPagination = ({
     }
 
     if (pageNumber === 0) {
-      const continuation = transportCursorByPage.get(0) || cursorByPage.get(0);
+      const continuation = cursorForPage(0);
       if (mode === CURSOR_MODE && continuation) {
         return {
           ...baseParams,
@@ -362,8 +562,7 @@ export const createListCursorPagination = ({
       };
     }
 
-    const cursor =
-      transportCursorByPage.get(pageNumber) || cursorByPage.get(pageNumber);
+    const cursor = cursorForPage(pageNumber);
     if (mode === CURSOR_MODE) {
       if (!cursor) {
         throw createListCursorProtocolError(
@@ -391,7 +590,7 @@ export const createListCursorPagination = ({
     const hasCursorContract =
       hasOwn(metadata, "has_more") && hasOwn(metadata, "next_cursor");
     if (!hasCursorContract) {
-      if (mode === CURSOR_MODE && pageNumber > 0) {
+      if (mode === CURSOR_MODE) {
         const error = new Error(
           "Cursor continuation reached a legacy list API",
         );
@@ -414,8 +613,9 @@ export const createListCursorPagination = ({
           "List response omitted its continuation cursor",
         );
       }
-      recordCursorTransition(pageNumber, metadata.next_cursor);
-      cursorByPage.set(pageNumber + 1, metadata.next_cursor);
+      const nextIdentity = responseCursorIdentity(metadata);
+      recordCursorTransition(pageNumber, nextIdentity);
+      rememberCursorForPage(pageNumber + 1, metadata.next_cursor, nextIdentity);
       transportCursorByPage.delete(pageNumber);
       return;
     }
@@ -425,7 +625,16 @@ export const createListCursorPagination = ({
         "List response returned invalid cursor metadata",
       );
     }
-    cursorByPage.delete(pageNumber + 1);
+    if (
+      hasOwn(metadata, "next_cursor_fingerprint") &&
+      metadata.next_cursor_fingerprint !== null
+    ) {
+      throw createListCursorProtocolError(
+        "Terminal list response returned a cursor boundary fingerprint",
+      );
+    }
+    recordCursorTransition(pageNumber, terminalCursor);
+    deleteDownstreamPageState(pageNumber);
     transportCursorByPage.delete(pageNumber);
   };
 
@@ -444,20 +653,52 @@ export const createListCursorPagination = ({
       );
     }
     mode = CURSOR_MODE;
-    recordCursorTransition(pageNumber, metadata.next_cursor);
-    transportCursorByPage.set(pageNumber, metadata.next_cursor);
+    const nextIdentity = responseCursorIdentity(metadata);
+    recordCursorTransition(pageNumber, nextIdentity);
+    transportCursorByPage.delete(pageNumber);
+    transportCursorByPage.set(pageNumber, {
+      token: metadata.next_cursor,
+      boundaryIdentity: nextIdentity,
+      expectedSuccessorIdentity: undefined,
+    });
+    pruneLruMap(transportCursorByPage, maxCursorCheckpoints);
     cursorByPage.delete(pageNumber + 1);
   };
 
   const bufferedVisiblePage = (pageNumber) => {
     const buffered = bufferedVisiblePageByPage.get(pageNumber);
     if (!buffered) return null;
+    if (buffered.metadata?.has_more === true) {
+      const checkpoint = cursorCheckpointForPage(pageNumber);
+      if (!checkpoint || checkpoint.token !== buffered.metadata.next_cursor) {
+        bufferedVisiblePageByPage.delete(pageNumber);
+        return null;
+      }
+    }
+    // Map insertion order is our small LRU. A revisited page becomes newest.
+    bufferedVisiblePageByPage.delete(pageNumber);
+    bufferedVisiblePageByPage.set(pageNumber, buffered);
     return { ...buffered, rows: [...buffered.rows] };
+  };
+
+  const cacheBufferedVisiblePage = (pageNumber, buffered) => {
+    bufferedVisiblePageByPage.delete(pageNumber);
+    bufferedVisiblePageByPage.set(pageNumber, buffered);
+    while (bufferedVisiblePageByPage.size > maxCompletedPages) {
+      const oldestPage = bufferedVisiblePageByPage.keys().next().value;
+      bufferedVisiblePageByPage.delete(oldestPage);
+      // A transport cursor starts after the evicted partial rows. Retaining it
+      // without those rows would skip results when that visible page reloads.
+      transportCursorByPage.delete(oldestPage);
+    }
   };
 
   const completedVisiblePage = (pageNumber) => {
     const completed = completedVisiblePageByPage.get(pageNumber);
     if (!completed) return null;
+    // Map insertion order is our small LRU. A revisited page becomes newest.
+    completedVisiblePageByPage.delete(pageNumber);
+    completedVisiblePageByPage.set(pageNumber, completed);
     return {
       ...completed,
       rows: [...completed.rows],
@@ -479,6 +720,10 @@ export const createListCursorPagination = ({
       isLastPage: Boolean(isLastPage),
       canPrefetch: Boolean(canPrefetch),
     });
+    while (completedVisiblePageByPage.size > maxCompletedPages) {
+      const oldestPage = completedVisiblePageByPage.keys().next().value;
+      completedVisiblePageByPage.delete(oldestPage);
+    }
   };
 
   const recordVisibleContinuation = (
@@ -490,7 +735,7 @@ export const createListCursorPagination = ({
       throw new Error("Invalid buffered list rows");
     }
     recordEmptyContinuation(pageNumber, metadata);
-    bufferedVisiblePageByPage.set(pageNumber, {
+    cacheBufferedVisiblePage(pageNumber, {
       rows: [...rows],
       response,
       metadata,
@@ -511,29 +756,45 @@ export const createListCursorPagination = ({
       existingBuffer?.metadata === metadata;
     bufferedVisiblePageByPage.delete(pageNumber);
 
-    if (reusesBufferedTransport && metadata?.has_more === true) {
-      // One backend response can contain enough overflow for multiple visible
-      // UI pages. Moving its already-recorded checkpoint forward across those
-      // in-memory pages is not a cursor replay because no transport request
-      // consumed it yet.
-      const assignedCursor = cursorByPage.get(pageNumber);
-      if (
-        typeof metadata.next_cursor !== "string" ||
-        metadata.next_cursor.length === 0 ||
-        assignedCursor !== metadata.next_cursor
+    if (reusesBufferedTransport) {
+      if (metadata?.has_more === true) {
+        // One backend response can contain enough overflow for multiple visible
+        // UI pages. Moving its already-recorded checkpoint forward across those
+        // in-memory pages is not a cursor replay because no transport request
+        // consumed it yet.
+        const assignedCursor = cursorForPage(pageNumber);
+        if (
+          typeof metadata.next_cursor !== "string" ||
+          metadata.next_cursor.length === 0 ||
+          assignedCursor !== metadata.next_cursor
+        ) {
+          throw createListCursorProtocolError(
+            "Buffered list page lost its continuation cursor",
+          );
+        }
+        cursorByPage.delete(pageNumber);
+        rememberCursorForPage(
+          pageNumber + 1,
+          metadata.next_cursor,
+          responseCursorIdentity(metadata),
+        );
+        transportCursorByPage.delete(pageNumber);
+      } else if (
+        metadata?.has_more !== false ||
+        metadata?.next_cursor != null
       ) {
         throw createListCursorProtocolError(
-          "Buffered list page lost its continuation cursor",
+          "Buffered terminal list page has invalid cursor metadata",
         );
       }
-      cursorByPage.delete(pageNumber);
-      cursorByPage.set(pageNumber + 1, metadata.next_cursor);
-      transportCursorByPage.delete(pageNumber);
+      // A terminal response was already proven by the transport page that
+      // produced this overflow. In-memory overflow pages have no cursor input
+      // of their own and therefore must not record another terminal edge.
     } else {
       recordResponse(pageNumber, metadata);
     }
     if (overflowRows.length > 0) {
-      bufferedVisiblePageByPage.set(pageNumber + 1, {
+      cacheBufferedVisiblePage(pageNumber + 1, {
         rows: [...overflowRows],
         response,
         metadata,
@@ -563,14 +824,22 @@ export const createListCursorPagination = ({
     isLastPage,
     mode: () => mode,
     generation: () => generation,
+    retainedStateCounts: () => ({
+      pageCursors: cursorByPage.size,
+      transportCursors: transportCursorByPage.size,
+      cursorBoundaries: admittedCursorBoundaries.size,
+      cursorTransitions: cursorSuccessorByInput.size,
+      bufferedPages: bufferedVisiblePageByPage.size,
+      completedPages: completedVisiblePageByPage.size,
+    }),
     isCurrent: (requestGeneration) => requestGeneration === generation,
     cancellationSignal: () => generationController.signal,
     canRecoverFromContinuationError: (pageNumber, error) =>
       mode === CURSOR_MODE &&
-      pageNumber > 0 &&
-      (error?.response?.status === 400 ||
-        error?.response?.status === 422 ||
-        error?.code === MIXED_VERSION_ERROR_CODE),
+      Number.isInteger(pageNumber) &&
+      pageNumber >= 0 &&
+      (error?.code === MIXED_VERSION_ERROR_CODE ||
+        isLegacyListCursorValidationError(error)),
   };
 };
 
@@ -609,6 +878,7 @@ export const loadExactListPage = async ({
   nextResponse,
   rowsFromResponse,
   metadataFromResponse,
+  compactResponse = compactTransportResponse,
   rowIdentity,
   isCurrent = () => true,
   cancellationSignal,
@@ -627,6 +897,9 @@ export const loadExactListPage = async ({
   }
   if (typeof rowIdentity !== "function") {
     throw new Error("Exact list row identity is required");
+  }
+  if (typeof compactResponse !== "function") {
+    throw new Error("Exact list response compactor must be a function");
   }
   if (!Number.isInteger(maxContinuations) || maxContinuations < 1) {
     throw new Error("Invalid list continuation limit");
@@ -718,6 +991,7 @@ export const loadExactListPage = async ({
     } catch (error) {
       if (
         legacyFallbackAttempted ||
+        pagination.mode() !== UNKNOWN_MODE ||
         !isLegacyListCursorValidationError(error)
       ) {
         throw error;
@@ -744,9 +1018,12 @@ export const loadExactListPage = async ({
         canPrefetch: false,
       };
     }
-    response = nextTransportResponse;
-    appendRows(rowsFromResponse(response));
-    metadata = metadataFromResponse(response) || {};
+    appendRows(rowsFromResponse(nextTransportResponse));
+    metadata = metadataFromResponse(nextTransportResponse) || {};
+    // Rows and cursor metadata are retained separately. Drop the raw table
+    // payload before this page enters the long-lived cursor cache so revisiting
+    // a page cannot pin the original Axios response and its large attributes.
+    response = compactResponse(nextTransportResponse);
 
     if (
       accumulatedRows.length >= targetRowCount ||
@@ -870,6 +1147,7 @@ export const collectExactListRows = async ({
     const hasCursorContract = hasHasMore && hasNextCursor;
     const hasMore = metadata.has_more === true;
     let nextCursor = null;
+    let nextCursorIdentity = null;
     if (hasCursorContract) {
       if (metadata.has_more !== true && metadata.has_more !== false) {
         throw createListCursorProtocolError(
@@ -883,14 +1161,19 @@ export const collectExactListRows = async ({
             "List response omitted its continuation cursor",
           );
         }
-      } else if (metadata.next_cursor != null) {
+        nextCursorIdentity = listCursorBoundaryIdentity(metadata);
+      } else if (
+        metadata.next_cursor != null ||
+        (hasOwn(metadata, "next_cursor_fingerprint") &&
+          metadata.next_cursor_fingerprint !== null)
+      ) {
         throw createListCursorProtocolError(
           "List response returned invalid cursor metadata",
         );
       }
     }
     if (rows.length >= targetRowCount || !hasMore) {
-      if (hasMore && followed.has(nextCursor)) {
+      if (hasMore && followed.has(nextCursorIdentity)) {
         throw createListCursorProtocolError(
           "List API returned a repeated continuation cursor",
         );
@@ -905,6 +1188,7 @@ export const collectExactListRows = async ({
         // unconsumed signed checkpoint so callers can lazily request another
         // exact row without replaying the current transport page.
         nextCursor,
+        nextCursorIdentity,
       };
     }
     if (!isCurrent()) {
@@ -915,9 +1199,10 @@ export const collectExactListRows = async ({
         pending: true,
         stale: true,
         nextCursor: metadata.next_cursor,
+        nextCursorIdentity,
       };
     }
-    if (followed.has(nextCursor)) {
+    if (followed.has(nextCursorIdentity)) {
       throw createListCursorProtocolError(
         "List API returned a repeated continuation cursor",
       );
@@ -933,9 +1218,10 @@ export const collectExactListRows = async ({
         pending: true,
         stale: false,
         nextCursor,
+        nextCursorIdentity,
       };
     }
-    followed.add(nextCursor);
+    followed.add(nextCursorIdentity);
     onContinuation?.(metadata);
     continuationCount += 1;
     const remainingMs = Math.floor(maxElapsedMs - (now() - startedAt));
@@ -947,6 +1233,7 @@ export const collectExactListRows = async ({
         pending: true,
         stale: false,
         nextCursor,
+        nextCursorIdentity,
       };
     }
     const continuation = await requestContinuationWithinDeadline({
@@ -963,6 +1250,7 @@ export const collectExactListRows = async ({
         pending: true,
         stale: false,
         nextCursor,
+        nextCursorIdentity,
       };
     }
     response = continuation.response;

@@ -6641,6 +6641,12 @@ export interface SelectionApi {
   project_id: string;
   filter?: SelectionApiFilterItem[];
   exclude_ids?: string[];
+  /**
+   * Opaque continuation returned by a previous filter-mode add. Reuse the same selection fields and queue when continuing.
+   * @minLength 1
+   * @maxLength 4096
+   */
+  cursor?: string;
   remove_simulation_calls?: boolean;
   is_voice_call?: boolean;
 }
@@ -6658,47 +6664,20 @@ export interface QueueAddItemsResultApi {
   /** @minLength 1 */
   queue_status: string;
   total_matching?: number;
+  total_matching_is_lower_bound?: boolean;
+  has_more?: boolean;
+  /** @minLength 1 */
+  next_cursor?: string | null;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string | null;
 }
 
 export interface QueueAddItemsResponseApi {
   status?: boolean;
   result: QueueAddItemsResultApi;
-}
-
-export type ApiSelectionTooLargeErrorApiType =
-  (typeof ApiSelectionTooLargeErrorApiType)[keyof typeof ApiSelectionTooLargeErrorApiType];
-
-export const ApiSelectionTooLargeErrorApiType = {
-  selection_too_large: "selection_too_large",
-} as const;
-
-export type ApiSelectionTooLargeDetailApiType =
-  (typeof ApiSelectionTooLargeDetailApiType)[keyof typeof ApiSelectionTooLargeDetailApiType];
-
-export const ApiSelectionTooLargeDetailApiType = {
-  selection_too_large: "selection_too_large",
-} as const;
-
-export interface ApiSelectionTooLargeDetailApi {
-  type: ApiSelectionTooLargeDetailApiType;
-  /** @minLength 1 */
-  message: string;
-  total_matching: number;
-  cap: number;
-}
-
-export interface ApiSelectionTooLargeErrorApi {
-  status?: boolean;
-  /** @minLength 1 */
-  result?: string;
-  type?: ApiSelectionTooLargeErrorApiType;
-  /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
-  detail?: string;
-  /** @minLength 1 */
-  message: string;
-  error: ApiSelectionTooLargeDetailApi;
 }
 
 export type ApiTooLargeErrorApiType =
@@ -20709,7 +20688,6 @@ export interface DashboardQuerySeriesPointApi {
 }
 
 export interface DashboardQuerySeriesApi {
-  /** @minLength 1 */
   name: string;
   data: DashboardQuerySeriesPointApi[];
 }
@@ -22689,6 +22667,11 @@ export interface SpanListMetadataApi {
   has_more?: boolean;
   /** @minLength 1 */
   next_cursor?: string | null;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string | null;
   query_complete?: boolean;
   query_status?: SpanListMetadataApiQueryStatus;
   /** @minLength 1 */
@@ -24248,15 +24231,20 @@ export const TraceSessionListMetadataApiQueryProvenance = {
 
 export interface TraceSessionListMetadataApi {
   total_rows: number;
-  total_rows_exact?: number;
+  total_rows_exact?: number | null;
   total_rows_is_lower_bound?: boolean;
   has_more?: boolean;
   /** @minLength 1 */
-  next_cursor?: string;
+  next_cursor?: string | null;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string | null;
   query_complete?: boolean;
   query_status?: TraceSessionListMetadataApiQueryStatus;
   /** @minLength 1 */
-  query_error_code?: string;
+  query_error_code?: string | null;
   query_elapsed_ms?: number;
   /** @minimum 0 */
   query_count?: number;
@@ -24275,6 +24263,37 @@ export interface TraceSessionListMetadataApi {
   query_exact?: boolean;
   query_provenance?: TraceSessionListMetadataApiQueryProvenance;
   ordering_exact?: boolean;
+}
+
+/**
+ * Any valid JSON value.
+ */
+export type TraceSessionTableRowApiFirstMessage = JsonValueApi;
+
+/**
+ * Any valid JSON value.
+ */
+export type TraceSessionTableRowApiLastMessage = JsonValueApi;
+
+export interface TraceSessionTableRowApi {
+  session_id?: string | null;
+  session_name?: string | null;
+  project_id?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  created_at?: string | null;
+  duration?: number | null;
+  total_cost?: number | null;
+  total_tokens?: number | null;
+  total_traces_count?: number | null;
+  /** Any valid JSON value. */
+  first_message?: TraceSessionTableRowApiFirstMessage | null;
+  /** Any valid JSON value. */
+  last_message?: TraceSessionTableRowApiLastMessage | null;
+  user_id?: string | null;
+  user_id_type?: string | null;
+  user_id_hash?: string | null;
+  [key: string]: JsonValueApi | undefined;
 }
 
 /**
@@ -24326,13 +24345,9 @@ export interface TraceObserveColumnConfigApi {
   property_source?: string;
 }
 
-export type TraceSessionListResultApiTableItem = {
-  [key: string]: { [key: string]: unknown };
-};
-
 export interface TraceSessionListResultApi {
   metadata: TraceSessionListMetadataApi;
-  table: TraceSessionListResultApiTableItem[];
+  table: TraceSessionTableRowApi[];
   config: TraceObserveColumnConfigApi[];
 }
 
@@ -24478,6 +24493,11 @@ export interface TraceObserveListMetadataApi {
   has_more?: boolean;
   /** @minLength 1 */
   next_cursor?: string | null;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string | null;
   query_complete?: boolean;
   query_status?: TraceObserveListMetadataApiQueryStatus;
   /** @minLength 1 */
@@ -24565,6 +24585,11 @@ export interface TraceVoiceCallListResponseApi {
   has_more: boolean;
   /** @minLength 1 */
   next_cursor?: string | null;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string | null;
   query_complete: boolean;
   query_status: TraceVoiceCallListResponseApiQueryStatus;
   /** @minLength 1 */
@@ -25127,6 +25152,11 @@ export interface UsersResultApi {
   has_more?: boolean;
   /** @minLength 1 */
   next_cursor?: string;
+  /**
+   * @minLength 1
+   * @pattern ^[0-9a-f]{64}$
+   */
+  next_cursor_fingerprint?: string;
   query_complete?: boolean;
   query_status?: UsersResultApiQueryStatus;
   query_exact?: boolean;

@@ -243,6 +243,47 @@ describe("BoundedCursorPaginationControl", () => {
     expect(loadAttributes).toHaveBeenCalledOnce();
   });
 
+  it("stops showing a pending loader when the channel publishes exhaustion", () => {
+    const intersect = installObserver();
+    const loadNextPage = vi.fn(() => new Promise(() => {}));
+    const { rerender } = render(
+      <BoundedCursorPaginationControl
+        channels={[
+          {
+            channelKey: "values",
+            hasNextPage: true,
+            continuationKey: "cursor-2",
+            loadNextPage,
+          },
+        ]}
+        loadingLabel="Searching more values…"
+      />,
+    );
+
+    intersect(true);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Searching more values…",
+    );
+
+    rerender(
+      <BoundedCursorPaginationControl
+        channels={[
+          {
+            channelKey: "values",
+            hasNextPage: false,
+            continuationKey: null,
+            isFetching: false,
+            loadNextPage,
+          },
+        ]}
+        loadingLabel="Searching more values…"
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(loadNextPage).toHaveBeenCalledOnce();
+  });
+
   it("allows the same continuation after its logical chain resets", async () => {
     const intersect = installObserver();
     const loadFirstProject = vi.fn().mockResolvedValue(undefined);

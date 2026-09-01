@@ -35,6 +35,7 @@ from tracer.serializers.dashboard import (
     DashboardFilterValuesResponseSerializer,
     DashboardQueryApiResponseSerializer,
     DashboardQuerySerializer,
+    DashboardQuerySeriesSerializer,
     DashboardWidgetSerializer,
 )
 from tracer.services.clickhouse.attribute_cursor_state import (
@@ -197,9 +198,13 @@ def _recording_dashboard_builder(configs):
         def parse_time_range(self):
             time_range = self.config["time_range"]
             if time_range.get("custom_start") and time_range.get("custom_end"):
+                start = time_range["custom_start"]
+                end = time_range["custom_end"]
                 return (
-                    datetime.fromisoformat(time_range["custom_start"]),
-                    datetime.fromisoformat(time_range["custom_end"]),
+                    start
+                    if isinstance(start, datetime)
+                    else datetime.fromisoformat(start),
+                    end if isinstance(end, datetime) else datetime.fromisoformat(end),
                 )
             return (
                 datetime(2026, 7, 1, tzinfo=UTC),
@@ -208,11 +213,21 @@ def _recording_dashboard_builder(configs):
 
         def build_metric_query(self, metric):
             window = self.config["time_range"]
+            start = window["custom_start"]
+            end = window["custom_end"]
             return (
                 f"SELECT exact {metric['id']} metric",
                 {
-                    "start_date": datetime.fromisoformat(window["custom_start"]),
-                    "end_date": datetime.fromisoformat(window["custom_end"]),
+                    "start_date": (
+                        start
+                        if isinstance(start, datetime)
+                        else datetime.fromisoformat(start)
+                    ),
+                    "end_date": (
+                        end
+                        if isinstance(end, datetime)
+                        else datetime.fromisoformat(end)
+                    ),
                 },
             )
 
@@ -507,14 +522,13 @@ def test_dashboard_worker_runs_each_metric_once_without_snapshot_ceiling_metadat
     assert len(analytics.calls) == 4
     deadline_start.assert_called_once_with(_DASHBOARD_EXACT_QUERY_TIMEOUT_MS)
     expected_timeouts = [
-        _DASHBOARD_EXACT_QUERY_TIMEOUT_MS - (index * 1_000)
-        for index in range(4)
+        _DASHBOARD_EXACT_QUERY_TIMEOUT_MS - (index * 1_000) for index in range(4)
     ]
     assert sorted(deadline.statement_timeouts, reverse=True) == expected_timeouts
     assert deadline.publication_fences == 2
-    assert sorted(
-        [call[2] for call in analytics.calls], reverse=True
-    ) == expected_timeouts
+    assert (
+        sorted([call[2] for call in analytics.calls], reverse=True) == expected_timeouts
+    )
     assert {call[0] for call in analytics.calls} == {
         "SELECT latency FROM spans FINAL",
         "SELECT traffic FROM spans FINAL",
@@ -548,6 +562,89 @@ def test_dashboard_worker_runs_each_metric_once_without_snapshot_ceiling_metadat
     assert "query_snapshot_version_ceiling" not in result
     assert "query_snapshot_capture_count" not in result
     assert "query_snapshot_relation_count" not in result
+
+
+@pytest.mark.unit
+def test_dashboard_public_fallback_executes_directly_without_scheduling_worker():
+    project_id = "00000000-0000-0000-0000-000000000010"
+    workspace = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000020",
+        organization_id="00000000-0000-0000-0000-000000000030",
+    )
+    query_config = {
+        "project_ids": [project_id],
+        "granularity": "day",
+        "time_range": {
+            "custom_start": datetime(2026, 7, 1, tzinfo=UTC).isoformat(),
+            "custom_end": datetime(2026, 8, 1, tzinfo=UTC).isoformat(),
+        },
+        "metrics": [
+            {
+                "id": "latency",
+                "name": "latency",
+                "type": "system_metric",
+                "aggregation": "avg",
+                "source": "traces",
+            }
+        ],
+        "filters": [],
+        "breakdowns": [],
+    }
+    builder_configs = []
+    analytics = _DashboardFullWindowAnalytics()
+    project_queryset = MagicMock()
+    project_queryset.filter.return_value = project_queryset
+    project_queryset.count.return_value = 1
+    project_queryset.values_list.return_value = []
+
+    with (
+        patch(
+            "tracer.views.dashboard._materialize_dashboard_query_scope",
+            side_effect=lambda config, *_args, **_kwargs: config,
+        ),
+        patch(
+            "tracer.views.dashboard._bind_dashboard_annotation_completeness",
+            side_effect=lambda config, *_args, **_kwargs: config,
+        ),
+        patch(
+            "tracer.views.dashboard._read_dashboard_rollup_fast_path",
+            return_value=None,
+        ) as rollup,
+        patch(
+            "tracer.views.dashboard._project_queryset_for_dashboard_scope",
+            return_value=project_queryset,
+        ),
+        patch(
+            "tracer.views.dashboard.Project.objects.filter",
+            return_value=project_queryset,
+        ),
+        patch(
+            "tracer.views.dashboard.DashboardQueryBuilderV2",
+            _recording_dashboard_builder(builder_configs),
+        ),
+        patch(
+            "tracer.views.dashboard.DatasetQueryBuilder",
+            _recording_dashboard_builder(builder_configs),
+        ),
+        patch(
+            "tracer.views.dashboard.V2AnalyticsQueryService",
+            return_value=analytics,
+        ),
+        patch("tracer.views.dashboard.read_or_schedule_exact_snapshot") as scheduler,
+    ):
+        response = DashboardWidgetViewSet()._execute_ch_query_config(
+            query_config,
+            workspace,
+            refresh=True,
+        )
+
+    assert response.status_code == 200
+    assert len(analytics.calls) == 1
+    assert builder_configs
+    assert response.data["result"]["query_complete"] is True
+    assert response.data["result"]["query_provenance"] == "exact_snapshot"
+    rollup.assert_called_once()
+    scheduler.assert_not_called()
 
 
 @pytest.mark.unit
@@ -1816,6 +1913,51 @@ class TestMetricsEndpoint:
         assert any(
             filters.get("project_id__in") == ["project-1"] for filters in query.filters
         )
+
+    def test_dashboard_eval_template_identity_accepts_only_same_org_or_global_system(self):
+        template_id = "22222222-2222-4222-8222-222222222222"
+
+        class _TemplateQuery:
+            def __init__(self):
+                self.filters = []
+
+            def filter(self, *args, **kwargs):
+                self.filters.append((args, kwargs))
+                return self
+
+            def values_list(self, *_args, **_kwargs):
+                return self
+
+            def first(self):
+                return template_id
+
+        query = _TemplateQuery()
+        builder = DashboardQueryBuilder(
+            {
+                "organization_id": "org-1",
+                "workspace_id": "workspace-1",
+                "project_ids": [],
+            }
+        )
+        with patch(
+            "model_hub.models.evals_metric.EvalTemplate.no_workspace_objects",
+            query,
+        ):
+            resolved = builder._resolve_eval_template_identity(
+                {"property_id": f"eval_template:{template_id}"}, template_id
+            )
+
+        assert resolved == template_id
+        assert query.filters[0] == (
+            (),
+            {"id": template_id, "deleted": False},
+        )
+        tenant_scope = repr(query.filters[1][0][0])
+        assert "organization_id" in tenant_scope
+        assert "org-1" in tenant_scope
+        assert "organization_id__isnull" in tenant_scope
+        assert "owner" in tenant_scope
+        assert "system" in tenant_scope
 
     def test_metrics_catalog_contract_keeps_runtime_registry_adapter_fields(self):
         from tracer.serializers.dashboard import DashboardMetricCatalogItemSerializer
@@ -4796,12 +4938,21 @@ class TestDashboardQueryBuilder:
         assert "argMax(" in unknown_sql
         assert "tupleElement(latest_metric_state, 1) = 0" in unknown_sql
         assert "tupleElement(latest_metric_state, 3) = 1" in unknown_sql
-        assert "FROM spans FINAL" in filtered_sql
+        assert "dashboard_filter_candidate_identities AS" in filtered_sql
+        assert "FROM spans FINAL" not in filtered_sql
+        assert "LIMIT 1 BY" in filtered_sql
+        assert "dashboard_replay_source._version DESC" in filtered_sql
+        assert "tuple(" in filtered_sql
+        assert "IN (" in filtered_sql
         assert "attrs_number" in unknown_sql
         assert "legacy_numeric_attribute" in unknown_params.values()
         assert "attrs_string" in filtered_sql
         assert "Rechazado" not in filtered_sql
         assert "rechazado" in filtered_params.values()
+        assert any(
+            key.startswith("dashboard_candidate_latest_filter_")
+            for key in filtered_params
+        )
 
     def test_numeric_custom_metric_seeds_with_the_typed_key_bloom_index(
         self, sample_query_config, settings
@@ -4980,7 +5131,12 @@ class TestDashboardQueryBuilder:
         assert "JSONExtractArrayRaw(attributes_extra" in sql
         assert "JSONExtractRaw(attributes_extra" in sql
         assert "JSONLength(JSONExtractRaw(attributes_extra" in sql
-        assert "FROM spans FINAL" in sql
+        # The positive boolean equality is an exhaustive candidate witness.
+        # Array/map predicates remain outside the replay source and are still
+        # applied exactly after every candidate identity resolves to latest.
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert "LIMIT 1 BY" in sql
         assert not any(key.startswith("_raw_attr_") for key in params)
         assert "query_status" not in metric_info
         assert "True" not in sql
@@ -5005,6 +5161,90 @@ class TestDashboardQueryBuilder:
         assert "attrs_string['optional_status'] = ''" in sql
         assert "_raw_attr_presence_key_0" not in params
         assert "FROM spans FINAL" in sql
+        assert "query_status" not in metric_info
+
+    def test_negative_canonical_attribute_filter_keeps_full_exact_source(
+        self, sample_query_config, settings
+    ):
+        settings.DASHBOARD_ATTR_ROLLUP_ENABLED = False
+        config = _normalize_dashboard_query_filters(
+            {
+                **sample_query_config,
+                "filters": [
+                    {
+                        "column_id": "conversation.transcript.0.message.content",
+                        "filter_config": {
+                            "col_type": "SPAN_ATTRIBUTE",
+                            "filter_type": "text",
+                            "filter_op": "not_equals",
+                            "filter_value": "a long exact transcript value",
+                        },
+                    }
+                ],
+            }
+        )
+
+        sql, params, metric_info = DashboardQueryBuilderV2(
+            config
+        ).build_all_queries()[0]
+
+        assert "dashboard_filter_candidate_identities AS" not in sql
+        assert "FROM spans FINAL" in sql
+        assert "a long exact transcript value" in params.values()
+        assert "query_status" not in metric_info
+
+    def test_positive_text_candidate_replays_latest_then_reapplies_exact_filter(
+        self, sample_query_config, settings
+    ):
+        settings.DASHBOARD_ATTR_ROLLUP_ENABLED = False
+        key = "conversation.recording.mono.combined"
+        value = "https://storage.example.test/a/very/long/recording.wav"
+        config = _normalize_dashboard_query_filters(
+            {
+                **sample_query_config,
+                "filters": [
+                    {
+                        "column_id": key,
+                        "filter_config": {
+                            "col_type": "SPAN_ATTRIBUTE",
+                            "filter_type": "text",
+                            "filter_op": "equals",
+                            "filter_value": value,
+                        },
+                    }
+                ],
+            }
+        )
+
+        sql, params, metric_info = DashboardQueryBuilderV2(
+            config
+        ).build_all_queries()[0]
+        compact_sql = " ".join(sql.split())
+
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert "dashboard_replay_source._version DESC" in sql
+        assert "LIMIT 1 BY" in sql
+        assert (
+            "tuple( dashboard_replay_source.project_id, "
+            "dashboard_replay_source.observation_type, "
+            "dashboard_replay_source.service_name, "
+            "toStartOfHour(dashboard_replay_source.start_time), "
+            "dashboard_replay_source.trace_id, dashboard_replay_source.id ) IN ("
+            in compact_sql
+        )
+        # The candidate witness and outer exact predicate have separate
+        # bindings, so candidate discovery cannot replace exact semantics.
+        assert value in params.values()
+        assert any(
+            name.startswith("dashboard_candidate_latest_filter_")
+            and bound_value == value
+            for name, bound_value in params.items()
+        )
+        assert any(
+            name.startswith("latest_filter_") and bound_value == value
+            for name, bound_value in params.items()
+        )
         assert "query_status" not in metric_info
 
     def test_legacy_boolean_filter_uses_boolean_map_in_exact_read(
@@ -5476,7 +5716,11 @@ class TestDashboardQueryBuilder:
             0
         ]
 
-        assert "FROM spans AS s" in sql
+        assert "dashboard_filter_candidate_identities AS" in sql
+        assert "FROM spans FINAL" not in sql
+        assert ") AS s" in sql
+        assert "dashboard_replay_source._version DESC" in sql
+        assert "LIMIT 1 BY" in sql
         assert "usage_span_trace_candidates" in sql
         assert "s.project_id IN %(project_ids)s" in sql
         assert "s.trace_id IN (SELECT toString(trace_id) AS trace_id" in sql
@@ -6885,6 +7129,20 @@ class TestDashboardQueryBuilderFormatResults:
 
 
 class TestSerializerValidation:
+    def test_query_series_serializer_accepts_empty_breakdown_label(self):
+        serializer = DashboardQuerySeriesSerializer(
+            data={
+                "name": "",
+                "data": [{"timestamp": "2026-08-31T00:00:00Z", "value": 1.0}],
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data == {
+            "name": "",
+            "data": [{"timestamp": "2026-08-31T00:00:00Z", "value": 1.0}],
+        }
+
     def test_widget_serializer_width_too_large(self):
         data = {
             "name": "Test",
@@ -9366,9 +9624,12 @@ class TestDashboardV2RewriteRouting:
 
         assert "AS annotation_subject_span" in compact_sql
         assert "AS annotation_subject_candidate" in compact_sql
-        assert "SELECT DISTINCT s.trace_id FROM spans AS s FINAL" in compact_sql
+        assert "dashboard_filter_candidate_identities AS" in compact_sql
+        assert "SELECT DISTINCT s.trace_id FROM spans AS s FINAL" not in compact_sql
         assert "LEFT JOIN ( SELECT * FROM spans AS s FINAL" not in compact_sql
-        assert "FROM spans AS s FINAL" in compact_sql
+        assert ") AS s PREWHERE s.project_id IN %(project_ids)s" in compact_sql
+        assert "dashboard_replay_source._version DESC" in compact_sql
+        assert "LIMIT 1 BY" in compact_sql
         assert "PREWHERE s.project_id IN %(project_ids)s" in compact_sql
         assert "s.trace_id IN (" in compact_sql
         assert "(s.parent_span_id IS NULL OR s.parent_span_id = '')" in compact_sql
@@ -12559,13 +12820,13 @@ class TestQueryEngineFailure:
     on every query-executing endpoint."""
 
     @pytest.mark.django_db
-    @patch("tracer.views.dashboard.AnalyticsQueryService")
+    @patch(
+        "tracer.views.dashboard.DashboardWidgetViewSet._execute_ch_query_config"
+    )
     def test_query_action_survives_ch_failure(
-        self, mock_analytics_cls, auth_client, observe_project
+        self, mock_execute_query, auth_client, observe_project
     ):
-        service = MagicMock()
-        service.execute_ch_query.side_effect = Exception("CH exploded")
-        mock_analytics_cls.return_value = service
+        mock_execute_query.side_effect = Exception("CH exploded")
         resp = auth_client.post(
             "/tracer/dashboard/query/",
             {
@@ -12583,9 +12844,9 @@ class TestQueryEngineFailure:
             },
             format="json",
         )
-        # Per-metric isolation swallows the CH error -> 200 with an empty series,
-        # never a 500.
-        assert resp.status_code == 200
+        # Direct dashboard reads fail closed with a sanitized client error,
+        # never a 500 or an indefinitely pending response.
+        assert resp.status_code == 400
 
     @pytest.mark.django_db
     @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
@@ -12701,22 +12962,16 @@ class TestXSSPayloadNonExecutable:
             },
             format="json",
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 400
         # Non-executable: served as JSON, so a reflected payload is inert text.
         assert resp["Content-Type"].startswith("application/json")
 
 
 @pytest.mark.django_db
-def test_dashboard_query_serves_inline_rollup_while_exact_refresh_runs(
+def test_dashboard_query_serves_inline_rollup_without_scheduling_worker(
     auth_client,
     observe_project,
 ):
-    captured = {}
-
-    def _pending(namespace, identity, **kwargs):
-        captured.update(namespace=namespace, identity=identity, options=kwargs)
-        return kwargs["pending_payload"]
-
     rollup_analytics = MagicMock()
     rollup_analytics.execute_ch_query.return_value = SimpleNamespace(
         data=[
@@ -12729,10 +12984,7 @@ def test_dashboard_query_serves_inline_rollup_while_exact_refresh_runs(
     )
 
     with (
-        patch(
-            "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-            side_effect=_pending,
-        ),
+        patch("tracer.views.dashboard.read_or_schedule_exact_snapshot") as scheduler,
         patch(
             "tracer.views.dashboard.V2AnalyticsQueryService",
             return_value=rollup_analytics,
@@ -12767,12 +13019,7 @@ def test_dashboard_query_serves_inline_rollup_while_exact_refresh_runs(
     assert result["query_sampled"] is False
     assert result["query_exact"] is False
     assert result["query_provenance"] == "materialized_rollup"
-    assert result["query_refreshing"] is True
-    assert captured["namespace"] == "dashboard-query"
-    assert captured["identity"]["query_config"]["project_ids"] == [
-        str(observe_project.id)
-    ]
-    assert captured["options"]["refresh"] is True
+    scheduler.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -12782,13 +13029,23 @@ def test_dashboard_query_replays_legacy_metric_filter_without_400(
 ):
     captured = {}
 
-    def _pending(namespace, identity, **kwargs):
-        captured.update(namespace=namespace, identity=identity)
-        return kwargs["pending_payload"]
+    def _rollup(query_config, *, deadline):
+        captured.update(query_config=query_config, deadline=deadline)
+        return {
+            "metrics": [],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+            "query_exact": False,
+            "query_provenance": "materialized_rollup",
+        }
 
-    with patch(
-        "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-        side_effect=_pending,
+    with (
+        patch(
+            "tracer.views.dashboard._read_dashboard_rollup_fast_path",
+            side_effect=_rollup,
+        ),
+        patch("tracer.views.dashboard.read_or_schedule_exact_snapshot") as scheduler,
     ):
         response = auth_client.post(
             "/tracer/dashboard/query/",
@@ -12819,8 +13076,8 @@ def test_dashboard_query_replays_legacy_metric_filter_without_400(
         )
 
     assert response.status_code == 200
-    assert captured["namespace"] == "dashboard-query"
-    normalized_filter = captured["identity"]["query_config"]["metrics"][0]["filters"][0]
+    scheduler.assert_not_called()
+    normalized_filter = captured["query_config"]["metrics"][0]["filters"][0]
     assert {
         key: value
         for key, value in normalized_filter.items()
@@ -12846,7 +13103,7 @@ def test_dashboard_query_replays_legacy_metric_filter_without_400(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("action", ["execute", "preview"])
-def test_widget_query_serves_inline_rollup_while_exact_refresh_runs(
+def test_widget_query_serves_inline_rollup_without_scheduling_worker(
     action,
     auth_client,
     dashboard,
@@ -12869,12 +13126,6 @@ def test_widget_query_serves_inline_rollup_while_exact_refresh_runs(
     dashboard_widget.query_config = query_config
     dashboard_widget.save(update_fields=["query_config"])
 
-    captured = {}
-
-    def _pending(_namespace, _identity, **kwargs):
-        captured.update(kwargs)
-        return kwargs["pending_payload"]
-
     rollup_analytics = MagicMock()
     rollup_analytics.execute_ch_query.return_value = SimpleNamespace(
         data=[
@@ -12888,10 +13139,7 @@ def test_widget_query_serves_inline_rollup_while_exact_refresh_runs(
 
     with (
         patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True),
-        patch(
-            "tracer.views.dashboard.read_or_schedule_exact_snapshot",
-            side_effect=_pending,
-        ),
+        patch("tracer.views.dashboard.read_or_schedule_exact_snapshot") as scheduler,
         patch(
             "tracer.views.dashboard.V2AnalyticsQueryService",
             return_value=rollup_analytics,
@@ -12920,5 +13168,4 @@ def test_widget_query_serves_inline_rollup_while_exact_refresh_runs(
     assert result["query_sampled"] is False
     assert result["query_exact"] is False
     assert result["query_provenance"] == "materialized_rollup"
-    assert result["query_refreshing"] is True
-    assert captured["refresh"] is True
+    scheduler.assert_not_called()

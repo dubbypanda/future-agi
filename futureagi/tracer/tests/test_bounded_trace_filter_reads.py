@@ -375,10 +375,11 @@ def test_customer_final_status_trace_query_uses_indexed_any_span_anchor() -> Non
     assert "start_time < fromUnixTimestamp64Micro(%(filter_slice_end_us)s)" in seed_sql
     assert "has(span_attr_str.keys, %(latest_filter_key_0)s)" in seed_sql
     assert "indexHint(has(mapKeys(span_attr_str), %(latest_filter_key_0)s))" in seed_sql
-    assert "mapValues(span_attr_str)" not in seed_sql
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))" in seed_sql
+    assert "arrayMap(x -> lower(x), mapValues(span_attr_str))" not in seed_sql
     assert seed_params["latest_filter_key_0"] == "final_status"
     assert seed_params["latest_filter_param_0"] == ("rejected",)
-    assert "latest_filter_index_0_0" not in seed_params
+    assert seed_params["latest_filter_index_0_0"] == "rejected"
     assert "parent_span_id IS NULL" not in seed_sql
     assert "id AS matched_span_id" in seed_sql
     assert " FINAL" not in seed_sql
@@ -2086,6 +2087,76 @@ def test_nested_array_path_keeps_interactive_candidate_witness() -> None:
     assert builder.recommended_filter_max_query_count() == 128
 
 
+@pytest.mark.parametrize(
+    "builder_cls",
+    [
+        TraceListQueryBuilder,
+        TraceListQueryBuilderV2,
+        VoiceCallListQueryBuilder,
+        VoiceCallListQueryBuilderV2,
+    ],
+)
+def test_long_exact_text_attribute_uses_finite_candidate_witness(
+    builder_cls,
+) -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-1776781471202"
+    )
+    builder = builder_cls(
+        project_id=PROJECT_ID,
+        page_size=25,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+    )
+
+    assert builder.prefer_filter_candidate_witness_probe_first() is True
+    assert builder.recommended_filter_seed_batch_size() == 512
+    assert builder.recommended_filter_max_query_count() == 128
+    assert builder.recommended_filter_candidate_witness_probe_strata() == 1
+    if isinstance(builder, VoiceCallListQueryBuilder):
+        assert builder.recommended_filter_cursor_seed_batch_size() == 512
+
+    sql, params = builder.build_filter_candidate_witness_probe(
+        [{"project_id": PROJECT_ID, "trace_id": "trace-a"}]
+    )
+    assert "trace_id IN %(filter_candidate_trace_ids)s" in sql
+    assert params["latest_filter_key_0"] == "conversation.recording.mono.assistant"
+    assert params["latest_filter_param_0"] == (recording_url,)
+
+
+@pytest.mark.parametrize(
+    "value,operation",
+    [
+        (["Rejected"], "in"),
+        (["x" * 64], "not_in"),
+        (["x" * 64, "short"], "in"),
+    ],
+)
+def test_scalar_text_candidate_witness_keeps_nonselective_shapes_on_exact_path(
+    value: object,
+    operation: str,
+) -> None:
+    builder = TraceListQueryBuilder(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "final_status",
+                value,
+                operation=operation,
+            ),
+        ],
+    )
+
+    assert builder.prefer_filter_candidate_witness_probe_first() is False
+
+
 def test_scalar_first_multi_filter_witness_selects_nested_leaf() -> None:
     nested_key = "conversation.transcript.16.message.role"
     builder = TraceListQueryBuilder(
@@ -2747,6 +2818,156 @@ def test_long_window_voice_error_status_forwards_global_indexed_anchor() -> None
     assert params["filter_anchor_limit"] == 64
 
 
+def test_long_window_trace_exact_text_uses_complete_indexed_anchor() -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-"
+        "1776781471202"
+    )
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is True
+    assert builder.supports_filter_anchor_probe() is True
+    assert builder.filter_anchor_probe_proves_complete_population() is True
+    assert builder.recommended_filter_anchor_probe_limit() == 64
+    assert builder.recommended_filter_anchor_probe_timeout_ms() is None
+    assert builder.recommended_filter_anchor_probe_strata() == 1
+    assert builder.recommended_filter_anchor_probe_max_bytes_to_read() is None
+    assert builder.skip_full_window_filter_anchor_probe() is False
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+    normalized_sql = " ".join(sql.split())
+    assert "attrs_string" in normalized_sql
+    assert "span_attr_str" not in normalized_sql
+    assert "start_time >=" not in normalized_sql
+    assert "filter_anchor_start" not in params
+    assert "LIMIT 1 BY trace_id" in normalized_sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert params["filter_anchor_limit"] == 64
+
+
+def test_long_window_voice_exact_text_forwards_complete_indexed_anchor() -> None:
+    recording_url = (
+        "https://storage.vapi.ai/019db06c-d54a-7003-9810-cf01cc4aa9d1-"
+        "1776781471202"
+    )
+    builder = VoiceCallListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is True
+    assert builder.supports_filter_anchor_probe() is True
+    assert builder.filter_anchor_probe_proves_complete_population() is True
+    assert builder.recommended_filter_anchor_probe_limit() == 64
+    assert builder.recommended_filter_anchor_probe_timeout_ms() is None
+    assert builder.recommended_filter_anchor_probe_strata() == 1
+    assert builder.recommended_filter_anchor_probe_max_bytes_to_read() is None
+    assert builder.skip_full_window_filter_anchor_probe() is False
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+    normalized_sql = " ".join(sql.split())
+    assert "attrs_string" in normalized_sql
+    assert "span_attr_str" not in normalized_sql
+    assert "start_time >=" not in normalized_sql
+    assert "filter_anchor_start" not in params
+    assert "LIMIT 1 BY trace_id" in normalized_sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert params["filter_anchor_limit"] == 64
+
+
+@pytest.mark.parametrize(
+    "builder_kwargs,window_start",
+    [
+        ({}, END - timedelta(hours=1)),
+        (
+            {
+                "bounded_identity_only": True,
+                "bounded_bulk_scan": True,
+            },
+            START,
+        ),
+        (
+            {
+                "bounded_sampling_rate": 10.0,
+                "bounded_sampling_salt": "sample",
+            },
+            START,
+        ),
+    ],
+)
+def test_complete_exact_text_anchor_stays_out_of_excluded_read_modes(
+    builder_kwargs: dict[str, object],
+    window_start: datetime,
+) -> None:
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(window_start, END),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                ["https://storage.vapi.ai/" + "a" * 64],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+        **builder_kwargs,
+    )
+
+    assert builder.allow_filter_anchor_probe_for_initial_continuation() is False
+    assert builder.filter_anchor_probe_proves_complete_population() is False
+
+
+def test_complete_exact_text_anchor_selects_long_leaf_among_siblings() -> None:
+    recording_url = "https://storage.vapi.ai/" + "b" * 64
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(),
+            _attribute_filter("final_status", "Rejected"),
+            _attribute_filter(
+                "conversation.recording.mono.assistant",
+                [recording_url],
+                operation="in",
+            ),
+        ],
+        page_size=25,
+    )
+
+    sql, params = builder.build_filter_anchor_probe(limit=64)
+
+    assert "attrs_string" in sql
+    assert params["latest_filter_key_0"] == (
+        "conversation.recording.mono.assistant"
+    )
+    assert params["latest_filter_param_0"] == (recording_url,)
+    assert "latest_filter_key_1" not in params
+
+
 def test_voice_custom_attribute_filter_skips_temporal_trace_anchor() -> None:
     builder = VoiceCallListQueryBuilderV2(
         project_id=PROJECT_ID,
@@ -3332,10 +3553,11 @@ def test_v2_span_seed_uses_typed_value_witness_before_exact_replay() -> None:
 
     assert "has(attrs_string.keys, %(latest_filter_key_0)s)" in sql
     assert "indexHint(has(mapKeys(attrs_string), %(latest_filter_key_0)s))" in sql
-    assert "mapValues(attrs_string)" not in sql
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in sql
+    assert "arrayMap(x -> lower(x), mapValues(attrs_string))" not in sql
     assert params["latest_filter_key_0"] == "final_status"
     assert params["latest_filter_param_0"] == ("rejected",)
-    assert "latest_filter_index_0_0" not in params
+    assert params["latest_filter_index_0_0"] == "rejected"
 
     prompt_builder = SpanListQueryBuilderV2(
         project_id=PROJECT_ID,
@@ -3353,7 +3575,8 @@ def test_v2_span_seed_uses_typed_value_witness_before_exact_replay() -> None:
     assert (
         "indexHint(has(mapKeys(attrs_string), %(latest_filter_key_0)s))" in prompt_sql
     )
-    assert "mapValues(attrs_string)" not in prompt_sql
+    assert "arrayMap(x -> lowerUTF8(x), mapValues(attrs_string))" in prompt_sql
+    assert "arrayMap(x -> lower(x), mapValues(attrs_string))" not in prompt_sql
     assert prompt_params["latest_filter_param_0"] == "agent_2_identity_disclosure"
     assert prompt_params["latest_filter_key_0"] == "prompt_slug"
 
@@ -7622,6 +7845,64 @@ def test_default_trace_builder_allows_tail_first_walk_to_cover_full_window() -> 
     assert project_version.recommended_filter_max_slice_width() == timedelta(days=365)
 
 
+def test_time_only_bulk_identity_scan_uses_one_finite_full_window_seed() -> None:
+    filters = [_time_filter(END - timedelta(days=365), END)]
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=filters,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert builder.recommended_filter_initial_slice_width() == timedelta(days=365)
+    assert builder.recommended_filter_max_slice_width() == timedelta(days=365)
+    assert builder.should_retry_filter_wide_read_budget() is True
+
+    query, params = builder.build_filter_ordered_seed_page(
+        slice_start=END - timedelta(days=365),
+        slice_end=END,
+        limit=201,
+    )
+    compact_query = " ".join(query.split())
+    assert "PREWHERE project_id = %(project_id)s" in compact_query
+    assert "ORDER BY start_time DESC, trace_id DESC" in compact_query
+    assert "LIMIT %(filter_seed_limit)s" in compact_query
+    assert params["filter_seed_limit"] == 201
+
+
+def test_filtered_bulk_identity_scan_keeps_bounded_slice_defaults() -> None:
+    builder = TraceListQueryBuilderV2(
+        project_id=PROJECT_ID,
+        filters=[
+            _time_filter(END - timedelta(days=365), END),
+            _attribute_filter("final_status", "Rejected"),
+        ],
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert builder.recommended_filter_initial_slice_width() is None
+    assert builder.recommended_filter_max_slice_width() is None
+    assert builder.should_retry_filter_wide_read_budget() is False
+
+
+def test_wide_bulk_seed_retry_stays_off_for_ordinary_and_multi_project_reads() -> None:
+    filters = [_time_filter(END - timedelta(days=365), END)]
+    ordinary = TraceListQueryBuilderV2(project_id=PROJECT_ID, filters=filters)
+    multi_project_bulk = TraceListQueryBuilderV2(
+        project_ids=[PROJECT_ID, "00000000-0000-4000-8000-000000000002"],
+        filters=filters,
+        bounded_internal_scan=True,
+        bounded_identity_only=True,
+        bounded_bulk_scan=True,
+    )
+
+    assert ordinary.should_retry_filter_wide_read_budget() is False
+    assert multi_project_bulk.should_retry_filter_wide_read_budget() is False
+
+
 def test_session_numbered_page_ceiling_is_deterministic() -> None:
     common = {
         "page_size": 30,
@@ -7997,6 +8278,7 @@ def test_observe_trace_long_filter_cursor_reaches_bounded_reader() -> None:
     assert response[0] == "ok"
     bounded_reader.assert_called_once()
     assert bounded_reader.call_args.kwargs["bounded_continuation"] is True
+    assert bounded_reader.call_args.kwargs["carry_continuation_slice_width"] is True
     assert bounded_reader.call_args.kwargs.get("retry_wide_read_budget", False) is False
     analytics.execute_ch_query.assert_not_called()
 
@@ -9225,6 +9507,7 @@ def test_voice_page_size_500_cursor_publishes_safe_exact_partial_chunk() -> None
     assert bounded_reader.call_args.kwargs["page_size"] == 500
     assert bounded_reader.call_args.kwargs["include_incomplete_rows"] is True
     assert bounded_reader.call_args.kwargs["bounded_continuation"] is True
+    assert bounded_reader.call_args.kwargs["carry_continuation_slice_width"] is True
 
 
 def test_voice_cursor_publishes_safe_checkpoint_after_failed_attempt() -> None:
@@ -10683,6 +10966,77 @@ def test_year_cursor_empty_checkpoint_advances_page_n_without_repeating_slice() 
     assert second.rows == []
     assert second.continuation_slice_start is None
     assert second.continuation_slice_end == END - timedelta(hours=2)
+
+
+def test_empty_cursor_carries_adaptive_slice_growth_across_requests() -> None:
+    """Sparse exact scans must not restart at one hour on every HTTP page."""
+
+    request_start = END - timedelta(days=365)
+    first_builder = _CursorZeroProbeWideInitialFakeBuilder(
+        [],
+        start=request_start,
+        end=END,
+        match_rows=[],
+        recommended_batch_size=2,
+        recommended_seed_batch_size=2,
+    )
+    first_executor = _FakeExecutor(first_builder)
+    first = read_bounded_filter_page(
+        builder=first_builder,
+        analytics=first_executor,
+        filters=[_time_filter(request_start, END)],
+        key_field="id",
+        page_number=0,
+        page_size=2,
+        deadline_ms=8_000,
+        max_seed_attempts=1,
+        max_candidates=2,
+        max_query_count=50,
+        classify_batch_size=2,
+        include_incomplete_rows=True,
+        bounded_continuation=True,
+        carry_continuation_slice_width=True,
+    )
+
+    assert first_executor.calls[0][1]["slice_start"] == END - timedelta(hours=1)
+    assert first_executor.calls[0][1]["slice_end"] == END
+    assert first.continuation_slice_start == END - timedelta(hours=3)
+    assert first.continuation_slice_end == END - timedelta(hours=1)
+    assert first.continuation_before_start_time is None
+
+    second_builder = _CursorZeroProbeWideInitialFakeBuilder(
+        [],
+        start=request_start,
+        end=END,
+        match_rows=[],
+        recommended_batch_size=2,
+        recommended_seed_batch_size=2,
+    )
+    second_executor = _FakeExecutor(second_builder)
+    second = read_bounded_filter_page(
+        builder=second_builder,
+        analytics=second_executor,
+        filters=[_time_filter(request_start, END)],
+        key_field="id",
+        page_number=0,
+        page_size=2,
+        deadline_ms=8_000,
+        max_seed_attempts=1,
+        max_candidates=2,
+        max_query_count=50,
+        classify_batch_size=2,
+        include_incomplete_rows=True,
+        bounded_continuation=True,
+        carry_continuation_slice_width=True,
+        continuation_slice_start=first.continuation_slice_start,
+        continuation_slice_end=first.continuation_slice_end,
+    )
+
+    assert second_executor.calls[0][1]["slice_start"] == END - timedelta(hours=3)
+    assert second_executor.calls[0][1]["slice_end"] == END - timedelta(hours=1)
+    assert second.continuation_slice_start == END - timedelta(hours=7)
+    assert second.continuation_slice_end == END - timedelta(hours=3)
+    assert second.continuation_before_start_time is None
 
 
 def test_cursor_seed_uses_page_sentinel_and_ten_candidate_classify_batches() -> None:
@@ -15325,12 +15679,12 @@ def test_opt_in_numbered_retry_never_hides_a_failed_read() -> None:
         for attempt in page.attempts
         if attempt.kind == "seed" and attempt.error_code is None
     ]
-    assert successful_intervals == [
-        (END - timedelta(minutes=30), END),
-        (END - timedelta(minutes=60), END - timedelta(minutes=30)),
-        (END - timedelta(minutes=90), END - timedelta(minutes=60)),
-        (start, END - timedelta(minutes=90)),
-    ]
+    assert successful_intervals[0] == (END - timedelta(minutes=5), END)
+    assert successful_intervals[-1][0] == start
+    assert all(
+        interval_end - interval_start <= timedelta(minutes=30)
+        for interval_start, interval_end in successful_intervals
+    )
     assert all(
         older_end == newer_start
         for (newer_start, _newer_end), (_older_start, older_end) in zip(

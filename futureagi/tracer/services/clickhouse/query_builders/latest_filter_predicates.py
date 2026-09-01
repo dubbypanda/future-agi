@@ -507,31 +507,40 @@ def _attribute_plan(
     if seed_params != params:
         raise AssertionError("latest and seed predicates must share bound values")
     # Preserve the semantic raw-row comparison before adding optional physical
-    # index companions.  The deployed string-value bloom is built with
-    # ASCII-only ``lower()`` while the public equality contract uses
-    # ``lowerUTF8()``.  An ASCII filter value does not imply that stored values
-    # are ASCII (for example, the Kelvin sign folds to ``k`` under Unicode), so
-    # that companion must never participate in an exhaustive raw witness.
-    exact_seed_predicate = seed_predicate
+    # index companions. The legacy string-value bloom is built with ASCII-only
+    # ``lower()`` and must never participate in an exhaustive witness because
+    # public equality uses ``lowerUTF8()``. Schema 028 adds an expression-identical
+    # Unicode value bloom, so its companion is both selective and exhaustive.
     params[key_param] = key
-    if map_column == "span_attr_num" and operation in {"equals", "in"}:
+    if map_column in {"span_attr_str", "span_attr_num"} and operation in {
+        "equals",
+        "in",
+    }:
         bound_value = params[f"latest_filter_param_{index}"]
         normalized_values = (
             bound_value if isinstance(bound_value, tuple) else (bound_value,)
         )
-        # The numeric Map value bloom is expression-based. Keep the exact
-        # key/value comparison as the semantic predicate and add the implied
-        # values expression solely so ClickHouse can prune value-absent parts.
-        numeric_values = "mapValues(span_attr_num)"
+        # Keep the exact key/value comparison as the semantic predicate and add
+        # an implied expression solely so ClickHouse can prune value-absent
+        # parts. The string expression must stay byte-identical to schema 028.
+        indexed_values = (
+            "arrayMap(x -> lowerUTF8(x), mapValues(span_attr_str))"
+            if map_column == "span_attr_str"
+            else "mapValues(span_attr_num)"
+        )
         if operation == "equals":
-            index_predicate = f"has({numeric_values}, %(latest_filter_param_{index})s)"
+            index_predicate = (
+                f"has({indexed_values}, %(latest_filter_param_{index})s)"
+            )
         else:
             placeholders = []
             for value_index, item_value in enumerate(normalized_values):
                 index_param = f"latest_filter_index_{index}_{value_index}"
                 params[index_param] = item_value
                 placeholders.append(f"%({index_param})s")
-            index_predicate = f"hasAny({numeric_values}, [{', '.join(placeholders)}])"
+            index_predicate = (
+                f"hasAny({indexed_values}, [{', '.join(placeholders)}])"
+            )
         seed_predicate = f"({seed_predicate}) AND {index_predicate}"
 
     key_witness_predicate = (
@@ -553,11 +562,7 @@ def _attribute_plan(
             # every latest-live match necessarily has one physical live row
             # with the same key/value. The latest-state classifier remains the
             # source of truth and removes stale versions and tombstones.
-            exhaustive_value_predicate = (
-                exact_seed_predicate
-                if map_column == "span_attr_str"
-                else seed_predicate
-            )
+            exhaustive_value_predicate = seed_predicate
             raw_witness_predicate = (
                 f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
             )
@@ -567,11 +572,7 @@ def _attribute_plan(
             params=params,
             index=index,
         ):
-            exhaustive_value_predicate = (
-                exact_seed_predicate
-                if map_column == "span_attr_str"
-                else seed_predicate
-            )
+            exhaustive_value_predicate = seed_predicate
             raw_graph_value_witness_predicate = (
                 f"({key_witness_predicate}) AND ({exhaustive_value_predicate})"
             )

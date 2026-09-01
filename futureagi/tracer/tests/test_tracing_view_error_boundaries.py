@@ -525,7 +525,7 @@ def test_graph_boundaries_reject_labelled_sample_even_with_legacy_opt_in(
 
 @pytest.mark.unit
 @pytest.mark.parametrize("view_kind", ["trace", "span"])
-def test_primary_graph_boundaries_publish_proven_bounded_sample_with_opt_in(
+def test_primary_graph_boundaries_reject_sample_even_with_legacy_opt_in(
     monkeypatch,
     view_kind,
 ):
@@ -553,9 +553,7 @@ def test_primary_graph_boundaries_publish_proven_bounded_sample_with_opt_in(
         allow_sampled=True,
     )
 
-    assert response.status_code == 200
-    assert response.data["result"]["data"] == [point]
-    assert response.data["result"]["query_status"] == "sampled"
+    _assert_sanitized_503(response)
 
 
 @pytest.mark.unit

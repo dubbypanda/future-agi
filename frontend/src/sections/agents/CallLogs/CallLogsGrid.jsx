@@ -9,7 +9,7 @@ import React, {
 import { AgGridReact } from "ag-grid-react";
 import "src/styles/clean-data-table.css";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAgTheme } from "src/hooks/use-ag-theme";
+import { useAgThemeWith } from "src/hooks/use-ag-theme";
 import {
   Box,
   Button,
@@ -126,8 +126,23 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
   },
   forwardedRef,
 ) {
-  const agTheme = useAgTheme();
   const theme = useTheme();
+  const gridThemeParams = useMemo(
+    () => ({
+      columnBorder: false,
+      headerColumnBorder: false,
+      wrapperBorder: { width: 0 },
+      wrapperBorderRadius: 0,
+      rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
+      headerFontSize: "13px",
+      headerFontWeight: 500,
+      headerBackgroundColor: "transparent",
+      headerTextColor: theme.palette.text.primary,
+      rowHoverColor: "rgba(120,87,252,0.04)",
+    }),
+    [theme],
+  );
+  const agTheme = useAgThemeWith(gridThemeParams);
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageLimit, setPageLimit] = useState(OBSERVE_LIST_DEFAULT_PAGE_SIZE);
@@ -735,18 +750,7 @@ const CallLogsGrid = React.forwardRef(function CallLogsGrid(
           <AgGridReact
             ref={gridRef}
             className="clean-data-table"
-            theme={agTheme.withParams({
-              columnBorder: false,
-              headerColumnBorder: false,
-              wrapperBorder: { width: 0 },
-              wrapperBorderRadius: 0,
-              rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
-              headerFontSize: "13px",
-              headerFontWeight: 500,
-              headerBackgroundColor: "transparent",
-              headerTextColor: theme.palette.text.primary,
-              rowHoverColor: "rgba(120,87,252,0.04)",
-            })}
+            theme={agTheme}
             rowHeight={CELL_HEIGHT_MAP[cellHeight] || 40}
             columnDefs={effectiveDefs}
             onColumnMoved={onColumnMoved}

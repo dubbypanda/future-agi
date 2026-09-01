@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -8,7 +8,6 @@ from clickhouse_driver.errors import NetworkError
 from django.conf import settings as django_settings
 
 from tracer.services.clickhouse import graph_dispatch
-from tracer.services.clickhouse.bounded_graph_reads import GraphCandidateSample
 from tracer.services.clickhouse.session_graph import fetch_session_graph_ch
 
 PROJECT_ID = "22222222-2222-4222-8222-222222222222"
@@ -234,57 +233,23 @@ def test_session_date_only_rollup_fails_closed_when_query_settings_are_locked():
 @pytest.mark.unit
 @pytest.mark.parametrize(("start", "end", "interval"), WINDOWS)
 @pytest.mark.parametrize("row_filter", FILTER_SHAPES)
-def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_exact_async(
+def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_exact(
     monkeypatch,
     start,
     end,
     interval,
     row_filter,
 ):
-    window_start = datetime.fromisoformat(start.replace("Z", "+00:00")).replace(
-        tzinfo=None
-    )
-    window_end = datetime.fromisoformat(end.replace("Z", "+00:00")).replace(tzinfo=None)
-    sample = GraphCandidateSample(
-        rows=(
-            {
-                "trace_id": "trace-1",
-                "id": "span-1",
-                "start_time": window_start + timedelta(minutes=1),
-                "latency_ms": 42,
-                "total_tokens": 12,
-                "prompt_tokens": 7,
-                "completion_tokens": 5,
-                "cost": 0.01,
-                "status": "OK",
-            },
-        ),
-        query_complete=False,
-        query_status="sampled",
-        query_error_code="sample_limit",
-        window_start=window_start,
-        window_end=window_end,
-        elapsed_ms=20,
-        query_count=8,
-        rows_returned=9,
-        result_payload_bytes=500,
-        total_rows_lower_bound=9,
-        sampling_strategy="time_stratified_latest_state",
-        sampling_strata=8,
-        sampling_strata_completed=8,
-    )
-    bounded_read = mock.Mock(return_value=sample)
     exact_read = mock.Mock(
-        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+        return_value={
+            "metric_name": "latency",
+            "data": [{"timestamp": start, "value": 42, "primary_traffic": 1}],
+            "query_complete": True,
+            "query_status": "complete",
+            "query_sampled": False,
+        }
     )
-    monkeypatch.setattr(
-        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        exact_read,
-    )
+    monkeypatch.setattr(graph_dispatch, "read_exact_system_graph", exact_read)
 
     response = graph_dispatch.fetch_system_metric_graph_ch(
         analytics=mock.Mock(),
@@ -295,48 +260,24 @@ def test_span_filtered_w1_w6_and_sparse_dense_eval_annotation_matrix_is_exact_as
         observe_type="span",
     )
 
-    assert response == {
-        "metric_name": "latency",
-        "data": [],
-        "query_complete": False,
-        "query_status": "pending",
-        "query_sampled": False,
-        "query_refreshing": True,
-    }
-    bounded_read.assert_not_called()
+    assert response["query_complete"] is True
+    assert response["query_status"] == "complete"
+    assert response["query_sampled"] is False
+    assert response["query_exact"] is True
+    assert response["query_provenance"] == "exact_snapshot"
+    assert response["data"][0]["value"] == 42
+    assert graph_dispatch.graph_payload_is_publishable(response, allow_sampled=False)
     exact_read.assert_called_once()
-    namespace, identity = exact_read.call_args.args
-    assert namespace == "observe-system-graph"
-    assert identity["filters"] == [_date_filter(start, end), row_filter]
-    assert identity["observe_type"] == "span"
+    assert exact_read.call_args.kwargs["filters"][-1] == row_filter
+    assert exact_read.call_args.kwargs["observe_type"] == "span"
 
 
 @pytest.mark.unit
-def test_trace_filtered_system_graph_uses_exact_snapshot_without_inline_reads(
+def test_trace_filtered_system_graph_uses_direct_exact_reader(
     monkeypatch,
 ):
     analytics = mock.Mock()
-    start = datetime(2026, 8, 1)
-    sample = GraphCandidateSample(
-        rows=(
-            {
-                "trace_id": "trace-1",
-                "start_time": start + timedelta(hours=1),
-            },
-        ),
-        query_complete=True,
-        query_status="complete",
-        query_error_code=None,
-        window_start=start,
-        window_end=start + timedelta(days=11),
-        elapsed_ms=5,
-        query_count=1,
-        rows_returned=1,
-        result_payload_bytes=100,
-        total_rows_lower_bound=1,
-    )
-    bounded_read = mock.Mock(return_value=sample)
-    decorated = {
+    exact_payload = {
         "metric_name": "latency",
         "data": [
             {
@@ -349,23 +290,8 @@ def test_trace_filtered_system_graph_uses_exact_snapshot_without_inline_reads(
         "query_status": "complete",
         "query_sampled": False,
     }
-    child_decoration = mock.Mock(return_value=decorated)
-    exact_read = mock.Mock(
-        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
-    )
-    monkeypatch.setattr(
-        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "_fetch_trace_system_metric_graph",
-        child_decoration,
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        exact_read,
-    )
+    exact_read = mock.Mock(return_value=exact_payload)
+    monkeypatch.setattr(graph_dispatch, "read_exact_system_graph", exact_read)
     filters = [
         _date_filter("2026-08-01T00:00:00Z", "2026-08-12T00:00:00Z"),
         _attribute_filter(),
@@ -380,62 +306,36 @@ def test_trace_filtered_system_graph_uses_exact_snapshot_without_inline_reads(
         observe_type="trace",
     )
 
-    assert response["query_status"] == "pending"
-    assert response["query_sampled"] is False
-    assert response["data"] == []
-    analytics.execute_ch_query.assert_not_called()
-    bounded_read.assert_not_called()
-    child_decoration.assert_not_called()
+    assert response["data"] == exact_payload["data"]
+    assert response["query_exact"] is True
+    assert response["query_provenance"] == "exact_snapshot"
     exact_read.assert_called_once()
-    namespace, identity = exact_read.call_args.args
-    assert namespace == "observe-system-graph"
-    assert identity == {
-        "project_id": PROJECT_ID,
-        "filters": filters,
-        "interval": "day",
-        "metric_id": "latency",
-        "observe_type": "trace",
-    }
+    assert exact_read.call_args.kwargs["project_id"] == PROJECT_ID
+    assert exact_read.call_args.kwargs["filters"] == filters
+    assert exact_read.call_args.kwargs["metric_id"] == "latency"
+    assert exact_read.call_args.kwargs["observe_type"] == "trace"
 
 
 @pytest.mark.unit
-def test_filtered_trace_schedules_without_using_the_inline_deadline(
+def test_filtered_exact_graph_statements_share_one_interactive_deadline(
     monkeypatch,
 ):
     analytics = mock.Mock()
     analytics.execute_ch_query.return_value = mock.Mock(data=[], columns=[])
     deadline = mock.Mock()
     deadline.remaining_ms.side_effect = [9_300, 8_700]
-    start = datetime(2026, 8, 1)
-    sample = GraphCandidateSample(
-        rows=(),
-        query_complete=True,
-        query_status="complete",
-        query_error_code=None,
-        window_start=start,
-        window_end=start + timedelta(days=1),
-        elapsed_ms=1,
-        query_count=1,
-        rows_returned=0,
-        result_payload_bytes=0,
-        total_rows_lower_bound=0,
-    )
-    phase_analytics = []
+    observed_analytics = []
 
-    def bounded_read(*, analytics, **_kwargs):
-        phase_analytics.append(analytics)
+    def exact_read(*, analytics, **_kwargs):
+        observed_analytics.append(analytics)
         analytics.execute_ch_query(
-            "SELECT bounded seed",
+            "SELECT exact membership",
             {},
             timeout_ms=60_000,
             settings={"max_rows_to_read": 1, "max_threads": 8},
         )
-        return sample
-
-    def decorate(*, analytics, **_kwargs):
-        phase_analytics.append(analytics)
         analytics.execute_ch_query(
-            "SELECT finite child decoration",
+            "SELECT exact aggregation",
             {},
             timeout_ms=60_000,
             settings={"max_threads": 8},
@@ -450,18 +350,7 @@ def test_filtered_trace_schedules_without_using_the_inline_deadline(
 
     deadline_start = mock.Mock(return_value=deadline)
     monkeypatch.setattr(graph_dispatch.ReadDeadline, "start", deadline_start)
-    monkeypatch.setattr(
-        graph_dispatch, "read_graph_candidates", bounded_read, raising=False
-    )
-    monkeypatch.setattr(graph_dispatch, "_fetch_trace_system_metric_graph", decorate)
-    exact_read = mock.Mock(
-        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        exact_read,
-    )
+    monkeypatch.setattr(graph_dispatch, "read_exact_system_graph", exact_read)
 
     response = graph_dispatch.fetch_system_metric_graph_ch(
         analytics=analytics,
@@ -472,49 +361,39 @@ def test_filtered_trace_schedules_without_using_the_inline_deadline(
         observe_type="trace",
     )
 
-    assert response["query_status"] == "pending"
-    deadline_start.assert_not_called()
-    assert phase_analytics == []
-    analytics.execute_ch_query.assert_not_called()
-    exact_read.assert_called_once()
+    assert response["query_status"] == "complete"
+    deadline_start.assert_called_once_with(
+        django_settings.INTERACTIVE_ANALYTICS_DEFAULT_WALL_MS
+    )
+    assert len(observed_analytics) == 1
+    assert deadline.remaining_ms.call_count == 2
+    assert [
+        call.kwargs["timeout_ms"] for call in analytics.execute_ch_query.call_args_list
+    ] == [
+        9_300,
+        8_700,
+    ]
+    for call in analytics.execute_ch_query.call_args_list:
+        read_settings = call.kwargs["settings"]
+        assert "max_rows_to_read" not in read_settings
+        assert (
+            read_settings["max_threads"]
+            == django_settings.DASHBOARD_TRACE_READ_MAX_THREADS
+        )
+        assert (
+            read_settings["max_memory_usage"]
+            == django_settings.OBSERVABILITY_LIST_MAX_MEMORY_BYTES
+        )
 
 
 @pytest.mark.unit
-def test_filtered_graph_does_not_publish_bounded_budget_failure_metadata(
+def test_filtered_graph_exact_budget_failure_fails_closed_without_sample(
     monkeypatch,
 ):
-    start = datetime(2025, 8, 12)
-    incomplete = GraphCandidateSample(
-        rows=({"id": "span-1", "start_time": start},),
-        query_complete=False,
-        query_status="degraded",
-        query_error_code="read_budget_exceeded",
-        window_start=start,
-        window_end=start + timedelta(days=365),
-        elapsed_ms=9_475,
-        query_count=3,
-        rows_returned=4,
-        result_payload_bytes=400,
-        total_rows_lower_bound=4,
-        sampling_strategy="time_stratified_latest_state",
-        sampling_strata=8,
-        sampling_strata_completed=3,
-    )
-    bounded_read = mock.Mock(return_value=incomplete)
     exact_read = mock.Mock(
-        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
+        side_effect=graph_dispatch.ExactGraphReadError("exact graph deadline exceeded")
     )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_graph_candidates",
-        bounded_read,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        exact_read,
-    )
+    monkeypatch.setattr(graph_dispatch, "read_exact_system_graph", exact_read)
 
     response = graph_dispatch.fetch_system_metric_graph_ch(
         analytics=mock.Mock(),
@@ -526,70 +405,28 @@ def test_filtered_graph_does_not_publish_bounded_budget_failure_metadata(
     )
 
     assert response["data"] == []
-    assert response["query_status"] == "pending"
+    assert response["query_status"] == "degraded"
     assert response["query_sampled"] is False
-    assert "query_error_code" not in response
-    assert "query_sampling_strategy" not in response
-    bounded_read.assert_not_called()
+    assert response["query_exact"] is False
+    assert response["query_provenance"] == "exact_snapshot"
     exact_read.assert_called_once()
 
 
 @pytest.mark.unit
-def test_filtered_graph_never_executes_the_retired_candidate_aggregator(
+def test_filtered_graph_programming_defect_is_not_disguised_as_degraded(
     monkeypatch,
 ):
-    start = datetime(2026, 8, 1)
-    sample = GraphCandidateSample(
-        rows=(),
-        query_complete=True,
-        query_status="complete",
-        query_error_code=None,
-        window_start=start,
-        window_end=start + timedelta(days=1),
-        elapsed_ms=1,
-        query_count=1,
-        rows_returned=0,
-        result_payload_bytes=0,
-        total_rows_lower_bound=0,
-    )
-    bounded_read = mock.Mock(return_value=sample)
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_graph_candidates",
-        bounded_read,
-        raising=False,
-    )
-    candidate_aggregate = mock.Mock(
-        side_effect=AssertionError("malformed candidate row")
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "aggregate_system_candidate_graph",
-        candidate_aggregate,
-        raising=False,
-    )
-    exact_read = mock.Mock(
-        side_effect=lambda _namespace, _identity, **options: options["pending_payload"]
-    )
-    monkeypatch.setattr(
-        graph_dispatch,
-        "read_or_schedule_exact_snapshot",
-        exact_read,
-    )
-
-    response = graph_dispatch.fetch_system_metric_graph_ch(
-        analytics=mock.Mock(),
-        project_id=PROJECT_ID,
-        filters=[_attribute_filter()],
-        interval="day",
-        metric_id="latency",
-        observe_type="span",
-    )
-
-    assert response["query_status"] == "pending"
-    bounded_read.assert_not_called()
-    candidate_aggregate.assert_not_called()
-    exact_read.assert_called_once()
+    exact_read = mock.Mock(side_effect=AssertionError("malformed candidate row"))
+    monkeypatch.setattr(graph_dispatch, "read_exact_system_graph", exact_read)
+    with pytest.raises(AssertionError, match="malformed candidate row"):
+        graph_dispatch.fetch_system_metric_graph_ch(
+            analytics=mock.Mock(),
+            project_id=PROJECT_ID,
+            filters=[_attribute_filter()],
+            interval="day",
+            metric_id="latency",
+            observe_type="span",
+        )
 
 
 @pytest.mark.unit

@@ -217,6 +217,437 @@ describe("Annotation Queues API", () => {
       expect(ADD_QUEUE_ITEMS_TIMEOUT_MS).toBe(INTERACTIVE_REQUEST_TIMEOUT_MS);
     });
 
+    it("continues filter adds to the terminal page and aggregates counts", async () => {
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            status: true,
+            result: {
+              added: 10_000,
+              duplicates: 1,
+              errors: ["first-page skip"],
+              queue_status: "pending",
+              total_matching: 10_001,
+              total_matching_is_lower_bound: true,
+              has_more: true,
+              next_cursor: "cursor-1",
+              next_cursor_fingerprint: "a".repeat(64),
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            status: true,
+            result: {
+              added: 7,
+              duplicates: 2,
+              errors: [],
+              queue_status: "active",
+              total_matching: 10_009,
+              total_matching_is_lower_bound: true,
+              has_more: true,
+              next_cursor: "cursor-2",
+              next_cursor_fingerprint: "b".repeat(64),
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            status: true,
+            result: {
+              added: 3,
+              duplicates: 0,
+              errors: ["terminal skip"],
+              queue_status: "active",
+              total_matching: 10_012,
+              total_matching_is_lower_bound: false,
+              has_more: false,
+              next_cursor: null,
+              next_cursor_fingerprint: null,
+            },
+          },
+        });
+      const selection = {
+        mode: "filter",
+        source_type: "trace",
+        project_id: "project-1",
+        filter: [],
+        exclude_ids: [],
+      };
+
+      const response = await postAddQueueItems({
+        queueId: "queue-1",
+        selection,
+      });
+
+      expect(axios.post).toHaveBeenCalledTimes(3);
+      expect(axios.post.mock.calls.map((call) => call[1].selection)).toEqual([
+        selection,
+        { ...selection, cursor: "cursor-1" },
+        { ...selection, cursor: "cursor-2" },
+      ]);
+      expect(response.data.result).toEqual({
+        added: 10_010,
+        duplicates: 3,
+        errors: ["first-page skip", "terminal skip"],
+        error_count: 2,
+        queue_status: "active",
+        total_matching: 10_012,
+        total_matching_is_lower_bound: false,
+        has_more: false,
+        next_cursor: null,
+        next_cursor_fingerprint: null,
+      });
+    });
+
+    it("rejects re-signed cursors for the same continuation boundary", async () => {
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 2,
+              duplicates: 0,
+              errors: [],
+              has_more: true,
+              next_cursor: "signed-cursor-first",
+              next_cursor_fingerprint: "c".repeat(64),
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 1,
+              duplicates: 0,
+              errors: [],
+              has_more: true,
+              next_cursor: "signed-cursor-rotated",
+              next_cursor_fingerprint: "c".repeat(64),
+            },
+          },
+        });
+
+      await expect(
+        postAddQueueItems({
+          queueId: "queue-1",
+          selection: {
+            mode: "filter",
+            source_type: "trace",
+            project_id: "project-1",
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: "repeated_bulk_continuation",
+        partialAddResult: expect.objectContaining({ added: 3 }),
+      });
+      expect(axios.post).toHaveBeenCalledTimes(2);
+    });
+
+    it("rejects a repeated continuation instead of looping", async () => {
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 2,
+              duplicates: 0,
+              errors: [],
+              has_more: true,
+              next_cursor: "cursor-1",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 1,
+              duplicates: 1,
+              errors: [],
+              has_more: true,
+              next_cursor: "cursor-1",
+            },
+          },
+        });
+
+      await expect(
+        postAddQueueItems({
+          queueId: "queue-1",
+          selection: {
+            mode: "filter",
+            source_type: "trace",
+            project_id: "project-1",
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: "repeated_bulk_continuation",
+        partialAddResult: expect.objectContaining({
+          added: 3,
+          duplicates: 1,
+          has_more: true,
+        }),
+      });
+      expect(axios.post).toHaveBeenCalledTimes(2);
+    });
+
+    it("rejects a malformed non-terminal cursor before another POST", async () => {
+      axios.post.mockResolvedValueOnce({
+        data: {
+          result: {
+            added: 2,
+            duplicates: 0,
+            errors: [],
+            has_more: true,
+            next_cursor: "   ",
+          },
+        },
+      });
+
+      await expect(
+        postAddQueueItems({
+          queueId: "queue-1",
+          selection: {
+            mode: "filter",
+            source_type: "trace",
+            project_id: "project-1",
+          },
+        }),
+      ).rejects.toMatchObject({
+        code: "invalid_bulk_continuation",
+        partialAddResult: expect.objectContaining({ added: 2 }),
+      });
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      {
+        label: "cursor token",
+        continuation: { next_cursor: "unexpected-cursor" },
+      },
+      {
+        label: "cursor fingerprint",
+        continuation: { next_cursor_fingerprint: "d".repeat(64) },
+      },
+    ])(
+      "rejects terminal metadata with a non-null $label",
+      async ({ continuation }) => {
+        axios.post.mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 2,
+              duplicates: 0,
+              errors: [],
+              has_more: false,
+              ...continuation,
+            },
+          },
+        });
+
+        await expect(
+          postAddQueueItems({
+            queueId: "queue-1",
+            selection: {
+              mode: "filter",
+              source_type: "trace",
+              project_id: "project-1",
+            },
+          }),
+        ).rejects.toMatchObject({
+          code: "invalid_bulk_continuation",
+          partialAddResult: expect.objectContaining({ added: 2 }),
+        });
+        expect(axios.post).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("accepts a legacy terminal response that omits continuation fields", async () => {
+      axios.post.mockResolvedValueOnce({
+        data: {
+          result: {
+            added: 2,
+            duplicates: 0,
+            errors: [],
+            has_more: false,
+          },
+        },
+      });
+
+      const response = await postAddQueueItems({
+        queueId: "queue-1",
+        selection: {
+          mode: "filter",
+          source_type: "trace",
+          project_id: "project-1",
+        },
+      });
+
+      expect(response.data.result).toMatchObject({
+        added: 2,
+        has_more: false,
+        next_cursor: null,
+        next_cursor_fingerprint: null,
+      });
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it("bounds aggregate error samples while retaining the exact error count", async () => {
+      const longErrors = Array.from(
+        { length: 15 },
+        (_, index) => `error-${index}-${"x".repeat(700)}`,
+      );
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 1,
+              duplicates: 0,
+              errors: longErrors,
+              has_more: true,
+              next_cursor: "cursor-1",
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 1,
+              duplicates: 0,
+              errors: longErrors,
+              has_more: false,
+              next_cursor: null,
+            },
+          },
+        });
+
+      const response = await postAddQueueItems({
+        queueId: "queue-1",
+        selection: {
+          mode: "filter",
+          source_type: "trace",
+          project_id: "project-1",
+        },
+      });
+
+      expect(response.data.result.error_count).toBe(30);
+      expect(response.data.result.errors).toHaveLength(20);
+      expect(
+        response.data.result.errors.every((error) => error.length <= 512),
+      ).toBe(true);
+    });
+
+    it("does not traverse page errors after the bounded sample is full", async () => {
+      const guardedErrors = new Proxy(
+        Array.from({ length: 1_000 }, (_, index) => `error-${index}`),
+        {
+          get(target, property, receiver) {
+            const index = Number(property);
+            if (Number.isInteger(index) && index >= 20) {
+              throw new Error("unbounded error traversal");
+            }
+            return Reflect.get(target, property, receiver);
+          },
+        },
+      );
+      axios.post.mockResolvedValueOnce({
+        data: {
+          result: {
+            added: 0,
+            duplicates: 0,
+            errors: guardedErrors,
+            has_more: false,
+            next_cursor: null,
+          },
+        },
+      });
+
+      const response = await postAddQueueItems({
+        queueId: "queue-1",
+        selection: {
+          mode: "filter",
+          source_type: "trace",
+          project_id: "project-1",
+        },
+      });
+
+      expect(response.data.result.errors).toHaveLength(20);
+      expect(response.data.result.error_count).toBe(1_000);
+    });
+
+    it("preserves a mid-chain failure and reports confirmed prior progress", async () => {
+      const failure = {
+        response: { data: { code: "source_resolve_unavailable" } },
+      };
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 4,
+              duplicates: 1,
+              errors: [],
+              has_more: true,
+              next_cursor: "cursor-1",
+            },
+          },
+        })
+        .mockRejectedValueOnce(failure);
+
+      await expect(
+        postAddQueueItems({
+          queueId: "queue-1",
+          selection: {
+            mode: "filter",
+            source_type: "trace",
+            project_id: "project-1",
+          },
+        }),
+      ).rejects.toBe(failure);
+      expect(failure.partialAddResult).toMatchObject({
+        added: 4,
+        duplicates: 1,
+      });
+      expect(axios.post).toHaveBeenCalledTimes(2);
+    });
+
+    it("invalidates queue caches when a continuation chain partially commits", async () => {
+      const failure = {
+        response: { data: { code: "source_resolve_unavailable" } },
+      };
+      axios.post
+        .mockResolvedValueOnce({
+          data: {
+            result: {
+              added: 4,
+              duplicates: 0,
+              errors: [],
+              has_more: true,
+              next_cursor: "cursor-1",
+            },
+          },
+        })
+        .mockRejectedValueOnce(failure);
+      const queryClient = createTestQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      const { result } = renderHook(() => useAddQueueItems(), {
+        wrapper: createQueryWrapper(queryClient),
+      });
+
+      result.current.mutate({
+        queueId: "queue-1",
+        selection: {
+          mode: "filter",
+          source_type: "trace",
+          project_id: "project-1",
+        },
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(failure.partialAddResult).toMatchObject({ added: 4 });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: queueItemKeys.all("queue-1"),
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: annotationQueueKeys.all,
+      });
+    });
+
     it("actively aborts a request at the transport ceiling", async () => {
       vi.useFakeTimers();
       let requestSignal;

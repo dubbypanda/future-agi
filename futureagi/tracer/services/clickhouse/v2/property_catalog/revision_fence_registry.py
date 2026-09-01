@@ -28,7 +28,11 @@ MAX_REVISION_FENCE_BYTES = 1 << 20
 MAX_REVISION_FENCE_PROJECTS = 256
 
 _FENCE_SHA_DOMAIN = "futureagi.property-catalog.revision-fence.v2"
-_MAX_DRAIN_LEASE = timedelta(minutes=30)
+# Keep the structural protocol bound aligned with Go's maxRevisionLease and the
+# reviewed PROPERTY_CATALOG_MAX_REVISION_LEASE_SECONDS setting ceiling. Runtime
+# admission may choose a shorter configured lease, but either implementation
+# must be able to decode every valid cross-language fence.
+_MAX_DRAIN_LEASE = timedelta(minutes=60)
 _TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _DOCUMENT_FIELDS = ("format", "version", "fences")
 _FENCE_FIELDS = (
@@ -632,10 +636,10 @@ def _tenant_key(document: Mapping[str, Any]) -> tuple[str, str]:
 def _validated_workspace_inventory(values: Sequence[str]) -> frozenset[str]:
     if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
         raise TypeError("authorized workspace inventory must be a sequence")
-    if len(values) > MAX_REVISION_FENCE_ENTRIES:
-        raise RevisionFenceRegistryError(
-            "authorized workspace inventory exceeds 256 entries"
-        )
+    # The authorization inventory is a membership filter and is never encoded
+    # into the fence document.  Keep the persisted registry's 256-entry bound
+    # in ``_encode_documents`` without incorrectly limiting the installation's
+    # complete workspace inventory to the same size.
     canonical_values: list[str] = []
     for value in values:
         if type(value) is not str:

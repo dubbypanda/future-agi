@@ -11,16 +11,25 @@ import {
   listContinuationParams,
   LIST_CURSOR_CONTINUATION_LIMIT_ERROR_CODE,
   LIST_CURSOR_MODES,
+  rememberBoundedListCursorIdentity,
   requestListWithLegacyCursorFallback,
   resumeEmptyListPage,
   shareInFlightListPage,
 } from "../listCursorPagination";
 
 describe("list cursor pagination", () => {
-  const exactResponse = (rows, hasMore, nextCursor) => ({
+  const exactResponse = (rows, hasMore, nextCursor, nextCursorFingerprint) => ({
     rows,
-    metadata: { has_more: hasMore, next_cursor: nextCursor },
+    metadata: {
+      has_more: hasMore,
+      next_cursor: nextCursor,
+      ...(nextCursorFingerprint === undefined
+        ? {}
+        : { next_cursor_fingerprint: nextCursorFingerprint }),
+    },
   });
+
+  const cursorFingerprint = (character) => character.repeat(64);
 
   const loadExactPage = ({
     pagination,
@@ -126,6 +135,20 @@ describe("list cursor pagination", () => {
         },
       }),
     ).toBe(false);
+  });
+
+  it("bounds retained preview cursor identities and rejects repeats", () => {
+    const identities = new Set();
+    rememberBoundedListCursorIdentity(identities, "boundary-a", 2);
+    rememberBoundedListCursorIdentity(identities, "boundary-b", 2);
+
+    expect(() =>
+      rememberBoundedListCursorIdentity(identities, "boundary-c", 2),
+    ).toThrow("history safety limit");
+    expect(() =>
+      rememberBoundedListCursorIdentity(identities, "boundary-a", 2),
+    ).toThrow("repeated continuation cursor");
+    expect(identities).toEqual(new Set(["boundary-a", "boundary-b"]));
   });
 
   it("never translates a rejected continuation cursor into first-page numbered data", async () => {
@@ -288,6 +311,32 @@ describe("list cursor pagination", () => {
     });
   });
 
+  it("bounds completed page replay with least-recently-used eviction", () => {
+    const pagination = createListCursorPagination({ maxCompletedPages: 2 });
+    const completed = (id) => ({
+      rows: [{ id }],
+      response: { data: { table: [] } },
+      metadata: { has_more: false, next_cursor: null },
+      isLastPage: true,
+      canPrefetch: false,
+    });
+
+    pagination.cacheCompletedVisiblePage(0, completed("page-0"));
+    pagination.cacheCompletedVisiblePage(1, completed("page-1"));
+    expect(pagination.completedVisiblePage(0)?.rows).toEqual([
+      { id: "page-0" },
+    ]);
+    pagination.cacheCompletedVisiblePage(2, completed("page-2"));
+
+    expect(pagination.completedVisiblePage(1)).toBeNull();
+    expect(pagination.completedVisiblePage(0)?.rows).toEqual([
+      { id: "page-0" },
+    ]);
+    expect(pagination.completedVisiblePage(2)?.rows).toEqual([
+      { id: "page-2" },
+    ]);
+  });
+
   it("invalidates the continuation chain when the grid query resets", () => {
     const pagination = createListCursorPagination();
     const staleGeneration = pagination.generation();
@@ -333,6 +382,45 @@ describe("list cursor pagination", () => {
     pagination.recordResponse(0, metadata);
 
     expect(pagination.isLastPage(metadata, 25, 25)).toBe(true);
+  });
+
+  it("rejects a terminal replay that becomes nonterminal", () => {
+    const pagination = createListCursorPagination();
+    pagination.recordResponse(0, { has_more: false, next_cursor: null });
+
+    expect(() =>
+      pagination.recordResponse(0, {
+        has_more: true,
+        next_cursor: "unexpected-successor",
+      }),
+    ).toThrow("changed a proven continuation boundary");
+  });
+
+  it("rejects a nonterminal replay that becomes terminal", () => {
+    const pagination = createListCursorPagination();
+    pagination.recordResponse(0, {
+      has_more: true,
+      next_cursor: "proven-successor",
+    });
+
+    expect(() =>
+      pagination.recordResponse(0, { has_more: false, next_cursor: null }),
+    ).toThrow("changed a proven continuation boundary");
+    expect(pagination.requestParams(1, {}).cursor).toBe("proven-successor");
+  });
+
+  it("rejects a legacy page-zero replay after cursor mode begins", () => {
+    const pagination = createListCursorPagination();
+    pagination.recordResponse(0, {
+      has_more: true,
+      next_cursor: "page-1",
+    });
+
+    expect(() => pagination.recordResponse(0, { total_rows: 25 })).toThrow(
+      "legacy list API",
+    );
+    expect(pagination.mode()).toBe(LIST_CURSOR_MODES.CURSOR);
+    expect(pagination.requestParams(1, {}).cursor).toBe("page-1");
   });
 
   it("keeps checkpoint-only hops on the same visible page until rows arrive", async () => {
@@ -487,20 +575,220 @@ describe("list cursor pagination", () => {
     });
   });
 
-  it("rejects a replay that changes a proven cursor edge", () => {
+  it("accepts a timestamp-rotated token when an evicted page is replayed", () => {
     const pagination = createListCursorPagination();
+    const firstToken = "opaque-token-first";
+    const rotatedToken = "opaque-token-rotated";
+    const stableBoundary = cursorFingerprint("a");
 
     pagination.recordResponse(0, {
       has_more: true,
-      next_cursor: "page-1-start",
+      next_cursor: firstToken,
+      next_cursor_fingerprint: stableBoundary,
     });
 
     expect(() =>
       pagination.recordResponse(0, {
         has_more: true,
-        next_cursor: "different-page-1-start",
+        next_cursor: rotatedToken,
+        next_cursor_fingerprint: stableBoundary,
       }),
-    ).toThrow("changed a proven continuation cursor");
+    ).not.toThrow();
+    expect(pagination.requestParams(1, { page_size: 25 })).toEqual({
+      page_size: 25,
+      cursor_mode: true,
+      cursor: rotatedToken,
+    });
+  });
+
+  it("rejects a replay whose stable fingerprint changes its proven boundary", () => {
+    const pagination = createListCursorPagination();
+
+    pagination.recordResponse(0, {
+      has_more: true,
+      next_cursor: "opaque-page-1-a",
+      next_cursor_fingerprint: cursorFingerprint("a"),
+    });
+
+    expect(() =>
+      pagination.recordResponse(0, {
+        has_more: true,
+        next_cursor: "opaque-page-1-b",
+        next_cursor_fingerprint: cursorFingerprint("b"),
+      }),
+    ).toThrow("changed a proven continuation boundary");
+  });
+
+  it("re-loads an LRU-evicted block when the signer rotates next_cursor", async () => {
+    const pagination = createListCursorPagination({ maxCompletedPages: 1 });
+    const firstToken = "opaque-token-first";
+    const rotatedToken = "opaque-token-rotated";
+    const stableBoundary = cursorFingerprint("c");
+    const firstPage = exactResponse(
+      [{ id: "page-0" }],
+      true,
+      firstToken,
+      stableBoundary,
+    );
+
+    await loadExactPage({
+      pagination,
+      responses: [firstPage],
+      targetRowCount: 1,
+    });
+    pagination.cacheCompletedVisiblePage(1, {
+      rows: [{ id: "page-1" }],
+      response: exactResponse([{ id: "page-1" }], false, null),
+      metadata: { has_more: false, next_cursor: null },
+      isLastPage: true,
+      canPrefetch: false,
+    });
+    expect(pagination.completedVisiblePage(0)).toBeNull();
+
+    const replay = await loadExactPage({
+      pagination,
+      responses: [
+        exactResponse([{ id: "page-0" }], true, rotatedToken, stableBoundary),
+      ],
+      targetRowCount: 1,
+    });
+
+    expect(replay.rows).toEqual([{ id: "page-0" }]);
+    expect(pagination.requestParams(1, { page_size: 1 })).toEqual({
+      page_size: 1,
+      cursor_mode: true,
+      cursor: rotatedToken,
+    });
+  });
+
+  it("hard-bounds unique boundaries without pruning backward replay proofs", () => {
+    const pagination = createListCursorPagination({
+      maxCompletedPages: 1,
+      maxCursorCheckpoints: 2,
+    });
+
+    pagination.recordResponse(0, {
+      has_more: true,
+      next_cursor: "page-1",
+    });
+    pagination.recordResponse(1, {
+      has_more: true,
+      next_cursor: "page-2",
+    });
+
+    expect(() =>
+      pagination.recordResponse(2, {
+        has_more: true,
+        next_cursor: "page-3",
+      }),
+    ).toThrow("history safety limit");
+    expect(pagination.requestParams(1, {}).cursor).toBe("page-1");
+    expect(pagination.requestParams(2, {}).cursor).toBe("page-2");
+    expect(() =>
+      pagination.recordResponse(0, {
+        has_more: true,
+        next_cursor: "page-1",
+      }),
+    ).not.toThrow();
+
+    expect(pagination.retainedStateCounts()).toMatchObject({
+      pageCursors: 3,
+      cursorBoundaries: 2,
+      cursorTransitions: 2,
+      transportCursors: 0,
+    });
+  });
+
+  it("fails closed before an over-cap cycle can revisit an evicted fingerprint", () => {
+    const pagination = createListCursorPagination({
+      maxCompletedPages: 1,
+      maxCursorCheckpoints: 2,
+    });
+    const cycle = [
+      ["cycle-a-token", cursorFingerprint("a")],
+      ["cycle-b-token", cursorFingerprint("b")],
+      ["cycle-c-token", cursorFingerprint("c")],
+      ["cycle-a-rotated-token", cursorFingerprint("a")],
+    ];
+
+    expect(() => {
+      for (const [nextCursor, nextCursorFingerprint] of cycle) {
+        pagination.recordEmptyContinuation(0, {
+          has_more: true,
+          next_cursor: nextCursor,
+          next_cursor_fingerprint: nextCursorFingerprint,
+        });
+      }
+    }).toThrow("history safety limit");
+
+    expect(pagination.retainedStateCounts()).toMatchObject({
+      cursorBoundaries: 2,
+      cursorTransitions: 2,
+      transportCursors: 1,
+    });
+    expect(pagination.requestParams(0, {}).cursor).toBe("cycle-b-token");
+  });
+
+  it("hard-bounds sparse continuation boundaries", () => {
+    const sparsePagination = createListCursorPagination({
+      maxCompletedPages: 1,
+      maxCursorCheckpoints: 2,
+    });
+    sparsePagination.recordEmptyContinuation(0, {
+      has_more: true,
+      next_cursor: "sparse-0",
+    });
+    sparsePagination.recordEmptyContinuation(0, {
+      has_more: true,
+      next_cursor: "sparse-1",
+    });
+    expect(() =>
+      sparsePagination.recordEmptyContinuation(0, {
+        has_more: true,
+        next_cursor: "sparse-2",
+      }),
+    ).toThrow("history safety limit");
+
+    expect(sparsePagination.retainedStateCounts()).toMatchObject({
+      cursorBoundaries: 2,
+      cursorTransitions: 2,
+      transportCursors: 1,
+    });
+    expect(sparsePagination.requestParams(0, {}).cursor).toBe("sparse-1");
+  });
+
+  it("bounds sparse buffered pages to the visible row-cache window", () => {
+    const pagination = createListCursorPagination({
+      maxCompletedPages: 2,
+      maxCursorCheckpoints: 8,
+    });
+
+    const metadataByPage = Array.from({ length: 3 }, (_, pageNumber) => ({
+      has_more: true,
+      next_cursor: `page-${pageNumber + 1}`,
+    }));
+    for (const [pageNumber, metadata] of metadataByPage.entries()) {
+      pagination.recordResponse(pageNumber, metadata);
+    }
+    for (const pageNumber of [2, 1, 0]) {
+      const metadata = metadataByPage[pageNumber];
+      pagination.recordVisibleContinuation(pageNumber, metadata, {
+        rows: [{ id: `partial-${pageNumber}` }],
+        response: exactResponse([], true, metadata.next_cursor),
+      });
+    }
+
+    expect(pagination.retainedStateCounts()).toMatchObject({
+      bufferedPages: 2,
+      transportCursors: 2,
+    });
+    expect(pagination.bufferedVisiblePage(2)).toBeNull();
+    expect(pagination.bufferedVisiblePage(1)?.rows).toEqual([
+      { id: "partial-1" },
+    ]);
+    expect(pagination.bufferedVisiblePage(0)?.rows).toEqual([
+      { id: "partial-0" },
+    ]);
   });
 
   it("rejects a continuation for a page without an input cursor", () => {
@@ -747,7 +1035,7 @@ describe("list cursor pagination", () => {
     );
   });
 
-  it("restarts safely in numbered mode when a cursor hits a legacy API pod", () => {
+  it("recovers only from strict legacy cursor evidence", () => {
     const pagination = createListCursorPagination();
     pagination.recordResponse(0, {
       has_more: true,
@@ -757,17 +1045,30 @@ describe("list cursor pagination", () => {
 
     expect(
       pagination.canRecoverFromContinuationError(1, {
-        response: { status: 400 },
+        response: {
+          status: 400,
+          data: { details: { cursor: ["Unknown field."] } },
+        },
       }),
     ).toBe(true);
+    expect(
+      pagination.canRecoverFromContinuationError(1, {
+        response: { status: 400, data: { code: "invalid_cursor" } },
+      }),
+    ).toBe(false);
+    expect(
+      pagination.canRecoverFromContinuationError(1, {
+        response: { status: 400, data: { code: "cursor_expired" } },
+      }),
+    ).toBe(false);
+    expect(
+      pagination.canRecoverFromContinuationError(1, {
+        response: { status: 400, data: { code: "cursor_mismatch" } },
+      }),
+    ).toBe(false);
     expect(
       pagination.canRecoverFromContinuationError(1, {
         response: { status: 422 },
-      }),
-    ).toBe(true);
-    expect(
-      pagination.canRecoverFromContinuationError(1, {
-        response: { status: 503 },
       }),
     ).toBe(false);
 
@@ -1003,6 +1304,91 @@ describe("list cursor pagination", () => {
     );
   });
 
+  it("retains only the compacted response for completed and buffered pages", async () => {
+    const pagination = createListCursorPagination();
+    const hugeTransportPayload = "x".repeat(2_000_000);
+    const responses = [
+      {
+        rows: [{ id: 1 }],
+        metadata: { has_more: true, next_cursor: "after-1" },
+        hugeTransportPayload,
+      },
+      {
+        rows: [{ id: 2 }],
+        metadata: { has_more: false, next_cursor: null },
+        hugeTransportPayload,
+      },
+    ];
+    let responseIndex = 0;
+    const compactResponse = vi.fn((response) => ({
+      metadata: response.metadata,
+      retainedMarker: response.rows[0].id,
+    }));
+
+    const first = await loadExactListPage({
+      pagination,
+      pageNumber: 0,
+      targetRowCount: 2,
+      loadResponse: async () => responses[responseIndex++],
+      nextResponse: async () => responses[responseIndex++],
+      rowsFromResponse: (response) => response.rows,
+      metadataFromResponse: (response) => response.metadata,
+      compactResponse,
+      rowIdentity: (row) => row.id,
+    });
+
+    expect(first.rows).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(first.response).toEqual({
+      metadata: { has_more: false, next_cursor: null },
+      retainedMarker: 2,
+    });
+    expect(first.response).not.toHaveProperty("hugeTransportPayload");
+
+    const revisited = await loadExactListPage({
+      pagination,
+      pageNumber: 0,
+      targetRowCount: 2,
+      loadResponse: vi.fn(),
+      nextResponse: vi.fn(),
+      rowsFromResponse: (response) => response.rows,
+      metadataFromResponse: (response) => response.metadata,
+      compactResponse,
+      rowIdentity: (row) => row.id,
+    });
+    expect(revisited.response).toEqual(first.response);
+    expect(compactResponse).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops the Axios request handle from cached responses by default", async () => {
+    const pagination = createListCursorPagination();
+    const request = { responseText: "x".repeat(2_000_000) };
+    const response = {
+      data: {
+        rows: [{ id: 1 }],
+        metadata: { has_more: false, next_cursor: null },
+      },
+      request,
+      status: 200,
+    };
+
+    const page = await loadExactListPage({
+      pagination,
+      pageNumber: 0,
+      targetRowCount: 25,
+      loadResponse: async () => response,
+      nextResponse: vi.fn(),
+      rowsFromResponse: (value) => value.data.rows,
+      metadataFromResponse: (value) => value.data.metadata,
+      rowIdentity: (row) => row.id,
+    });
+
+    expect(page.response).toEqual({
+      data: response.data,
+      status: 200,
+    });
+    expect(page.response).not.toHaveProperty("request");
+  });
+
   it("deduplicates a replayed boundary row by stable identity", async () => {
     const pagination = createListCursorPagination();
     const page = await loadExactPage({
@@ -1157,6 +1543,26 @@ describe("list cursor pagination", () => {
     ).rejects.toThrow("repeated continuation cursor");
   });
 
+  it("fails closed when re-signed preview cursors repeat one boundary", async () => {
+    const boundary = cursorFingerprint("c");
+    await expect(
+      collectExactListRows({
+        initialResponse: exactResponse(
+          [{ id: 1 }],
+          true,
+          "signed-token-1",
+          boundary,
+        ),
+        targetRowCount: 3,
+        rowsFromResponse: (response) => response.rows,
+        metadataFromResponse: (response) => response.metadata,
+        nextResponse: async () =>
+          exactResponse([{ id: 2 }], true, "signed-token-2", boundary),
+        rowIdentity: (row) => row.id,
+      }),
+    ).rejects.toThrow("repeated continuation cursor");
+  });
+
   it("collects an exact fixed-size preview across short responses", async () => {
     const responses = [
       exactResponse([{ id: 1 }], true, "after-1"),
@@ -1173,6 +1579,7 @@ describe("list cursor pagination", () => {
     expect(page.rows).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
     expect(page.pending).toBe(false);
     expect(page.nextCursor).toBe("after-3");
+    expect(page.nextCursorIdentity).toBe("opaque-token:after-3");
   });
 
   it("returns resumable rows and cursor when a preview hits its hop bound", async () => {
@@ -1214,12 +1621,18 @@ describe("list cursor pagination", () => {
       pending: true,
       stale: false,
       nextCursor: "after-1",
+      nextCursorIdentity: "opaque-token:after-1",
     });
     expect(requestSignal.aborted).toBe(true);
   });
 
   it.each([
     { has_more: false, next_cursor: "unexpected" },
+    {
+      has_more: false,
+      next_cursor: null,
+      next_cursor_fingerprint: cursorFingerprint("d"),
+    },
     { has_more: "yes", next_cursor: "after-1" },
     { has_more: true },
   ])("rejects invalid exact-preview cursor metadata: %o", async (metadata) => {

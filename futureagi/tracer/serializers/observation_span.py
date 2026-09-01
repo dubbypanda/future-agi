@@ -315,6 +315,9 @@ class SpanListMetadataSerializer(serializers.Serializer):
     total_rows_is_lower_bound = serializers.BooleanField(required=False)
     has_more = serializers.BooleanField(required=False)
     next_cursor = serializers.CharField(required=False, allow_null=True)
+    next_cursor_fingerprint = serializers.RegexField(
+        r"^[0-9a-f]{64}$", required=False, allow_null=True
+    )
     query_complete = serializers.BooleanField(required=False)
     query_status = serializers.ChoiceField(
         choices=("complete", "degraded"), required=False

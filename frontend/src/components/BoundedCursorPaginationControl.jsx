@@ -57,8 +57,13 @@ const BoundedCursorPaginationControl = ({
   const hasRetryableError = channels.some(
     ({ error, loadNextPage }) => error && loadNextPage,
   );
+  // A transport promise can outlive the authoritative channel state (for
+  // example, React Query publishes a terminal page before an adapter promise
+  // settles). Once no channel can continue, do not keep a stale local promise
+  // rendering an endless "Loading more" sentinel.
   const loading =
-    isRequestPending || channels.some(({ isFetching }) => isFetching);
+    channels.some(({ isFetching }) => isFetching) ||
+    (isRequestPending && pageAvailable);
   const shouldRender = pageAvailable || hasRetryableError || loading;
   const loadingRef = useRef(loading);
   loadingRef.current = loading;

@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAgTheme } from "src/hooks/use-ag-theme";
+import { useAgThemeWith } from "src/hooks/use-ag-theme";
 import axios, { endpoints } from "src/utils/axios";
 import NumberQuickFilterPopover from "src/components/ComplexFilter/QuickFilterComponents/NumberQuickFilterPopover/NumberQuickFilterPopover";
 import NoRowsOverlay from "src/sections/project-detail/CompareDrawer/NoRowsOverlay";
@@ -63,11 +63,15 @@ import {
   OBSERVE_GRID_MAX_BLOCKS_IN_CACHE,
   OBSERVE_GRID_MAX_CONCURRENT_REQUESTS,
 } from "src/config/runtime_limits";
-import { boundObserveListRow } from "./observeListPayload";
+import {
+  boundObserveListRow,
+  compactObserveListResponse,
+} from "./observeListPayload";
 import { isExpectedRequestCancellation } from "src/utils/cacheUtils";
 import { isGridApiLive, withLiveGridApi } from "src/utils/gridApi";
 import CursorGridPagination from "./CursorGridPagination";
 import useCursorGridPagination from "./useCursorGridPagination";
+import useImmediateGridQueryTransition from "./useImmediateGridQueryTransition";
 import {
   dispatchObservePageChanged,
   OBSERVE_LIST_REFRESH_EVENT,
@@ -109,8 +113,23 @@ const TraceGrid = React.forwardRef(
     },
     gridRef,
   ) => {
-    const agTheme = useAgTheme();
     const theme = useTheme();
+    const gridThemeParams = useMemo(
+      () => ({
+        columnBorder: false,
+        headerColumnBorder: false,
+        wrapperBorder: { width: 0 },
+        wrapperBorderRadius: 0,
+        rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
+        headerFontSize: "13px",
+        headerFontWeight: 500,
+        headerBackgroundColor: "transparent",
+        headerTextColor: theme.palette.text.primary,
+        rowHoverColor: "rgba(120,87,252,0.04)",
+      }),
+      [theme],
+    );
+    const agTheme = useAgThemeWith(gridThemeParams);
     const [dateInterval] = useUrlState("dateInterval", "day");
     const { openReplaySessionDrawer, currentStep, validatedSteps } =
       useReplaySessionsStoreShallow((state) => ({
@@ -222,13 +241,13 @@ const TraceGrid = React.forwardRef(
         }),
       [selectionQueryKey, requestedAttributeKeysKey, pageSize],
     );
-    const previousFilterRequestKeyRef = useRef(filterRequestKey);
-    useEffect(() => {
-      if (previousFilterRequestKeyRef.current !== filterRequestKey) {
-        resetPagination();
-      }
-      previousFilterRequestKeyRef.current = filterRequestKey;
-    }, [filterRequestKey, resetPagination]);
+    const { handoffToFirstPageRequest, transitionLoading } =
+      useImmediateGridQueryTransition({
+        enabled,
+        filterRequestKey,
+        gridRef,
+        resetPagination,
+      });
     const clearSelection = useCallback(() => {
       const api = gridRef?.current?.api;
       withLiveGridApi(api, (liveApi) => {
@@ -355,6 +374,7 @@ const TraceGrid = React.forwardRef(
               pageNumber = Math.floor(request.startRow / requestPageSize);
               pageLoadRequestId = beginPageLoad(pageNumber);
               if (pageNumber === 0) {
+                handoffToFirstPageRequest(filterRequestKey);
                 firstPageRequestId = ++firstPageRequestRef.current;
                 const preserveExistingRows =
                   preserveRowsDuringNextRefreshRef.current;
@@ -401,6 +421,7 @@ const TraceGrid = React.forwardRef(
                     rowsFromResponse: (response) =>
                       response.data.table.map(boundObserveListRow),
                     metadataFromResponse: (response) => response.data.metadata,
+                    compactResponse: compactObserveListResponse,
                     rowIdentity: traceRowIdentity,
                     isCurrent: () =>
                       cursorPagination.current.isCurrent(requestGeneration),
@@ -443,7 +464,10 @@ const TraceGrid = React.forwardRef(
               }
               const nextReadState = getQueryReadState(results.data);
               if (pageNumber === 0 || nextReadState !== "complete") {
-                const nextReadMessage = getListReadMessage(results.data);
+                const nextReadMessage = getListReadMessage({
+                  ...results.data,
+                  table: rows,
+                });
                 readMessageRef.current = nextReadMessage;
                 setReadMessage(nextReadMessage);
               }
@@ -594,6 +618,7 @@ const TraceGrid = React.forwardRef(
         filterRequestKey,
         beginPageLoad,
         finishPageLoad,
+        handoffToFirstPageRequest,
         publishPage,
         setLoading,
       ],
@@ -760,11 +785,7 @@ const TraceGrid = React.forwardRef(
         validatedSteps[currentStep - 1]
       );
     }, [openReplaySessionDrawer, currentStep, validatedSteps]);
-    // Controlled loading starts only when AG Grid actually asks this
-    // datasource for page zero. URL/config hydration can replace a datasource
-    // before AG Grid starts its request; deriving loading from the request key
-    // leaves the overlay stuck when no replacement call follows.
-    const isGridReadPending = gridLoading;
+    const isGridReadPending = gridLoading || transitionLoading;
 
     return (
       <Box
@@ -800,18 +821,7 @@ const TraceGrid = React.forwardRef(
           key={`trace-grid-${pageSize}`}
           style={{ flex: 1, minHeight: 0 }}
           className={`clean-data-table ${continuationNotice ? "ag-grid-cursor-paused" : ""} ${shouldDisable ? "ag-grid-disabled" : ""}`}
-          theme={agTheme.withParams({
-            columnBorder: false,
-            headerColumnBorder: false,
-            wrapperBorder: { width: 0 },
-            wrapperBorderRadius: 0,
-            rowBorder: { width: 1, color: "rgba(0,0,0,0.06)" },
-            headerFontSize: "13px",
-            headerFontWeight: 500,
-            headerBackgroundColor: "transparent",
-            headerTextColor: theme.palette.text.primary,
-            rowHoverColor: "rgba(120,87,252,0.04)",
-          })}
+          theme={agTheme}
           animateRows={false}
           headerHeight={40}
           ref={gridRef}

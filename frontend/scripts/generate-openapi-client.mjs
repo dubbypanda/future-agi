@@ -413,6 +413,8 @@ export type SpanAttributeTopValueApiValue = JsonValueApi;`,
     for (const jsonAlias of [
       "SpanAttributeValueApiValue",
       "DashboardFilterValueOptionApiValue",
+      "TraceSessionTableRowApiFirstMessage",
+      "TraceSessionTableRowApiLastMessage",
       "SpanListColumnConfigApiSettings",
       "SpanListColumnConfigApiChoicesMap",
       "SpanListColumnConfigApiAnnotators",
@@ -541,10 +543,12 @@ export type ${jsonAlias} = JsonValueApi;`,
     for (const metadataType of [
       "SpanListMetadataApi",
       "TraceObserveListMetadataApi",
+      "TraceSessionListMetadataApi",
     ]) {
       for (const field of [
         "total_rows_exact",
         "next_cursor",
+        "next_cursor_fingerprint",
         "query_error_code",
       ]) {
         const valueType = field === "total_rows_exact" ? "number" : "string";
@@ -586,6 +590,60 @@ export type ${jsonAlias} = JsonValueApi;`,
       "next_cursor?: string;",
       "next_cursor?: string | null;",
       "TraceVoiceCallListResponseApi.next_cursor nullable",
+    );
+    schemas = assertReplaceInNamedBlock(
+      schemas,
+      "export interface TraceVoiceCallListResponseApi {",
+      "next_cursor_fingerprint?: string;",
+      "next_cursor_fingerprint?: string | null;",
+      "TraceVoiceCallListResponseApi.next_cursor_fingerprint nullable",
+    );
+    schemas = assertReplaceInNamedBlock(
+      schemas,
+      "export interface QueueAddItemsResultApi {",
+      "next_cursor?: string;",
+      "next_cursor?: string | null;",
+      "QueueAddItemsResultApi.next_cursor nullable",
+    );
+    schemas = assertReplaceInNamedBlock(
+      schemas,
+      "export interface QueueAddItemsResultApi {",
+      "next_cursor_fingerprint?: string;",
+      "next_cursor_fingerprint?: string | null;",
+      "QueueAddItemsResultApi.next_cursor_fingerprint nullable",
+    );
+
+    for (const [field, valueType] of [
+      ["session_id", "string"],
+      ["session_name", "string"],
+      ["project_id", "string"],
+      ["start_time", "string"],
+      ["end_time", "string"],
+      ["created_at", "string"],
+      ["duration", "number"],
+      ["total_cost", "number"],
+      ["total_tokens", "number"],
+      ["total_traces_count", "number"],
+      ["first_message", "TraceSessionTableRowApiFirstMessage"],
+      ["last_message", "TraceSessionTableRowApiLastMessage"],
+      ["user_id", "string"],
+      ["user_id_type", "string"],
+      ["user_id_hash", "string"],
+    ]) {
+      schemas = assertReplaceInNamedBlock(
+        schemas,
+        "export interface TraceSessionTableRowApi {",
+        `${field}?: ${valueType};`,
+        `${field}?: ${valueType} | null;`,
+        `TraceSessionTableRowApi.${field} nullable`,
+      );
+    }
+    schemas = assertReplaceInNamedBlock(
+      schemas,
+      "export interface TraceSessionTableRowApi {",
+      "[key: string]: unknown;",
+      "[key: string]: JsonValueApi | undefined;",
+      "TraceSessionTableRowApi dynamic JSON values",
     );
 
     fs.writeFileSync(schemasOutputPath, schemas);
@@ -927,6 +985,10 @@ const jsonValueSchema: zod.ZodType<JsonValue> =
           /("next_cursor": zod\.string\(\)\.min\(1\))\.optional\(\),/,
         ],
         [
+          "next_cursor_fingerprint",
+          /("next_cursor_fingerprint": zod\.string\(\)\.min\(1\)\.regex\([\s\S]*?\))\.optional\(\),/,
+        ],
+        [
           "query_error_code",
           /("query_error_code": zod\.string\(\)\.min\(1\))\.optional\(\),/,
         ],
@@ -956,6 +1018,69 @@ const jsonValueSchema: zod.ZodType<JsonValue> =
       '"next_cursor": zod.string().min(1).optional(),',
       '"next_cursor": zod.string().min(1).nullish(),',
       "TracerTraceListVoiceCallsResponse.next_cursor nullable",
+    );
+    zod = assertReplaceRegexInNamedBlock(
+      zod,
+      "export const TracerTraceListVoiceCallsResponse = zod.object({",
+      /("next_cursor_fingerprint": zod\.string\(\)\.min\(1\)\.regex\([\s\S]*?\))\.optional\(\),/,
+      "$1.nullish(),",
+      "TracerTraceListVoiceCallsResponse.next_cursor_fingerprint nullable",
+    );
+    zod = assertReplaceRegexInNamedBlock(
+      zod,
+      "export const ModelHubAnnotationQueuesItemsAddItemsResponse = zod.object({",
+      /("next_cursor": zod\.string\(\)\.min\(1\))\.optional\(\)(,?)/,
+      "$1.nullish()$2",
+      "ModelHubAnnotationQueuesItemsAddItemsResponse.next_cursor nullable",
+    );
+    zod = assertReplaceRegexInNamedBlock(
+      zod,
+      "export const ModelHubAnnotationQueuesItemsAddItemsResponse = zod.object({",
+      /("next_cursor_fingerprint": zod\.string\(\)\.min\(1\)\.regex\([\s\S]*?\))\.optional\(\)(,?)/,
+      "$1.nullish()$2",
+      "ModelHubAnnotationQueuesItemsAddItemsResponse.next_cursor_fingerprint nullable",
+    );
+
+    for (const field of [
+      "session_id",
+      "session_name",
+      "project_id",
+      "start_time",
+      "end_time",
+      "created_at",
+      "duration",
+      "total_cost",
+      "total_tokens",
+      "total_traces_count",
+      "user_id",
+      "user_id_type",
+      "user_id_hash",
+    ]) {
+      zod = assertReplaceRegexInNamedBlock(
+        zod,
+        "export const TracerTraceSessionListSessionsResponse = zod.object({",
+        new RegExp(`("${field}": zod\\.[^\\n]+)\\.optional\\(\\)(,?)`),
+        "$1.nullish()$2",
+        `TracerTraceSessionListSessionsResponse.${field} nullable`,
+      );
+    }
+    for (const field of ["first_message", "last_message"]) {
+      zod = assertReplaceRegexInNamedBlock(
+        zod,
+        "export const TracerTraceSessionListSessionsResponse = zod.object({",
+        new RegExp(
+          `("${field}": jsonValueSchema)\\.optional\\(\\)(\\.describe\\('Any valid JSON value\\.'\\))(,?)`,
+        ),
+        "$1.nullish()$2$3",
+        `TracerTraceSessionListSessionsResponse.${field} nullable`,
+      );
+    }
+    zod = assertReplaceRegexInNamedBlock(
+      zod,
+      "export const TracerTraceSessionListSessionsResponse = zod.object({",
+      /("table": zod\.array\(\s*zod\.object\(\{[\s\S]*?"user_id_hash": zod\.string\(\)\.nullish\(\),?\s*)\}\)(\s*\),)/,
+      "$1}).catchall(jsonValueSchema)$2",
+      "TracerTraceSessionListSessionsResponse dynamic JSON row values",
     );
 
     zod = assertReplaceRegexInNamedBlock(

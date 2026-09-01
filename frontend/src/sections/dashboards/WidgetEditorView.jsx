@@ -74,7 +74,7 @@ import CustomDateRangePicker from "src/components/custom-datepicker/DatePicker";
 import AttributeInventoryControls from "src/sections/projects/LLMTracing/AttributeInventoryControls";
 import {
   attributeInventoryKey,
-  useCursorAttributeInventory,
+  useLegacyCursorAttributeInventory,
 } from "src/sections/projects/LLMTracing/useCursorAttributeInventory";
 import useCanEditDashboard from "./hooks/useCanEditDashboard";
 import {
@@ -300,6 +300,7 @@ const METRIC_CATEGORIES = [
     key: "custom_attribute",
     label: "Trace Attributes",
     icon: "mdi:tune-variant",
+    source: "traces",
     category: "custom_attribute",
   },
 ];
@@ -419,6 +420,24 @@ export function resolveWidgetCatalogResultMetrics({
 }) {
   if (!requestSettled) return [];
   return scopedRequestActive ? scopedMetrics || [] : baseMetrics || [];
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isWidgetCatalogInventoryLoading({
+  requestSettled,
+  usesLegacyCatalog,
+  legacyCatalogLoading,
+  propertyCatalogLoading,
+  propertyCatalogSearchPending,
+  propertyCatalogNotReady,
+}) {
+  if (!requestSettled) return true;
+  if (usesLegacyCatalog) return Boolean(legacyCatalogLoading);
+  return Boolean(
+    propertyCatalogLoading ||
+      propertyCatalogSearchPending ||
+      propertyCatalogNotReady,
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -2315,26 +2334,6 @@ export default function WidgetEditorView() {
     return [...keys];
   }, [breakdowns, filters, metrics]);
 
-  // The activated property catalog now owns trace attributes as well as the
-  // other property families. Keep the retained inventory hook mounted but
-  // disabled for rollout compatibility; the picker must have one cursor and
-  // one bounded end-of-list continuation lane.
-  const cursorAttributePickerActive = false;
-  const {
-    filteredAttributes: cursorAttributes,
-    inventoryControlProps: cursorAttributeControlProps,
-  } = useCursorAttributeInventory({
-    workspaceScope: true,
-    workspaceScopeKey: currentWorkspaceId,
-    rowType: "spans",
-    discoveryMode: "filter",
-    search: pickerSearch,
-    preservedKeys: preservedDashboardAttributeKeys,
-    enabled: cursorAttributePickerActive,
-    pageSize: PROPERTY_CATALOG_PAGE_SIZE,
-    cacheScopeKey: `widget-picker:${pickerCatalogSession}`,
-  });
-
   const trimmedPickerSearch = pickerSearch.trim();
   const trimmedDebouncedPickerSearch = debouncedPickerSearch.trim();
   const pickerSearchSettled =
@@ -2411,6 +2410,8 @@ export default function WidgetEditorView() {
     enabled: Boolean(
       allSearchWidgetCatalogRequest.enabled && trimmedDebouncedPickerSearch,
     ),
+    allowLegacyNotReadyFallback: true,
+    fallbackScopeKey: `widget-property-catalog:${currentWorkspaceId || ""}:all-search`,
     cacheScopeKey: `widget-picker:${pickerCatalogSession}:scoped`,
   });
   const baseLegacyMetricCatalog = useLegacyDashboardMetricsPaginated({
@@ -2443,6 +2444,25 @@ export default function WidgetEditorView() {
   const activeUsesLegacyCatalog = scopedRequestOwnsResults
     ? scopedUsesLegacyCatalog
     : baseUsesLegacyCatalog;
+  // A typed catalog-not-ready response is the only compatibility signal that
+  // activates the retained workspace attribute endpoint. Its query remains
+  // cursor-bounded and is disabled for ordinary catalog/network failures.
+  const cursorAttributePickerActive = Boolean(
+    pickerOpen && activeUsesLegacyCatalog,
+  );
+  const {
+    filteredAttributes: cursorAttributes,
+    inventoryControlProps: cursorAttributeControlProps,
+  } = useLegacyCursorAttributeInventory({
+    workspaceScope: true,
+    workspaceScopeKey: currentWorkspaceId,
+    rowType: "spans",
+    discoveryMode: "filter",
+    search: pickerSearch,
+    preservedKeys: preservedDashboardAttributeKeys,
+    enabled: cursorAttributePickerActive,
+    pageSize: PROPERTY_CATALOG_PAGE_SIZE,
+  });
   const activeRequestSettled = Boolean(
     pickerSearchSettled &&
       !activePropertyCatalog.isPlaceholderData &&
@@ -2476,10 +2496,17 @@ export default function WidgetEditorView() {
     allSearchCategoryCountsExact: allSearchPropertyCatalog.categoryCountsExact,
   });
   const pickerSidebarCategoryCountsExact = Boolean(pickerSidebarCategoryCounts);
-  const activeCatalogLoading = activeUsesLegacyCatalog
-    ? activeLegacyMetricCatalog.isLoading
-    : activePropertyCatalog.isLoading ||
-      isPropertyCatalogNotReadyError(activePropertyCatalog.error);
+  const activeCatalogLoading = isWidgetCatalogInventoryLoading({
+    requestSettled: activeRequestSettled,
+    usesLegacyCatalog: activeUsesLegacyCatalog,
+    legacyCatalogLoading: activeLegacyMetricCatalog.isLoading,
+    propertyCatalogLoading: activePropertyCatalog.isLoading,
+    propertyCatalogSearchPending:
+      activePropertyCatalog.isRemoteCatalogSearchPending,
+    propertyCatalogNotReady: isPropertyCatalogNotReadyError(
+      activePropertyCatalog.error,
+    ),
+  });
   const paginatedTotal =
     !activeRequestSettled || activeCatalogLoading
       ? null
@@ -7601,8 +7628,14 @@ export default function WidgetEditorView() {
                       />
                     </InputAdornment>
                   ),
-                  endAdornment:
-                    !cursorAttributePickerActive &&
+                  endAdornment: isPickerInventoryLoading ? (
+                    <InputAdornment position="end">
+                      <CircularProgress
+                        size={14}
+                        aria-label="Searching dashboard properties"
+                      />
+                    </InputAdornment>
+                  ) : !cursorAttributePickerActive &&
                     Number.isSafeInteger(paginatedTotal) ? (
                       <InputAdornment position="end">
                         <Typography
@@ -7704,6 +7737,26 @@ export default function WidgetEditorView() {
               {/* Right: items — the end sentinel advances one cursor page. */}
               <Box sx={{ flex: 1, overflow: "auto", maxHeight: 340 }}>
                 {isPickerInventoryLoading &&
+                  pickerMetricOptions.length === 0 && (
+                    <Box
+                      role="status"
+                      aria-live="polite"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        px: 1.5,
+                        pt: 1.25,
+                        color: "text.secondary",
+                      }}
+                    >
+                      <CircularProgress size={14} />
+                      <Typography variant="caption">
+                        Searching properties…
+                      </Typography>
+                    </Box>
+                  )}
+                {isPickerInventoryLoading &&
                   pickerMetricOptions.length === 0 &&
                   Array.from({ length: 8 }).map((_, i) => (
                     <Box
@@ -7797,6 +7850,7 @@ export default function WidgetEditorView() {
                       />
                       <Typography
                         variant="body2"
+                        title={opt.name}
                         sx={{
                           fontSize: "13px",
                           flex: 1,

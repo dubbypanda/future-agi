@@ -39,7 +39,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => ({
   useQueryClient: () => queryClientMock,
 }));
 vi.mock("src/hooks/use-ag-theme", () => ({
-  useAgTheme: () => ({ withParams: () => ({}) }),
+  useAgThemeWith: () => ({}),
 }));
 vi.mock("src/sections/agents/helper", () => ({
   getCallLogsColumnDefs: (...args) => getCallLogsColumnDefsMock(...args),

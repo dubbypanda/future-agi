@@ -314,7 +314,9 @@ def test_decoder_rejects_invalid_workspace_revision_status_and_hash(
         decode_revision_fence_registry(raw, now=NOW)
 
 
-def test_registry_rejects_expired_and_overwide_live_fences(tmp_path: Path) -> None:
+def test_registry_accepts_protocol_maximum_and_rejects_overwide_live_fences(
+    tmp_path: Path,
+) -> None:
     registry = AtomicMultiTenantFenceFile(
         tmp_path / "revision-fence.json",
         now=lambda: NOW,
@@ -335,11 +337,23 @@ def test_registry_rejects_expired_and_overwide_live_fences(tmp_path: Path) -> No
     with pytest.raises(RevisionFenceRegistryError, match="expired"):
         registry.publish(expired_drain)
 
+    maximum = _assignment(
+        status="draining",
+        issued_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(minutes=59),
+        drain_deadline=NOW + timedelta(minutes=59),
+    )
+    registry.publish(maximum)
+    assert decode_revision_fence_registry(
+        registry.path.read_bytes(),
+        now=NOW,
+    ) == (maximum.document,)
+
     overwide = _assignment(
         status="draining",
         issued_at=NOW - timedelta(minutes=1),
-        expires_at=NOW + timedelta(minutes=35),
-        drain_deadline=NOW + timedelta(minutes=30),
+        expires_at=NOW + timedelta(minutes=59, microseconds=1),
+        drain_deadline=NOW + timedelta(minutes=59, microseconds=1),
     )
     with pytest.raises(RevisionFenceRegistryError, match="too wide"):
         registry.publish(overwide)
@@ -420,6 +434,30 @@ def test_scope_reconciliation_does_not_overwrite_corrupt_registry(
         registry.reconcile_authorized_workspaces(())
 
     assert path.read_bytes() == corrupt
+
+
+def test_scope_reconciliation_accepts_authorization_inventory_larger_than_registry(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "revision-fence.json"
+    registry = AtomicMultiTenantFenceFile(path, now=lambda: NOW)
+    retained = _assignment(1)
+    deauthorized = _assignment(2)
+    registry.publish(retained)
+    registry.publish(deauthorized)
+    authorized = (
+        retained.workspace_id,
+        *(
+            _uuid(50_000 + index)
+            for index in range(MAX_REVISION_FENCE_ENTRIES + 1)
+        ),
+    )
+
+    assert len(authorized) > MAX_REVISION_FENCE_ENTRIES
+    assert registry.reconcile_authorized_workspaces(authorized) == 1
+    assert decode_revision_fence_registry(path.read_bytes(), now=NOW) == (
+        retained.document,
+    )
 
 
 def test_entry_and_byte_limits_fail_without_replacing_registry(

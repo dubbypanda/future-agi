@@ -107,6 +107,7 @@ from tracer.services.clickhouse.list_cursor import (
     encode_list_cursor,
     exact_total_explicitly_required,
     frozen_window_filter,
+    list_cursor_boundary_fingerprint,
 )
 from tracer.services.clickhouse.query_builders.base import NIL_UUID, BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.eval_status import (
@@ -1520,7 +1521,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
         try:
             body = request.validated_data
-            allow_sampled = request.validated_query_data["allow_sampled"]
             refresh = request.validated_query_data.get("refresh", False)
             project_id = str(body["project_id"])
             with graph_action_postgres_budget(deadline):
@@ -1626,7 +1626,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             # with no ClickHouse diagnostics exposed to the frontend.
             if not graph_payload_is_publishable(
                 graph,
-                allow_sampled=allow_sampled,
+                allow_sampled=False,
             ):
                 graph = {
                     **graph,
@@ -3555,6 +3555,9 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                     "total_rows_is_lower_bound": False,
                     "has_more": cursor_has_more,
                     "next_cursor": next_cursor,
+                    "next_cursor_fingerprint": (
+                        list_cursor_boundary_fingerprint(next_cursor)
+                    ),
                     "query_complete": True,
                     "query_status": "complete",
                     "query_error_code": None,

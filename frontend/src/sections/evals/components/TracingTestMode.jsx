@@ -35,7 +35,9 @@ import {
   collectExactListRows,
   createListCursorProtocolError,
   isListCursorProtocolError,
+  listCursorBoundaryIdentity,
   listContinuationParams,
+  rememberBoundedListCursorIdentity,
   requestListWithLegacyCursorFallback,
 } from "src/sections/projects/LLMTracing/listCursorPagination";
 
@@ -397,8 +399,9 @@ const TracingTestMode = React.forwardRef(
     const listContinuationRef = useRef({
       signature: null,
       cursor: null,
+      cursorIdentity: null,
       rows: [],
-      requestedCursors: [],
+      requestedCursorIdentities: [],
     });
     // Key the last-completed fetch so we can derive "is the current
     // selection stale w.r.t. the last fetch" at render time. React
@@ -549,8 +552,9 @@ const TracingTestMode = React.forwardRef(
         listContinuationRef.current = {
           signature: null,
           cursor: null,
+          cursorIdentity: null,
           rows: [],
-          requestedCursors: [],
+          requestedCursorIdentities: [],
         };
         setColumns([]);
         setRows([]);
@@ -576,8 +580,9 @@ const TracingTestMode = React.forwardRef(
         listContinuationRef.current = {
           signature: fetchKey,
           cursor: null,
+          cursorIdentity: null,
           rows: [],
-          requestedCursors: [],
+          requestedCursorIdentities: [],
         };
       }
       const startingCursor = listContinuationRef.current.cursor;
@@ -588,38 +593,40 @@ const TracingTestMode = React.forwardRef(
         ? {
             signature: fetchKey,
             cursor: startingCursor,
+            cursorIdentity: listContinuationRef.current.cursorIdentity,
             rows: [...startingRows],
-            requestedCursors: [
-              ...(listContinuationRef.current.requestedCursors || []),
+            requestedCursorIdentities: [
+              ...(listContinuationRef.current.requestedCursorIdentities || []),
             ],
           }
         : null;
-      const requestedCursors = new Set(
-        listContinuationRef.current.requestedCursors || [],
+      const requestedCursorIdentities = new Set(
+        listContinuationRef.current.requestedCursorIdentities || [],
       );
       const fetchData = async () => {
         if (!startingCursor) setRows([]);
         try {
           if (startingCursor) {
-            if (requestedCursors.has(startingCursor)) {
-              throw createListCursorProtocolError(
-                "List API returned a repeated continuation cursor",
-              );
-            }
-            requestedCursors.add(startingCursor);
+            const startingCursorIdentity =
+              listContinuationRef.current.cursorIdentity ||
+              listCursorBoundaryIdentity({ next_cursor: startingCursor });
+            rememberBoundedListCursorIdentity(
+              requestedCursorIdentities,
+              startingCursorIdentity,
+            );
           }
           const recordContinuation = (metadata) => {
             const nextCursor = metadata?.next_cursor;
-            if (
-              typeof nextCursor !== "string" ||
-              nextCursor.length === 0 ||
-              requestedCursors.has(nextCursor)
-            ) {
+            const nextCursorIdentity = listCursorBoundaryIdentity(metadata);
+            if (typeof nextCursor !== "string" || nextCursor.length === 0) {
               throw createListCursorProtocolError(
                 "List API returned a repeated continuation cursor",
               );
             }
-            requestedCursors.add(nextCursor);
+            rememberBoundedListCursorIdentity(
+              requestedCursorIdentities,
+              nextCursorIdentity,
+            );
           };
           const requestList = (
             endpoint,
@@ -675,8 +682,9 @@ const TracingTestMode = React.forwardRef(
               listContinuationRef.current = {
                 signature: fetchKey,
                 cursor: exactRows.nextCursor,
+                cursorIdentity: exactRows.nextCursorIdentity,
                 rows: rowsOut,
-                requestedCursors: [...requestedCursors],
+                requestedCursorIdentities: [...requestedCursorIdentities],
               };
               setColumns([]);
               setRows(rowsOut);
@@ -689,8 +697,9 @@ const TracingTestMode = React.forwardRef(
             listContinuationRef.current = {
               signature: fetchKey,
               cursor: null,
+              cursorIdentity: null,
               rows: [],
-              requestedCursors: [],
+              requestedCursorIdentities: [],
             };
             const nextReadState = getQueryReadState(data);
             setListReadState(
@@ -757,8 +766,9 @@ const TracingTestMode = React.forwardRef(
             listContinuationRef.current = {
               signature: fetchKey,
               cursor: exactRows.nextCursor,
+              cursorIdentity: exactRows.nextCursorIdentity,
               rows: tableRows,
-              requestedCursors: [...requestedCursors],
+              requestedCursorIdentities: [...requestedCursorIdentities],
             };
             setColumns(cols);
             setRows(tableRows);
@@ -771,8 +781,9 @@ const TracingTestMode = React.forwardRef(
           listContinuationRef.current = {
             signature: fetchKey,
             cursor: null,
+            cursorIdentity: null,
             rows: [],
-            requestedCursors: [],
+            requestedCursorIdentities: [],
           };
           const nextReadState = getQueryReadState(data);
           setListReadState(
@@ -816,8 +827,9 @@ const TracingTestMode = React.forwardRef(
           listContinuationRef.current = {
             signature: fetchKey,
             cursor: null,
+            cursorIdentity: null,
             rows: [],
-            requestedCursors: [],
+            requestedCursorIdentities: [],
           };
           setListReadState("error");
           setListFailureRetryable(!isListCursorProtocolError(error));

@@ -11301,7 +11301,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             $ref: "#/definitions/QueueAddItemsResponse",
           },
           400: {
-            $ref: "#/definitions/ApiSelectionTooLargeError",
+            $ref: "#/definitions/ApiTextErrorResponse",
           },
           403: {
             $ref: "#/definitions/ApiTextErrorResponse",
@@ -47939,47 +47939,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
       },
     },
-    ApiSelectionTooLargeError: {
-      required: ["message", "error"],
-      type: "object",
-      properties: {
-        status: {
-          title: "Status",
-          type: "boolean",
-          default: false,
-        },
-        result: {
-          title: "Result",
-          type: "string",
-          minLength: 1,
-          "x-nullable": true,
-        },
-        type: {
-          title: "Type",
-          type: "string",
-          enum: ["selection_too_large"],
-        },
-        code: {
-          title: "Code",
-          type: "string",
-          default: "selection_too_large",
-          minLength: 1,
-        },
-        detail: {
-          title: "Detail",
-          type: "string",
-          minLength: 1,
-        },
-        message: {
-          title: "Message",
-          type: "string",
-          minLength: 1,
-        },
-        error: {
-          $ref: "#/definitions/ApiSelectionTooLargeDetail",
-        },
-      },
-    },
     ApiTextErrorResponse: {
       type: "object",
       properties: {
@@ -72243,6 +72202,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
           minLength: 1,
           "x-nullable": true,
         },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          minLength: 1,
+          "x-nullable": true,
+        },
         query_complete: {
           title: "Query complete",
           type: "boolean",
@@ -76423,6 +76389,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
           },
           default: [],
         },
+        cursor: {
+          title: "Cursor",
+          description:
+            "Opaque continuation returned by a previous filter-mode add. Reuse the same selection fields and queue when continuing.",
+          type: "string",
+          maxLength: 4096,
+          minLength: 1,
+        },
         remove_simulation_calls: {
           title: "Remove simulation calls",
           type: "boolean",
@@ -77460,30 +77434,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           description: "List of user's goals for using the platform",
           type: "object",
           "x-nullable": true,
-        },
-      },
-    },
-    ApiSelectionTooLargeDetail: {
-      required: ["type", "message", "total_matching", "cap"],
-      type: "object",
-      properties: {
-        type: {
-          title: "Type",
-          type: "string",
-          enum: ["selection_too_large"],
-        },
-        message: {
-          title: "Message",
-          type: "string",
-          minLength: 1,
-        },
-        total_matching: {
-          title: "Total matching",
-          type: "integer",
-        },
-        cap: {
-          title: "Cap",
-          type: "integer",
         },
       },
     },
@@ -87424,6 +87374,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
           title: "Total matching",
           type: "integer",
         },
+        total_matching_is_lower_bound: {
+          title: "Total matching is lower bound",
+          type: "boolean",
+        },
+        has_more: {
+          title: "Has more",
+          type: "boolean",
+        },
+        next_cursor: {
+          title: "Next cursor",
+          type: "string",
+          minLength: 1,
+          "x-nullable": true,
+        },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          minLength: 1,
+          "x-nullable": true,
+        },
       },
     },
     QueueAddLabelResult: {
@@ -91280,13 +91251,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         table: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: {
-              type: "object",
-              "x-nullable": true,
-              "x-json-value": true,
-              description: "Any valid JSON value.",
-            },
+            $ref: "#/definitions/TraceSessionTableRow",
           },
         },
         config: {
@@ -92559,6 +92524,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
         next_cursor: {
           title: "Next cursor",
           type: "string",
+          minLength: 1,
+          "x-nullable": true,
+        },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
           minLength: 1,
           "x-nullable": true,
         },
@@ -100058,6 +100030,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
           minLength: 1,
           "x-nullable": true,
         },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          minLength: 1,
+          "x-nullable": true,
+        },
         query_complete: {
           title: "Query complete",
           type: "boolean",
@@ -100464,6 +100443,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
           minLength: 1,
           "x-nullable": true,
         },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          minLength: 1,
+          "x-nullable": true,
+        },
         query_complete: {
           title: "Query complete",
           type: "boolean",
@@ -100543,6 +100529,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
           minLength: 1,
           "x-nullable": true,
         },
+        next_cursor_fingerprint: {
+          title: "Next cursor fingerprint",
+          type: "string",
+          pattern: "^[0-9a-f]{64}$",
+          minLength: 1,
+          "x-nullable": true,
+        },
         query_complete: {
           title: "Query complete",
           type: "boolean",
@@ -100606,6 +100599,99 @@ export const OPENAPI_CONTRACT = Object.freeze({
           title: "Ordering exact",
           type: "boolean",
         },
+      },
+    },
+    TraceSessionTableRow: {
+      type: "object",
+      properties: {
+        session_id: {
+          title: "Session id",
+          type: "string",
+          "x-nullable": true,
+        },
+        session_name: {
+          title: "Session name",
+          type: "string",
+          "x-nullable": true,
+        },
+        project_id: {
+          title: "Project id",
+          type: "string",
+          format: "uuid",
+          "x-nullable": true,
+        },
+        start_time: {
+          title: "Start time",
+          type: "string",
+          format: "date-time",
+          "x-nullable": true,
+        },
+        end_time: {
+          title: "End time",
+          type: "string",
+          format: "date-time",
+          "x-nullable": true,
+        },
+        created_at: {
+          title: "Created at",
+          type: "string",
+          format: "date-time",
+          "x-nullable": true,
+        },
+        duration: {
+          title: "Duration",
+          type: "number",
+          "x-nullable": true,
+        },
+        total_cost: {
+          title: "Total cost",
+          type: "number",
+          "x-nullable": true,
+        },
+        total_tokens: {
+          title: "Total tokens",
+          type: "integer",
+          "x-nullable": true,
+        },
+        total_traces_count: {
+          title: "Total traces count",
+          type: "integer",
+          "x-nullable": true,
+        },
+        first_message: {
+          title: "First message",
+          type: "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          description: "Any valid JSON value.",
+        },
+        last_message: {
+          title: "Last message",
+          type: "object",
+          "x-nullable": true,
+          "x-json-value": true,
+          description: "Any valid JSON value.",
+        },
+        user_id: {
+          title: "User id",
+          type: "string",
+          "x-nullable": true,
+        },
+        user_id_type: {
+          title: "User id type",
+          type: "string",
+          "x-nullable": true,
+        },
+        user_id_hash: {
+          title: "User id hash",
+          type: "string",
+          "x-nullable": true,
+        },
+      },
+      additionalProperties: {
+        "x-json-value": true,
+        description: "Any valid JSON value.",
+        "x-nullable": true,
       },
     },
     TracesAggregates: {
@@ -101863,7 +101949,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         name: {
           title: "Name",
           type: "string",
-          minLength: 1,
         },
         data: {
           type: "array",
