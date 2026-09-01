@@ -23,6 +23,7 @@ import { useSettingsContext } from "src/components/settings/context";
 import DateTimeRangePicker from "src/sections/projects/DateTimeRangePicker";
 
 import { useTaskUsageChart, useTaskUsageLogs } from "../hooks/useTaskUsage";
+import { DATE_OPTION, DEFAULT_USAGE_PERIOD } from "../constants";
 import UsageChart from "src/sections/evals/components/UsageChart";
 import { JsonValueTree } from "src/sections/evals/components/DatasetTestMode";
 import { classifyTaskError } from "src/sections/common/EvalsTasks/classifyTaskError";
@@ -892,7 +893,7 @@ const TaskUsageTab = ({ taskId }) => {
   const settings = useSettingsContext();
   const isDark = settings.themeMode === "dark";
 
-  const [dateOption, setDateOption] = useState("30D");
+  const [dateOption, setDateOption] = useState(DATE_OPTION.THIRTY_DAYS);
   const [dateFilter, setDateFilter] = useState(null);
   const [page, setPage] = useState(0);
   // Default to 50 per page — tasks typically have many runs and 25 felt
@@ -901,14 +902,16 @@ const TaskUsageTab = ({ taskId }) => {
   const [detailIndex, setDetailIndex] = useState(null);
   const [evalIdFilter, setEvalIdFilter] = useState("all");
 
-  const period = DATE_OPTION_TO_PERIOD[dateOption] || "30d";
+  const period = DATE_OPTION_TO_PERIOD[dateOption] || DEFAULT_USAGE_PERIOD;
   const apiEvalId = evalIdFilter === "all" ? undefined : evalIdFilter;
-  const explicitDateRange = ["Custom", "Today", "Yesterday"].includes(
-    dateOption,
-  )
+  const explicitDateRange = [
+    DATE_OPTION.CUSTOM,
+    DATE_OPTION.TODAY,
+    DATE_OPTION.YESTERDAY,
+  ].includes(dateOption)
     ? dateFilter
     : undefined;
-  const customEndInclusive = dateOption === "Custom";
+  const customEndInclusive = dateOption === DATE_OPTION.CUSTOM;
 
   const {
     data: chartData,
@@ -1055,7 +1058,12 @@ const TaskUsageTab = ({ taskId }) => {
                 setDateOption(opt);
                 setPage(0);
               }}
-              setParentDateFilter={setDateFilter}
+              setParentDateFilter={(range) => {
+                // The custom range feeds the API query, so editing it while on
+                // page N can land past the end of the new result set.
+                setDateFilter(range);
+                setPage(0);
+              }}
               dateFilter={dateFilter}
             />
             {/* Eval filter — only show when the task has >1 configured eval */}

@@ -450,6 +450,22 @@ const PrimaryGraph = ({
     return metricDef.propertyId || metricDef.property_id || "";
   }, [graphPropertyNamespace, metricDef]);
 
+  // A metric selected in one project may not exist in the next one's catalog.
+  // Drop it once loaded so the trigger label and picker highlight agree. The
+  // catalog-backed picker stores canonical property ids, while legacy entries
+  // may still be selected by metric id, so both identities must be accepted.
+  useEffect(() => {
+    if (!metricGroups || !allMetrics.length) return;
+    if (
+      !allMetrics.some(
+        (m) =>
+          graphMetricIdentity(m) === selectedMetric || m.id === selectedMetric,
+      )
+    ) {
+      setSelectedMetric(graphMetricIdentity(metricDef));
+    }
+  }, [metricGroups, allMetrics, selectedMetric, metricDef]);
+
   // Filter metrics by search term for the picker
   const filteredGroups = useMemo(() => {
     if (!metricGroups) return {};
@@ -571,6 +587,12 @@ const PrimaryGraph = ({
       "primary-graph",
       effectiveObserveId,
       selectedMetric,
+      // metricDef resolves asynchronously: while the project's scoped catalog
+      // loads it is the hardcoded latency fallback, so keying on selectedMetric
+      // alone pinned that first response for the real metric — the chart then
+      // showed latency data under the eval's name and unit (TH-6787).
+      metricDef.id,
+      metricDef.apiType,
       selectedInterval,
       combinedFilters,
       apiEndpoint,
@@ -1083,6 +1105,7 @@ const PrimaryGraph = ({
 
           {/* Metric picker trigger */}
           <ButtonBase
+            data-testid="graph-metric-picker-trigger"
             onClick={(e) => setPickerAnchor(e.currentTarget)}
             sx={{
               height: 26,

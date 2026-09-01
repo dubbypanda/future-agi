@@ -33,10 +33,14 @@ EVAL_TASK_LIST_WITH_PROJECT_DEFAULT_PAGE_SIZE = (
 )
 
 
-class PaginationQuerySerializer(serializers.Serializer):
-    """Shared query-params validator for eval-log endpoints."""
+class PageSizeQuerySerializer(serializers.Serializer):
+    """``page_size`` and its clamp, for endpoints that page.
 
-    page = serializers.IntegerField(required=False, default=0, min_value=0)
+    Split out from ``PaginationQuerySerializer`` so the usage contract can
+    reuse the clamp without also re-declaring ``page`` — that one is owned by
+    ``ExtendedPageNumberPagination``.
+    """
+
     page_size = serializers.IntegerField(
         required=False,
         default=EVAL_TASK_USAGE_DEFAULT_PAGE_SIZE,
@@ -222,6 +226,12 @@ class EvalTaskUsageResultSerializer(serializers.Serializer):
 class EvalTaskUsageResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(default=True)
     result = EvalTaskUsageResultSerializer()
+
+
+class PaginationQuerySerializer(PageSizeQuerySerializer):
+    """Shared query-params validator for eval-log endpoints."""
+
+    page = serializers.IntegerField(required=False, default=0, min_value=0)
 
 
 class EvalTaskListQuerySerializer(StrictInputSerializer):

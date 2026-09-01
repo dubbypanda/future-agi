@@ -437,10 +437,7 @@ describe("PrimaryGraph", () => {
       ),
     );
     const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     const graph = (projectId) => (
       <QueryClientProvider client={queryClient}>
@@ -1324,5 +1321,101 @@ describe("PrimaryGraph", () => {
     expect(
       screen.queryByRole("status", { name: GRAPH_LOADING_MESSAGE }),
     ).not.toBeInTheDocument();
+  });
+
+  it("requests the metric catalog scoped to the current project", async () => {
+    renderWithQueryClient(<PrimaryGraph observeIdOverride="project-alpha" />);
+
+    fireEvent.click(await screen.findByTestId("graph-metric-picker-trigger"));
+    await waitFor(() => expect(axios.get).toHaveBeenCalled());
+
+    expect(axios.get).toHaveBeenCalledWith("/dashboard/metrics/", {
+      params: {
+        exclude_custom_attributes: true,
+        page: 1,
+        page_size: 200,
+        project_ids: "project-alpha",
+        per_eval_config: true,
+      },
+      signal: expect.anything(),
+      timeout: 9_000,
+    });
+  });
+
+  it("does not serve one project's metric catalog to another", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <PrimaryGraph observeIdOverride="project-alpha" />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByTestId("graph-metric-picker-trigger"));
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(1));
+    unmount();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PrimaryGraph observeIdOverride="project-beta" />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByTestId("graph-metric-picker-trigger"));
+
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
+    expect(axios.get).toHaveBeenLastCalledWith("/dashboard/metrics/", {
+      params: {
+        exclude_custom_attributes: true,
+        page: 1,
+        page_size: 200,
+        project_ids: "project-beta",
+        per_eval_config: true,
+      },
+      signal: expect.anything(),
+      timeout: 9_000,
+    });
+  });
+
+  it("refetches graph data once the catalog resolves the selected metric", async () => {
+    axios.get.mockResolvedValue({
+      data: {
+        result: {
+          metrics: [
+            {
+              category: "system_metric",
+              name: "latency",
+              displayName: "Latency",
+              type: "number",
+            },
+            {
+              category: "eval_metric",
+              name: "eval-uuid-1",
+              displayName: "My Eval",
+              type: "number",
+            },
+          ],
+        },
+      },
+    });
+
+    renderWithQueryClient(
+      <PrimaryGraph
+        observeIdOverride="project-alpha"
+        defaultMetric="eval-uuid-1"
+      />,
+    );
+
+    fireEvent.click(await screen.findByTestId("graph-metric-picker-trigger"));
+    await waitFor(() => expect(axios.post).toHaveBeenCalled());
+
+    await waitFor(() =>
+      expect(axios.post.mock.calls.at(-1)[1].req_data_config).toMatchObject({
+        id: "eval-uuid-1",
+      }),
+    );
   });
 });
