@@ -139,29 +139,31 @@ test('OBS-E2E-003: graph metric picker lists only the current project\'s evals',
   });
 
   await test.step("the picker shows only this project's eval (UI lane)", async () => {
-    // Asserts the fix itself — that the FE sends project_ids — at the request
-    // level, so a regression is diagnosable without reading a trace dump.
-    // `!per_eval_config` is load-bearing, not noise: TraceFilterPanel calls the
-    // same endpoint with project_ids AND per_eval_config=true, and that call is
-    // unaffected by this fix — matching it would make this assertion pass on
-    // pre-fix code. The picker's own request is the template-level one.
-    const catalog = page.waitForResponse(
-      (r) =>
-        r.url().includes('/tracer/dashboard/metrics/') &&
-        r.url().includes(`project_ids=${mineProjectId}`) &&
-        !r.url().includes('per_eval_config') &&
-        r.ok(),
-      { timeout: UI_READY },
-    );
-
     // `selectedTab` is the only real URL key here: viewMode lives in Zustand and
     // already defaults to "graph", and `tab` is not a URL key.
     await page.goto(`/dashboard/observe/${mineProjectId}/llm-tracing?selectedTab=trace`, {
       waitUntil: 'domcontentloaded',
     });
+
+    // The picker intentionally lazy-loads its bounded catalog when opened. Arm
+    // the response wait immediately before the click and match the eval page of
+    // that canonical cursor read, including the current project scope.
+    const pickerTrigger = page.getByTestId('graph-metric-picker-trigger').first();
+    await expect(pickerTrigger).toBeVisible({ timeout: UI_READY });
+    const catalog = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname.endsWith('/tracer/dashboard/metrics/') &&
+        url.searchParams.get('project_ids') === mineProjectId &&
+        url.searchParams.get('cursor_mode') === 'true' &&
+        url.searchParams.get('per_eval_config') === 'true' &&
+        url.searchParams.get('category') === 'eval_metric' &&
+        response.ok()
+      );
+    }, { timeout: UI_READY });
+    await pickerTrigger.click();
     await catalog;
 
-    await page.getByTestId('graph-metric-picker-trigger').first().click({ timeout: UI_READY });
     await expect(page.getByPlaceholder('Search metrics...')).toBeVisible({ timeout: UI_READY });
 
     // Typing narrows to the minted names only, so neither assertion can be
