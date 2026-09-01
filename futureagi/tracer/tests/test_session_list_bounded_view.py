@@ -10,7 +10,10 @@ from unittest import mock
 import pytest
 
 from tracer.selectors.trace_filter_reads import BoundedFilterPage
-from tracer.services.clickhouse.list_cursor import ListCursorError
+from tracer.services.clickhouse.list_cursor import (
+    ListCursorError,
+    list_cursor_boundary_fingerprint,
+)
 from tracer.services.filter_attestation import applied_filter_attestation
 
 
@@ -1208,6 +1211,7 @@ def test_positive_user_cursor_uses_exact_keyset_pages_without_duplicates():
         "total_rows_is_lower_bound": False,
         "has_more": True,
         "next_cursor": cursor,
+        "next_cursor_fingerprint": list_cursor_boundary_fingerprint(cursor),
         "query_complete": True,
         "query_status": "complete",
         "query_error_code": None,
@@ -1223,6 +1227,7 @@ def test_positive_user_cursor_uses_exact_keyset_pages_without_duplicates():
         "total_rows_is_lower_bound": False,
         "has_more": False,
         "next_cursor": None,
+        "next_cursor_fingerprint": None,
         "query_complete": True,
         "query_status": "complete",
         "query_error_code": None,

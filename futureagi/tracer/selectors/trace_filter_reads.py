@@ -699,8 +699,11 @@ def read_bounded_filter_page(
         identity_only_classification or unhydrated_candidate_witness_prefilter
     )
     candidate_witness_fallback_batch_size = classify_batch_size
-    if candidate_witness_prefilter_allowed and callable(
-        candidate_witness_fallback_batch_builder
+    if (
+        candidate_witness_prefilter_allowed
+        and callable(candidate_witness_probe_preference)
+        and candidate_witness_probe_preference()
+        and callable(candidate_witness_fallback_batch_builder)
     ):
         raw_fallback_batch_size = candidate_witness_fallback_batch_builder()
         if raw_fallback_batch_size is not None:

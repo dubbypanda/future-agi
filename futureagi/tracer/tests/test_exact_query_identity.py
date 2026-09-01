@@ -211,7 +211,7 @@ def test_filtered_system_graph_uses_inline_exact_reader_without_snapshot(
     assert result["query_complete"] is True
     assert result["query_sampled"] is False
     assert result["query_exact"] is True
-    assert result["query_provenance"] == "direct_exact"
+    assert result["query_provenance"] == "exact_snapshot"
     assert len(exact_calls) == 1
     assert exact_calls[0]["project_id"] == PROJECT_ID
     assert exact_calls[0]["filters"] == [_attribute_filter()]

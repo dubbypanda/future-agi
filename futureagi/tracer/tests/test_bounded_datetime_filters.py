@@ -901,7 +901,7 @@ def test_bounded_list_is_null_returns_exact_empty_without_clickhouse(
     assert analytics.calls == 0
 
 
-def test_system_graph_is_null_returns_pending_without_inline_clickhouse(monkeypatch):
+def test_system_graph_is_null_returns_exact_empty_without_clickhouse(monkeypatch):
     from tracer.services.clickhouse import graph_dispatch
 
     analytics = _NoQueryAnalytics()
@@ -925,13 +925,17 @@ def test_system_graph_is_null_returns_pending_without_inline_clickhouse(monkeypa
         metric_id="latency",
     )
 
-    assert response["data"] == []
-    assert response["query_complete"] is False
-    assert response["query_status"] == "pending"
+    assert len(response["data"]) == 1
+    assert response["data"][0]["value"] == 0
+    assert response["data"][0]["primary_traffic"] == 0
+    assert response["query_complete"] is True
+    assert response["query_status"] == "complete"
     assert response["query_sampled"] is False
-    assert response["query_refreshing"] is True
+    assert response["query_count"] == 0
+    assert response["query_exact"] is True
+    assert response["query_provenance"] == "exact_snapshot"
     assert analytics.calls == 0
-    assert calls[0][0] == "observe-system-graph"
+    assert calls == []
 
 
 @pytest.mark.parametrize(

@@ -90,9 +90,8 @@
 
 ### OBS-E2E-003 — graph metric picker lists only the current project's evals
 
-**Goal:** A developer picking a metric to graph sees only the evals attached to the project they are viewing
-
-**Spec:** `flows/observe/graph-metric-scoping.spec.ts:51`
+**Goal:** A developer picking a metric to graph sees only the evals attached to the project they are viewing  
+**Spec:** `flows/observe/graph-metric-scoping.spec.ts:51`  
 **Tags:** —
 
 **User steps:**
