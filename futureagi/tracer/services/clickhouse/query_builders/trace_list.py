@@ -2282,24 +2282,28 @@ class TraceListQueryBuilder(BaseQueryBuilder):
         return self._exact_graph_authoritative_anchor_plan() is not None
 
     def build_exact_graph_anchor_scan_bounds(self) -> tuple[str, dict[str, Any]]:
-        """Freeze the physical time range required by the authoritative lane."""
+        """Freeze a conservative physical range without scanning tenant rows.
+
+        The authoritative lane needs bounds that cover every retained physical
+        version, but they do not need to be project-local extrema. Active-part
+        metadata is exact for the table's physical coverage and a global range
+        can only add empty project slices; it cannot omit a project row. This
+        avoids spending the interactive request budget aggregating all retained
+        spans before the real filtered read begins.
+        """
 
         if self._exact_graph_authoritative_anchor_plan() is None:
             return "", {}
-        params: dict[str, Any] = {**self.params}
-        project_version_fragment = ""
-        if self.project_version_id:
-            params["project_version_id"] = self.project_version_id
-            project_version_fragment = "AND project_version_id = %(project_version_id)s"
-        query = f"""
+        query = """
         SELECT
-            min(start_time) AS min_start_time,
-            max(start_time) AS max_start_time
-        FROM {self.TABLE}
-        PREWHERE {self.project_filter_sql()}
-          {project_version_fragment}
+            minOrNull(min_time) AS min_start_time,
+            maxOrNull(max_time) AS max_start_time
+        FROM system.parts
+        WHERE active
+          AND database = currentDatabase()
+          AND table = 'spans'
         """
-        return query, params
+        return query, {}
 
     def build_exact_graph_latest_anchor_partition(
         self,

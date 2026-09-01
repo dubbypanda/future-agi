@@ -378,16 +378,20 @@ def test_exact_graph_anchor_partition_requires_ordered_whole_hour_bounds(
 
 
 @pytest.mark.unit
-def test_exact_graph_anchor_scan_bounds_are_project_scoped_and_filter_free():
+def test_exact_graph_anchor_scan_bounds_use_active_part_metadata():
     builder = _builder(_attribute_filter())
 
     sql, params = builder.build_exact_graph_anchor_scan_bounds()
     compact = _compact(sql)
 
-    assert "min(start_time)" in compact
-    assert "max(start_time)" in compact
-    assert "project_id" in compact
-    assert params["project_id"] == PROJECT_ID
+    assert "minOrNull(min_time) AS min_start_time" in compact
+    assert "maxOrNull(max_time) AS max_start_time" in compact
+    assert "FROM system.parts" in compact
+    assert "WHERE active" in compact
+    assert "database = currentDatabase()" in compact
+    assert "table = 'spans'" in compact
+    assert "project_id" not in compact
+    assert params == {}
     assert "attrs_string" not in compact
     assert "latest_filter_key_0" not in compact
     assert "latest_filter_param_0" not in compact
