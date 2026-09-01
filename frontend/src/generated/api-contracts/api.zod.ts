@@ -50889,7 +50889,7 @@ export const TracerObservationSpanGetGraphMethodsQueryParams = zod.object({
     .boolean()
     .default(tracerObservationSpanGetGraphMethodsQueryAllowSampledDefault)
     .describe(
-      "Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.",
+      "Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.",
     ),
   refresh: zod
     .boolean()
@@ -54002,7 +54002,7 @@ export const TracerProjectGetUsersAggregateGraphDataQueryParams = zod.object({
     .boolean()
     .default(tracerProjectGetUsersAggregateGraphDataQueryAllowSampledDefault)
     .describe(
-      "Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.",
+      "Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.",
     ),
   refresh: zod
     .boolean()
@@ -56262,7 +56262,7 @@ export const TracerTraceSessionGetSessionGraphDataQueryParams = zod.object({
     .boolean()
     .default(tracerTraceSessionGetSessionGraphDataQueryAllowSampledDefault)
     .describe(
-      "Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.",
+      "Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.",
     ),
   refresh: zod
     .boolean()
@@ -57211,7 +57211,7 @@ export const TracerTraceGetGraphMethodsQueryParams = zod.object({
     .boolean()
     .default(tracerTraceGetGraphMethodsQueryAllowSampledDefault)
     .describe(
-      "Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.",
+      "Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.",
     ),
   refresh: zod
     .boolean()

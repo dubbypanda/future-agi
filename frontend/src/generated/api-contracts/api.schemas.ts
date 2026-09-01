@@ -30158,7 +30158,7 @@ export type TracerObservationSpanGetEvaluationDetails200 = {
 
 export type TracerObservationSpanGetGraphMethodsParams = {
   /**
-   * Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.
+   * Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.
    */
   allow_sampled?: boolean;
   /**
@@ -30529,7 +30529,7 @@ export type TracerProjectGetUserGraphDataParams = {
 
 export type TracerProjectGetUsersAggregateGraphDataParams = {
   /**
-   * Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.
+   * Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.
    */
   allow_sampled?: boolean;
   /**
@@ -30689,7 +30689,7 @@ export const TracerTraceSessionGetSessionFilterValuesColumn = {
 
 export type TracerTraceSessionGetSessionGraphDataParams = {
   /**
-   * Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.
+   * Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.
    */
   allow_sampled?: boolean;
   /**
@@ -30844,7 +30844,7 @@ export type TracerTraceGetEvalNames200 = {
 
 export type TracerTraceGetGraphMethodsParams = {
   /**
-   * Allow a bounded graph sample when every declared temporal sampling stratum completed. Sampled responses remain explicitly non-exact and include their sampling provenance.
+   * Deprecated compatibility parameter. Observe graphs always return complete exact data or a retryable error.
    */
   allow_sampled?: boolean;
   /**
