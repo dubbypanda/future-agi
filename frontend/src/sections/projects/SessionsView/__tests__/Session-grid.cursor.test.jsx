@@ -51,6 +51,8 @@ vi.mock("../../TracesDrawer/TracesDrawer", () => ({ default: () => null }));
 vi.mock("src/hooks/use-ag-theme", () => ({ useAgThemeWith: () => ({}) }));
 vi.mock("../common", () => ({
   getSessionListColumnDef: (column) => ({ field: column.id }),
+  initialVisibility: { session_id: true },
+  mergeNonCustomColumns: (_current, incoming) => incoming,
 }));
 vi.mock("src/utils/Mixpanel", () => ({
   Events: { observeSessionidClicked: "session" },

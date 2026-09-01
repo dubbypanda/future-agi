@@ -12820,13 +12820,13 @@ class TestQueryEngineFailure:
     on every query-executing endpoint."""
 
     @pytest.mark.django_db
-    @patch("tracer.views.dashboard.AnalyticsQueryService")
+    @patch(
+        "tracer.views.dashboard.DashboardWidgetViewSet._execute_ch_query_config"
+    )
     def test_query_action_survives_ch_failure(
-        self, mock_analytics_cls, auth_client, observe_project
+        self, mock_execute_query, auth_client, observe_project
     ):
-        service = MagicMock()
-        service.execute_ch_query.side_effect = Exception("CH exploded")
-        mock_analytics_cls.return_value = service
+        mock_execute_query.side_effect = Exception("CH exploded")
         resp = auth_client.post(
             "/tracer/dashboard/query/",
             {

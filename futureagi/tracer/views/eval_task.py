@@ -2222,13 +2222,13 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             return self._gm.bad_request("Evaluation task logs could not be loaded")
 
     # ──────────────────────────────────────────────────────────────────
-    # GET /tracer/eval-task/get_usage/?eval_task_id=<id>&period=<>&...
+    # GET /tracer/eval-task/get_usage/
     #
-    # Replaces the old "stat cards + config snapshot" Usage tab with the
-    # eval-style usage view: a top stats row, a time-series chart, and a
-    # paginated logs table that opens a side panel on click. Mirrors the
-    # response shape of `EvalUsageStatsView` so the frontend can reuse
-    # `UsageChart`, `DataTable`, and `DataTablePagination` directly.
+    # Stats row + time-series chart + paginated logs for one eval task.
+    # Mirrors `EvalUsageStatsView`'s response shape so the frontend reuses
+    # `UsageChart`, `DataTable` and `DataTablePagination` unchanged. The
+    # computations use the bounded helpers above so this request cannot expand
+    # into an unbounded task-history scan.
     # ──────────────────────────────────────────────────────────────────
     @validated_request(
         query_serializer=EvalTaskUsageQuerySerializer,

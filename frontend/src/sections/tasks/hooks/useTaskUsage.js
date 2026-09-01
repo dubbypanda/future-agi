@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { awaitAggregationRequestWithDeadline } from "src/utils/queryReadState";
 import { INTERACTIVE_REQUEST_TIMEOUT_MS } from "src/config/runtime_limits";
+import { DEFAULT_USAGE_PERIOD } from "../constants";
 
 export const TASK_USAGE_REQUEST_TIMEOUT_MS = INTERACTIVE_REQUEST_TIMEOUT_MS;
 
@@ -59,7 +60,12 @@ const buildParams = ({
  */
 export function useTaskUsageChart(
   evalTaskId,
-  { period = "30d", evalId, dateRange, endInclusive = false } = {},
+  {
+    period = DEFAULT_USAGE_PERIOD,
+    evalId,
+    dateRange,
+    endInclusive = false,
+  } = {},
 ) {
   return useQuery({
     queryKey: [
@@ -127,7 +133,7 @@ export function useTaskUsageLogs(
   {
     page = 0,
     pageSize = 25,
-    period = "30d",
+    period = DEFAULT_USAGE_PERIOD,
     evalId,
     dateRange,
     endInclusive = false,
