@@ -146,23 +146,42 @@ test('OBS-E2E-003: graph metric picker lists only the current project\'s evals',
     });
 
     // The picker intentionally lazy-loads its bounded catalog when opened. Arm
-    // the response wait immediately before the click and match the eval page of
-    // that canonical cursor read, including the current project scope.
+    // both waits immediately before the click: one proves the canonical eval
+    // page is attempted, while the other accepts the successful canonical page
+    // or the rollout-only legacy page after a typed catalog-not-ready response.
+    // The E2E stack deliberately leaves the property-catalog read gate off, so
+    // requiring the canonical attempt itself to return 200 would reject the
+    // compatibility path that this UI is designed to use.
     const pickerTrigger = page.getByTestId('graph-metric-picker-trigger').first();
     await expect(pickerTrigger).toBeVisible({ timeout: UI_READY });
-    const catalog = page.waitForResponse((response) => {
+    const canonicalAttempt = page.waitForResponse((response) => {
       const url = new URL(response.url());
       return (
         url.pathname.endsWith('/tracer/dashboard/metrics/') &&
         url.searchParams.get('project_ids') === mineProjectId &&
         url.searchParams.get('cursor_mode') === 'true' &&
         url.searchParams.get('per_eval_config') === 'true' &&
-        url.searchParams.get('category') === 'eval_metric' &&
-        response.ok()
+        url.searchParams.get('category') === 'eval_metric'
+      );
+    }, { timeout: UI_READY });
+    const readyCatalog = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      const canonicalEvalPage =
+        url.searchParams.get('cursor_mode') === 'true' &&
+        url.searchParams.get('category') === 'eval_metric';
+      const legacyFallbackPage =
+        !url.searchParams.has('cursor_mode') &&
+        url.searchParams.get('exclude_custom_attributes') === 'true';
+      return (
+        url.pathname.endsWith('/tracer/dashboard/metrics/') &&
+        url.searchParams.get('project_ids') === mineProjectId &&
+        url.searchParams.get('per_eval_config') === 'true' &&
+        response.ok() &&
+        (canonicalEvalPage || legacyFallbackPage)
       );
     }, { timeout: UI_READY });
     await pickerTrigger.click();
-    await catalog;
+    await Promise.all([canonicalAttempt, readyCatalog]);
 
     await expect(page.getByPlaceholder('Search metrics...')).toBeVisible({ timeout: UI_READY });
 
