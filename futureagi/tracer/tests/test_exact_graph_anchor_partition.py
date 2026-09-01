@@ -451,6 +451,7 @@ def test_exact_graph_root_partition_reduces_versions_before_live_window_filter()
 def test_exact_graph_raw_candidate_page_stays_finite_and_keyset_ordered():
     builder = _builder(_attribute_filter())
 
+    assert builder.exact_graph_candidate_witness_replays_global_membership() is True
     sql, params = builder.build_exact_graph_candidate_witness_probe(limit=1_001)
     compact = _compact(sql)
 
@@ -467,6 +468,11 @@ def test_exact_graph_raw_candidate_page_stays_finite_and_keyset_ordered():
     assert "trace_id > %(exact_graph_candidate_after_trace_id)s" in _compact(next_sql)
     assert next_params["exact_graph_candidate_after_trace_id"] == (
         "11111111-1111-4111-8111-111111111111"
+    )
+
+    assert (
+        _builder(_system_filter()).exact_graph_candidate_witness_replays_global_membership()
+        is False
     )
 
 
@@ -590,6 +596,72 @@ def test_authoritative_anchor_route_skips_request_under_30_days(monkeypatch):
     assert result is None
     assert builder.partition_calls == []
     assert builder.root_calls == []
+
+
+@pytest.mark.unit
+def test_short_window_skips_global_candidate_before_root_cursor(monkeypatch):
+    from tracer.services.clickhouse import exact_graph_reads as exact_module
+
+    request_start = datetime(2026, 8, 1, 0, 0)
+    request_end = request_start + timedelta(minutes=5)
+
+    class Builder:
+        def __init__(self, **kwargs: Any):
+            del kwargs
+
+        @staticmethod
+        def supports_bounded_filter_scan() -> bool:
+            return True
+
+        @staticmethod
+        def parse_time_range(_filters: list[dict[str, Any]]):
+            return request_start, request_end
+
+        @staticmethod
+        def exact_graph_filter_witness_range():
+            return request_start, request_end
+
+        @staticmethod
+        def exact_graph_supports_authoritative_anchor_partition() -> bool:
+            return True
+
+        @staticmethod
+        def exact_graph_candidate_witness_replays_global_membership() -> bool:
+            return True
+
+        @staticmethod
+        def build_exact_graph_candidate_witness_probe(**_kwargs: Any):
+            raise AssertionError("short windows must not scan retained history")
+
+        @staticmethod
+        def build_filter_ordered_seed_page(**_kwargs: Any):
+            return "request-window-roots", {}
+
+    class Analytics:
+        calls: list[str] = []
+
+        @classmethod
+        def execute_ch_query(cls, query: str, _params: dict[str, Any], **_kwargs: Any):
+            cls.calls.append(query)
+            return SimpleNamespace(data=[], query_time_ms=1.0)
+
+    monkeypatch.setattr(
+        exact_module,
+        "EXACT_GRAPH_TRACE_ANCHOR_MIN_REQUEST_WIDTH",
+        timedelta(days=30),
+    )
+    monkeypatch.setattr(exact_module, "TraceListQueryBuilderV2", Builder)
+
+    result = exact_module._enumerate_exact_trace_ids(
+        analytics=Analytics(),
+        project_id=PROJECT_ID,
+        filters=[_time_filter(), _attribute_filter(key="prompt_slug")],
+        annotation_label_ids=None,
+        started=monotonic(),
+    )
+
+    assert result == ([], 1, 0)
+    assert Analytics.calls == ["request-window-roots"]
 
 
 @pytest.mark.unit

@@ -2224,6 +2224,11 @@ class TraceListQueryBuilder(BaseQueryBuilder):
             after_trace_id=after_trace_id,
         )
 
+    def exact_graph_candidate_witness_replays_global_membership(self) -> bool:
+        """Whether the optional graph candidate probe scans retained history."""
+
+        return self._positive_typed_map_candidate_plan() is not None
+
     def _exact_graph_authoritative_anchor_plan(
         self,
     ) -> LatestFilterPredicate | None:

@@ -1256,6 +1256,23 @@ def _enumerate_exact_trace_ids(
         "build_exact_graph_candidate_witness_probe",
         None,
     )
+    candidate_replays_global_membership = getattr(
+        builder,
+        "exact_graph_candidate_witness_replays_global_membership",
+        None,
+    )
+    if (
+        request_end - request_start < EXACT_GRAPH_TRACE_ANCHOR_MIN_REQUEST_WIDTH
+        and callable(candidate_replays_global_membership)
+        and bool(candidate_replays_global_membership())
+    ):
+        # The typed-Map candidate probe scans all retained child history. For a
+        # short root window that can consume the entire request wall before its
+        # resource-bounded first page falls back to the cheaper request-window
+        # root cursor. Relational candidates are already request-window scoped
+        # and remain enabled; long windows retain the global candidate/anchor
+        # routes unchanged.
+        candidate_probe = None
     if callable(candidate_probe):
         candidate_after_trace_id: str | None = None
         candidate_before_start_time: datetime | None = None
