@@ -3253,6 +3253,8 @@ function ValuePicker({
               <Box
                 key={pickerValueKey(optionValue, optionType)}
                 data-filter-value-option={String(optionValue)}
+                role={singleSelect ? "radio" : "checkbox"}
+                aria-checked={isSelected}
                 onClick={() => toggleValue(opt)}
                 sx={{
                   display: "flex",

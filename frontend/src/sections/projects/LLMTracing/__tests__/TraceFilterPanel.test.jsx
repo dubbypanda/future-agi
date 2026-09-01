@@ -3989,6 +3989,53 @@ describe("filter-value picker bounded-read UX", () => {
     document.body.removeChild(anchorEl);
   });
 
+  it("matches a trimmed catalog value to the selected filter value", () => {
+    dashboardFilterValuesMock.mockReturnValue({
+      ...defaultDashboardFilterValues(),
+      data: [
+        { value: "True ", label: "True", type: "string" },
+        { value: "False", label: "False", type: "string" },
+      ],
+    });
+    const annotationProperty = {
+      id: "Anno-Tate",
+      name: "Anno-Tate",
+      category: "annotation",
+      type: "string",
+      apiColType: "ANNOTATION",
+    };
+    const { anchorEl } = renderPanel({
+      currentFilters: [
+        {
+          field: "Anno-Tate",
+          fieldName: "Anno-Tate",
+          fieldCategory: "annotation",
+          fieldType: "string",
+          apiColType: "ANNOTATION",
+          operator: "equals",
+          value: ["True"],
+          valueTypes: ["string"],
+        },
+      ],
+      properties: [annotationProperty],
+    });
+
+    fireEvent.click(
+      document.querySelector('[data-filter-value-trigger="Anno-Tate"]'),
+    );
+
+    const trueOption = document.querySelector(
+      '[data-filter-value-option="True"]',
+    );
+    const falseOption = document.querySelector(
+      '[data-filter-value-option="False"]',
+    );
+    expect(trueOption).toHaveAttribute("aria-checked", "true");
+    expect(falseOption).toHaveAttribute("aria-checked", "false");
+
+    document.body.removeChild(anchorEl);
+  });
+
   it("offers Retry and exact free-text entry only for a real request error", () => {
     const refetch = vi.fn();
     dashboardFilterValuesMock.mockReturnValue({
