@@ -1285,7 +1285,8 @@ def _fetch_direct_raw_system_metric_graph(
             seed_candidate.params if seed_candidate is not None else None
         ),
     )
-    if start_date >= end_date:
+    empty_window = start_date >= end_date
+    if empty_window:
         rows: list[Any] = []
         columns: list[str] = []
         query_count = 0
@@ -1322,8 +1323,10 @@ def _fetch_direct_raw_system_metric_graph(
             # The full bounded window is read without sampling, but physical
             # ReplacingMergeTree versions are intentionally not collapsed on
             # this latency-critical path.
-            "query_provenance": "bounded_candidates",
-            "query_exact": False,
+            "query_provenance": (
+                "exact_snapshot" if empty_window else "bounded_candidates"
+            ),
+            "query_exact": empty_window,
         }
     )
     return enforce_exact_graph_data_contract(response)
@@ -1357,6 +1360,20 @@ def fetch_system_metric_graph_ch(
                 provenance="server_read_policy_unavailable",
             )
         return _fetch_rollup_system_metric_graph(
+            analytics=analytics,
+            project_id=project_id,
+            filters=filters,
+            interval=interval,
+            metric_id=str(metric_id or ""),
+            observe_type=normalized_observe_type,
+            timeout_ms=timeout_ms,
+        )
+    bounded_time_range = BaseQueryBuilder.analyze_bounded_datetime_filters(
+        filters,
+        strict=True,
+    )
+    if bounded_time_range.empty:
+        return _fetch_direct_raw_system_metric_graph(
             analytics=analytics,
             project_id=project_id,
             filters=filters,
