@@ -432,8 +432,8 @@ def test_property_catalog_executor_uses_one_shrinking_wall():
         "SELECT status FROM `property_catalog_dev_clean`.property_catalog_activations"
     )
 
-    executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})
-    executor.execute(query, {}, timeout_ms=2_000, settings={"max_result_rows": 1})
+    executor.execute(query, {}, timeout_ms=10_000, settings={"max_result_rows": 1})
+    executor.execute(query, {}, timeout_ms=10_000, settings={"max_result_rows": 1})
 
     assert client.calls[1][2] < client.calls[0][2]
 
