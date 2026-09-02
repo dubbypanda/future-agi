@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Stack, Typography } from "@mui/material";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import FormTextFieldV2 from "src/components/FormTextField/FormTextFieldV2";
 import {
@@ -63,6 +63,21 @@ export default function AlertSettingsForm({
   const { currentOrganizationId } = useOrganization();
   const observeId = selectedProject || alertRuleDetails?.project || null;
 
+  const buildFormValues = useCallback(
+    () =>
+      getDefaultAlertConfigValues({
+        ...(openSheetView && alertRuleDetails),
+        name: openSheetView
+          ? duplicateAlertName || alertRuleDetails?.name || ""
+          : "",
+        ...(alertType &&
+          !openSheetView && {
+            metricType: alertType,
+          }),
+      }),
+    [openSheetView, alertRuleDetails, duplicateAlertName, alertType],
+  );
+
   const {
     control,
     watch,
@@ -73,20 +88,26 @@ export default function AlertSettingsForm({
     trigger,
     formState: { errors, isDirty },
   } = useForm({
-    defaultValues: getDefaultAlertConfigValues({
-      ...(openSheetView && alertRuleDetails),
-      name: openSheetView
-        ? duplicateAlertName || alertRuleDetails?.name || ""
-        : "",
-      ...(alertType &&
-        !openSheetView && {
-          metricType: alertType,
-        }),
-    }),
+    defaultValues: buildFormValues(),
     resolver: zodResolver(AlertConfigValidationSchema),
     mode: "onChange",
     reValidateMode: "onChange",
   });
+
+  // defaultValues is mount-only, so the alert fetched afterwards has to be
+  // pushed in once per alert, without clobbering edits on later refetches.
+  const hydratedAlertIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!openSheetView) {
+      hydratedAlertIdRef.current = null;
+      return;
+    }
+    const alertId = alertRuleDetails?.id;
+    if (!alertId || hydratedAlertIdRef.current === alertId) return;
+    hydratedAlertIdRef.current = alertId;
+    reset(buildFormValues());
+  }, [openSheetView, alertRuleDetails, buildFormValues, reset]);
 
   const metricType = watch("metric_type");
   const metric = watch("metric");
@@ -284,7 +305,7 @@ export default function AlertSettingsForm({
         },
       });
       handleCloseCreateAlert();
-      reset(getDefaultAlertConfigValues());
+      hydratedAlertIdRef.current = null;
       refreshGrid();
       refreshIssues();
     },
