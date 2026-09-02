@@ -94,6 +94,14 @@ del _runtime_numeric_setting_specs
 _validate_runtime_numeric_settings(_runtime_numeric_settings)
 globals().update(_runtime_numeric_settings)
 
+# Optional ClickHouse cluster whose entries intentionally expose each physical
+# replica as one read shard. Dashboard heavy reads use it only after validating
+# the identifier in the query builder; an empty value keeps the local-table
+# fallback for OSS and single-node installations.
+DASHBOARD_TRACE_REPLICA_SHARD_CLUSTER = os.getenv(
+    "DASHBOARD_TRACE_REPLICA_SHARD_CLUSTER", ""
+).strip()
+
 SIMULATOR_PHONE_NUMBERS = tuple(
     _split_env(
         "SIMULATOR_PHONE_NUMBERS",

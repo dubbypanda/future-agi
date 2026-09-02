@@ -2229,6 +2229,32 @@ class TraceListQueryBuilder(BaseQueryBuilder):
 
         return self._positive_typed_map_candidate_plan() is not None
 
+    def exact_graph_candidate_witness_has_deployed_value_index(self) -> bool:
+        """Whether the all-history witness has a proven deployed value index.
+
+        Short root windows normally avoid replaying retained child history.
+        The exception is a scalar equality/IN witness whose compiled predicate
+        includes either the deployed numeric value bloom or the exhaustive
+        Unicode-safe companion for the deployed ASCII string-value bloom.
+        Key-only, boolean, range, and non-ASCII string witnesses stay on the
+        request-window fallback until their own production path is proven.
+        """
+
+        plan = self._positive_typed_map_candidate_plan()
+        if plan is None:
+            return False
+        predicate = self._exact_graph_authoritative_raw_witness(plan)
+        if not predicate:
+            return False
+        return any(
+            fragment in predicate
+            for fragment in (
+                "arrayMap(x -> lower(x), mapValues(span_attr_str))",
+                "has(mapValues(span_attr_num)",
+                "hasAny(mapValues(span_attr_num)",
+            )
+        )
+
     def _exact_graph_authoritative_anchor_plan(
         self,
     ) -> LatestFilterPredicate | None:
