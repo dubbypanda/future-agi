@@ -2594,8 +2594,11 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                             if log.trace_id
                             else None
                         ),
+                        # Off the row's own FK column: the target FKs are
+                        # unconstrained, so a run can reference a session with
+                        # no PG row and must still report what it evaluated.
                         "session_id": (
-                            str(trace_session.id) if trace_session else None
+                            str(log.trace_session_id) if log.trace_session_id else None
                         ),
                         "eval_id": str(config.id) if config else None,
                         "eval_name": config.name if config else None,
@@ -2631,7 +2634,9 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                                 else None
                             ),
                             "session_id": (
-                                str(trace_session.id) if trace_session else None
+                                str(log.trace_session_id)
+                                if log.trace_session_id
+                                else None
                             ),
                             "session_name": (
                                 trace_session.name if trace_session else None
