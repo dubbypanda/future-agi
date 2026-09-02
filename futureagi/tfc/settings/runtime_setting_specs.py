@@ -370,7 +370,10 @@ INTERACTIVE_READ_SETTING_SPECS = {
             ("TRACE_LIST_ANNOTATION_SCORE_SPAN_LIMIT", 50_000, 1, 1_000_000),
             ("VOICE_CONTENT_MAX_QUERY_ATTEMPTS", 64, 1, 1_024),
             ("VOICE_CONTENT_MAX_BATCH_SIZE", 200, 1, 5_000),
-            ("VOICE_CONTENT_MIN_REMAINING_MS", 1_500, 1, 60_000),
+            # Page hydration is part of the same request-owned 30-second wall.
+            # Do not impose a smaller per-statement cap: wide but finite voice
+            # rows can legitimately need more than 1.5 seconds to hydrate.
+            ("VOICE_CONTENT_MIN_REMAINING_MS", 30_000, 1, 60_000),
             ("VOICE_LIST_DEFAULT_PAGE_SIZE", 10, 1, 5_000),
             ("VOICE_FILTER_CLASSIFY_FALLBACK_BATCH_SIZE", 50, 1, 5_000),
             ("VOICE_FILTER_EXPENSIVE_CLASSIFIER_CHUNKS", 4, 1, 64),
