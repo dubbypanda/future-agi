@@ -252,8 +252,12 @@ const readAlertField = (config, camelKey, snakeKey) =>
 
 // A saved 0 is a value, not an absence, so validity beats truthiness here.
 const numberOr = (value, fallback) => {
-  if (value === null || value === undefined || value === "") return fallback;
-  const parsed = Number(value);
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : NaN;
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 

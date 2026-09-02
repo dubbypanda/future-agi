@@ -94,20 +94,26 @@ export default function AlertSettingsForm({
     reValidateMode: "onChange",
   });
 
-  // defaultValues is mount-only, so the alert fetched afterwards has to be
-  // pushed in once per alert, without clobbering edits on later refetches.
-  const hydratedAlertIdRef = useRef(null);
+  // defaultValues is mount-only, so an alert that arrives later has to be pushed in.
+  const hydratedKeyRef = useRef(null);
 
   useEffect(() => {
     if (!openSheetView) {
-      hydratedAlertIdRef.current = null;
+      hydratedKeyRef.current = null;
       return;
     }
-    const alertId = alertRuleDetails?.id;
-    if (!alertId || hydratedAlertIdRef.current === alertId) return;
-    hydratedAlertIdRef.current = alertId;
+    if (!alertRuleDetails?.id) return;
+    const key = `${alertRuleDetails.id}|${duplicateAlertName ?? ""}`;
+    if (hydratedKeyRef.current === key) return;
+    hydratedKeyRef.current = key;
     reset(buildFormValues());
-  }, [openSheetView, alertRuleDetails, buildFormValues, reset]);
+  }, [
+    openSheetView,
+    alertRuleDetails,
+    duplicateAlertName,
+    buildFormValues,
+    reset,
+  ]);
 
   const metricType = watch("metric_type");
   const metric = watch("metric");
@@ -305,7 +311,6 @@ export default function AlertSettingsForm({
         },
       });
       handleCloseCreateAlert();
-      hydratedAlertIdRef.current = null;
       refreshGrid();
       refreshIssues();
     },
@@ -315,16 +320,14 @@ export default function AlertSettingsForm({
     const { observation_type, span_attributes_filters } =
       convertFiltersToPayload(data?.filters);
 
-    const notificationPayload = {};
-    if (data?.notification?.method === "email") {
-      notificationPayload.notification_emails =
-        data?.notification?.emails ?? [];
-    }
-    if (data?.notification?.method === "slack") {
-      notificationPayload.slack_webhook_url =
-        data?.notification?.slack?.webhookUrl ?? "";
-      notificationPayload.slack_notes = data?.notification?.slack?.notes ?? "";
-    }
+    const isSlack = data?.notification?.method === "slack";
+    const notificationPayload = {
+      notification_emails: isSlack ? [] : data?.notification?.emails ?? [],
+      slack_webhook_url: isSlack
+        ? data?.notification?.slack?.webhookUrl ?? ""
+        : "",
+      slack_notes: isSlack ? data?.notification?.slack?.notes ?? "" : "",
+    };
     if (
       selectedMetricOptions?.length > 0 &&
       data?.metric_type === "evaluation_metrics" &&

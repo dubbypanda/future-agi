@@ -31,6 +31,7 @@ import {
   transformFilterResponse,
 } from "../components/validation";
 import AlertSettingsForm from "../components/AlertSettingsForm";
+import { savedAlert as baseSavedAlert } from "./fixtures";
 import { resetAlertStoreState, useAlertStore } from "../store/useAlertStore";
 import {
   resetAlertSheetStoreState,
@@ -195,25 +196,8 @@ describe("saved alert survives a visit to the filter panel", () => {
 });
 
 const savedAlert = {
-  id: "alert-1",
-  name: "Groundedness dip",
-  project: "project-1",
-  metric_type: "evaluation_metrics",
-  metric: "eval-1",
-  metric_name: "Groundedness",
-  threshold_type: "percentage_change",
-  threshold_operator: "less_than",
-  threshold_metric_value: "Passed",
+  ...baseSavedAlert,
   critical_threshold_value: 0,
-  warning_threshold_value: 12,
-  alert_frequency: 240,
-  auto_threshold_time_window: 1440,
-  slack_webhook_url: "https://hooks.slack.com/services/T0/B0/xyz",
-  slack_notes: "#alerts-prod",
-  notification_emails: [],
-  created_at: "2026-05-24T00:00:00Z",
-  created_by: { name: "Sam" },
-  is_mute: false,
   filters: {},
 };
 
@@ -230,7 +214,7 @@ const fieldValue = (field) =>
 const checkedRadio = (name) =>
   document.querySelector(`input[name="${name}"]:checked`)?.value;
 
-const openSavedAlertForEditing = async () => {
+const openSavedAlertForEditing = async (detail = savedAlert) => {
   renderWithRouter(
     <QueryClientProvider
       client={
@@ -254,7 +238,7 @@ const openSavedAlertForEditing = async () => {
   // reaches the form only after the form already exists.
   act(() => {
     useAlertSheetStore.setState({
-      alertRuleDetails: normalizeAlertDetail(savedAlert),
+      alertRuleDetails: normalizeAlertDetail(detail),
     });
   });
 
@@ -341,6 +325,41 @@ describe("saved alert reopens in the settings form", () => {
     expect(
       screen.getByDisplayValue(savedAlert.slack_notes),
     ).toBeInTheDocument();
+  });
+
+  it("clears the Slack webhook when the alert is switched to email", async () => {
+    const patch = vi
+      .spyOn(axios, "patch")
+      .mockResolvedValue({ data: { result: "ok" } });
+
+    await openSavedAlertForEditing({
+      ...savedAlert,
+      notification_emails: ["alerts@futureagi.com"],
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        document.querySelector(
+          'input[name="notification.method"][value="email"]',
+        ),
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        document.querySelector('[data-alert-form-submit="update"]'),
+      );
+    });
+
+    await waitFor(() => expect(patch).toHaveBeenCalled());
+    expect(patch).toHaveBeenCalledWith(
+      `${endpoints.project.createMonitor}${savedAlert.id}/`,
+      expect.objectContaining({
+        notification_emails: ["alerts@futureagi.com"],
+        slack_webhook_url: "",
+        slack_notes: "",
+      }),
+    );
   });
 
   it("keeps the stored values after an update instead of blanking the form", async () => {

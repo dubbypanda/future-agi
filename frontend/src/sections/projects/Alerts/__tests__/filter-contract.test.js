@@ -13,6 +13,7 @@ import {
   getDefaultAlertConfigValues,
   transformFilterResponse,
 } from "../components/validation";
+import { savedAlert } from "./fixtures";
 
 describe("alert filter contract", () => {
   it("sends canonical span attribute filters to the API", () => {
@@ -145,29 +146,6 @@ describe("alert filter contract", () => {
     ]);
   });
 });
-
-const savedAlert = {
-  id: "alert-1",
-  name: "Groundedness dip",
-  project: "project-1",
-  metric_type: "evaluation_metrics",
-  metric: "eval-1",
-  metric_name: "Groundedness",
-  threshold_type: "percentage_change",
-  threshold_operator: "less_than",
-  threshold_metric_value: "Passed",
-  critical_threshold_value: 5,
-  warning_threshold_value: 12,
-  alert_frequency: 240,
-  auto_threshold_time_window: 1440,
-  slack_webhook_url: "https://hooks.slack.com/services/T0/B0/xyz",
-  slack_notes: "#alerts-prod",
-  notification_emails: [],
-  created_at: "2026-05-24T00:00:00Z",
-  created_by: { name: "Sam" },
-  is_mute: false,
-  filters: { observation_type: ["llm"] },
-};
 
 const editFormValues = (detail) =>
   getDefaultAlertConfigValues(normalizeAlertDetail(detail));
