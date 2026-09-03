@@ -43,6 +43,10 @@ class FeedListRow:
 
     cluster_id: str
     source: str  # "scanner" | "eval"
+    # Scanner: the taxonomy group ("Tool Failures"). Eval: the eval task name.
+    # The Feed row labels its source chip from this, so it must survive to the
+    # wire — `error.type` already falls back to it and cannot be relied on.
+    issue_group: str | None
     error: ErrorName
     status: str  # escalating | for_review | acknowledged | resolved
     severity: str  # critical | high | medium | low (mapped from Priority)

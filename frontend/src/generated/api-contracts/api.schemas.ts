@@ -21631,6 +21631,8 @@ export interface FeedListRowApi {
   /** @minLength 1 */
   source: string;
   /** @minLength 1 */
+  issue_group: string;
+  /** @minLength 1 */
   modality: string;
   error: ErrorNameApi;
   /** @minLength 1 */

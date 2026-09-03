@@ -425,6 +425,7 @@ def _row_from_cluster(
     return FeedListRow(
         cluster_id=cluster.cluster_id,
         source=cluster.source or "scanner",
+        issue_group=cluster.issue_group,
         modality=modality,
         error=ErrorName(
             name=cluster.title or cluster.issue_category or cluster.cluster_id,

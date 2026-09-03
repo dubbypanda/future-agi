@@ -53,8 +53,9 @@ function ErrorTypeTag({ type, isDark }) {
     .trim();
   return (
     <Chip
-      label={shortType}
       size="small"
+      icon={<Iconify icon="mdi:bug-outline" width={11} sx={{ ml: "4px", mr: 0 }} />}
+      label={shortType}
       sx={{
         height: 18,
         borderRadius: "3px",
@@ -62,6 +63,9 @@ function ErrorTypeTag({ type, isDark }) {
         fontWeight: 500,
         bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
         color: isDark ? "#a1a1aa" : "#605C70",
+        "& .MuiChip-icon": {
+          color: isDark ? "#a1a1aa" : "#605C70",
+        },
         "& .MuiChip-label": { px: "5px" },
         maxWidth: 140,
         overflow: "hidden",
@@ -72,6 +76,44 @@ function ErrorTypeTag({ type, isDark }) {
 
 ErrorTypeTag.propTypes = {
   type: PropTypes.string,
+  isDark: PropTypes.bool,
+};
+
+// Tells the row apart at a glance: a cluster is either Future AGI's built-in
+// error taxonomy or one of the customer's own eval tasks. One icon for both
+// states — the label carries the difference.
+function SourceTag({ source, issueGroup, isDark }) {
+  let label = "Taxonomy";
+  if (source === "eval") {
+    // A null/empty issue_group must not leave a dangling separator.
+    label = issueGroup ? `Eval · ${issueGroup}` : "Eval";
+  }
+  return (
+    <Chip
+      size="small"
+      icon={<Iconify icon="mdi:tag-outline" width={11} sx={{ ml: "4px", mr: 0 }} />}
+      label={label}
+      sx={{
+        height: 18,
+        borderRadius: "3px",
+        fontSize: "10px",
+        fontWeight: 500,
+        bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
+        color: isDark ? "#a1a1aa" : "#605C70",
+        "& .MuiChip-icon": {
+          color: isDark ? "#a1a1aa" : "#605C70",
+        },
+        "& .MuiChip-label": { px: "5px" },
+        maxWidth: 180,
+        overflow: "hidden",
+      }}
+    />
+  );
+}
+
+SourceTag.propTypes = {
+  source: PropTypes.string,
+  issueGroup: PropTypes.string,
   isDark: PropTypes.bool,
 };
 
@@ -446,6 +488,11 @@ export default function ErrorFeedTable({ selected, onSelect, onSelectAll }) {
                           </Typography>
                         </Tooltip>
                         <Stack direction="row" alignItems="center" gap={0.75}>
+                          <SourceTag
+                            source={row.source}
+                            issueGroup={row.issue_group}
+                            isDark={isDark}
+                          />
                           <ErrorTypeTag type={row.error.type} isDark={isDark} />
                           {row.eval_score != null && (
                             <Typography
