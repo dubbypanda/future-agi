@@ -93,6 +93,11 @@ class PropertyCatalogConnectionConfig:
             prod_workspace_allowlist=getattr(
                 source, "PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST", None
             ),
+            prod_workspace_scope_mode=getattr(
+                source,
+                "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE",
+                "allowlist",
+            ),
         )
         if deployment is None:
             raise ValueError("property catalog reads are disabled")

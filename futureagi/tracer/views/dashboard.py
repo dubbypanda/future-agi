@@ -23,7 +23,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from tfc.routers import uses_db
-from tfc.settings.settings import property_catalog_read_workspace_allowlist
+from tfc.settings.settings import (
+    property_catalog_read_workspace_allowlist,
+    property_catalog_reads_all_production_workspaces,
+)
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
@@ -192,6 +195,10 @@ def _property_catalog_read_enabled_for_workspace(workspace) -> bool:
     if getattr(settings, "PROPERTY_CATALOG_READ_MODE", "off") != "read":
         return False
     workspace_id = getattr(workspace, "id", None)
+    if workspace_id is not None and property_catalog_reads_all_production_workspaces(
+        settings
+    ):
+        return True
     return workspace_id is not None and str(workspace_id) in set(
         property_catalog_read_workspace_allowlist(settings)
     )

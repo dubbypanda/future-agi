@@ -8,6 +8,7 @@ from tfc.settings.settings import (
     PROPERTY_CATALOG_DEV_READ_ACKNOWLEDGEMENT,
     PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT,
     property_catalog_read_workspace_allowlist,
+    property_catalog_reads_all_production_workspaces,
 )
 from tracer.services.clickhouse.v2.attribute_catalog_connection import (
     _validate_catalog_query,
@@ -52,6 +53,7 @@ def _read_settings(**overrides):
         "PROPERTY_CATALOG_CH_PASSWORD": "not-logged",
         "PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST": ("workspace-1",),
         "PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST": (),
+        "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE": "allowlist",
         "CLICKHOUSE_V2": {"CH25_USER": "source_v2"},
         "CLICKHOUSE": {"CH_USERNAME": "source_v1"},
     }
@@ -171,6 +173,43 @@ def test_property_catalog_connection_accepts_maximum_production_allowlist():
     assert PropertyCatalogConnectionConfig.from_settings(source).database == (
         "property_catalog"
     )
+
+
+def test_property_catalog_connection_accepts_global_production_workspace_scope():
+    source = _prod_settings(
+        PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE="all",
+        PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST=(),
+        PROPERTY_CATALOG_READ_DEPLOYMENT="prod",
+    )
+
+    assert PropertyCatalogConnectionConfig.from_settings(source).database == (
+        "property_catalog"
+    )
+    assert property_catalog_reads_all_production_workspaces(source) is True
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {
+            "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE": "all",
+            "PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST": ("workspace-1",),
+        },
+        {"PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE": "invalid"},
+    ),
+)
+def test_property_catalog_connection_rejects_invalid_global_production_scope(
+    overrides,
+):
+    with pytest.raises(ValueError):
+        PropertyCatalogConnectionConfig.from_settings(_prod_settings(**overrides))
+
+
+def test_property_catalog_connection_rejects_global_scope_in_dev():
+    with pytest.raises(ValueError, match="production-only"):
+        PropertyCatalogConnectionConfig.from_settings(
+            _read_settings(PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE="all")
+        )
 
 
 def test_property_catalog_read_workspace_allowlist_is_deployment_bound():

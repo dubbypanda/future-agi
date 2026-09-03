@@ -1182,9 +1182,8 @@ PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT = (
     "I_ACKNOWLEDGE_PROD_READ_ONLY_UNIFIED_PROPERTY_CATALOG"
 )
 PROPERTY_CATALOG_MAX_READ_WORKSPACES = 256
-PROPERTY_CATALOG_PRODUCTION_DATABASE_ENV = (
-    "PROPERTY_CATALOG_PRODUCTION_DATABASE"
-)
+PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODES = frozenset({"allowlist", "all"})
+PROPERTY_CATALOG_PRODUCTION_DATABASE_ENV = "PROPERTY_CATALOG_PRODUCTION_DATABASE"
 PROPERTY_CATALOG_DEFAULT_PRODUCTION_DATABASE = "property_catalog"
 _PROPERTY_CATALOG_DATABASE_IDENTIFIER = re.compile(r"\A[a-z][a-z0-9_]*\Z")
 _PROPERTY_CATALOG_RESERVED_DATABASES = {
@@ -1251,8 +1250,7 @@ def validate_property_catalog_database(
     if (
         not production_database
         or len(production_database.encode("utf-8")) > 128
-        or _PROPERTY_CATALOG_DATABASE_IDENTIFIER.fullmatch(production_database)
-        is None
+        or _PROPERTY_CATALOG_DATABASE_IDENTIFIER.fullmatch(production_database) is None
         or production_database in _PROPERTY_CATALOG_RESERVED_DATABASES
     ):
         raise ValueError(
@@ -1322,6 +1320,7 @@ def validate_property_catalog_read_admission(
     source_users: object,
     dev_workspace_allowlist: object,
     prod_workspace_allowlist: object,
+    prod_workspace_scope_mode: object = "allowlist",
 ) -> str | None:
     """Fail closed unless one bounded DEV or production read is admitted."""
 
@@ -1340,12 +1339,22 @@ def validate_property_catalog_read_admission(
         cross_wired_acknowledgement = prod_acknowledgement
         workspace_allowlist = dev_workspace_allowlist
         cross_wired_workspace_allowlist = prod_workspace_allowlist
+        workspace_scope_mode = "allowlist"
+        if prod_workspace_scope_mode != "allowlist":
+            raise ValueError(
+                "global property catalog workspace scope is production-only"
+            )
     else:
         acknowledgement = prod_acknowledgement
         expected_acknowledgement = PROPERTY_CATALOG_PROD_READ_ACKNOWLEDGEMENT
         cross_wired_acknowledgement = dev_acknowledgement
         workspace_allowlist = prod_workspace_allowlist
         cross_wired_workspace_allowlist = dev_workspace_allowlist
+        workspace_scope_mode = prod_workspace_scope_mode
+        if workspace_scope_mode not in PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODES:
+            raise ValueError(
+                "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE must be allowlist or all"
+            )
     if (
         acknowledgement != expected_acknowledgement
         or cross_wired_acknowledgement not in {None, ""}
@@ -1384,6 +1393,12 @@ def validate_property_catalog_read_admission(
         raise ValueError(
             "property catalog workspace allowlist must contain 1 to 256 entries"
         ) from exc
+    if workspace_scope_mode == "all":
+        if workspaces:
+            raise ValueError(
+                "global property catalog workspace scope requires an empty allowlist"
+            )
+        return deployment
     if not 1 <= len(workspaces) <= PROPERTY_CATALOG_MAX_READ_WORKSPACES or any(
         not isinstance(workspace, str) or not workspace.strip()
         for workspace in workspaces
@@ -1408,6 +1423,20 @@ def property_catalog_read_workspace_allowlist(source: object) -> tuple[object, .
         return tuple(configured)
     except TypeError:
         return ()
+
+
+def property_catalog_reads_all_production_workspaces(source: object) -> bool:
+    """Return whether admitted production reads use authenticated workspace scope."""
+
+    return (
+        getattr(source, "PROPERTY_CATALOG_READ_DEPLOYMENT", None) == "prod"
+        and getattr(
+            source,
+            "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE",
+            "allowlist",
+        )
+        == "all"
+    )
 
 
 PROPERTY_CATALOG_READ_MODE = (
@@ -1573,6 +1602,14 @@ PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST = tuple(
             if value.strip()
         }
     )
+)
+PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE = (
+    os.getenv(
+        "PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE",
+        "allowlist",
+    )
+    .strip()
+    .lower()
 )
 try:
     PROPERTY_CATALOG_CH_PORT = (
@@ -1825,6 +1862,7 @@ PROPERTY_CATALOG_READ_DEPLOYMENT = validate_property_catalog_read_admission(
     - {""},
     dev_workspace_allowlist=PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST,
     prod_workspace_allowlist=PROPERTY_CATALOG_PROD_WORKSPACE_ALLOWLIST,
+    prod_workspace_scope_mode=PROPERTY_CATALOG_PROD_WORKSPACE_SCOPE_MODE,
 )
 PROPERTY_CATALOG_READ_WORKSPACE_ALLOWLIST = (
     PROPERTY_CATALOG_DEV_WORKSPACE_ALLOWLIST
