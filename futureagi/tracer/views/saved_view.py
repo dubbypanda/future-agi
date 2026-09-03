@@ -292,18 +292,29 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
             # rejected (same contract as create/update); the auto-generated
             # copy name is uniquified so repeat duplicates keep working.
             existing_names = set(scope_qs.values_list("name", flat=True))
+            max_len = SavedView._meta.get_field("name").max_length
             requested_name = request.data.get("name")
+            if requested_name is not None and not isinstance(requested_name, str):
+                return self._gm.bad_request("View name must be a string.")
+            if isinstance(requested_name, str):
+                requested_name = requested_name.strip()
             if requested_name:
                 new_name = requested_name
                 if new_name in existing_names:
                     return self._gm.bad_request(
                         f"A view named '{new_name}' already exists."
                     )
+            elif requested_name == "":
+                return self._gm.bad_request("View name cannot be empty.")
             else:
-                new_name = f"{original.name} (Copy)"
+                def copy_name(suffix):
+                    label = " (Copy)" if suffix is None else f" (Copy {suffix})"
+                    return f"{original.name[: max_len - len(label)]}{label}"
+
+                new_name = copy_name(None)
                 suffix = 2
                 while new_name in existing_names:
-                    new_name = f"{original.name} (Copy {suffix})"
+                    new_name = copy_name(suffix)
                     suffix += 1
 
             new_view = SavedView(

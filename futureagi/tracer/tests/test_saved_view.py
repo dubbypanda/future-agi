@@ -838,6 +838,43 @@ class TestSavedViewDuplicate:
         assert "already exists" in str(response.json())
 
     @pytest.mark.django_db
+    def test_duplicate_strips_requested_name_before_collision_check(
+        self, auth_client, saved_view
+    ):
+        """A padded name normalizes to the existing one and is rejected, not
+        saved as a look-alike duplicate."""
+        response = auth_client.post(
+            _view_url(saved_view, "duplicate/"),
+            {"name": f"  {saved_view.name}  "},
+            format="json",
+        )
+        assert response.status_code == 400
+        assert "already exists" in str(response.json())
+
+    @pytest.mark.django_db
+    def test_duplicate_rejects_blank_name(self, auth_client, saved_view):
+        response = auth_client.post(
+            _view_url(saved_view, "duplicate/"),
+            {"name": "   "},
+            format="json",
+        )
+        assert response.status_code == 400
+        assert "empty" in str(response.json()).lower()
+
+    @pytest.mark.django_db
+    def test_duplicate_rejects_non_string_name(self, auth_client, saved_view):
+        """A non-string name is rejected (mirrors create/update), not coerced
+        or crashed on the collision check."""
+        for bad in (123, [saved_view.name], {"x": 1}):
+            response = auth_client.post(
+                _view_url(saved_view, "duplicate/"),
+                {"name": bad},
+                format="json",
+            )
+            assert response.status_code == 400, bad
+            assert "string" in str(response.json()).lower(), bad
+
+    @pytest.mark.django_db
     def test_duplicate_shared_view_becomes_personal(self, auth_client, shared_view):
         response = auth_client.post(
             _view_url(shared_view, "duplicate/"),

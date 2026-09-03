@@ -28,6 +28,8 @@ import {
   useDeleteSavedView,
   useReorderSavedViews,
   getOwnViewNames,
+  DEFAULT_VIEW_NAME,
+  findOwnDefaultView,
 } from "src/api/project/saved-views";
 import { useAuthContext } from "src/auth/hooks";
 import SpanTreeTimeline from "./SpanTreeTimeline";
@@ -240,8 +242,12 @@ const TraceDetailDrawerV2 = ({
   const { mutate: deleteSavedView } = useDeleteSavedView(projectId);
   const { mutate: reorderSavedViews } = useReorderSavedViews(projectId);
 
-  const customViews =
-    savedViewsData?.customViews || savedViewsData?.custom_views || [];
+  // The list endpoint returns `custom_views`; memoized so it's a stable dep for
+  // the callbacks below (a fresh `|| []` array each render would defeat them).
+  const customViews = useMemo(
+    () => savedViewsData?.custom_views ?? [],
+    [savedViewsData],
+  );
   const { user } = useAuthContext();
   // Inline duplicate-guard input: the current user's own view names.
   const ownViewNames = getOwnViewNames(customViews, user?.id);
@@ -380,7 +386,9 @@ const TraceDetailDrawerV2 = ({
     };
 
     if (activeDrawerTab !== "trace") {
-      // Update existing custom view to project visibility
+      // Flip visibility only. This branch handles non-"trace" (imagine) tabs,
+      // whose config is a different shape — resending the trace-shaped config
+      // below would corrupt it (the same reason auto-save skips imagine tabs).
       updateSavedView({ id: activeDrawerTab, visibility: "project" }, onDone);
       return;
     }
@@ -390,8 +398,13 @@ const TraceDetailDrawerV2 = ({
       filters: spanFilters,
     };
 
-    // Adopt an existing "Default View" (a blind create would 400 on the name).
-    const existingDefault = customViews.find((v) => v.name === "Default View");
+    // Adopt the user's own default for this drawer's tab_type ("traces").
+    // Scoped to the current user so we never overwrite a teammate's shared
+    // default (a blind create would 400 on the name).
+    const existingDefault = findOwnDefaultView(customViews, {
+      tabType: "traces",
+      userId: user?.id,
+    });
     if (existingDefault) {
       updateSavedView(
         { id: existingDefault.id, visibility: "project", config },
@@ -403,7 +416,7 @@ const TraceDetailDrawerV2 = ({
     createSavedView(
       {
         project_id: projectId,
-        name: "Default View",
+        name: DEFAULT_VIEW_NAME,
         tab_type: "traces",
         visibility: "project",
         config,
@@ -419,6 +432,7 @@ const TraceDetailDrawerV2 = ({
     spanFilters,
     projectId,
     customViews,
+    user,
     updateSavedView,
     createSavedView,
   ]);

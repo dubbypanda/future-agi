@@ -234,6 +234,9 @@ import {
   useCreateSavedView,
   useUpdateWorkspaceSavedView,
   useGetSavedViews,
+  DEFAULT_VIEW_NAME,
+  findOwnDefaultView,
+  tabTypeForSelectedTab,
 } from "src/api/project/saved-views";
 import { getRequestErrorMessage } from "src/utils/errorUtils";
 import { getDefaultDateRangeForMode } from "../dateRangeDefaults";
@@ -716,7 +719,7 @@ const slotKeyFromColumnState = (columnState, fallbackSlotKey) => {
 const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   const isUserMode = mode === "user";
   const { currentWorkspaceId } = useWorkspace();
-  const { role } = useAuthContext();
+  const { role, user } = useAuthContext();
   const navigate = useNavigate();
   const [selectedGraph, setSelectedGraph] = useUrlState(
     "selectedGraph",
@@ -2952,10 +2955,16 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       return;
     }
 
-    // Adopt an existing "Default View" (a blind create would 400 on the name).
-    const existingDefault = (savedViewsData?.custom_views ?? []).find(
-      (v) => v.name === "Default View",
-    );
+    const tabType = tabTypeForSelectedTab(selectedTab);
+
+    // Adopt the user's own default for THIS tab_type (a blind create would 400
+    // on the name). Scoped to the current user so we never overwrite a
+    // teammate's shared default, and to tab_type so a spans click can't PATCH
+    // the traces default with spans-shaped config.
+    const existingDefault = findOwnDefaultView(savedViewsData?.custom_views, {
+      tabType,
+      userId: user?.id,
+    });
     if (existingDefault) {
       updateSavedView(
         {
@@ -2971,8 +2980,8 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     createSavedView(
       {
         project_id: observeId,
-        name: "Default View",
-        tab_type: selectedTab === "trace" ? "traces" : "spans",
+        name: DEFAULT_VIEW_NAME,
+        tab_type: tabType,
         visibility: "project",
         config: configPayload,
       },
@@ -2999,6 +3008,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     isUserMode,
     navigate,
     savedViewsData,
+    user,
     buildViewConfig,
     updateSavedView,
     createSavedView,
