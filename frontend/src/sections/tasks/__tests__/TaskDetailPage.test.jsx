@@ -65,10 +65,17 @@ vi.mock("src/sections/common/EvalsTasks/TaskLogsView", () => ({
 }));
 
 vi.mock("../components/TaskHeader", () => ({
-  default: ({ name, status, actions }) => (
+  default: ({ name, status, actions, onNameChange }) => (
     <div>
+      <div>task header</div>
       <div>{name}</div>
       <div>{status}</div>
+      <button
+        type="button"
+        onClick={() => onNameChange?.("Renamed Inline Task")}
+      >
+        mock rename
+      </button>
       <div>{actions}</div>
     </div>
   ),
@@ -149,6 +156,70 @@ describe("TaskDetailPage", () => {
     enqueueSnackbar.mockReset();
   });
 
+  it("shows a retryable failure instead of an endless spinner when the task API fails", () => {
+    const refetch = vi.fn();
+    useGetTaskData.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      isFetching: false,
+      refetch,
+      error: {
+        statusCode: 404,
+        result: "Eval task not found",
+      },
+    });
+
+    renderTaskDetail();
+
+    expect(screen.getByText("Task not available")).toBeInTheDocument();
+    expect(screen.getByText("Eval task not found")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Back to Tasks/i }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /^retry$/i }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("keeps prior task truth visible when a refresh fails and offers retry", () => {
+    const refetch = vi.fn();
+    useGetTaskData.mockReturnValue({
+      data: loadedTask(),
+      isLoading: false,
+      isFetching: false,
+      isError: true,
+      error: new Error("refresh failed"),
+      refetch,
+    });
+
+    renderTaskDetail("task-1");
+
+    expect(screen.getByText("task header")).toBeInTheDocument();
+    expect(screen.getByText("panels")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Existing task details are still shown/i),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^retry$/i }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("uses the detail PATCH route for inline rename without requiring edit_type", async () => {
+    useGetTaskData.mockReturnValue({
+      data: loadedTask(),
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTaskDetail("task-1");
+    fireEvent.click(screen.getByRole("button", { name: /mock rename/i }));
+
+    await waitFor(() => {
+      expect(axiosPatchMock).toHaveBeenCalledWith("/tracer/eval-task/task-1/", {
+        name: "Renamed Inline Task",
+      });
+    });
+  });
+
   it("renders the detail page with task header and tabs", () => {
     useGetTaskData.mockReturnValue({
       data: loadedTask(),
@@ -162,19 +233,6 @@ describe("TaskDetailPage", () => {
     expect(screen.getByRole("tab", { name: /details/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /logs/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /usage/i })).toBeInTheDocument();
-  });
-
-  it("shows an error alert when the task cannot be loaded", () => {
-    useGetTaskData.mockReturnValue({
-      data: null,
-      isLoading: false,
-      isError: true,
-      error: { result: "Task not found" },
-    });
-
-    renderTaskDetail("task-1");
-
-    expect(screen.getByText("Task not found")).toBeInTheDocument();
   });
 
   it("pauses a running task from the header", async () => {
@@ -438,6 +496,7 @@ describe("TaskDetailPage", () => {
         evals: ["eval-1"],
         filters: {
           project_id: "project-1",
+          date_preset: "custom",
           date_range: [
             "2026-01-01T00:00:00.000Z",
             "2026-01-02T00:00:00.000Z",
