@@ -54,13 +54,15 @@ function ErrorTypeTag({ type, isDark }) {
   return (
     <Chip
       size="small"
-      icon={<Iconify icon="mdi:bug-outline" width={11} sx={{ ml: "4px", mr: 0 }} />}
+      icon={
+        <Iconify icon="mdi:bug-outline" width={11} sx={{ ml: "4px", mr: 0 }} />
+      }
       label={shortType}
       sx={{
         height: 18,
         borderRadius: "3px",
         fontSize: "10px",
-        fontWeight: 500,
+        fontWeight: "fontWeightMedium",
         bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
         color: isDark ? "#a1a1aa" : "#605C70",
         "& .MuiChip-icon": {
@@ -91,13 +93,15 @@ function SourceTag({ source, issueGroup, isDark }) {
   return (
     <Chip
       size="small"
-      icon={<Iconify icon="mdi:tag-outline" width={11} sx={{ ml: "4px", mr: 0 }} />}
+      icon={
+        <Iconify icon="mdi:tag-outline" width={11} sx={{ ml: "4px", mr: 0 }} />
+      }
       label={label}
       sx={{
         height: 18,
         borderRadius: "3px",
         fontSize: "10px",
-        fontWeight: 500,
+        fontWeight: "fontWeightMedium",
         bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
         color: isDark ? "#a1a1aa" : "#605C70",
         "& .MuiChip-icon": {
