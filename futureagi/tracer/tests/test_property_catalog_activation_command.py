@@ -49,6 +49,7 @@ def _settings(**overrides: object) -> SimpleNamespace:
         ),
         "PROPERTY_CATALOG_LIFECYCLE_CATALOG_EPOCH": 2,
         "PROPERTY_CATALOG_LIFECYCLE_PROJECTION_VERSION": 1,
+        "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE": "allowlist",
         "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST": (WORKSPACE,),
     }
     values.update(overrides)
@@ -91,6 +92,7 @@ def test_config_requires_dedicated_control_writer() -> None:
     assert config.catalog_epoch == 2
     assert config.user == "catalog_control_writer"
     assert config.expected_hostnames == ("catalog-0", "catalog-1")
+    assert config.workspace_scope_mode == "allowlist"
 
     with pytest.raises(
         subject.ProductionActivationCommandError,
@@ -101,6 +103,46 @@ def test_config_requires_dedicated_control_writer() -> None:
                 PROPERTY_CATALOG_ACTIVATION_CONTROL_CH_USER=("catalog_lifecycle_writer")
             )
         )
+
+
+def test_config_accepts_global_workspace_scope_without_an_allowlist() -> None:
+    config = subject.activation_command_config(
+        settings_object=_settings(
+            PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE="all",
+            PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST=(),
+        )
+    )
+
+    assert config.workspace_scope_mode == "all"
+    assert config.workspace_ids == ()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    (
+        (
+            {"PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE": "invalid"},
+            "must equal allowlist or all",
+        ),
+        (
+            {
+                "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE": "all",
+                "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST": (WORKSPACE,),
+            },
+            "requires an empty workspace allowlist",
+        ),
+        (
+            {"PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_ALLOWLIST": ()},
+            "non-empty unique",
+        ),
+    ),
+)
+def test_config_rejects_inconsistent_workspace_scope(
+    overrides: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(subject.ProductionActivationCommandError, match=message):
+        subject.activation_command_config(settings_object=_settings(**overrides))
 
 
 def test_status_is_read_only_and_execute_is_exactly_replayable() -> None:

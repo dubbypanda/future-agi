@@ -85,6 +85,7 @@ class ActivationCommandConfig:
     expected_hostnames: tuple[str, ...]
     catalog_epoch: int
     projection_version: int
+    workspace_scope_mode: str
     workspace_ids: tuple[str, ...]
 
 
@@ -216,7 +217,7 @@ class _ActivationControlClient:
 class Command(BaseCommand):
     help = (
         "Inspect or append the first production property-catalog activation-control "
-        "event for one exact allowlisted workspace."
+        "event for one active workspace in the configured lifecycle scope."
     )
     requires_system_checks: list[str] = []
     requires_migrations_checks = False
@@ -238,7 +239,10 @@ class Command(BaseCommand):
                 options.get("workspace_id"),
                 field="workspace_id",
             )
-            if workspace_id not in config.workspace_ids:
+            if (
+                config.workspace_scope_mode == "allowlist"
+                and workspace_id not in config.workspace_ids
+            ):
                 raise ProductionActivationCommandError(
                     "workspace is outside the exact production lifecycle allowlist"
                 )
@@ -388,6 +392,22 @@ def activation_command_config(*, settings_object: Any) -> ActivationCommandConfi
         settings_object,
         "PROPERTY_CATALOG_LIFECYCLE_PROJECTION_VERSION",
     )
+    workspace_scope_mode = (
+        str(
+            getattr(
+                settings_object,
+                "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE",
+                "allowlist",
+            )
+        )
+        .strip()
+        .lower()
+    )
+    if workspace_scope_mode not in {"all", "allowlist"}:
+        raise ProductionActivationCommandError(
+            "PROPERTY_CATALOG_LIFECYCLE_WORKSPACE_SCOPE_MODE must equal "
+            "allowlist or all"
+        )
     workspace_ids = tuple(
         sorted(
             canonical_uuid(value, field="workspace_id")
@@ -398,7 +418,13 @@ def activation_command_config(*, settings_object: Any) -> ActivationCommandConfi
             )
         )
     )
-    if not workspace_ids or len(workspace_ids) != len(set(workspace_ids)):
+    if workspace_scope_mode == "all" and workspace_ids:
+        raise ProductionActivationCommandError(
+            "all lifecycle workspace scope requires an empty workspace allowlist"
+        )
+    if workspace_scope_mode == "allowlist" and (
+        not workspace_ids or len(workspace_ids) != len(set(workspace_ids))
+    ):
         raise ProductionActivationCommandError(
             "activation control requires a non-empty unique workspace allowlist"
         )
@@ -411,6 +437,7 @@ def activation_command_config(*, settings_object: Any) -> ActivationCommandConfi
         expected_hostnames=expected_hostnames,
         catalog_epoch=catalog_epoch,
         projection_version=projection_version,
+        workspace_scope_mode=workspace_scope_mode,
         workspace_ids=workspace_ids,
     )
 
