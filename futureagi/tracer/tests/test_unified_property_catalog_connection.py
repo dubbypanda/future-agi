@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,6 +18,8 @@ from tracer.services.clickhouse.v2.property_catalog.connection import (
     PROPERTY_CATALOG_TABLES,
     PropertyCatalogConnectionConfig,
     PropertyCatalogReadExecutor,
+    get_property_catalog_read_client,
+    reset_property_catalog_read_client,
     validate_property_catalog_database,
     validate_property_catalog_read_admission,
 )
@@ -94,6 +97,26 @@ class FakeClient:
     def execute_read(self, query, params, *, timeout_ms, settings):
         self.calls.append((query, params, timeout_ms, settings))
         return [("ok",)], [("status", "String")], None
+
+
+def test_property_catalog_client_keeps_server_readonly_and_sends_bounded_settings(
+    monkeypatch,
+):
+    from tracer.services.clickhouse.v2.property_catalog import connection
+
+    client_factory = Mock()
+    monkeypatch.setattr(connection, "ClickHouseClient", client_factory)
+    reset_property_catalog_read_client()
+    try:
+        get_property_catalog_read_client(CONFIG)
+    finally:
+        reset_property_catalog_read_client()
+
+    assert client_factory.call_args.kwargs["server_enforced_readonly"] is True
+    assert (
+        client_factory.call_args.kwargs["allow_query_settings_with_server_readonly"]
+        is True
+    )
 
 
 def test_property_catalog_table_allowlist_is_exact():
