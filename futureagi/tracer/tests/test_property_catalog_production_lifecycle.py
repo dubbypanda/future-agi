@@ -474,6 +474,93 @@ def test_execute_request_requires_explicit_expired_revision_repair_gate(
     assert status.repair_expired_incomplete is False
 
 
+def test_initial_backfill_requires_one_shot_bootstrap_gate() -> None:
+    with pytest.raises(
+        subject.ProductionLifecycleControllerError,
+        match="requires --once",
+    ):
+        subject._validate_initial_backfill_mode(  # noqa: SLF001
+            once=False,
+            status_only=False,
+            bootstrap_enabled=True,
+            initial_backfill_wall_ms=120_000,
+        )
+    with pytest.raises(
+        subject.ProductionLifecycleControllerError,
+        match="bootstrap gate",
+    ):
+        subject._validate_initial_backfill_mode(  # noqa: SLF001
+            once=True,
+            status_only=False,
+            bootstrap_enabled=False,
+            initial_backfill_wall_ms=120_000,
+        )
+
+
+def test_bootstrap_request_receives_explicit_initial_wall(tmp_path: Path) -> None:
+    settings_object = _settings(
+        tmp_path,
+        PROPERTY_CATALOG_LIFECYCLE_BOOTSTRAP_ENABLED=True,
+    )
+    config = subject.controller_config(settings_object=settings_object)
+    overlay = subject.workspace_settings_overlay(
+        settings_object=settings_object,
+        config=config,
+        scope=_scope(),
+        now=datetime(2026, 8, 26, 12, tzinfo=UTC),
+    )
+
+    request = subject.rollout_request(
+        scope=_scope(),
+        proxy=overlay,
+        config=config,
+        initial_backfill_wall_ms=120_000,
+    )
+
+    assert request.initial_backfill_wall_ms == 120_000
+
+
+def test_bootstrap_retry_does_not_create_incremental_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings_object = _settings(
+        tmp_path,
+        PROPERTY_CATALOG_LIFECYCLE_BOOTSTRAP_ENABLED=True,
+    )
+    config = subject.controller_config(settings_object=settings_object)
+
+    @contextmanager
+    def fake_runtime(**_kwargs: Any):
+        yield object()
+
+    evidence = {"schema_ready": True, "active": True, "catalog_revision": 1}
+    monkeypatch.setattr(subject, "managed_runtime", fake_runtime)
+    monkeypatch.setattr(
+        subject,
+        "run_configured_production_rollout",
+        lambda **_kwargs: SimpleNamespace(
+            evidence=(SimpleNamespace(evidence=evidence),)
+        ),
+    )
+    monkeypatch.setattr(
+        subject,
+        "run_workspace_reconcile",
+        lambda **_kwargs: pytest.fail("bootstrap retry reconciled active workspace"),
+    )
+
+    result = subject.run_workspace(
+        scope=_scope(),
+        settings_object=settings_object,
+        config=config,
+        now=datetime(2026, 8, 26, 12, tzinfo=UTC),
+        status_only=False,
+        initial_backfill_wall_ms=120_000,
+    )
+
+    assert result == evidence
+
+
 def test_active_workspace_runs_incremental_reconcile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

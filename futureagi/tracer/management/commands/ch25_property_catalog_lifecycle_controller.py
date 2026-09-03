@@ -33,6 +33,8 @@ from tracer.services.clickhouse.v2.property_catalog.codec import (
     canonical_uuid,
 )
 from tracer.services.clickhouse.v2.property_catalog.dev_rollout import (
+    DEV_INITIAL_BACKFILL_MAX_WALL_MS,
+    DEV_STANDARD_MAX_WALL_MS,
     DevRolloutError,
     run_workspace_reconcile,
 )
@@ -186,14 +188,29 @@ class Command(BaseCommand):
             action="store_true",
             help="Verify schema, identities, tenancy, and active state without writes.",
         )
+        parser.add_argument(
+            "--initial-backfill-wall-ms",
+            type=int,
+            help=(
+                "Run a one-shot initial bootstrap with this explicit bounded wall. "
+                "Requires --once and the separate production bootstrap gate."
+            ),
+        )
 
     def handle(self, *args: Any, **options: Any) -> str | None:
         once = bool(options.get("once"))
         status_only = bool(options.get("status_only"))
+        initial_backfill_wall_ms = options.get("initial_backfill_wall_ms")
         stop = threading.Event()
         previous_handlers = _install_signal_handlers(stop)
         try:
             config = controller_config(settings_object=settings)
+            _validate_initial_backfill_mode(
+                once=once,
+                status_only=status_only,
+                bootstrap_enabled=config.bootstrap_enabled,
+                initial_backfill_wall_ms=initial_backfill_wall_ms,
+            )
             while not stop.is_set():
                 observed_at = datetime.now(UTC)
                 try:
@@ -205,6 +222,7 @@ class Command(BaseCommand):
                         config=config,
                         now=observed_at,
                         status_only=status_only,
+                        initial_backfill_wall_ms=initial_backfill_wall_ms,
                         stop=stop,
                         on_error=lambda workspace_id, exc: self.stderr.write(
                             self.style.ERROR(
@@ -436,6 +454,7 @@ def run_cycle(
     status_only: bool,
     stop: threading.Event,
     on_error: Callable[[str, Exception], None],
+    initial_backfill_wall_ms: int | None = None,
 ) -> CycleResult:
     authorized_workspaces = tuple(
         sorted((*skipped, *(scope.workspace_id for scope in scopes)))
@@ -461,6 +480,7 @@ def run_cycle(
                 config=config,
                 now=now,
                 status_only=status_only,
+                initial_backfill_wall_ms=initial_backfill_wall_ms,
                 stop=stop,
             )
         except Exception as exc:
@@ -483,6 +503,7 @@ def run_workspace(
     config: ControllerConfig,
     now: datetime,
     status_only: bool,
+    initial_backfill_wall_ms: int | None = None,
     stop: threading.Event | None = None,
 ) -> Mapping[str, Any]:
     cancellation_probe = stop.is_set if stop is not None else lambda: False
@@ -516,6 +537,11 @@ def run_workspace(
     if status_only:
         return evidence
     if evidence.get("active") is True:
+        # A bootstrap retry must be idempotent for workspaces that completed in
+        # an earlier partial cycle.  Do not turn the retry into an incremental
+        # revision merely because that workspace is already active.
+        if initial_backfill_wall_ms is not None:
+            return evidence
         request = rollout_request(
             scope=scope,
             proxy=proxy,
@@ -537,7 +563,12 @@ def run_workspace(
         raise ProductionLifecycleControllerError(
             "workspace has no active catalog revision and production bootstrap is disabled"
         )
-    request = rollout_request(scope=scope, proxy=proxy, config=config)
+    request = rollout_request(
+        scope=scope,
+        proxy=proxy,
+        config=config,
+        initial_backfill_wall_ms=initial_backfill_wall_ms,
+    )
     with managed_runtime(
         request=request,
         proxy=proxy,
@@ -670,6 +701,7 @@ def rollout_request(
     proxy: SettingsOverlay,
     config: ControllerConfig,
     status: bool = False,
+    initial_backfill_wall_ms: int | None = None,
     scheduled_reconcile_wall_ms: int | None = None,
 ) -> ProductionRolloutRequest:
     return configured_production_rollout_request(
@@ -678,11 +710,41 @@ def rollout_request(
         settings_object=proxy,
         execute=not status,
         status=status,
+        initial_backfill_wall_ms=initial_backfill_wall_ms,
         scheduled_reconcile_wall_ms=scheduled_reconcile_wall_ms,
         repair_expired_incomplete=(
             config.repair_expired_incomplete if not status else False
         ),
     )
+
+
+def _validate_initial_backfill_mode(
+    *,
+    once: bool,
+    status_only: bool,
+    bootstrap_enabled: bool,
+    initial_backfill_wall_ms: Any,
+) -> None:
+    if initial_backfill_wall_ms is None:
+        return
+    if not once or status_only:
+        raise ProductionLifecycleControllerError(
+            "explicit initial backfill requires --once without --status-only"
+        )
+    if not bootstrap_enabled:
+        raise ProductionLifecycleControllerError(
+            "explicit initial backfill requires the separate production bootstrap gate"
+        )
+    if type(initial_backfill_wall_ms) is not int or not (
+        DEV_STANDARD_MAX_WALL_MS
+        < initial_backfill_wall_ms
+        <= DEV_INITIAL_BACKFILL_MAX_WALL_MS
+    ):
+        raise ProductionLifecycleControllerError(
+            "explicit initial backfill wall must be in "
+            f"[{DEV_STANDARD_MAX_WALL_MS + 1}, "
+            f"{DEV_INITIAL_BACKFILL_MAX_WALL_MS}] ms"
+        )
 
 
 def _write_health(
