@@ -350,16 +350,16 @@ export default function ErrorFeedFilters({ selected, onClearSelection }) {
             minWidth={130}
           />
           <CompactSelect
-            value={selectedSource}
-            onChange={setSelectedSource}
-            options={SOURCE_OPTIONS}
-            minWidth={120}
-          />
-          <CompactSelect
             value={selectedFixLayer}
             onChange={setSelectedFixLayer}
             options={FIX_LAYER_OPTIONS}
             minWidth={140}
+          />
+          <CompactSelect
+            value={selectedSource}
+            onChange={setSelectedSource}
+            options={SOURCE_OPTIONS}
+            minWidth={120}
           />
 
           {hasActiveFilters && (
