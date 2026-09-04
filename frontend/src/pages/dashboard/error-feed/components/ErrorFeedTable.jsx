@@ -49,7 +49,12 @@ const humanizeTime = (iso) => {
 function ErrorTypeTag({ type, isDark }) {
   const shortType = type
     .replace(/Error$/, "")
-    .replace(/([A-Z])/g, " $1")
+    // Only split camelCase boundaries (lowercase→uppercase). The old
+    // `/([A-Z])/g` inserted a space before every capital, which is a no-op
+    // on already-spaced strings like "Tool Selection Errors" (HTML collapses
+    // the doubled space) but visibly breaks acronyms with no existing space,
+    // e.g. "KB Groundedness" -> "K B Groundedness".
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .trim();
   return (
     <Chip
@@ -497,7 +502,19 @@ export default function ErrorFeedTable({ selected, onSelect, onSelectAll }) {
                             issueGroup={row.issue_group}
                             isDark={isDark}
                           />
-                          <ErrorTypeTag type={row.error.type} isDark={isDark} />
+                          {/* Eval rows with no issue_category fall back to
+                              issue_group for error.type (feed.py) — the same
+                              string SourceTag already shows, so skip the
+                              second, identical chip. */}
+                          {!(
+                            row.source === "eval" &&
+                            row.error.type === row.issue_group
+                          ) && (
+                            <ErrorTypeTag
+                              type={row.error.type}
+                              isDark={isDark}
+                            />
+                          )}
                           {row.eval_score != null && (
                             <Typography
                               typography="s3"
