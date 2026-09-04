@@ -87,14 +87,11 @@ ErrorTypeTag.propTypes = {
 };
 
 // Tells the row apart at a glance: a cluster is either Future AGI's built-in
-// error taxonomy or one of the customer's own eval tasks. One icon for both
-// states — the label carries the difference.
-function SourceTag({ source, issueGroup, isDark }) {
-  let label = "Taxonomy";
-  if (source === "eval") {
-    // A null/empty issue_group must not leave a dangling separator.
-    label = issueGroup ? `Eval · ${issueGroup}` : "Eval";
-  }
+// scanner or one of the customer's own eval tasks. One icon for both states
+// — the label carries the difference. Mirrors the backend's own source
+// values (ClusterSource.SCANNER / .EVAL) rather than a separate display name.
+function SourceTag({ source, isDark }) {
+  const label = source === "eval" ? "Eval" : "Scanner";
   return (
     <Chip
       size="small"
@@ -113,7 +110,7 @@ function SourceTag({ source, issueGroup, isDark }) {
           color: isDark ? "#a1a1aa" : "#605C70",
         },
         "& .MuiChip-label": { px: "5px" },
-        maxWidth: 180,
+        maxWidth: 140,
         overflow: "hidden",
       }}
     />
@@ -122,7 +119,6 @@ function SourceTag({ source, issueGroup, isDark }) {
 
 SourceTag.propTypes = {
   source: PropTypes.string,
-  issueGroup: PropTypes.string,
   isDark: PropTypes.bool,
 };
 
@@ -497,24 +493,8 @@ export default function ErrorFeedTable({ selected, onSelect, onSelectAll }) {
                           </Typography>
                         </Tooltip>
                         <Stack direction="row" alignItems="center" gap={0.75}>
-                          <SourceTag
-                            source={row.source}
-                            issueGroup={row.issue_group}
-                            isDark={isDark}
-                          />
-                          {/* Eval rows with no issue_category fall back to
-                              issue_group for error.type (feed.py) — the same
-                              string SourceTag already shows, so skip the
-                              second, identical chip. */}
-                          {!(
-                            row.source === "eval" &&
-                            row.error.type === row.issue_group
-                          ) && (
-                            <ErrorTypeTag
-                              type={row.error.type}
-                              isDark={isDark}
-                            />
-                          )}
+                          <SourceTag source={row.source} isDark={isDark} />
+                          <ErrorTypeTag type={row.error.type} isDark={isDark} />
                           {row.eval_score != null && (
                             <Typography
                               typography="s3"

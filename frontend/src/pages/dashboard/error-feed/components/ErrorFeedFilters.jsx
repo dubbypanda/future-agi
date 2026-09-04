@@ -39,7 +39,7 @@ const SEVERITY_OPTIONS = [
 
 const SOURCE_OPTIONS = [
   { value: "", label: "All Sources" },
-  { value: "scanner", label: "Taxonomy" },
+  { value: "scanner", label: "Scanner" },
   { value: "eval", label: "Eval" },
 ];
 

@@ -96475,7 +96475,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
       required: [
         "cluster_id",
         "source",
-        "issue_group",
         "modality",
         "error",
         "status",
@@ -96510,12 +96509,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           title: "Source",
           type: "string",
           minLength: 1,
-        },
-        issue_group: {
-          title: "Issue group",
-          type: "string",
-          minLength: 1,
-          "x-nullable": true,
         },
         modality: {
           title: "Modality",

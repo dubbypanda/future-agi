@@ -49163,7 +49163,6 @@ export const TracerFeedIssuesListResponse = zod.object({
       zod.object({
         cluster_id: zod.string().min(1),
         source: zod.string().min(1),
-        issue_group: zod.string().min(1),
         modality: zod.string().min(1),
         error: zod.object({
           name: zod.string().min(1),
@@ -49245,7 +49244,6 @@ export const TracerFeedIssuesReadResponse = zod.object({
     row: zod.object({
       cluster_id: zod.string().min(1),
       source: zod.string().min(1),
-      issue_group: zod.string().min(1),
       modality: zod.string().min(1),
       error: zod.object({
         name: zod.string().min(1),
@@ -49343,7 +49341,6 @@ export const TracerFeedIssuesPartialUpdateResponse = zod.object({
     row: zod.object({
       cluster_id: zod.string().min(1),
       source: zod.string().min(1),
-      issue_group: zod.string().min(1),
       modality: zod.string().min(1),
       error: zod.object({
         name: zod.string().min(1),
