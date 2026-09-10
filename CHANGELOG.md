@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.37.2](https://github.com/future-agi/future-agi/compare/v1.37.1...v1.37.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **marketplace:** make the consumer heartbeat, follow Google's state, and type usage per metric ([de70acf](https://github.com/future-agi/future-agi/commit/de70acfc87adf60030badfeb4864cf22b832beac))
+* **marketplace:** make the consumer heartbeat, follow Google's state, and type usage per metric [TH-7731] ([ab66aea](https://github.com/future-agi/future-agi/commit/ab66aea398056db402f11489e5cbc4a9e98a9819))
+* **tests:** give the marketplace reconcile subscriptions a tier ([32e5cc4](https://github.com/future-agi/future-agi/commit/32e5cc49e736c854e987facd31f47e9a60029660))
+
 ## [1.37.1](https://github.com/future-agi/future-agi/compare/v1.37.0...v1.37.1) (2026-09-09)
 
 
