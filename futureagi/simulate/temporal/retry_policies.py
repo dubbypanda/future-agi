@@ -23,11 +23,7 @@ DB_RETRY_POLICY = RetryPolicy(
     # Exponential backoff
     backoff_coefficient=2.0,
     # Don't retry on validation errors
-    non_retryable_error_types=[
-        "ValueError",
-        "ValidationError",
-        "HostedRunnerBuildError",
-    ],
+    non_retryable_error_types=["ValueError", "ValidationError"],
 )
 
 

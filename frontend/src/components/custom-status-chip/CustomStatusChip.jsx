@@ -10,23 +10,9 @@ import {
 const DARK_BG_MAP = {
   "green.o5": "green.o10",
   "red.o5": "red.o10",
-  "blue.o5": "blue.o10",
-  "orange.o5": "orange.o10",
 };
 
-// Deep shades chosen for legibility on a light page read at roughly 2:1 on the dark one,
-// so they lighten. Only tokens listed here change; every other status keeps its value.
-const DARK_TEXT_MAP = {
-  "orange.700": "orange.300",
-};
-
-const StatusChip = ({
-  label,
-  status,
-  disabled = false,
-  showIcon = true,
-  ...otherProps
-}) => {
+const StatusChip = ({ label, status, disabled = false, ...otherProps }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const { finalLabel, config } = getStatusDetails({
@@ -38,18 +24,14 @@ const StatusChip = ({
     ? DARK_BG_MAP[config.bgColor] || config.bgColor
     : config.bgColor;
 
-  const textColor = isDark
-    ? DARK_TEXT_MAP[config.textColor] || config.textColor
-    : config.textColor;
-
   const chipStyles = {
-    color: textColor,
+    color: config.textColor,
     backgroundColor: bgColor,
     borderWidth: "1px",
     borderStyle: "solid",
     pointerEvents: "none",
     height: "22px",
-    paddingLeft: showIcon ? "4px" : "2px",
+    paddingLeft: "4px",
     borderColor: config.borderColor,
     "& .MuiChip-icon": {
       color: config.color,
@@ -83,7 +65,7 @@ const StatusChip = ({
           {finalLabel}
         </Typography>
       }
-      icon={showIcon ? chipIcon : undefined}
+      icon={chipIcon}
       sx={chipStyles}
       disabled={disabled}
       {...otherProps}
@@ -93,7 +75,6 @@ const StatusChip = ({
 
 StatusChip.propTypes = {
   label: PropTypes.string,
-  showIcon: PropTypes.bool,
   status: PropTypes.oneOfType([
     PropTypes.oneOf([...getAvailableStatuses(), null, undefined]),
     PropTypes.string,

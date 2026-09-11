@@ -785,9 +785,7 @@ class TestFetchAssistantFromProvider:
         llm_obj.model_dump_json.return_value = json.dumps(
             {"general_prompt": "You are an LLM-engine agent."}
         )
-        # The view imports Retell lazily (function scope) so the slim OSS
-        # image can boot without the `voice` extra — patch the source module.
-        with patch("retell.Retell") as MockRetell:
+        with patch("simulate.views.agent_definition.Retell") as MockRetell:
             client = MagicMock()
             client.agent.retrieve.return_value = agent_obj
             client.llm.retrieve.return_value = llm_obj
@@ -822,7 +820,7 @@ class TestFetchAssistantFromProvider:
         flow_obj.model_dump_json.return_value = json.dumps(
             {"global_prompt": "You are a conversation-flow agent."}
         )
-        with patch("retell.Retell") as MockRetell:
+        with patch("simulate.views.agent_definition.Retell") as MockRetell:
             client = MagicMock()
             client.agent.retrieve.return_value = agent_obj
             client.conversation_flow.retrieve.return_value = flow_obj

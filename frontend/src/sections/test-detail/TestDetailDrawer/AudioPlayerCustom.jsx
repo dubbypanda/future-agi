@@ -228,13 +228,7 @@ const AudioPlayerCustom = ({ data, onInstance }) => {
   }
 
   // Normalize recordings structure to flat format: {stereo, combined, assistant, customer}
-  const recordings = normalizeRecordings({
-    ...(data?.recordings || {}),
-    // Keep the player resilient to older/detail responses that expose only
-    // the canonical audio_url field.
-    combined:
-      data?.recordings?.combined || data?.audio_url || data?.audioUrl || "",
-  });
+  const recordings = normalizeRecordings(data?.recordings);
   const hasRecordingData =
     (data?.audio_url ?? data?.audioUrl) ||
     recordings?.assistant ||

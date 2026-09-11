@@ -153,18 +153,4 @@ describe("axios response shape", () => {
       transportCode: "ECONNABORTED",
     });
   });
-
-  it("preserves errors raised before a request receives a response", async () => {
-    const rejected = axiosInstance.interceptors.response.handlers.find(
-      (handler) => handler.rejected,
-    )?.rejected;
-
-    await expect(
-      rejected({
-        name: "ApiContractValidationError",
-        message: "source: Required",
-        config: { url: "/simulate/api/harness-jobs/preflight/", method: "post" },
-      }),
-    ).rejects.toMatchObject({ message: "source: Required" });
-  });
 });

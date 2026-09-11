@@ -448,16 +448,7 @@ class LiveCallListenerTokenView(APIView):
         },
     )
     def get(self, request: Request, call_id: str) -> Response:
-        from tfc.ee_gates import voice_sim_gate_response
-
-        denial = voice_sim_gate_response(request.user.organization)
-        if denial is not None:
-            return denial
-
-        from tfc.utils.lazy_extras import load_extra
-
-        _lk_api = load_extra("livekit.api", "voice")
-        AccessToken, VideoGrants = _lk_api.AccessToken, _lk_api.VideoGrants
+        from livekit.api import AccessToken, VideoGrants
 
         from simulate.models.test_execution import CallExecution
 
@@ -542,19 +533,12 @@ class ValidateLiveKitCredentialsView(APIView):
         reject_unknown_fields=True,
     )
     def post(self, request: Request) -> Response:
-        from tfc.ee_gates import voice_sim_gate_response
-
-        denial = voice_sim_gate_response(request.user.organization)
-        if denial is not None:
-            return denial
-
-        from tfc.utils.lazy_extras import load_extra
-
-        _lk_api = load_extra("livekit.api", "voice")
-        CreateAgentDispatchRequest = _lk_api.CreateAgentDispatchRequest
-        CreateRoomRequest = _lk_api.CreateRoomRequest
-        DeleteRoomRequest = _lk_api.DeleteRoomRequest
-        LiveKitAPI = _lk_api.LiveKitAPI
+        from livekit.api import (
+            CreateAgentDispatchRequest,
+            CreateRoomRequest,
+            DeleteRoomRequest,
+            LiveKitAPI,
+        )
 
         data = request.validated_data
         livekit_url = (data.get("livekit_url") or "").strip()
@@ -691,22 +675,9 @@ class LiveKitWebhookView(AsyncAPIView):
                 code="not_authenticated",
             )
 
-        # Import OUTSIDE the try below: the except reports a 401 signature
-        # failure, and a missing `voice` extra must not masquerade as an
-        # auth problem. Return the same clean 402 used by other voice entry
-        # points before touching the optional SDK.
-        from tfc.ee_gates import voice_sim_oss_gate_response
-
-        denial = voice_sim_oss_gate_response()
-        if denial is not None:
-            return denial
-
-        from tfc.utils.lazy_extras import load_extra
-
-        _lk_api = load_extra("livekit.api", "voice")
-        TokenVerifier, WebhookReceiver = _lk_api.TokenVerifier, _lk_api.WebhookReceiver
-
         try:
+            from livekit.api import TokenVerifier, WebhookReceiver
+
             verifier = TokenVerifier(
                 api_key=settings.LIVEKIT_API_KEY,
                 api_secret=settings.LIVEKIT_API_SECRET,
