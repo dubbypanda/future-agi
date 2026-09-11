@@ -13,9 +13,9 @@ import uuid
 from io import BytesIO
 from urllib.parse import urlparse
 
+import av
 import numpy as np
-from tfc.utils.lazy_extras import av
-from tfc.utils.lazy_extras import soundfile as sf
+import soundfile as sf
 import structlog
 from PIL import Image
 
@@ -1622,9 +1622,7 @@ def download_audio_from_url(
 
 def _ensure_min_duration(audio_bytes: bytes, min_duration_seconds: float) -> bytes:
     """Pads audio with silence to ensure at least min_duration_seconds. Returns MP3 bytes."""
-    from tfc.utils.lazy_extras import load_extra
-
-    librosa = load_extra("librosa", "audio")  # lazy — pulls scipy (~300MB)
+    import librosa  # Lazy load - pulls scipy/sklearn (~300MB)
 
     buf = None
     wav_buf = None
@@ -1971,9 +1969,7 @@ def open_audio_from_url(audio_url):
     Returns:
         tuple: (audio_waveform, sampling_rate) from librosa, or None if there's an error
     """
-    from tfc.utils.lazy_extras import load_extra
-
-    librosa = load_extra("librosa", "audio")  # lazy — pulls scipy (~300MB)
+    import librosa  # Lazy load - pulls scipy/sklearn (~300MB)
 
     try:
         # Process audio input using the existing download_audio_from_url function

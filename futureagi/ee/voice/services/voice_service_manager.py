@@ -27,7 +27,6 @@ from ee.voice.services.types.voice import (
     RecordingUrls,
 )
 from ee.voice.services.bland_service import BlandService
-from ee.voice.services.retell_service import RetellService
 from ee.voice.services.vapi_service import VapiService
 from ee.voice.services.voice_engine import VoiceServiceBlueprint
 from tracer.models.observability_provider import ProviderChoices
@@ -46,7 +45,6 @@ class VoiceServiceManager:
         ProviderChoices.VAPI: VapiService,
         ProviderChoices.LIVEKIT: LivekitService,
         ProviderChoices.BLAND: BlandService,
-        ProviderChoices.RETELL: RetellService,
     }
 
     def __init__(

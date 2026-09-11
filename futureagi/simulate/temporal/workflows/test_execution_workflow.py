@@ -21,7 +21,6 @@ from typing import Optional
 
 from temporalio import workflow
 from temporalio.common import WorkflowIDReusePolicy
-from temporalio.exceptions import ApplicationError
 from temporalio.workflow import ParentClosePolicy
 
 from simulate.temporal.constants import (
@@ -393,11 +392,8 @@ class TestExecutionWorkflow:
                 CallExecutionWorkflow,
             )
         except ImportError as exc:
-            raise ApplicationError(
-                "Voice call execution workflow is unavailable in this build "
-                "(requires the `voice` extra / Enterprise Edition).",
-                type="VOICE_EXTRA_UNAVAILABLE",
-                non_retryable=True,
+            raise RuntimeError(
+                "Voice call execution workflow is unavailable without Enterprise Edition."
             ) from exc
 
         for i, call_id in enumerate(call_ids):

@@ -373,14 +373,7 @@ const CreateSimulationPreviewMode = React.forwardRef(
     const scenarioSummaries = previewData?.scenario_summaries || [];
 
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-          height: "100%",
-        }}
-      >
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Alert
           severity="info"
           icon={<Iconify icon="mdi:information-outline" width={18} />}

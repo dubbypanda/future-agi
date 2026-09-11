@@ -27,12 +27,8 @@ class TestDetectProvider:
         assert SpeakerRoleResolver.detect_provider({}) == ProviderChoices.VAPI
 
     def test_unknown_keys_falls_back_to_vapi(self):
-        data = {"some_unhandled_provider": {"id": "x"}}
+        data = {"retell": {"id": "x"}}
         assert SpeakerRoleResolver.detect_provider(data) == ProviderChoices.VAPI
-
-    def test_retell_key_is_detected(self):
-        data = {"retell": {"call_id": "x"}}
-        assert SpeakerRoleResolver.detect_provider(data) == ProviderChoices.RETELL
 
 
 # -------------------------------------------------------------------
@@ -41,6 +37,7 @@ class TestDetectProvider:
 
 
 class TestIsTestedAgent:
+
     # VAPI inbound: bot/assistant = simulator, user = tested_agent
     def test_vapi_inbound_user_is_tested_agent(self):
         assert (
@@ -144,6 +141,7 @@ class TestIsTestedAgent:
 
 
 class TestIsSimulator:
+
     # VAPI inbound: bot/assistant = simulator
     def test_vapi_inbound_bot_is_simulator(self):
         assert (
@@ -206,6 +204,7 @@ class TestIsSimulator:
 
 
 class TestGetEvalRoleLabel:
+
     # VAPI inbound: assistant/bot -> customer, user -> agent
     def test_vapi_inbound_bot_becomes_customer(self):
         assert (
@@ -293,6 +292,7 @@ class TestGetEvalRoleLabel:
 
 
 class TestGetTranscriptRoleSets:
+
     def test_vapi_inbound(self):
         ta, sim = SpeakerRoleResolver.get_transcript_role_sets(
             provider=ProviderChoices.VAPI, is_outbound=False
@@ -331,6 +331,7 @@ class TestGetTranscriptRoleSets:
 
 
 class TestGetSkipDecisionRoleSets:
+
     def test_returns_same_as_transcript_role_sets(self):
         for provider in [ProviderChoices.VAPI, ProviderChoices.LIVEKIT]:
             for is_outbound in [True, False]:
@@ -344,6 +345,7 @@ class TestGetSkipDecisionRoleSets:
 
 
 class TestStaticRoleLists:
+
     def test_conversational_roles_has_user_and_assistant(self):
         roles = SpeakerRoleResolver.get_conversational_roles()
         assert len(roles) == 2
