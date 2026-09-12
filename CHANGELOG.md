@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.38.1](https://github.com/future-agi/future-agi/compare/v1.38.0...v1.38.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **ci:** pull MinIO from quay.io; Docker Hub no longer serves minio/minio ([cfdaf41](https://github.com/future-agi/future-agi/commit/cfdaf41764ea5124358bd96ac1474d146c2a938c))
+* **ci:** pull MinIO from quay.io; Docker Hub no longer serves minio/minio ([9a2b3bf](https://github.com/future-agi/future-agi/commit/9a2b3bfaf8c7ec42b7c591fab6f52daf2728f25a))
+
 ## [1.38.0](https://github.com/future-agi/future-agi/compare/v1.37.2...v1.38.0) (2026-09-11)
 
 
